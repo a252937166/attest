@@ -1,0 +1,41 @@
+{
+  "id": "roman-to-numeral",
+  "title": "roman-to-numeral",
+  "repo_dir": "repo",
+  "language": "python",
+  "base_image": "python:3.12-slim",
+  "test_runner": "unittest",
+  "import_hint": "from roman import to_roman",
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-t",
+    ".",
+    "-v"
+  ],
+  "allowed_write_globs": [
+    "roman/**"
+  ],
+  "protected_globs": [
+    "tests/**"
+  ],
+  "heldout_tests": {
+    "tests/test_heldout.py": "heldout.py"
+  },
+  "statement": "The roman package exposes is_roman_numeral (already implemented) and a stub to_roman(n). Implement to_roman(n) so that it converts an integer n in the range 1..3999 inclusive to its standard Roman numeral string using subtractive notation (4='IV', 9='IX', 40='XL', 90='XC', 400='CD', 900='CM'). Return a str. Raise ValueError when n is an int outside 1..3999. Raise TypeError when n is not an int (for example '5', 5.0, None, [1]); numeric strings and integral floats are not coerced. Type discipline is by value: an instance of an int subclass (for example an IntEnum member or `class PlainInt(int)`) is accepted and converted exactly like the int with the same value, including the range check. Int subclasses that override arithmetic or comparison operators are out of scope: their behaviour is unspecified and tests must not depend on it. bool is a subclass of int; rejecting True and False with TypeError is permitted but not required, and tests must not depend on either choice. Do not change is_roman_numeral or the tests.",
+  "acceptance_criteria": [
+    "to_roman(1)=='I', to_roman(4)=='IV', to_roman(9)=='IX'",
+    "to_roman(40)=='XL', to_roman(90)=='XC', to_roman(400)=='CD', to_roman(900)=='CM'",
+    "to_roman(2024)=='MMXXIV', to_roman(3999)=='MMMCMXCIX', to_roman(1994)=='MCMXCIV'",
+    "to_roman returns a str",
+    "ValueError for ints outside 1..3999 (0, -1, 4000), including int subclass instances with such values",
+    "TypeError for non-int input ('5', 5.0, None, [1])",
+    "An int subclass instance with a value in range (for example an IntEnum member or PlainInt(49)) converts like the equal int: PlainInt(49) -> 'XLIX'",
+    "Unspecified, not to be tested: int subclasses that override arithmetic or comparison operators; whether bool is rejected"
+  ],
+  "contract_resolution": "2026-10-17: the 17 Oct Codex dry run held a correct candidate on three breaker tests that drove to_roman through int subclasses with overridden __floordiv__/__mod__/__ge__/__le__; the statement was silent on such subclasses and its bool clause was garbled. The requester resolved the gap: conversion is by integer value, operator-overriding subclasses are out of scope, bool handling is unspecified. Recorded in reports/attest-reliability-2026-10-17/."
+}

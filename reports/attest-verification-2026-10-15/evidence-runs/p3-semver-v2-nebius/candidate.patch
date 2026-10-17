@@ -1,0 +1,66 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -695,8 +695,61 @@
+         try:
+             cls.parse(version)
+             return True
+-        except ValueError:
+-            return False
++        def is_compatible(self, other: 'Version') -> bool:
++            """Return True if `other` (new version) is compatible with `self` (old version).
++
++            Compatibility rules:
++            - Majors must be equal.
++            - For major version 0, only identical versions are compatible.
++            - For major version >= 1, the new minor must be >= old minor, and prerelease must be equal.
++            - Patch is ignored.
++
++            Examples:
++                >>> Version(1, 2, 3).is_compatible(Version(1, 2, 3))
++                True
++                >>> Version(1, 2, 3).is_compatible(Version(1, 2, 4))
++                True
++                >>> Version(1, 2, 4).is_compatible(Version(1, 2, 3))
++                True
++                >>> Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0'))
++                True
++                >>> Version(0, 1, 0).is_compatible(Version(0, 1, 0))
++                True
++                >>> Version(0, 1, 0).is_compatible(Version(0, 1, 1))
++                False
++                >>> Version(1, 1, 0).is_compatible(Version(1, 0, 0))
++                False
++                >>> Version(2, 0, 0).is_compatible(Version(1, 5, 0))
++                False
++                >>> Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0'))
++                False
++                >>> Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1'))
++                False
++                >>> Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0))
++                False
++
++            :param other: The version to compare with.
++            :return: True if compatible, False otherwise.
++            :raises TypeError: If `other` is not a Version instance (or subclass).
++            """
++            if not isinstance(other, Version):
++                raise TypeError(f"Expected a Version type but got {type(other)}")
++
++            # Major version 0 is special: only identical versions are compatible.
++            if self.major == 0:
++                return (self.major, self.minor, self.patch, self.prerelease) == \
++                       (other.major, other.minor, other.patch, other.prerelease)
++
++            # For major >= 1:
++            if self.major != other.major:
++                return False
++            if other.minor < self.minor:
++                return False
++            # Prerelease must be equal (both None counts as equal)
++            if self.prerelease != other.prerelease:
++                return False
++            # Patch is ignored
++            return True
+ 
+ 
+ #: Keep the VersionInfo name for compatibility

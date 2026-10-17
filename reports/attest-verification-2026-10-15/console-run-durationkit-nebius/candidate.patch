@@ -1,0 +1,104 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -2,14 +2,95 @@
+ 
+ 
+ def parse_duration(text: str) -> float:
+-    """Parse a duration string and return the number of seconds as a float.
++    """Parse a duration string and return the total number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts two forms:
++      1. A plain non-negative integer (optionally surrounded by whitespace) representing seconds.
++      2. A sequence of one or more components, each consisting of a non-negative integer
++         immediately followed by a unit (d, h, m, s, ms), with components appearing in
++         descending unit order (d > h > m > s > ms). Whitespace is allowed around the
++         entire string and between components, but not between a number and its unit.
++
++    Returns the sum of all components converted to seconds as a float.
++
++    Raises:
++      TypeError: if input is not a string.
++      ValueError: for malformed inputs (empty, negative, fractional, unknown units,
++                  repeated units, out-of-order units, missing number, missing unit,
++                  whitespace between number and unit, etc.).
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+     stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if not stripped:
++        raise ValueError("input is empty or whitespace-only")
++    # Plain integer seconds (existing behavior)
++    if stripped.isdigit():
++        return float(stripped)
++    # Component-based parsing
++    total_seconds = 0.0
++    i = 0
++    n = len(stripped)
++    # Unit order for validation: lower index means larger unit
++    unit_order = {'d': 0, 'h': 1, 'm': 2, 's': 3, 'ms': 4}
++    prev_order = -1  # order of previous unit
++    while i < n:
++        # Skip whitespace between components
++        while i < n and stripped[i].isspace():
++            i += 1
++        if i >= n:
++            break  # trailing whitespace
++        # Parse number (one or more digits)
++        start_num = i
++        while i < n and stripped[i].isdigit():
++            i += 1
++        if start_num == i:
++            raise ValueError("missing number")
++        num_str = stripped[start_num:i]
++        # Check for fractional part (dot) directly after number
++        if i < n and stripped[i] == '.':
++            raise ValueError("fractional number")
++        # Ensure no negative (already filtered by isdigit)
++        value = int(num_str)
++        if value < 0:
++            raise ValueError("negative integer")
++        # Parse unit
++        if i >= n:
++            raise ValueError("missing unit after number")
++        if stripped[i] == 'm':
++            # Could be 'ms' or 'm'
++            if i + 1 < n and stripped[i + 1] == 's':
++                unit = 'ms'
++                i += 2
++            else:
++                unit = 'm'
++                i += 1
++        elif stripped[i] in ('d', 'h', 's'):
++            unit = stripped[i]
++            i += 1
++        else:
++            raise ValueError(f"unknown unit: {stripped[i]!r}")
++        # Validate unit order
++        curr_order = unit_order[unit]
++        if prev_order != -1 and curr_order <= prev_order:
++            raise ValueError("units out of order or repeated")
++        # Convert to seconds
++        if unit == 'd':
++            seconds = value * 86400
++        elif unit == 'h':
++            seconds = value * 3600
++        elif unit == 'm':
++            seconds = value * 60
++        elif unit == 's':
++            seconds = value
++        elif unit == 'ms':
++            seconds = value * 0.001
++        else:
++            # Should not happen
++            raise ValueError(f"unsupported unit: {unit}")
++        total_seconds += seconds
++        prev_order = curr_order
++    if prev_order == -1:
++        # No components parsed (should not happen due to earlier checks)
++        raise ValueError("no duration components")
++    return float(total_seconds)

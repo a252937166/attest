@@ -1,0 +1,34 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -200,6 +200,31 @@
+     def build(self, value):
+         raise AttributeError("attribute 'build' is readonly")
+ 
++    def is_compatible(self, other: "Version") -> bool:
++        """Return whether ``other`` can replace this version.
++
++        Majors and prerelease values must match exactly. For positive majors,
++        ``other`` must have at least this version's minor; patches are ignored.
++        For major zero, minor and patch must both match. Build metadata is
++        ignored in every case.
++
++        :param other: the candidate replacement version
++        :return: ``True`` if ``other`` can replace this version, else ``False``
++        :raises TypeError: if ``other`` is not a Version instance
++
++        >>> Version(1, 2, 9).is_compatible(Version(1, 3, 0))
++        True
++        >>> Version(0, 1, 0).is_compatible(Version(0, 1, 1))
++        False
++        """
++        if not isinstance(other, Version):
++            raise TypeError("Expected a Version type")
++        if self.major != other.major or self.prerelease != other.prerelease:
++            return False
++        if self.major == 0:
++            return self.minor == other.minor and self.patch == other.patch
++        return other.minor >= self.minor
++
+     def to_tuple(self) -> VersionTuple:
+         """
+         Convert the Version object to a tuple.

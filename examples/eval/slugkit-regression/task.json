@@ -1,0 +1,22 @@
+{
+  "id": "slugkit-regression-001",
+  "title": "Regression: slugify keeps separator runs and edge hyphens",
+  "repo_dir": "repo",
+  "language": "python",
+  "base_image": "python:3.12-slim",
+  "test_runner": "unittest",
+  "import_hint": "from slugkit import slugify",
+  "test_command": ["/usr/local/bin/python", "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"],
+  "allowed_write_globs": ["slugkit/**"],
+  "protected_globs": ["tests/**"],
+  "heldout_tests": {"tests/test_heldout.py": "heldout.py"},
+  "statement": "Regression report for slugkit.slugify(text). Since the last change the function returns 'hello--world' for 'Hello--World', 'a---b' for 'a -- b' and 'end-' for 'end!'. The intended behaviour, which the existing tests only partly cover, is: lower-case the text; every maximal run of one or more characters that are not ASCII letters a-z or ASCII digits 0-9 becomes exactly one hyphen; leading and trailing hyphens are removed; an input with no ASCII letters or digits (including the empty string and whitespace-only text) returns ''. Non-ASCII letters such as 'é' are separators, not kept characters (so 'café crème' is 'caf-cr-me'). Keep raising TypeError for non-string input, keep returning a str, and keep the existing tests in tests/ passing without modifying them. Fix the regression in slugkit/core.py.",
+  "acceptance_criteria": [
+    "slugify('Hello--World') == 'hello-world', slugify('a -- b') == 'a-b', slugify('one , two ; three') == 'one-two-three', slugify('x___y') == 'x-y' (runs of separators collapse to one hyphen).",
+    "slugify('end!') == 'end', slugify('  padded  ') == 'padded', slugify('--both--') == 'both', slugify('(parens)') == 'parens' (no leading or trailing hyphen).",
+    "slugify('') == '', slugify('!!!') == '', slugify('   ') == '' (nothing to keep gives the empty string).",
+    "Existing behaviour is preserved: slugify('Hello World') == 'hello-world', slugify('already-a-slug') == 'already-a-slug', slugify('Python 3') == 'python-3', slugify('MiXeD CaSe 42') == 'mixed-case-42'.",
+    "Non-ASCII letters are separators: slugify('café crème') == 'caf-cr-me' and slugify('日本語') == ''.",
+    "The result is a str; TypeError for non-string input such as None, 3, 2.5, ['a'] and b'bytes'."
+  ]
+}

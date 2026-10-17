@@ -1,0 +1,368 @@
+{
+  "at_utc": "2026-10-15T15:10:24.732268+00:00",
+  "checkpoint_image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+  "checkpoint_operation_uuid": "01a1401c-f820-70e0-abe5-522bb0a666a0",
+  "sealed_sha256": "8dfdd7e14e8b1d4c07d81c3fe2f09b25d3a6bd574def4a3e4d09b0f0a7c02131",
+  "expected_ids": [
+    "test_sealed.T.test_one",
+    "test_sealed.T.test_two",
+    "test_sealed.T.test_three"
+  ],
+  "scenarios": [
+    {
+      "scenario": "honest",
+      "operation_uuid": "01a1401d-061b-75cb-a487-3314d00513de",
+      "status": "SUCCESS",
+      "supervisor_exit": 0,
+      "summary": "OK (3 of 3 methods, each in its own process)",
+      "outcomes": [
+        "ok",
+        "ok",
+        "ok"
+      ],
+      "accepted": true,
+      "expected_accepted": true,
+      "correct": true,
+      "reasons": [],
+      "failed_checks": []
+    },
+    {
+      "scenario": "wrong",
+      "operation_uuid": "01a1401d-0638-77d6-80f3-9837a1f2aaef",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: FAIL 3)",
+      "outcomes": [
+        "FAIL",
+        "FAIL",
+        "FAIL"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit 1, test_two exit 1, test_three exit 1"
+      ],
+      "failed_checks": [
+        "no_nonzero_exit",
+        "all_expected_pass"
+      ]
+    },
+    {
+      "scenario": "tamper_sealed_file",
+      "operation_uuid": "01a1401d-0674-773d-8898-694edc295555",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (2 of 3 methods: ERROR 2)",
+      "outcomes": [
+        "ok",
+        "ERROR",
+        "ERROR"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "sealed test file digest changed (integrity check failed)",
+        "child process nonzero exit: test_two exit 1, test_three exit 1"
+      ],
+      "failed_checks": [
+        "sealed_file_unchanged_after",
+        "no_nonzero_exit",
+        "all_expected_pass"
+      ]
+    },
+    {
+      "scenario": "premature_exit",
+      "operation_uuid": "01a1401d-065a-744f-b206-a2192aa49bfa",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: MISSING_RESULT 3)",
+      "outcomes": [
+        "MISSING_RESULT",
+        "MISSING_RESULT",
+        "MISSING_RESULT"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "missing, forged or inconsistent child results: test_one MISSING_RESULT, test_two MISSING_RESULT, test_three MISSING_RESULT"
+      ],
+      "failed_checks": [
+        "no_missing_or_forged_result",
+        "all_expected_pass"
+      ]
+    },
+    {
+      "scenario": "forged_results_at_import",
+      "operation_uuid": "01a1401d-160a-71e9-9529-19733b73035c",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: FORGED 3)",
+      "outcomes": [
+        "FORGED",
+        "FORGED",
+        "FORGED"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "missing, forged or inconsistent child results: test_one FORGED, test_two FORGED, test_three FORGED"
+      ],
+      "failed_checks": [
+        "no_missing_or_forged_result",
+        "all_expected_pass"
+      ]
+    },
+    {
+      "scenario": "forged_stderr_text",
+      "operation_uuid": "01a1401d-162b-73bc-ad3b-6523d26b15a9",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: FAIL 3)",
+      "outcomes": [
+        "FAIL",
+        "FAIL",
+        "FAIL"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit 1, test_two exit 1, test_three exit 1"
+      ],
+      "failed_checks": [
+        "no_nonzero_exit",
+        "all_expected_pass"
+      ]
+    },
+    {
+      "scenario": "timeout",
+      "operation_uuid": "01a1401d-176d-77d9-8b20-172d5b8f5497",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: TIMEOUT 3)",
+      "outcomes": [
+        "TIMEOUT",
+        "TIMEOUT",
+        "TIMEOUT"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit None, test_two exit None, test_three exit None",
+        "child process killed by signal: test_one sig 9, test_two sig 9, test_three sig 9",
+        "child process timed out: test_one, test_two, test_three"
+      ],
+      "failed_checks": [
+        "no_nonzero_exit",
+        "no_signal",
+        "no_timeout",
+        "all_expected_pass"
+      ]
+    },
+    {
+      "scenario": "crash_signal",
+      "operation_uuid": "01a1401d-24bf-70d2-bc93-a2f0360c91b8",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: CRASH 3)",
+      "outcomes": [
+        "CRASH",
+        "CRASH",
+        "CRASH"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit None, test_two exit None, test_three exit None",
+        "child process killed by signal: test_one sig 11, test_two sig 11, test_three sig 11"
+      ],
+      "failed_checks": [
+        "no_nonzero_exit",
+        "no_signal",
+        "all_expected_pass"
+      ]
+    }
+  ],
+  "all_correct": true,
+  "ledger": {
+    "model_calls": [],
+    "sandbox_ops": [
+      {
+        "stage": "adversarial-checkpoint",
+        "operation_uuid": "01a1401c-f820-70e0-abe5-522bb0a666a0",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.563,
+        "raw_cost_diag": 0.00114521,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T15:09:57.657902+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-honest",
+        "operation_uuid": "01a1401d-061b-75cb-a487-3314d00513de",
+        "image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.241,
+        "raw_cost_diag": 0.00703033,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T15:10:01.619236+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-wrong",
+        "operation_uuid": "01a1401d-0638-77d6-80f3-9837a1f2aaef",
+        "image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.301,
+        "raw_cost_diag": 0.007362910000000001,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T15:10:01.619969+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-tamper_sealed_file",
+        "operation_uuid": "01a1401d-0674-773d-8898-694edc295555",
+        "image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.328,
+        "raw_cost_diag": 0.0074576500000000006,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T15:10:01.621074+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-premature_exit",
+        "operation_uuid": "01a1401d-065a-744f-b206-a2192aa49bfa",
+        "image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.265,
+        "raw_cost_diag": 0.00687553,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T15:10:01.622813+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-forged_results_at_import",
+        "operation_uuid": "01a1401d-160a-71e9-9529-19733b73035c",
+        "image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.264,
+        "raw_cost_diag": 0.007476180000000001,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T15:10:05.585745+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-forged_stderr_text",
+        "operation_uuid": "01a1401d-162b-73bc-ad3b-6523d26b15a9",
+        "image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.223,
+        "raw_cost_diag": 0.00710266,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T15:10:05.609881+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-timeout",
+        "operation_uuid": "01a1401d-176d-77d9-8b20-172d5b8f5497",
+        "image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 15.816,
+        "raw_cost_diag": 0.00690923,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T15:10:05.920903+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-crash_signal",
+        "operation_uuid": "01a1401d-24bf-70d2-bc93-a2f0360c91b8",
+        "image_uuid": "53affb28-c70a-43bf-a7ad-5d8498d9b93b",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.154,
+        "raw_cost_diag": 0.00689646,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T15:10:09.395140+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "totals": {
+      "model_calls": 0,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 0,
+      "cost_usd": null,
+      "by_model": {},
+      "sandbox_operations": 9,
+      "sandbox_duration_s": 25.155,
+      "sandbox_retained_images": [
+        "53affb28-c70a-43bf-a7ad-5d8498d9b93b"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.05825616
+    }
+  }
+}

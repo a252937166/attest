@@ -1,0 +1,31 @@
+Traceback (most recent call last):
+  File "/work/attest/scripts/sandbox_adversarial_tests.py", line 180, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/work/attest/scripts/sandbox_adversarial_tests.py", line 149, in main
+    rows = list(pool.map(run_scenario, selected.items()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 619, in result_iterator
+    yield _result_or_cancel(fs.pop())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 317, in _result_or_cancel
+    return fut.result(timeout)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/scripts/sandbox_adversarial_tests.py", line 125, in run_scenario
+    run = executor.run_branch(checkpoint.result_image_uuid, files, steps, stage=f"adversarial-{name}", timeout=150)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/sandbox/tf_sandboxes.py", line 266, in run_branch
+    return self._execute(image, self._job(files, steps, deletes), stage, disposable=True, timeout=timeout,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/sandbox/tf_sandboxes.py", line 210, in _execute
+    raise SandboxError(f"spawn outcome uncertain ({error}); inspect account operations, do not replay") from None
+attest.sandbox.tf_sandboxes.SandboxError: spawn outcome uncertain (TimeoutError: The read operation timed out); inspect account operations, do not replay
+exit 1

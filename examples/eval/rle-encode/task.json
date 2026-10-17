@@ -1,0 +1,39 @@
+{
+  "id": "rle-encode",
+  "title": "rle-encode",
+  "repo_dir": "repo",
+  "language": "python",
+  "base_image": "python:3.12-slim",
+  "test_runner": "unittest",
+  "import_hint": "from rle import encode",
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-t",
+    ".",
+    "-v"
+  ],
+  "allowed_write_globs": [
+    "rle/**"
+  ],
+  "protected_globs": [
+    "tests/**"
+  ],
+  "heldout_tests": {
+    "tests/test_heldout.py": "heldout.py"
+  },
+  "statement": "The rle package exposes decode (already implemented) and a stub encode(s). Implement encode(s) so that it run-length encodes a string: each maximal run of one character becomes that character followed by the decimal count of the run (the count is always written, even when it is 1). For example encode('aaabbc') is 'a3b2c1', encode('abc') is 'a1b1c1', encode('') is ''. encode must return a str and must round-trip with decode (decode(encode(x)) == x for every string x). Raise TypeError when s is not a string. Do not change decode or the tests.",
+  "acceptance_criteria": [
+    "encode('aaabbc')=='a3b2c1' and encode('a')=='a1'",
+    "encode('')==''",
+    "encode('abc')=='a1b1c1' (count written even when 1)",
+    "encode('x'*12)=='x12' (multi-digit counts)",
+    "decode(encode(x))==x for every string x",
+    "encode returns a str",
+    "TypeError when s is not a string"
+  ]
+}

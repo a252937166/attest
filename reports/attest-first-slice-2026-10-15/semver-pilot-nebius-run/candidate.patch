@@ -1,0 +1,46 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -699,5 +699,43 @@
+             return False
+ 
+ 
++    def is_compatible(self, other: 'Version') -> bool:
++        """
++        Return True if ``other`` (a candidate replacement version) is compatible
++        with ``self`` (the version the code was written against) according to
++        semantic versioning compatibility rules.
++
++        Compatibility rules:
++        * If self.major == 0: only compatible if other is identical in major,
++          minor, patch, and prerelease.
++        * If self.major > 0: compatible if other.major == self.major,
++          other.minor >= self.minor, and other.prerelease == self.prerelease
++          (patch is ignored).
++        * Prerelease equality: both None counts as equal; otherwise string
++          equality.
++
++        Examples:
++        >>> Version(1, 2, 3).is_compatible(Version(1, 2, 3))
++        True
++        >>> Version(1, 2, 3).is_compatible(Version(1, 2, 4))
++        True
++        >>> Version(0, 1, 0).is_compatible(Version(0, 1, 0))
++        True
++        >>> Version(0, 1, 0).is_compatible(Version(0, 1, 1))
++        False
++        """
++        if not isinstance(other, Version):
++            raise TypeError("Expected a Version type")
++        # self is old, other is new
++        if self.major == 0:
++            return (other.major == 0 and
++                    other.minor == self.minor and
++                    other.patch == self.patch and
++                    other.prerelease == self.prerelease)
++        else:
++            return (other.major == self.major and
++                    other.minor >= self.minor and
++                    other.prerelease == self.prerelease)
++
+ #: Keep the VersionInfo name for compatibility
+ VersionInfo = Version

@@ -1,0 +1,41 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Add Version.is_compatible(other) in src/semver/version.py to determine whether a candidate version can replace the receiver. For nonzero majors, require equal majors, a candidate minor at least as large as the receiver's, and equal prerelease values; ignore patch and build. For major zero, require equal major, minor, patch and prerelease, still ignoring build. Accept Version subclasses, reject all other argument types with the specified TypeError prefix, and document the method with at least two working doctest examples. Preserve existing public behavior and keep the existing pytest suite passing without changing tests, documentation files or packaging.",
+  "interface_contract": [
+    {
+      "name": "semver.version.Version.is_compatible",
+      "signature": "def is_compatible(self, other: \"Version\") -> bool",
+      "behavior": "Public instance method, also accessible through semver.Version and the existing VersionInfo alias. Supports positional or keyword argument other. The receiver is the old version and other is the proposed replacement. Accept any instance of Version, including subclasses, regardless of the receiver's concrete subclass. Return a built-in bool. If self.major == 0, return True exactly when major, minor, patch and prerelease match. Otherwise return True exactly when other.major == self.major, other.minor >= self.minor, and other.prerelease == self.prerelease. Compare stored prerelease values by exact equality: None equals None, strings are case-sensitive, and None differs from an empty string. Build metadata never affects compatibility, including for major zero. Do not mutate either operand or coerce other from another representation.",
+      "error_cases": [
+        "TypeError when other is not an instance of Version or a Version subclass; str(exception) must start with 'Expected a Version type'. This applies for all receiver majors, including zero. The message suffix is unspecified.",
+        "TypeError under ordinary Python argument binding when other is omitted, extra arguments are supplied, or an unsupported keyword is supplied; no custom message requirement applies."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. The method exists on semver.version.Version, semver.Version and the existing VersionInfo alias, has one required argument named other, and declares a bool return annotation. Positional and keyword calls produce the same result.",
+    "2. Version(1, 2, 3).is_compatible(Version(1, 2, 3)), Version(1, 2, 3).is_compatible(Version(1, 2, 4)), and Version(1, 2, 4).is_compatible(Version(1, 2, 3)) each return True.",
+    "3. Version(1, 2, 9).is_compatible(Version(1, 3, 0)) returns True; the reverse call returns False. Version(1, 1, 0).is_compatible(Version(1, 0, 0)) returns False.",
+    "4. Different majors always return False, in both directions, including comparisons between major zero and a nonzero major. In particular, Version(2, 0, 0).is_compatible(Version(1, 5, 0)) returns False.",
+    "5. Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) returns True. Equal prereleases also permit a higher candidate minor for equal nonzero majors.",
+    "6. Different prerelease values return False even when the major and minor conditions hold. This includes 'rc.1' versus 'rc.0', case differences, and absent versus present prerelease in either direction. Exact stored equality applies: None differs from '', while two empty strings match.",
+    "7. Version(0, 1, 0).is_compatible(Version(0, 1, 0)) returns True. Changing only its candidate patch, minor, major or prerelease returns False. A lower patch or minor also returns False. Matching major-zero prereleases return True only when major, minor and patch also match.",
+    "8. Changing only build metadata never changes the result. Version(1, 2, 3, build='a') and Version(1, 2, 3, build='b') are compatible in both directions, as are Version(0, 1, 0, build='a') and Version(0, 1, 0, build='b'). Absent versus present build is also ignored.",
+    "9. For receivers with major zero and nonzero major, each non-Version argument raises TypeError with a message starting 'Expected a Version type'. Cover 'wrongtype', a valid version string, bytes, {'a': 2}, a version-shaped dictionary, [], a version-shaped tuple, None, a number, and an unrelated object. No parsing or conversion is attempted.",
+    "10. For a plain subclass CustomVersion(Version), compatible base/subclass, subclass/base and subclass/subclass pairs return True, including CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)). The same acceptance applies for major-zero instances and distinct plain Version subclasses.",
+    "11. Every successful call returns exactly True or False, and neither operand's major, minor, patch, prerelease or build changes.",
+    "12. The method docstring explains call direction, compatibility conditions, the major-zero exception, ignored build metadata and invalid-type errors. It includes at least two executable doctest calls with expected results, and those examples pass when executed with their documented imports or the repository doctest namespace.",
+    "13. The implementation modifies only src/semver/version.py. Existing tests, documentation, packaging, metadata and exports remain unchanged.",
+    "14. The complete existing pytest suite in tests/ passes. Existing construction, parsing, comparison, equality, hashing, matching, version manipulation, subclass behavior, aliases, deprecated APIs and CLI behavior remain unchanged."
+  ],
+  "out_of_scope": [
+    "Writing implementation code during this specification stage.",
+    "Editing or adding repository tests, documentation files, packaging files or any file other than src/semver/version.py.",
+    "Adding a module-level compatibility function or a CLI command.",
+    "Accepting strings, bytes, dictionaries, tuples, lists or duck-typed version objects as other.",
+    "Changing existing version validation, normalization, comparison or equality semantics.",
+    "Adding dependencies, changing supported Python versions, or fixing unrelated defects."
+  ],
+  "external_references_needed": []
+}

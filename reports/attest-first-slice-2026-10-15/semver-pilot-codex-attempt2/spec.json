@@ -1,0 +1,38 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Add Version.is_compatible(other) in src/semver/version.py to determine whether other can replace the receiving version. Require equal majors and prereleases; for nonzero majors allow an equal or higher minor and ignore patch, while major zero requires equal minor and patch as well. Ignore build metadata in all cases. Accept Version instances and subclasses, reject other types with the specified TypeError prefix, and document the method with at least two passing doctest examples. Preserve all existing public behavior and keep the existing pytest suite passing without modifying tests, documentation files, or packaging.",
+  "interface_contract": [
+    {
+      "name": "semver.version.Version.is_compatible (also accessible through semver.Version)",
+      "signature": "def is_compatible(self, other: \"Version\") -> bool",
+      "behavior": "Instance method with one required positional-or-keyword argument, other. Accept any instance of Version, including subclasses, independently of the receiver's subclass. Return an actual bool. Interpret self as the original version and other as its proposed replacement. Return False if majors differ. When both majors are zero, return True exactly when minor, patch, and prerelease are equal. When the common major is nonzero, return True exactly when other.minor >= self.minor and prereleases are equal, irrespective of patch. Compare prerelease property values by exact equality: None equals None, strings are case-sensitive, and an empty string is distinct from None. Build metadata never affects the result, including for major zero. Do not mutate either operand or coerce other from another representation. The docstring must explain directionality, compatibility rules, accepted input, return value, and TypeError, and include at least two executable compatibility examples with expected results.",
+      "error_cases": [
+        "TypeError: other is not an instance of Version or a Version subclass; the exception message must start with 'Expected a Version type'. The remainder of the message is unspecified. This applies for every receiver major, including zero, and includes otherwise parseable strings, bytes, dictionaries, tuples, lists, numbers, None, and unrelated objects."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. The method is available through both semver.Version and semver.version.Version, accepts other positionally or by keyword, and returns True or False rather than another truthy or falsy value for valid inputs.",
+    "2. Version(1, 2, 3).is_compatible(Version(1, 2, 3)), Version(1, 2, 3).is_compatible(Version(1, 2, 4)), and Version(1, 2, 4).is_compatible(Version(1, 2, 3)) each return True.",
+    "3. Version(1, 2, 9).is_compatible(Version(1, 3, 0)) returns True; the reverse returns False. Version(1, 1, 0).is_compatible(Version(1, 0, 0)) returns False.",
+    "4. Different majors return False in both directions, including between majors zero and one and between Version(2, 0, 0) and Version(1, 5, 0), regardless of other fields.",
+    "5. Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) and Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 3, 0, 'rc.0')) return True.",
+    "6. Unequal prereleases return False even when the proposed minor is higher. In particular, 'rc.1' versus 'rc.0', 'RC.0' versus 'rc.0', and an absent prerelease versus 'rc1' are incompatible in both directions.",
+    "7. Prerelease equality uses the values stored by Version: two None values match, two empty strings match, and an empty string versus None does not match, for both major zero and nonzero majors.",
+    "8. Version(0, 1, 0).is_compatible(Version(0, 1, 0)) returns True. Changing only patch or only minor makes the result False in both directions. Equal major-zero versions with equal prereleases return True; changing or removing the prerelease returns False.",
+    "9. Build metadata is ignored for every major. Versions differing only in build metadata, including absent versus present metadata, are compatible in both directions for major zero and nonzero majors. Build differences do not override any otherwise incompatible field.",
+    "10. For receivers Version(1, 2, 3) and Version(0, 1, 0), each of 'wrongtype', '1.2.3', b'1.2.3', {'a': 2}, {'major': 1}, [], (1, 2, 3), 1, None, and object() raises TypeError with a message starting 'Expected a Version type'.",
+    "11. For a plain subclass CustomVersion(Version), compatible base/subclass, subclass/base, and subclass/subclass operands are accepted and return True. Incompatible subclass operands return False according to the same field rules.",
+    "12. Calling the method leaves all five component values of both operands unchanged, whether returning True, returning False, or rejecting an invalid other.",
+    "13. The method docstring contains at least two compatibility-call doctest examples with expected boolean output, and those examples pass when executed with the required imports or the repository's doctest namespace.",
+    "14. Only src/semver/version.py is modified. Existing public behavior, including construction, parsing, comparisons, hashing, formatting, immutability, subclass support, deprecated functions, and CLI behavior, remains unchanged, and the complete existing pytest suite passes."
+  ],
+  "out_of_scope": [
+    "Implementation code or test changes during this specification stage.",
+    "Changes to tests, external documentation, README, licensing, packaging, dependencies, or files other than src/semver/version.py.",
+    "New module-level helpers exposed as public APIs, CLI commands, compatibility-range syntax, or coercion of non-Version inputs.",
+    "Changes to existing comparison, equality, parsing, validation, or build-metadata semantics.",
+    "Unrelated fixes, refactoring, or cleanup."
+  ]
+}

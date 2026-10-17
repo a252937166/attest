@@ -1,0 +1,275 @@
+{
+  "schedule": {
+    "label": "m1-dryrun-2",
+    "registered_at_utc": "2026-10-16T19:53:35.896923+00:00",
+    "attest_version": "0.2.0",
+    "provider": "codex",
+    "provider_detail": {
+      "provider": "codex_gateway",
+      "base_url": "https://development-gateway.invalid",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "structured_endpoint": "/run",
+      "native_tools": false,
+      "streaming": false,
+      "auto_retry": false
+    },
+    "per_run_usd_cap": 0.5,
+    "approve_usd": null,
+    "max_calls_per_run": null,
+    "max_turns": 14,
+    "workers": 2,
+    "attempts_per_cell": 1,
+    "systems": [
+      "baseline",
+      "attest"
+    ],
+    "tasks": [
+      "durationkit-units-001"
+    ],
+    "heldout_stripped_from_system_under_test": true,
+    "stop_conditions": [
+      "batch USD cap reached (reservation of the per-run cap before each run)",
+      "3 consecutive infrastructure errors",
+      "any transport-uncertain operation (never replayed)"
+    ],
+    "definitions": {
+      "accepted": "attest: verdict VERIFIED; baseline: implementer finished",
+      "correct": "existing suite and held-out suite pass on the final patch in a fresh branch (judge)",
+      "infra_error": "verdict ERROR or a harness exception",
+      "not_run": "scheduled but never executed; reason recorded"
+    },
+    "cells": [
+      {
+        "scheduled_index": 0,
+        "task": "durationkit-units-001",
+        "task_path": "examples/durationkit-task/task.json",
+        "heldout": "examples/eval/durationkit-task/heldout.py",
+        "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+        "system": "baseline",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 1,
+        "task": "durationkit-units-001",
+        "task_path": "examples/durationkit-task/task.json",
+        "heldout": "examples/eval/durationkit-task/heldout.py",
+        "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+        "system": "attest",
+        "attempt": 1
+      }
+    ]
+  },
+  "finished_at_utc": "2026-10-16T19:53:57.694748+00:00",
+  "complete": true,
+  "budget": {
+    "approve_usd": null,
+    "per_run_cap_usd": 0.5,
+    "committed_usd": 0.0,
+    "peak_projected_usd": 0.0,
+    "stopped": null
+  },
+  "note": "every scheduled cell is reported once; there is no merge or best-of selection",
+  "rows": [
+    {
+      "scheduled_index": 0,
+      "task": "durationkit-units-001",
+      "task_path": "examples/durationkit-task/task.json",
+      "heldout": "examples/eval/durationkit-task/heldout.py",
+      "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+      "system": "baseline",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "ERROR",
+      "accepted": false,
+      "held_out_correct": false,
+      "held_out_summary": "FAILED (4 of 13 methods: ERROR 4); binding FAILED: child process nonzero exit: test_single_units exit 1, test_combined_descending exit 1, test_whitespace_between_components exit 1, test_returns_float exit 1",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a14647-3101-7373-a900-a450f1fcfcef",
+      "heldout_stripped_from_task": [],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 1,
+      "model_calls_failed": 1,
+      "sandbox_ops": 1,
+      "wall_s": 11.8,
+      "turns": 0,
+      "finished": false,
+      "reasons": [
+        "model provider: HTTP 429 from https://development-gateway.invalid/run: hourly limit reached for this key"
+      ],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-m1-2026-10-16/evaluation-dryrun-codex-2/runs/durationkit-units-001-baseline-a1-20261016T195335899862Z",
+      "run_id": "durationkit-units-001-baseline-a1-20261016T195335899862Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "arbitration": null,
+      "infra_error": true,
+      "uncertain": false,
+      "confusion": "infra_error"
+    },
+    {
+      "scheduled_index": 1,
+      "task": "durationkit-units-001",
+      "task_path": "examples/durationkit-task/task.json",
+      "heldout": "examples/eval/durationkit-task/heldout.py",
+      "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "ERROR",
+      "accepted": false,
+      "held_out_correct": false,
+      "held_out_summary": "FAILED (4 of 13 methods: ERROR 4); binding FAILED: child process nonzero exit: test_single_units exit 1, test_combined_descending exit 1, test_whitespace_between_components exit 1, test_returns_float exit 1",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a14647-3a8d-712f-838a-4cd09971bbc8",
+      "heldout_stripped_from_task": [],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 1,
+      "model_calls_failed": 1,
+      "sandbox_ops": 1,
+      "wall_s": 14.3,
+      "turns": 0,
+      "finished": false,
+      "reasons": [
+        "model provider: HTTP 429 from https://development-gateway.invalid/run: hourly limit reached for this key"
+      ],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-m1-2026-10-16/evaluation-dryrun-codex-2/runs/durationkit-units-001-attest-a1-20261016T195335899904Z",
+      "run_id": "durationkit-units-001-attest-a1-20261016T195335899904Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "arbitration": null,
+      "infra_error": true,
+      "uncertain": false,
+      "confusion": "infra_error"
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "scheduled": 1,
+      "completed": 1,
+      "not_run": 0,
+      "confusion": {
+        "true_accept": 0,
+        "false_accept": 0,
+        "false_reject": 0,
+        "true_reject": 0,
+        "infra_error": 1,
+        "unknown": 0,
+        "not_run": 0
+      },
+      "shipped_broken_code": 0,
+      "needs_human": 0,
+      "total_cost_committed_usd": 0.0,
+      "mean_wall_s": 11.8
+    },
+    "attest": {
+      "scheduled": 1,
+      "completed": 1,
+      "not_run": 0,
+      "confusion": {
+        "true_accept": 0,
+        "false_accept": 0,
+        "false_reject": 0,
+        "true_reject": 0,
+        "infra_error": 1,
+        "unknown": 0,
+        "not_run": 0
+      },
+      "shipped_broken_code": 0,
+      "needs_human": 0,
+      "total_cost_committed_usd": 0.0,
+      "mean_wall_s": 14.3
+    }
+  }
+}

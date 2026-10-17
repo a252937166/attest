@@ -1,0 +1,75 @@
+[19:28:09] frozen task balanced-brackets with 4 files, spec sha256 b4b1ed357cf1
+[19:28:11] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[19:28:15] checkpoint 10215330-f144-459c-866c-9736a8e460ed ready; baseline OK (2 tests)
+[19:28:15] suite binding: bound (2 statically discovered test ids in 1 module(s) match the baseline run)
+[19:28:15] specification
+[19:29:35] spec: feasible=True, 12 criteria, 2 contract entries, 0 external references
+[19:29:35] sealing acceptance tests (attempt 1)
+[19:30:57] sealed 17 test methods (sha256 a15d5e790015); red check: 15 of 17 failing on base, 2 passing
+[19:30:57] implementation
+[19:31:14] turn 1: read_file brackets/core.py -> [14 lines]
+[19:31:47] turn 2: replace_in_file brackets/core.py -> replaced one occurrence in brackets/core.py; the file is now 597 bytes
+[19:32:21] turn 3: run_tests  -> existing test suite: OK (ran 2, passed 2, exit 0)
+[19:32:40] turn 4: run_python  -> exit 1
+[19:34:15] turn 5: run_python  -> exit 0
+[19:35:16] turn 6: finish  -> finished: Implemented is_balanced with strict string input validation and correctly nested ASCII bra
+[19:35:16] verification
+[19:35:24] verify: sealed OK (17 of 17 methods, each in its own process); binding ok
+[19:35:28] existing suite (bound): OK (2 of 2 methods, each in its own process) (2/2)
+[19:35:35] held-out suite (bound): OK (6 of 6 methods, each in its own process) (6/6)
+[19:35:35] breaker pass
+[19:35:35] breaker: 9 mutants of changed lines; running in parallel branches (workers=8)
+[19:36:11] breaker: killed 9, survived 0, unknown 0, mutation score 1.0
+[19:38:46] breaker tests: FAILED (1 of 9 methods: TIMEOUT 1); binding FAILED
+[19:38:46] drift audit
+[19:39:52] drift audit: score 0.0 (aligned)
+[19:39:52] arbitration: classifying model-generated test failures
+[19:41:17] arbitration: all 1 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base — candidate not falsified by these tests
+[19:41:17] verdict NEEDS HUMAN -> reports/attest-m1-2026-10-16/runs/balanced-brackets-20261016T192809Z
+{
+  "verdict": "NEEDS HUMAN",
+  "reasons": [
+    "adversarial suite binding failed: child process nonzero exit: test_all_short_ascii_bracket_sequences exit None; child process killed by signal: test_all_short_ascii_bracket_sequences sig 9; child process timed out: test_all_short_ascii_bracket_sequences",
+    "model-written adversarial tests failed: 1 of 9 (test_breaker.TestBreaker.test_all_short_ascii_bracket_sequences); each failure is a bug or a contract disagreement to resolve"
+  ],
+  "out_dir": "reports/attest-m1-2026-10-16/runs/balanced-brackets-20261016T192809Z",
+  "totals": {
+    "model_calls": 11,
+    "model_calls_failed": 0,
+    "malformed_outputs": 0,
+    "tokens_in": 116950,
+    "tokens_out": 6864,
+    "tokens_cached": 28544,
+    "model_elapsed_ms": 633770,
+    "cost_usd": null,
+    "cost_usd_committed": 0.0,
+    "uncertain_unpriced_calls": 0,
+    "by_model": {
+      "codex_gateway:gpt-6-astra": {
+        "calls": 3,
+        "tokens_in": 32482,
+        "tokens_out": 2085,
+        "tokens_cached": 0,
+        "cost_usd": null,
+        "elapsed_ms": 221273,
+        "failed": 0
+      },
+      "codex_gateway:gpt-6-sol": {
+        "calls": 8,
+        "tokens_in": 84468,
+        "tokens_out": 4779,
+        "tokens_cached": 28544,
+        "cost_usd": null,
+        "elapsed_ms": 412497,
+        "failed": 0
+      }
+    },
+    "sandbox_operations": 19,
+    "sandbox_duration_s": 112.357,
+    "sandbox_retained_images": [
+      "10215330-f144-459c-866c-9736a8e460ed"
+    ],
+    "sandbox_raw_cost_diag_sum": 0.40619816
+  }
+}
+exit 2

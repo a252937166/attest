@@ -1,0 +1,107 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -4,12 +4,99 @@
+ def parse_duration(text: str) -> float:
+     """Parse a duration string and return the number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts two forms:
++    1. A plain non-negative integer (optional surrounding whitespace) representing seconds.
++    2. A sequence of components, each a non-negative integer immediately followed by a unit
++       (d, h, m, s, ms), components in descending unit order (d > h > m > s > ms),
++       each unit at most once, optional whitespace between components and around the whole string.
++
++    Conversion factors: 1d = 86400s, 1h = 3600s, 1m = 60s, 1s = 1s, 1ms = 0.001s.
++    The result is the sum of all components as a float.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
++    
++    # Remove outer whitespace
+     stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if not stripped:
++        raise ValueError("empty duration string")
++    
++    # Plain integer seconds case (existing behavior)
++    if stripped.isdigit():
++        return float(stripped)
++    
++    # Otherwise parse components
++    i = 0
++    n = len(stripped)
++    total = 0.0
++    seen_units = set()
++    # order ranking: higher means larger unit
++    rank = {'d': 4, 'h': 3, 'm': 2, 's': 1, 'ms': 0}
++    prev_rank = None
++    
++    while i < n:
++        # skip whitespace between components
++        while i < n and stripped[i].isspace():
++            i += 1
++        if i >= n:
++            break  # trailing whitespace
++        
++        # parse number (one or more digits)
++        start_num = i
++        while i < n and stripped[i].isdigit():
++            i += 1
++        if start_num == i:
++            # no digits where we expected a number
++            raise ValueError(f"missing number in duration at position {start_num}")
++        num_str = stripped[start_num:i]
++        # leading zeros are fine
++        value = int(num_str)
++        
++        # after number, must have a unit directly (no whitespace)
++        if i >= n:
++            raise ValueError(f"missing unit after number '{num_str}'")
++        
++        # try to match unit; check longer first ('ms') then single letters
++        unit = None
++        if i + 1 < n and stripped[i:i+2] == 'ms':
++            unit = 'ms'
++            i += 2
++        else:
++            ch = stripped[i]
++            if ch in ('d', 'h', 'm', 's'):
++                unit = ch
++                i += 1
++            else:
++                raise ValueError(f"unknown unit after number '{num_str}' at position {i}")
++        
++        # duplicate unit check
++        if unit in seen_units:
++            raise ValueError(f"duplicate unit '{unit}'")
++        seen_units.add(unit)
++        
++        # order check
++        curr_rank = rank[unit]
++        if prev_rank is not None and curr_rank >= prev_rank:
++            raise ValueError(f"units out of order: '{unit}' after previous unit with rank {prev_rank}")
++        prev_rank = curr_rank
++        
++        # convert to seconds and add
++        factor = {
++            'd': 86400,
++            'h': 3600,
++            'm': 60,
++            's': 1,
++            'ms': 0.001
++        }[unit]
++        total += value * factor
++        
++        # after unit, loop continues (whitespace will be skipped at top)
++    
++    # After loop, ensure we consumed all characters (any leftover non-whitespace would have caused error)
++    # but we can double-check that there is no leftover non-whitespace
++    while i < n:
++        if not stripped[i].isspace():
++            raise ValueError(f"unexpected character '{stripped[i]}' at position {i}")
++        i += 1
++    
++    return total

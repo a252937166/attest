@@ -1,0 +1,57 @@
+"""A small key = value configuration parser."""
+
+
+def parse_line(line):
+    """Parse one `key = value` line into a (key, value) tuple.
+
+    Keys are stripped of surrounding whitespace; values are stripped, and a value wrapped in matching single or double
+    quotes loses the quotes (nothing inside the quotes is changed). Raises ValueError for a line without '=' or with an
+    empty key.
+    """
+    i = 0
+    n = len(line)
+    key_chars = []
+    found = False
+    while i < n:
+        c = line[i]
+        if c == "=":
+            found = True
+            i += 1
+            break
+        key_chars.append(c)
+        i += 1
+    if not found:
+        raise ValueError("expected 'key = value', got %r" % (line,))
+    key = "".join(key_chars).strip()
+    if key == "":
+        raise ValueError("empty key in %r" % (line,))
+    value_chars = []
+    while i < n:
+        value_chars.append(line[i])
+        i += 1
+    value = "".join(value_chars).strip()
+    if len(value) >= 2:
+        first = value[0]
+        last = value[len(value) - 1]
+        if (first == '"' and last == '"') or (first == "'" and last == "'"):
+            value = value[1:len(value) - 1]
+    return key, value
+
+
+def parse(text):
+    """Parse `text` into a dict. Blank lines and lines whose first non-blank character is '#' or ';' are ignored; later
+    duplicates of a key win. Raises TypeError for non-string input and ValueError for a malformed line."""
+    if not isinstance(text, str):
+        raise TypeError("text must be a str")
+    result = {}
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        if stripped == "":
+            continue
+        if stripped[0] == "#":
+            continue
+        if stripped[0] == ";":
+            continue
+        key, value = parse_line(raw)
+        result[key] = value
+    return result

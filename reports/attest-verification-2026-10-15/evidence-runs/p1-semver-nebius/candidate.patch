@@ -1,0 +1,35 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -699,5 +699,32 @@
+             return False
+ 
+ 
++    def is_compatible(self, other: 'Version') -> bool:
++        """
++        Return True if ``other`` (new version) can be used in place of ``self`` (old version).
++
++        Compatibility rules:
++        * Majors must be equal.
++        * New minor must be greater than or equal to old minor.
++        * Prerelease parts must be equal (both absent counts as equal).
++        * Patch is ignored.
++        * For major version 0, exact equality of major, minor, patch, and prerelease is required
++          (build is still ignored).
++
++        Examples::
++            >>> Version(1, 2, 3).is_compatible(Version(1, 2, 3))
++            True
++            >>> Version(1, 2, 3).is_compatible(Version(1, 2, 4))
++            True
++        """
++        if not isinstance(other, Version):
++            raise TypeError("Expected a Version type")
++        if self.major == 0:
++            return (self.major, self.minor, self.patch, self.prerelease) == \
++                   (other.major, other.minor, other.patch, other.prerelease)
++        return (self.major == other.major and
++                other.minor >= self.minor and
++                self.prerelease == other.prerelease)
++
+ #: Keep the VersionInfo name for compatibility
+ VersionInfo = Version

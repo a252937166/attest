@@ -1,0 +1,29 @@
+[12:21:52] frozen task semver-long-prerelease-pr488 with 119 files, spec sha256 f7465e98247d
+[12:21:54] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=on
+[12:22:01] verdict ERROR -> reports/attest-m4-2026-10-17/runs/semver-long-prerelease-pr488-20261017T122152Z
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/work/attest/attest/__main__.py", line 5, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/work/attest/attest/cli.py", line 221, in main
+    return args.func(args)
+           ^^^^^^^^^^^^^^^
+  File "/work/attest/attest/cli.py", line 87, in cmd_run
+    bundle = pipeline.run()
+             ^^^^^^^^^^^^^^
+  File "/work/attest/attest/core/pipeline.py", line 280, in run
+    self._run()
+  File "/work/attest/attest/core/pipeline.py", line 472, in _run
+    checkpoint = self.executor.create_checkpoint(base_image, self.guest_files(snapshot), steps, stage="checkpoint",
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/sandbox/tf_sandboxes.py", line 258, in create_checkpoint
+    run = self._execute(image, self._job(files, steps), stage, disposable=False, timeout=timeout,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/sandbox/tf_sandboxes.py", line 207, in _execute
+    accepted, _ = self._request("POST", "/instances", payload, timeout=60)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/sandbox/tf_sandboxes.py", line 124, in _request
+    raise SandboxError(str(error)) from None
+attest.sandbox.tf_sandboxes.SandboxError: HTTP 413 from https://api.tokenfactory.nebius.com/sandboxes/v1/instances: Content Too Large

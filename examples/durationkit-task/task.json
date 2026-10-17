@@ -1,0 +1,28 @@
+{
+  "id": "durationkit-units-001",
+  "title": "Accept unit suffixes in parse_duration",
+  "repo_dir": "repo",
+  "language": "python",
+  "base_image": "python:3.12-slim",
+  "import_hint": "from durationkit import parse_duration",
+  "allowed_write_globs": [
+    "durationkit/**"
+  ],
+  "protected_globs": [
+    "tests/**",
+    "README.md"
+  ],
+  "statement": "Users want to write durations such as '1h30m' instead of counting seconds. Extend parse_duration(text) so that, in addition to the existing plain-integer-seconds form, it accepts one or more components made of a non-negative integer followed by a unit: d (days), h (hours), m (minutes), s (seconds) or ms (milliseconds). Components must appear in descending unit order (for example '2d4h', '1h30m', '45m10s', '1s500ms'), each unit may appear at most once, and whitespace is allowed around the whole string and between components (but not between a number and its unit). The function keeps returning the total number of seconds as a float (so '500ms' is 0.5 and '1h30m' is 5400.0). Reject with ValueError: empty or whitespace-only input, negative numbers, fractional numbers, unknown units, repeated units, components out of descending order, a unit without a number, and any other malformed text. Numbers are written with the ASCII digits 0-9. Whether other Unicode decimal digits (for example Arabic-Indic or fullwidth digits) are accepted by their numeric value or rejected with ValueError is unspecified, and tests must not depend on either choice; characters that are not decimal digits (letters, Roman numerals, fractions, circled numbers) are malformed text and raise ValueError. Keep raising TypeError for non-string input. The existing tests in tests/ must keep passing and must not be modified.",
+  "acceptance_criteria": [
+    "parse_duration('90') == 90.0 and surrounding whitespace is still ignored (existing behavior preserved).",
+    "Single components work for every unit: '2d' -> 172800.0, '3h' -> 10800.0, '15m' -> 900.0, '45s' -> 45.0, '500ms' -> 0.5.",
+    "Combined components in descending order work: '1h30m' -> 5400.0, '2d4h' -> 187200.0, '1m1s' -> 61.0, '1s500ms' -> 1.5, '1d1h1m1s1ms' -> 90061.001.",
+    "Whitespace is accepted around the string and between components: ' 1h 30m ' -> 5400.0; '1 h' raises ValueError.",
+    "'0s' and '0' return 0.0.",
+    "ValueError for: '', '   ', '-1h', '1.5h', '1x', '1h1h', '30m1h', 'h', '1h30', 'abc'.",
+    "TypeError for non-string input such as 90 or None.",
+    "The return type is float for every accepted input.",
+    "Unspecified, not to be tested: acceptance or rejection of non-ASCII Unicode decimal digits such as '١٢h'."
+  ],
+  "contract_resolution": "2026-10-17: the 17 Oct Codex dry run held a correct candidate on a breaker test that fed mixed Arabic-Indic, Devanagari and fullwidth digits ('١२h３४m') and expected 58440.0 (the correct value for 12h34m is 45240.0). The expectation was wrong and the statement was silent on non-ASCII digits. The requester resolved it: ASCII digits are the contract, non-ASCII decimal digits are unspecified. Recorded in reports/attest-reliability-2026-10-17/."
+}

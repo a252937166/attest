@@ -1,0 +1,40 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Add Version.is_compatible(other) in src/semver/version.py to determine whether other can replace the receiver. Require matching majors and exactly equal prerelease values; for positive majors require other.minor >= self.minor and ignore patches, while major zero requires matching minor and patch as well. Ignore build metadata in all cases. Accept Version instances and subclasses, reject other types with the specified TypeError prefix, document the method with at least two executable doctest examples, and preserve existing behavior and the existing test suite without modifying other files.",
+  "interface_contract": [
+    {
+      "name": "semver.version.Version.is_compatible",
+      "signature": "def is_compatible(self, other: \"Version\") -> bool",
+      "behavior": "Public instance method also available through semver.Version and the existing VersionInfo alias. The required other argument may be supplied positionally or by keyword. Accept any isinstance(other, Version), including base/subclass and distinct subclass combinations regardless of the receiver's concrete subclass. Return a built-in bool. Different majors always yield False. For matching positive majors, return True exactly when other.minor >= self.minor and other.prerelease == self.prerelease; patch values do not matter. For matching zero majors, return True exactly when minor, patch, and prerelease values match. Prerelease equality means exact equality of the stored values, including case; None equals None but does not equal an empty string. No prerelease normalization or precedence comparison is performed. Build metadata never affects the result, including for major zero. Neither operand is mutated.",
+      "error_cases": [
+        "TypeError: other is not an instance of Version or a subclass; str(exception) must start with 'Expected a Version type'. This applies for every receiver major and includes strings, bytes, dictionaries, tuples, lists, numbers, None, Version class objects, and unrelated objects. Do not coerce or parse these inputs. The message suffix is unspecified."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. The method is defined on Version in src/semver/version.py, has the specified signature, and is callable through semver.Version, semver.version.Version, and the existing VersionInfo alias, including with other supplied by keyword.",
+    "2. Version(1, 2, 3).is_compatible(Version(1, 2, 3)), Version(1, 2, 3).is_compatible(Version(1, 2, 4)), and Version(1, 2, 4).is_compatible(Version(1, 2, 3)) each return True.",
+    "3. Version(1, 2, 9).is_compatible(Version(1, 3, 0)) returns True; the reversed call returns False. Version(1, 1, 0).is_compatible(Version(1, 0, 0)) returns False.",
+    "4. Different majors return False in both directions, including 1 versus 2 and 0 versus 1, regardless of minor, patch, or prerelease.",
+    "5. Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) returns True. Equal prereleases also permit a higher candidate minor, but never permit a lower candidate minor.",
+    "6. Unequal prereleases return False even if the candidate minor is higher. Cover 'rc.1' versus 'rc.0', case differences, and absent versus 'rc1' in both directions. Stored None and an empty prerelease string are unequal; two empty prerelease strings are equal.",
+    "7. Version(0, 1, 0).is_compatible(Version(0, 1, 0)) returns True. Changes to either minor or patch return False in both directions, including Version(0, 1, 1) and Version(0, 2, 0) as candidates.",
+    "8. Major-zero versions with identical major, minor, patch, and prerelease return True, including matching nonempty prereleases; any prerelease difference returns False. Version(0, 0, 0) is compatible with itself.",
+    "9. Build differences do not affect compatibility for positive or zero majors. In particular, Version(0, 1, 0, build='a').is_compatible(Version(0, 1, 0, build='b')) returns True; absent versus present build metadata also has no effect.",
+    "10. For both zero-major and positive-major receivers, non-Version arguments raise TypeError with a message starting 'Expected a Version type'. Cover at least 'wrongtype', a valid version string, bytes, {'a': 2}, a version-shaped dictionary, [], a version-shaped tuple, None, an integer, and an unrelated object.",
+    "11. With an otherwise unmodified CustomVersion subclass, CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) and the reverse each return True. Base/subclass and distinct subclass combinations also obey the major-zero rule without TypeError.",
+    "12. Every successful call returns exactly True or False, and both operands retain all five original version components after compatible, incompatible, and invalid-argument calls.",
+    "13. The method docstring explains replacement direction, positive-major and major-zero rules, prerelease equality, ignored build metadata, and the invalid-type error. It includes at least two executable compatibility doctest examples with expected results, and those examples pass.",
+    "14. Only src/semver/version.py is modified. Existing tests, documentation files, packaging files, metadata, and exports remain unchanged; the full existing pytest suite in tests/ passes.",
+    "15. Existing public behavior, including construction, parsing, comparison and ordering, hashing, formatting, immutability, subclass support, deprecated APIs, and CLI behavior, remains unchanged. The change retains the repository's Python 3.7 compatibility."
+  ],
+  "out_of_scope": [
+    "Implementation or test code in this specification-stage output.",
+    "Changes to files other than src/semver/version.py, including tests, docs, packaging, and release metadata.",
+    "Changes to existing comparison semantics or unrelated cleanup and bug fixes.",
+    "String parsing, collection coercion, range-expression support, or additional public compatibility APIs.",
+    "Treating build metadata as part of major-zero identity or replacing exact prerelease equality with semantic precedence."
+  ],
+  "external_references_needed": []
+}

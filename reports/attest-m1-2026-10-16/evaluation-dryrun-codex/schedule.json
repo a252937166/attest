@@ -1,0 +1,165 @@
+{
+  "label": "m1-dryrun",
+  "registered_at_utc": "2026-10-16T19:28:06.833946+00:00",
+  "attest_version": "0.1.0",
+  "provider": "codex",
+  "provider_detail": {
+    "provider": "codex_gateway",
+    "base_url": "https://development-gateway.invalid",
+    "roles": {
+      "spec": [
+        "gpt-6-astra",
+        "low"
+      ],
+      "seal": [
+        "gpt-6-sol",
+        "medium"
+      ],
+      "implement": [
+        "gpt-6-sol",
+        "medium"
+      ],
+      "break": [
+        "gpt-6-sol",
+        "medium"
+      ],
+      "audit": [
+        "gpt-6-astra",
+        "low"
+      ],
+      "arbitrate": [
+        "gpt-6-astra",
+        "medium"
+      ],
+      "summary": [
+        "gpt-6-luna",
+        "low"
+      ]
+    },
+    "structured_endpoint": "/run",
+    "native_tools": false,
+    "streaming": false,
+    "auto_retry": false
+  },
+  "per_run_usd_cap": 0.5,
+  "approve_usd": null,
+  "max_calls_per_run": null,
+  "max_turns": 14,
+  "workers": 2,
+  "attempts_per_cell": 1,
+  "systems": [
+    "baseline",
+    "attest"
+  ],
+  "tasks": [
+    "roman-to-numeral",
+    "rle-encode",
+    "balanced-brackets",
+    "durationkit-units-001",
+    "semver-is-compatible-pr368-v2"
+  ],
+  "heldout_stripped_from_system_under_test": true,
+  "stop_conditions": [
+    "batch USD cap reached (reservation of the per-run cap before each run)",
+    "3 consecutive infrastructure errors",
+    "any transport-uncertain operation (never replayed)"
+  ],
+  "definitions": {
+    "accepted": "attest: verdict VERIFIED; baseline: implementer finished",
+    "correct": "existing suite and held-out suite pass on the final patch in a fresh branch (judge)",
+    "infra_error": "verdict ERROR or a harness exception",
+    "not_run": "scheduled but never executed; reason recorded"
+  },
+  "cells": [
+    {
+      "scheduled_index": 0,
+      "task": "roman-to-numeral",
+      "task_path": "examples/eval/roman-to-numeral/task.json",
+      "heldout": "examples/eval/roman-to-numeral/heldout.py",
+      "heldout_sha256": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200",
+      "system": "baseline",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 1,
+      "task": "roman-to-numeral",
+      "task_path": "examples/eval/roman-to-numeral/task.json",
+      "heldout": "examples/eval/roman-to-numeral/heldout.py",
+      "heldout_sha256": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200",
+      "system": "attest",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 2,
+      "task": "rle-encode",
+      "task_path": "examples/eval/rle-encode/task.json",
+      "heldout": "examples/eval/rle-encode/heldout.py",
+      "heldout_sha256": "021de77e64ade5e93d816e149b34d733c27e149b23bff6c119d87682e4c7bbb5",
+      "system": "baseline",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 3,
+      "task": "rle-encode",
+      "task_path": "examples/eval/rle-encode/task.json",
+      "heldout": "examples/eval/rle-encode/heldout.py",
+      "heldout_sha256": "021de77e64ade5e93d816e149b34d733c27e149b23bff6c119d87682e4c7bbb5",
+      "system": "attest",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 4,
+      "task": "balanced-brackets",
+      "task_path": "examples/eval/balanced-brackets/task.json",
+      "heldout": "examples/eval/balanced-brackets/heldout.py",
+      "heldout_sha256": "d43d71f0598f2fbf546153d7e19eabffb7e8cd3148a4f910c6f41f13462a06c2",
+      "system": "baseline",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 5,
+      "task": "balanced-brackets",
+      "task_path": "examples/eval/balanced-brackets/task.json",
+      "heldout": "examples/eval/balanced-brackets/heldout.py",
+      "heldout_sha256": "d43d71f0598f2fbf546153d7e19eabffb7e8cd3148a4f910c6f41f13462a06c2",
+      "system": "attest",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 6,
+      "task": "durationkit-units-001",
+      "task_path": "examples/durationkit-task/task.json",
+      "heldout": "examples/eval/durationkit-task/heldout.py",
+      "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+      "system": "baseline",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 7,
+      "task": "durationkit-units-001",
+      "task_path": "examples/durationkit-task/task.json",
+      "heldout": "examples/eval/durationkit-task/heldout.py",
+      "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+      "system": "attest",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 8,
+      "task": "semver-is-compatible-pr368-v2",
+      "task_path": "examples/semver-is-compatible-v2/task.json",
+      "heldout": "examples/semver-is-compatible/heldout_test_pr368.py",
+      "heldout_sha256": "8b799158e528dc629ed5109ab6fc4e5db9f55b0ce3f28c310d313789e1283a36",
+      "system": "baseline",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 9,
+      "task": "semver-is-compatible-pr368-v2",
+      "task_path": "examples/semver-is-compatible-v2/task.json",
+      "heldout": "examples/semver-is-compatible/heldout_test_pr368.py",
+      "heldout_sha256": "8b799158e528dc629ed5109ab6fc4e5db9f55b0ce3f28c310d313789e1283a36",
+      "system": "attest",
+      "attempt": 1
+    }
+  ]
+}

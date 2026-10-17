@@ -1,0 +1,73 @@
+{
+  "id": "semver-is-compatible-pr368",
+  "title": "Add Version.is_compatible() to python-semver (upstream issue #284)",
+  "repo_dir": "repo",
+  "language": "python",
+  "base_image": "python:3.12-slim",
+  "test_runner": "pytest",
+  "import_hint": "from semver import Version   (package lives in src/semver; the class is semver.version.Version)",
+  "python_paths": [
+    "src",
+    "docs",
+    "tests"
+  ],
+  "install_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "pip",
+    "install",
+    "--no-cache-dir",
+    "--disable-pip-version-check",
+    "--target",
+    "/tmp/deps",
+    "pytest==8.3.3",
+    "pluggy==1.5.0",
+    "iniconfig==2.0.0",
+    "packaging==24.1"
+  ],
+  "requirements_lock": "pytest==8.3.3 pluggy==1.5.0 iniconfig==2.0.0 packaging==24.1",
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-rA",
+    "-p",
+    "no:cacheprovider",
+    "-o",
+    "addopts=",
+    "tests"
+  ],
+  "checkpoint_timeout": 300,
+  "test_timeout": 180,
+  "allowed_write_globs": [
+    "src/semver/**"
+  ],
+  "protected_globs": [
+    "tests/**",
+    "docs/**",
+    "setup.cfg",
+    "pyproject.toml",
+    "README.rst",
+    "LICENSE.txt"
+  ],
+  "heldout_tests": {
+    "tests/test_heldout_pr368.py": "heldout_test_pr368.py"
+  },
+  "statement": "python-semver (src/semver, BSD-3) is a semantic-versioning library whose central class is semver.version.Version (also exported as semver.Version). Maintainers want a concise, readable way to ask 'is version y compatible with the version x that my code was written against?' (upstream issue #284). Add an instance method Version.is_compatible(other) -> bool to the Version class in src/semver/version.py. Semantics: the call `old.is_compatible(new)` returns True when `new` can be used in place of `old`. Two versions are compatible when their majors are equal, the minor of `new` is greater than or equal to the minor of `old`, and their prerelease parts are equal (both absent counts as equal). The patch part is ignored. Versions with major 0 are special: a major-0 version is compatible only with a version that is identical in major, minor, patch and prerelease. If `other` is not a Version (instances of Version subclasses are fine) raise TypeError with a message starting 'Expected a Version type'. Document the method with a docstring that includes at least two doctest examples. Do not change any other public behaviour, do not touch tests, docs or packaging files, and keep the whole existing pytest suite passing.",
+  "acceptance_criteria": [
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 3)) is True; Version(1, 2, 3).is_compatible(Version(1, 2, 4)) is True; Version(1, 2, 4).is_compatible(Version(1, 2, 3)) is True (patch is ignored).",
+    "Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) is True (equal prereleases).",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 0)) is True, but Version(0, 1, 0).is_compatible(Version(0, 1, 1)) is False (major 0 only matches an identical version).",
+    "Version(1, 1, 0).is_compatible(Version(1, 0, 0)) is False (lower minor); Version(2, 0, 0).is_compatible(Version(1, 5, 0)) is False (different major).",
+    "Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0')) is False; Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1')) is False; Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0)) is False (prerelease must be equal).",
+    "Version(1, 2, 3).is_compatible('wrongtype'), .is_compatible({'a': 2}) and .is_compatible([]) each raise TypeError whose message starts with 'Expected a Version type'.",
+    "A subclass instance is accepted: class CustomVersion(Version): pass; CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) is True.",
+    "The method's docstring contains doctest examples and the existing test suite (tests/) still passes."
+  ],
+  "upstream": {
+    "url": "https://github.com/python-semver/python-semver",
+    "commit": "9b475f71ef9176b57f15bac8cde75df15469c75b",
+    "reference": "parent of PR #368 (upstream issue #284); the held-out tests are the pull request's own tests from merge commit 467ea0c7c198d60e0d88e32ee4d926b4e20eb74a"
+  }
+}

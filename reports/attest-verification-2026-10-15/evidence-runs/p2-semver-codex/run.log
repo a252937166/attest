@@ -1,0 +1,63 @@
+[15:52:55] frozen task semver-is-compatible-pr368 with 30 files, spec sha256 11bd0819f03d
+[15:52:57] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=on
+[15:53:20] checkpoint 1ad48318-aead-45de-9fdd-54690240e066 ready; baseline 312 passed in 0.60s (312 tests)
+[15:53:20] specification
+[15:54:27] spec: feasible=True, 15 criteria, 1 contract entries, 0 external references
+[15:54:27] sealing acceptance tests (attempt 1)
+[15:55:49] sealed 27 test methods (sha256 cfb0a5dbfb02); red check: 24 of 27 failing on base, 3 passing
+[15:55:49] implementation
+[15:56:04] turn 1: read_file src/semver/version.py -> [lines 1-320 of 703]
+[15:56:30] turn 2: replace_in_file src/semver/version.py -> replaced one occurrence in src/semver/version.py; the file is now 23621 bytes
+[15:56:50] turn 3: run_tests  -> existing test suite: 312 passed in 0.62s (ran 312, passed 312, exit 0)
+[15:57:19] turn 4: run_python  -> exit 0
+[15:57:36] turn 5: finish  -> finished: Added Version.is_compatible with the specified major, minor, patch, prerelease, build, and
+[15:57:36] verification
+[15:57:47] verify: existing 312 passed in 0.59s (312/312); sealed OK (27 of 27 methods, each in its own process); binding ok
+[15:57:52] held-out suite: 3 failed, 325 passed in 0.66s (325/328)
+[15:57:52] breaker pass
+[15:57:52] breaker: 12 mutants of changed lines; running in parallel branches (workers=8)
+[15:58:24] verdict ERROR -> runs/semver-is-compatible-pr368-20261015T155255Z
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/work/attest/attest/__main__.py", line 5, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/work/attest/attest/cli.py", line 114, in main
+    return args.func(args)
+           ^^^^^^^^^^^^^^^
+  File "/work/attest/attest/cli.py", line 84, in cmd_run
+    bundle = pipeline.run()
+             ^^^^^^^^^^^^^^
+  File "/work/attest/attest/core/pipeline.py", line 148, in run
+    self._run()
+  File "/work/attest/attest/core/pipeline.py", line 397, in _run
+    breaker = self.breaker_pass(snapshot, changed, deleted, sealed_src, sealed_sha, checkpoint_uuid, spec, diff, expected_ids, sources)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/core/pipeline.py", line 479, in breaker_pass
+    results = list(pool.map(run_mutant, mutants))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 619, in result_iterator
+    yield _result_or_cancel(fs.pop())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 317, in _result_or_cancel
+    return fut.result(timeout)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/core/pipeline.py", line 462, in run_mutant
+    run = self.executor.run_branch(checkpoint_uuid, files, self.suite_steps(nonce), stage=f"mutant-{mutant.id}",
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/sandbox/tf_sandboxes.py", line 251, in run_branch
+    return self._execute(image, self._job(files, steps, deletes), stage, disposable=True, timeout=timeout,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/sandbox/tf_sandboxes.py", line 195, in _execute
+    raise SandboxError(f"spawn outcome uncertain ({error}); inspect account operations, do not replay") from None
+attest.sandbox.tf_sandboxes.SandboxError: spawn outcome uncertain (URLError: <urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)>); inspect account operations, do not replay
+exit=1

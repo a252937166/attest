@@ -1,0 +1,98 @@
+{
+  "id": "semver-is-compatible-pr368",
+  "title": "Add Version.is_compatible() to python-semver (upstream issue #284)",
+  "statement": "python-semver (src/semver, BSD-3) is a semantic-versioning library whose central class is semver.version.Version (also exported as semver.Version). Maintainers want a concise, readable way to ask 'is version y compatible with the version x that my code was written against?' (upstream issue #284). Add an instance method Version.is_compatible(other) -> bool to the Version class in src/semver/version.py. Semantics: the call `old.is_compatible(new)` returns True when `new` can be used in place of `old`. Two versions are compatible when their majors are equal, the minor of `new` is greater than or equal to the minor of `old`, and their prerelease parts are equal (both absent counts as equal). The patch part is ignored. Versions with major 0 are special: a major-0 version is compatible only with a version that is identical in major, minor, patch and prerelease. If `other` is not a Version (instances of Version subclasses are fine) raise TypeError with a message starting 'Expected a Version type'. Document the method with a docstring that includes at least two doctest examples. Do not change any other public behaviour, do not touch tests, docs or packaging files, and keep the whole existing pytest suite passing.",
+  "acceptance_criteria": [
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 3)) is True; Version(1, 2, 3).is_compatible(Version(1, 2, 4)) is True; Version(1, 2, 4).is_compatible(Version(1, 2, 3)) is True (patch is ignored).",
+    "Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) is True (equal prereleases).",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 0)) is True, but Version(0, 1, 0).is_compatible(Version(0, 1, 1)) is False (major 0 only matches an identical version).",
+    "Version(1, 1, 0).is_compatible(Version(1, 0, 0)) is False (lower minor); Version(2, 0, 0).is_compatible(Version(1, 5, 0)) is False (different major).",
+    "Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0')) is False; Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1')) is False; Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0)) is False (prerelease must be equal).",
+    "Version(1, 2, 3).is_compatible('wrongtype'), .is_compatible({'a': 2}) and .is_compatible([]) each raise TypeError whose message starts with 'Expected a Version type'.",
+    "A subclass instance is accepted: class CustomVersion(Version): pass; CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) is True.",
+    "The method's docstring contains doctest examples and the existing test suite (tests/) still passes."
+  ],
+  "allowed_write_globs": [
+    "src/semver/**"
+  ],
+  "protected_globs": [
+    "tests/**",
+    "docs/**",
+    "setup.cfg",
+    "pyproject.toml",
+    "README.rst",
+    "LICENSE.txt"
+  ],
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-rA",
+    "-p",
+    "no:cacheprovider",
+    "-o",
+    "addopts=",
+    "tests"
+  ],
+  "base_image": "python:3.12-slim",
+  "language": "python",
+  "import_hint": "from semver import Version   (package lives in src/semver; the class is semver.version.Version)",
+  "test_runner": "pytest",
+  "install_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "pip",
+    "install",
+    "--no-cache-dir",
+    "--disable-pip-version-check",
+    "--target",
+    "/tmp/deps",
+    "pytest==8.3.3",
+    "pluggy==1.5.0",
+    "iniconfig==2.0.0",
+    "packaging==24.1"
+  ],
+  "requirements_lock": "pytest==8.3.3 pluggy==1.5.0 iniconfig==2.0.0 packaging==24.1",
+  "python_paths": [
+    "src",
+    "docs",
+    "tests"
+  ],
+  "heldout_tests_sha256": {
+    "tests/test_heldout_pr368.py": "8b799158e528dc629ed5109ab6fc4e5db9f55b0ce3f28c310d313789e1283a36"
+  },
+  "repo_files_sha256": {
+    "LICENSE.txt": "cda490c32e61d3884dc17791fc8078f2a3e564fba98dd18b4dc64eb2720b2b6f",
+    "README.rst": "848a507c44bdeeafcfe4311e013611a3e975b0b29243ab0001575a0504edfa07",
+    "docs/coerce.py": "cd098531d268470b2f5581a4c81647b899444f2aafabf4cf3a8b536f52aad01a",
+    "docs/semverwithvprefix.py": "6e3fb8a19ae07e6b2c095c3b56a8e7432741898760004682375d7059d37f6019",
+    "pyproject.toml": "9107807a5c32a4484a442105f0387ceddf8efa06eabf9ca716a5900ebd2fbb00",
+    "setup.cfg": "ecfbfcacba3435aee9da900112b6adcb83c29b4a0a742c5f4df3c65e20a89af5",
+    "src/semver/__about__.py": "0c69926f181f46dc64703e65b01d6fcadbd2727cb6d883da5386e044221e0ab9",
+    "src/semver/__init__.py": "a130cf27e2c6b2ed53589c5e039ed66c9dfe06bf1e6f306df8749232a2464808",
+    "src/semver/__main__.py": "faca061737343ace662feca0c935437b682f5a8cd83419f3b628f53686c4ebd1",
+    "src/semver/_deprecated.py": "f0b5610188698febe7322582e087c56eecc87849a6b6dd121710b05562f3a40c",
+    "src/semver/_types.py": "f807dacd98279a631eed6b614b1fccfb0d410a7ab674f166cac8e6b533a6d687",
+    "src/semver/cli.py": "951df8ff09e277a723be543a09af5f0ed52fb1e91c290efad89ca7fccdbb3d51",
+    "src/semver/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "src/semver/version.py": "f979bc9fe201d2d8496f3afc8105f14b6a64bc752da61a823dd3b245565ca8b3",
+    "tests/conftest.py": "f111cc31bf8accc95fffd76c2bed5dc5d6c575d1ce1b0cfc34e7a3bc2183577f",
+    "tests/test_bump.py": "82fd45a06ba463fa92229867003baf6eb5f8abf9630ae2a422b80f27ceb3322a",
+    "tests/test_compare.py": "286e052052d664e56fe31358ad49fa4f035a4dda0d6f521edee23fa2d0b880ef",
+    "tests/test_deprecated_functions.py": "29a7ebbf63b221ae438346b352123d6b3ec36134a97ad38364686482a9d0a5cd",
+    "tests/test_docstrings.py": "b63d4fd4d9cf0c54234eaa2af1bd8c6ee10f85cc83a3558cca70837cf87783f5",
+    "tests/test_format.py": "501e0cb1454597aee73fcabfb4280d5af17c4a8be48945d7b74c3c715f6c1e10",
+    "tests/test_immutable.py": "560baae1c1fbf771746b09ee1e59974687e563f85caf0fea44ae7fd511013772",
+    "tests/test_index.py": "ea9015e7fcbf22feb0d0649a6efd0a391359c76592d45191ac436d2b3989640e",
+    "tests/test_match.py": "d67e0cd8e1ca6a7810465180f48f3c3d0a81c31ba52a858a17b3f2e7713a4b1f",
+    "tests/test_max-min.py": "67e05dfbe2825c034e9dc8cf9a49bc7723c15a210b0071dfc2e350cd9c929e17",
+    "tests/test_parsing.py": "5ee7ce495a731dd119491081fefab59decfb4621443380d95d25739819dbffad",
+    "tests/test_pysemver-cli.py": "a88d04b14a2ddcf18b8daac6d5593318c65cbce8a041ae742de4a83392b64cec",
+    "tests/test_replace.py": "3704c26eaac884e0b4f7a4e48c4188bcfbac9e35eab3196560f83ce09b56f7d9",
+    "tests/test_semver.py": "af19bff01d86363ff8035b6a162a320f321d15977a815cef3eea44a243236817",
+    "tests/test_subclass.py": "e6e8d48999973b0d0a3013b54aa7a3af8fc64fb638d107973dbf22a18255e506",
+    "tests/test_typeerror-274.py": "3e487a724502eab30e47ac2cf0d301b7e81dd5030c362f41aa485607da40e856"
+  },
+  "spec_sha256": "11bd0819f03dcf1a4d8e3e0bf60593cbc7aa9c35004eaede2637221bf4e21bb5"
+}

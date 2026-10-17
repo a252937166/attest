@@ -1,0 +1,29 @@
+[09:20:47] frozen task durationkit-units-001 with 5 files, spec sha256 e51653cf1b31
+[09:20:48] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae)
+[09:20:52] checkpoint 532a8fa2-ec1a-4fd5-99c2-2f21b1d07dc7 ready; baseline OK (6 tests)
+[09:20:54] MODEL ERROR: HTTP 422 from https://api.tokenfactory.nebius.com/v1/chat/completions: [{'type': 'missing', 'loc': ['body', 'response_format', 'json_schema', 'name'], 'msg': 'Field required', 'input': {'type': 'object', 'additionalProperties': False, 'properties': {'feasible': {'type': 'boolean'}, 'infeasibility_reason': {'type': ['string', 'null']}, 'restated_task': {'type': 'string'
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/work/attest/attest/__main__.py", line 5, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/work/attest/attest/cli.py", line 98, in main
+    return args.func(args)
+           ^^^^^^^^^^^^^^^
+  File "/work/attest/attest/cli.py", line 73, in cmd_run
+    bundle = pipeline.run()
+             ^^^^^^^^^^^^^^
+  File "/work/attest/attest/core/pipeline.py", line 115, in run
+    return self.finish()
+           ^^^^^^^^^^^^^
+  File "/work/attest/attest/core/pipeline.py", line 122, in finish
+    write_bundle(self.out_dir, self.bundle)
+  File "/work/attest/attest/core/proof.py", line 100, in write_bundle
+    (out_dir / "PROOF.md").write_text(render_markdown(bundle), encoding="utf-8")
+                                      ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/core/proof.py", line 44, in render_markdown
+    f"Feasible: {bundle['spec']['feasible']}. {bundle['spec']['restated_task']}",
+                 ~~~~~~~~~~~~~~^^^^^^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
+exit=1

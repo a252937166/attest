@@ -1,0 +1,231 @@
+{
+  "run_id": "durationkit-units-001-20261015T092047Z",
+  "started_at_utc": "2026-10-15T09:20:47.219360+00:00",
+  "finished_at_utc": "2026-10-15T09:20:54.139130+00:00",
+  "profile": {
+    "label": "submission-pilot",
+    "provider": {
+      "provider": "nebius_tokenfactory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "roles": {
+        "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "seal": "nvidia/nemotron-3-super-120b-a12b",
+        "implement": "nvidia/nemotron-3-super-120b-a12b",
+        "summary": "nvidia/Nemotron-3_5-Lightning"
+      },
+      "usd_cap": 0.5,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "response_format": "json_schema (raw schema, per Token Factory docs)",
+      "schema_in_prompt": true,
+      "auto_retry": false
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "uid_gid": [
+        65534,
+        65534
+      ],
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner",
+      "post_replay": false
+    }
+  },
+  "task": {
+    "id": "durationkit-units-001",
+    "title": "Accept unit suffixes in parse_duration",
+    "statement": "Users want to write durations such as '1h30m' instead of counting seconds. Extend parse_duration(text) so that, in addition to the existing plain-integer-seconds form, it accepts one or more components made of a non-negative integer followed by a unit: d (days), h (hours), m (minutes), s (seconds) or ms (milliseconds). Components must appear in descending unit order (for example '2d4h', '1h30m', '45m10s', '1s500ms'), each unit may appear at most once, and whitespace is allowed around the whole string and between components (but not between a number and its unit). The function keeps returning the total number of seconds as a float (so '500ms' is 0.5 and '1h30m' is 5400.0). Reject with ValueError: empty or whitespace-only input, negative numbers, fractional numbers, unknown units, repeated units, components out of descending order, a unit without a number, and any other malformed text. Keep raising TypeError for non-string input. The existing tests in tests/ must keep passing and must not be modified.",
+    "acceptance_criteria": [
+      "parse_duration('90') == 90.0 and surrounding whitespace is still ignored (existing behavior preserved).",
+      "Single components work for every unit: '2d' -> 172800.0, '3h' -> 10800.0, '15m' -> 900.0, '45s' -> 45.0, '500ms' -> 0.5.",
+      "Combined components in descending order work: '1h30m' -> 5400.0, '2d4h' -> 187200.0, '1m1s' -> 61.0, '1s500ms' -> 1.5, '1d1h1m1s1ms' -> 90061.001.",
+      "Whitespace is accepted around the string and between components: ' 1h 30m ' -> 5400.0; '1 h' raises ValueError.",
+      "'0s' and '0' return 0.0.",
+      "ValueError for: '', '   ', '-1h', '1.5h', '1x', '1h1h', '30m1h', 'h', '1h30', 'abc'.",
+      "TypeError for non-string input such as 90 or None.",
+      "The return type is float for every accepted input."
+    ],
+    "allowed_write_globs": [
+      "durationkit/**"
+    ],
+    "protected_globs": [
+      "tests/**",
+      "README.md"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from durationkit import parse_duration",
+    "repo_files_sha256": {
+      "README.md": "7fb26a829b376e73d47f5fb6e6a0def54646f963edc6534ffbe845d968faa3ff",
+      "durationkit/__init__.py": "ed59ec6803202d5d097eba57099f8daab8b9e199a721ba4fce6736457f6607bb",
+      "durationkit/parse.py": "80c22eaa60f98f01825bb4775bd1108983a87a905dbfdc75f39d68bcb6e62bf3",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_parse.py": "9f068d13f4c2dd7f484b639767092c53b33646526524cb2b68d0a22b8de55790"
+    },
+    "spec_sha256": "e51653cf1b317948395923522095ddf1b6d11db0574120e38c3472448f457b8c"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "checkpoint_operation_uuid": "01a13edd-4ecb-7638-b26b-ca0dc70586b7",
+    "checkpoint_image_uuid": "532a8fa2-ec1a-4fd5-99c2-2f21b1d07dc7",
+    "baseline": {
+      "ran": 6,
+      "tests": [
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_empty_string_is_rejected",
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_non_string_is_rejected",
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_plain_integer_is_seconds",
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_returns_float",
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_surrounding_whitespace_is_ignored",
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_zero",
+          "outcome": "ok"
+        }
+      ],
+      "passed": 6,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a13edd-4ecb-7638-b26b-ca0dc70586b7",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.221,
+      "stderr_tail": "test_empty_string_is_rejected (tests.test_parse.ParseDurationExistingBehaviour.test_empty_string_is_rejected) ... ok\ntest_non_string_is_rejected (tests.test_parse.ParseDurationExistingBehaviour.test_non_string_is_rejected) ... ok\ntest_plain_integer_is_seconds (tests.test_parse.ParseDurationExistingBehaviour.test_plain_integer_is_seconds) ... ok\ntest_returns_float (tests.test_parse.ParseDurationExistingBehaviour.test_returns_float) ... ok\ntest_surrounding_whitespace_is_ignored (tests.test_parse.ParseDurationExistingBehaviour.test_surrounding_whitespace_is_ignored) ... ok\ntest_zero (tests.test_parse.ParseDurationExistingBehaviour.test_zero) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    }
+  },
+  "spec": null,
+  "sealed_tests": null,
+  "red_run": null,
+  "trajectory": {
+    "turns": 0,
+    "actions": [],
+    "path": "trajectory.jsonl"
+  },
+  "candidate": {
+    "changed_paths": [],
+    "deleted_paths": [],
+    "scope_ok": null,
+    "violations": [],
+    "diff": "",
+    "sha256": {}
+  },
+  "verification": null,
+  "verdict": {
+    "verdict": "ERROR",
+    "reasons": [
+      "model provider: HTTP 422 from https://api.tokenfactory.nebius.com/v1/chat/completions: [{'type': 'missing', 'loc': ['body', 'response_format', 'json_schema', 'name'], 'msg': 'Field required', 'input': {'type': 'object', 'additionalProperties': False, 'properties': {'feasible': {'type': 'boolean'}, 'infeasibility_reason': {'type': ['string', 'null']}, 'restated_task': {'type': 'string'"
+    ]
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": null,
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T09:20:52.471950+00:00",
+        "elapsed_ms": 1666,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4775,
+        "tokens_in": null,
+        "tokens_out": null,
+        "tokens_cached": null,
+        "usage_raw": {},
+        "cost_usd": null,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": false,
+        "malformed_output": false,
+        "error": "HTTP 422 from https://api.tokenfactory.nebius.com/v1/chat/completions: [{'type': 'missing', 'loc': ['body', 'response_format', 'json_schema', 'name'], 'msg': 'Field required', 'input': {'type': 'object', 'additionalProperties': False, 'properties': {'feasible': {'type': 'boolean'}, 'infeasibility_reason': {'type': ['string', 'null']}, 'restated_task': {'type': 'string'"
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a13edd-4ecb-7638-b26b-ca0dc70586b7",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "532a8fa2-ec1a-4fd5-99c2-2f21b1d07dc7",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.799,
+        "raw_cost_diag": 0.0028060900000000002,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T09:20:48.954088+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "totals": {
+      "model_calls": 1,
+      "model_calls_failed": 1,
+      "malformed_outputs": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 1666,
+      "cost_usd": null,
+      "by_model": {
+        "nebius_tokenfactory:nvidia/Nemotron-3-Ultra-550b-a55b": {
+          "calls": 1,
+          "tokens_in": 0,
+          "tokens_out": 0,
+          "tokens_cached": 0,
+          "cost_usd": null,
+          "elapsed_ms": 1666,
+          "failed": 1
+        }
+      },
+      "sandbox_operations": 1,
+      "sandbox_duration_s": 0.799,
+      "sandbox_retained_images": [
+        "532a8fa2-ec1a-4fd5-99c2-2f21b1d07dc7"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.00280609
+    }
+  },
+  "limitations": [
+    "Profile 'submission-pilot': inference provider nebius_tokenfactory; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "First slice: single candidate, no breaker/mutation pass, no drift audit, no Tavily grounding, no arbitration of disputed sealed failures.",
+    "Sealed tests are authored by a separate request with no access to the implementation; they share the provider account but not the context.",
+    "Sandbox CPU/RAM quotas are not configurable through the public REST schema; only max_layer_bytes, a timeout and networking=off are enforced per operation.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge.",
+    "The retained checkpoint image stays on the service (no documented delete endpoint) and is listed in the ledger."
+  ]
+}

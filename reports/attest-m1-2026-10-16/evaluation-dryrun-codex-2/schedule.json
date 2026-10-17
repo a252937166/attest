@@ -1,0 +1,89 @@
+{
+  "label": "m1-dryrun-2",
+  "registered_at_utc": "2026-10-16T19:53:35.896923+00:00",
+  "attest_version": "0.2.0",
+  "provider": "codex",
+  "provider_detail": {
+    "provider": "codex_gateway",
+    "base_url": "https://development-gateway.invalid",
+    "roles": {
+      "spec": [
+        "gpt-6-astra",
+        "low"
+      ],
+      "seal": [
+        "gpt-6-sol",
+        "medium"
+      ],
+      "implement": [
+        "gpt-6-sol",
+        "medium"
+      ],
+      "break": [
+        "gpt-6-sol",
+        "medium"
+      ],
+      "audit": [
+        "gpt-6-astra",
+        "low"
+      ],
+      "arbitrate": [
+        "gpt-6-astra",
+        "medium"
+      ],
+      "summary": [
+        "gpt-6-luna",
+        "low"
+      ]
+    },
+    "structured_endpoint": "/run",
+    "native_tools": false,
+    "streaming": false,
+    "auto_retry": false
+  },
+  "per_run_usd_cap": 0.5,
+  "approve_usd": null,
+  "max_calls_per_run": null,
+  "max_turns": 14,
+  "workers": 2,
+  "attempts_per_cell": 1,
+  "systems": [
+    "baseline",
+    "attest"
+  ],
+  "tasks": [
+    "durationkit-units-001"
+  ],
+  "heldout_stripped_from_system_under_test": true,
+  "stop_conditions": [
+    "batch USD cap reached (reservation of the per-run cap before each run)",
+    "3 consecutive infrastructure errors",
+    "any transport-uncertain operation (never replayed)"
+  ],
+  "definitions": {
+    "accepted": "attest: verdict VERIFIED; baseline: implementer finished",
+    "correct": "existing suite and held-out suite pass on the final patch in a fresh branch (judge)",
+    "infra_error": "verdict ERROR or a harness exception",
+    "not_run": "scheduled but never executed; reason recorded"
+  },
+  "cells": [
+    {
+      "scheduled_index": 0,
+      "task": "durationkit-units-001",
+      "task_path": "examples/durationkit-task/task.json",
+      "heldout": "examples/eval/durationkit-task/heldout.py",
+      "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+      "system": "baseline",
+      "attempt": 1
+    },
+    {
+      "scheduled_index": 1,
+      "task": "durationkit-units-001",
+      "task_path": "examples/durationkit-task/task.json",
+      "heldout": "examples/eval/durationkit-task/heldout.py",
+      "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+      "system": "attest",
+      "attempt": 1
+    }
+  ]
+}

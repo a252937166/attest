@@ -1,0 +1,56 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Extend parse_duration to accept duration strings composed of one or more components, each a non-negative integer followed by a unit (d, h, m, s, ms), in strictly descending unit order, with optional whitespace around the whole string and between components. The function returns total seconds as a float. It must preserve existing behavior for plain integer strings (e.g., '90' -> 90.0) and continue to raise TypeError for non-string input and ValueError for malformed input (empty, negative, fractional, unknown unit, repeated unit, out-of-order units, missing number, number without unit, whitespace between number and unit).",
+  "interface_contract": [
+    {
+      "name": "parse_duration",
+      "signature": "parse_duration(text: str) -> float",
+      "behavior": "Parses a duration string and returns the total number of seconds as a float. Accepts two forms: (1) a plain non-negative integer (optionally surrounded by whitespace) representing seconds; (2) one or more components of the form <non-negative integer><unit> where unit is one of 'd', 'h', 'm', 's', 'ms'. Components must appear in descending unit order (d > h > m > s > ms), each unit at most once. Whitespace is allowed around the entire string and between components, but not between a number and its unit. The function computes the total seconds: 1d = 86400s, 1h = 3600s, 1m = 60s, 1s = 1s, 1ms = 0.001s. Returns the sum as a float.",
+      "error_cases": [
+        "TypeError: if text is not a string.",
+        "ValueError: if text is empty or whitespace-only after stripping.",
+        "ValueError: if any component contains a negative integer (e.g., '-1h').",
+        "ValueError: if any component contains a fractional number (e.g., '1.5h').",
+        "ValueError: if an unknown unit is used (e.g., '1x').",
+        "ValueError: if a unit appears more than once (e.g., '1h1h').",
+        "ValueError: if components are not in strictly descending unit order (e.g., '30m1h').",
+        "ValueError: if a unit appears without a preceding number (e.g., 'h').",
+        "ValueError: if a number appears without a following unit in a multi-component string (e.g., '1h30').",
+        "ValueError: if there is whitespace between a number and its unit (e.g., '1 h').",
+        "ValueError: for any other malformed text (e.g., 'abc')."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "parse_duration('90') == 90.0 and surrounding whitespace is still ignored (existing behavior preserved).",
+    "parse_duration('0') == 0.0 and parse_duration('0s') == 0.0.",
+    "parse_duration('  42 ') == 42.0 (existing behavior preserved).",
+    "parse_duration('7') returns a float (existing behavior preserved).",
+    "parse_duration('') raises ValueError (existing behavior preserved).",
+    "parse_duration(90) raises TypeError (existing behavior preserved).",
+    "parse_duration(None) raises TypeError.",
+    "Single components work for every unit: '2d' -> 172800.0, '3h' -> 10800.0, '15m' -> 900.0, '45s' -> 45.0, '500ms' -> 0.5.",
+    "Combined components in descending order work: '1h30m' -> 5400.0, '2d4h' -> 187200.0, '1m1s' -> 61.0, '1s500ms' -> 1.5, '1d1h1m1s1ms' -> 90061.001.",
+    "Whitespace is accepted around the string and between components: ' 1h 30m ' -> 5400.0.",
+    "Whitespace between number and unit raises ValueError: '1 h' raises ValueError.",
+    "ValueError for empty or whitespace-only input: '' and '   ' raise ValueError.",
+    "ValueError for negative numbers: '-1h' raises ValueError.",
+    "ValueError for fractional numbers: '1.5h' raises ValueError.",
+    "ValueError for unknown units: '1x' raises ValueError.",
+    "ValueError for repeated units: '1h1h' raises ValueError.",
+    "ValueError for components out of descending order: '30m1h' raises ValueError.",
+    "ValueError for unit without a number: 'h' raises ValueError.",
+    "ValueError for number without a unit in multi-component string: '1h30' raises ValueError.",
+    "ValueError for other malformed text: 'abc' raises ValueError.",
+    "The return type is float for every accepted input."
+  ],
+  "out_of_scope": [
+    "Do not modify the existing tests in tests/test_parse.py.",
+    "Do not change the function signature (name, parameters, return type).",
+    "Do not change the existing behavior for plain integer strings (must still accept and return float seconds).",
+    "Do not add any new public functions or classes.",
+    "Do not change the module structure or imports."
+  ],
+  "external_references_needed": []
+}

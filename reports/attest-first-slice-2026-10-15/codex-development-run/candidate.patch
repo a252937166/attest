@@ -1,0 +1,61 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -1,15 +1,51 @@
+ """Duration parsing."""
+ 
+ 
++_SECONDS_PER_UNIT = {"d": 86400, "h": 3600, "m": 60, "s": 1}
++_UNIT_ORDER = {"d": 0, "h": 1, "m": 2, "s": 3, "ms": 4}
++
++
+ def parse_duration(text: str) -> float:
+-    """Parse a duration string and return the number of seconds as a float.
+-
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
+-    """
++    """Parse plain seconds or ordered duration components into seconds."""
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
++
+     stripped = text.strip()
+-    if not stripped.isdigit():
++    if not stripped:
+         raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if stripped.isdecimal():
++        return float(stripped)
++
++    total = 0.0
++    position = 0
++    previous_order = -1
++    while position < len(stripped):
++        number_start = position
++        while position < len(stripped) and stripped[position].isdecimal():
++            position += 1
++        if position == number_start:
++            raise ValueError(f"unsupported duration: {text!r}")
++
++        number = stripped[number_start:position]
++        if stripped.startswith("ms", position):
++            unit = "ms"
++            position += 2
++        elif position < len(stripped) and stripped[position] in "dhms":
++            unit = stripped[position]
++            position += 1
++        else:
++            raise ValueError(f"unsupported duration: {text!r}")
++
++        order = _UNIT_ORDER[unit]
++        if order <= previous_order:
++            raise ValueError(f"unsupported duration: {text!r}")
++        previous_order = order
++        if unit == "ms":
++            total += float(number + "e-3")
++        else:
++            total += float(number) * _SECONDS_PER_UNIT[unit]
++
++        while position < len(stripped) and stripped[position].isspace():
++            position += 1
++
++    return float(total)

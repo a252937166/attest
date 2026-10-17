@@ -1,0 +1,58 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -2,14 +2,49 @@
+ 
+ 
+ def parse_duration(text: str) -> float:
+-    """Parse a duration string and return the number of seconds as a float.
++    """Parse non-negative integer seconds or ordered duration components.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Components use the units d, h, m, s, and ms in strictly descending
++    order. Whitespace is allowed around the input and between components.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
++
+     stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if not stripped:
++        raise ValueError("duration must not be empty")
++    if stripped.isdecimal():
++        return float(stripped)
++
++    units = {"d": (0, 86400), "h": (1, 3600), "m": (2, 60),
++             "s": (3, 1), "ms": (4, 0.001)}
++    total = 0.0
++    position = 0
++    previous_rank = -1
++
++    while position < len(stripped):
++        number_start = position
++        while position < len(stripped) and stripped[position].isdecimal():
++            position += 1
++        if position == number_start:
++            raise ValueError(f"unsupported duration: {text!r}")
++
++        number = int(stripped[number_start:position])
++        if stripped.startswith("ms", position):
++            unit = "ms"
++        elif position < len(stripped) and stripped[position] in "dhms":
++            unit = stripped[position]
++        else:
++            raise ValueError(f"unsupported duration: {text!r}")
++
++        rank, seconds = units[unit]
++        if rank <= previous_rank:
++            raise ValueError(f"units out of order: {text!r}")
++        total += number * seconds
++        previous_rank = rank
++        position += len(unit)
++
++        while position < len(stripped) and stripped[position].isspace():
++            position += 1
++
++    return float(total)

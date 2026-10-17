@@ -1,0 +1,76 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -4,12 +4,68 @@
+ def parse_duration(text: str) -> float:
+     """Parse a duration string and return the number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts two forms: (1) a plain non-negative integer (optionally surrounded by whitespace)
++    representing seconds; (2) one or more components of the form <non-negative integer><unit>
++    where unit is one of 'd', 'h', 'm', 's', 'ms'. Components must appear in descending unit
++    order (d > h > m > s > ms), each unit at most once. Whitespace is allowed around the
++    entire string and between components, but not between a number and its unit. The function
++    computes the total seconds: 1d = 86400s, 1h = 3600s, 1m = 60s, 1s = 1s, 1ms = 0.001s.
++    Returns the sum as a float.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+     stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if not stripped:
++        raise ValueError("duration string is empty or only whitespace")
++    # Check for plain integer (only digits) after stripping
++    if stripped.isdigit():
++        return float(stripped)
++    # Parse components
++    i = 0
++    n = len(stripped)
++    total = 0.0
++    seen = set()
++    prev_rank = float('inf')
++    unit_order = {'d': 4, 'h': 3, 'm': 2, 's': 1, 'ms': 0}
++    unit_factor = {'d': 86400.0, 'h': 3600.0, 'm': 60.0, 's': 1.0, 'ms': 0.001}
++    while i < n:
++        # Skip whitespace
++        while i < n and stripped[i].isspace():
++            i += 1
++        if i >= n:
++            break  # trailing whitespace
++        # Parse number
++        start = i
++        while i < n and stripped[i].isdigit():
++            i += 1
++        if start == i:
++            raise ValueError(f"missing number in duration at position {start}")
++        number_str = stripped[start:i]
++        # Parse unit
++        if i >= n:
++            raise ValueError(f"missing unit after number {number_str!r}")
++        # Check for 'ms' first
++        if stripped[i:i+2] == 'ms':
++            unit = 'ms'
++            i += 2
++        elif stripped[i] in 'dhms':
++            unit = stripped[i]
++            i += 1
++        else:
++            raise ValueError(f"unknown unit after number {number_str!r}")
++        # Validate number
++        try:
++            value = int(number_str)
++        except ValueError:
++            raise ValueError(f"invalid number {number_str!r}")
++        # Check unit repetition and order
++        if unit in seen:
++            raise ValueError(f"repeated unit {unit}")
++        rank = unit_order[unit]
++        if rank >= prev_rank:
++            raise ValueError(f"unit {unit} out of order")
++        seen.add(unit)
++        prev_rank = rank
++        total += value * unit_factor[unit]
++        # After unit, loop continues (will skip whitespace before next number)
++    return total

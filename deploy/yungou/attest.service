@@ -1,0 +1,32 @@
+[Unit]
+Description=Attest console and application API (no Docker; execution in Nebius Token Factory Sandboxes)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=attest
+Group=attest
+WorkingDirectory=/opt/attest/app
+EnvironmentFile=/etc/attest/attest.env
+Environment=PYTHONUNBUFFERED=1
+Environment=ATTEST_DATA_DIR=/var/lib/attest
+Environment=ATTEST_EXAMPLES_DIR=/opt/attest/app/examples
+Environment=ATTEST_IMPORT_DIRS=/var/lib/attest/runs:/opt/attest/app/reports/attest-verification-2026-10-15/evidence-runs:/opt/attest/app/reports/attest-first-slice-2026-10-15:/opt/attest/app/reports/attest-evaluation-2026-10-16/runs
+Environment=ATTEST_IMPORT_PROVIDERS=nebius
+Environment=SSL_CERT_FILE=/opt/attest/venv/lib/python3.12/site-packages/certifi/cacert.pem
+ExecStart=/opt/attest/venv/bin/python -m uvicorn attest.app.server:app --host 127.0.0.1 --port 4070 --workers 1 --log-level info --no-access-log
+Restart=on-failure
+RestartSec=5
+MemoryMax=__MEMORY_MAX__
+CPUQuota=60%
+TasksMax=128
+Nice=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/attest
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,1069 @@
+{
+  "schedule": {
+    "label": "pacing-dryrun",
+    "registered_at_utc": "2026-10-17T12:11:44.973658+00:00",
+    "attest_version": "0.3.0",
+    "provider": "codex",
+    "provider_detail": {
+      "provider": "codex_gateway",
+      "base_url": "https://development-gateway.invalid",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "structured_endpoint": "/run",
+      "native_tools": false,
+      "streaming": false,
+      "auto_retry": false,
+      "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+      "pacing": {
+        "model": "rolling window of 3600 s per key; attempts counted; safety fraction applied",
+        "hourly_limit_assumed": 60,
+        "budget": 54,
+        "max_concurrency": 2,
+        "max_wait_s": 3900.0,
+        "state_shared_across_processes": true
+      }
+    },
+    "per_run_usd_cap": 0.5,
+    "approve_usd": null,
+    "max_calls_per_run": null,
+    "max_turns": 14,
+    "workers": 2,
+    "attempts_per_cell": 1,
+    "systems": [
+      "baseline",
+      "attest"
+    ],
+    "tasks": [
+      "roman-to-numeral",
+      "rle-encode",
+      "balanced-brackets",
+      "durationkit-units-001",
+      "semver-is-compatible-pr368-v2"
+    ],
+    "suite": "examples/eval/SUITE.json",
+    "heldout_stripped_from_system_under_test": true,
+    "provenance": {
+      "fresh_process": true,
+      "pid": 43304,
+      "snapshot_root": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/snapshot",
+      "source_root": "/work/attest",
+      "attest_version": "0.3.0",
+      "attest_revision": {
+        "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+        "digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+        "files": 34,
+        "git_commit": null,
+        "version": "0.3.0"
+      },
+      "eval_script_sha256": "676b02f665754f7ebf89371e4527fdfe9e95997634b310c7e85bb175b5d11f08",
+      "examples_digest": {
+        "digest": "b83c8a78c531572525b382292c2c922df6ac5ac6f9ba1f75d9a8ecfcedf3454e",
+        "files": 61
+      },
+      "guest_programs": {
+        "supervisor": {
+          "version": "attest-sealed-supervisor/6",
+          "sha256": "93e8c9edacca93fc4b8a8c2cf86b44374aab3a9a752dc35b7af5e3dfdc935211"
+        },
+        "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+        "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+        "guest_runner_sha256": "ad6ba42b83a3bbd1f686763a4fe6e8a9ab986cfd9c6e3f8bdc8d86d84c365503"
+      },
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "note": "the batch executes the snapshot only; edits to the source tree during the batch cannot reach it and are reported"
+    },
+    "pacing": {
+      "calls_per_cell_reserved": {
+        "baseline": 6,
+        "attest": 15
+      },
+      "model": "rolling window of 3600 s per key; attempts counted; safety fraction applied",
+      "hourly_limit_assumed": 60,
+      "budget": 54,
+      "max_concurrency": 2,
+      "max_wait_s": 3900.0,
+      "used_in_window": 0,
+      "blocked_until_epoch": null,
+      "rejections_seen": 0,
+      "waits": [],
+      "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json",
+      "state_shared_across_processes": true,
+      "state_error": null
+    },
+    "stop_conditions": [
+      "batch USD cap reached (reservation of the per-run cap before each run)",
+      "3 consecutive infrastructure errors",
+      "any transport-uncertain operation (never replayed)",
+      "Codex pacing: a cell whose bounded wait for the hourly budget is exceeded ends as ERROR (reported); no fallback"
+    ],
+    "definitions": {
+      "accepted": "attest: verdict VERIFIED; baseline: implementer finished",
+      "correct": "existing suite and held-out suite pass on the final patch in a fresh branch (judge)",
+      "infra_error": "verdict ERROR or a harness exception",
+      "not_run": "scheduled but never executed; reason recorded",
+      "comparison_invalid": "a task whose cells did not all run the registered revision, or whose snapshot changed during the batch"
+    },
+    "cells": [
+      {
+        "scheduled_index": 0,
+        "task": "roman-to-numeral",
+        "task_path": "examples/eval/roman-to-numeral/task.json",
+        "heldout": "examples/eval/roman-to-numeral/heldout.py",
+        "heldout_sha256": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200",
+        "task_spec_sha256": "e9c218e0825ab0557835cf8cd132a801d7f63677646166e019e8207a10dc3954",
+        "system": "baseline",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 1,
+        "task": "roman-to-numeral",
+        "task_path": "examples/eval/roman-to-numeral/task.json",
+        "heldout": "examples/eval/roman-to-numeral/heldout.py",
+        "heldout_sha256": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200",
+        "task_spec_sha256": "e9c218e0825ab0557835cf8cd132a801d7f63677646166e019e8207a10dc3954",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 2,
+        "task": "rle-encode",
+        "task_path": "examples/eval/rle-encode/task.json",
+        "heldout": "examples/eval/rle-encode/heldout.py",
+        "heldout_sha256": "021de77e64ade5e93d816e149b34d733c27e149b23bff6c119d87682e4c7bbb5",
+        "task_spec_sha256": "46f6d840c3b61a78e676dd7851d6347660ad71b9f5558f7e34b5411691f148af",
+        "system": "baseline",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 3,
+        "task": "rle-encode",
+        "task_path": "examples/eval/rle-encode/task.json",
+        "heldout": "examples/eval/rle-encode/heldout.py",
+        "heldout_sha256": "021de77e64ade5e93d816e149b34d733c27e149b23bff6c119d87682e4c7bbb5",
+        "task_spec_sha256": "46f6d840c3b61a78e676dd7851d6347660ad71b9f5558f7e34b5411691f148af",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 4,
+        "task": "balanced-brackets",
+        "task_path": "examples/eval/balanced-brackets/task.json",
+        "heldout": "examples/eval/balanced-brackets/heldout.py",
+        "heldout_sha256": "d43d71f0598f2fbf546153d7e19eabffb7e8cd3148a4f910c6f41f13462a06c2",
+        "task_spec_sha256": "b4b1ed357cf1c1bd54b85a7c1e9d3157d00ec207969b2cf0547512c4dbe167c8",
+        "system": "baseline",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 5,
+        "task": "balanced-brackets",
+        "task_path": "examples/eval/balanced-brackets/task.json",
+        "heldout": "examples/eval/balanced-brackets/heldout.py",
+        "heldout_sha256": "d43d71f0598f2fbf546153d7e19eabffb7e8cd3148a4f910c6f41f13462a06c2",
+        "task_spec_sha256": "b4b1ed357cf1c1bd54b85a7c1e9d3157d00ec207969b2cf0547512c4dbe167c8",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 6,
+        "task": "durationkit-units-001",
+        "task_path": "examples/durationkit-task/task.json",
+        "heldout": "examples/eval/durationkit-task/heldout.py",
+        "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+        "task_spec_sha256": "52f44d7aa75262eecd969a37464e8a7ece88ce0eaa3f4ef17e12e86fa71dc6f5",
+        "system": "baseline",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 7,
+        "task": "durationkit-units-001",
+        "task_path": "examples/durationkit-task/task.json",
+        "heldout": "examples/eval/durationkit-task/heldout.py",
+        "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+        "task_spec_sha256": "52f44d7aa75262eecd969a37464e8a7ece88ce0eaa3f4ef17e12e86fa71dc6f5",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 8,
+        "task": "semver-is-compatible-pr368-v2",
+        "task_path": "examples/semver-is-compatible-v2/task.json",
+        "heldout": "examples/semver-is-compatible/heldout_test_pr368.py",
+        "heldout_sha256": "8b799158e528dc629ed5109ab6fc4e5db9f55b0ce3f28c310d313789e1283a36",
+        "task_spec_sha256": "8ad94176d183307774d0c06f5c58bf164f132a8eadde1b945f6169fbb5c4ab70",
+        "system": "baseline",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 9,
+        "task": "semver-is-compatible-pr368-v2",
+        "task_path": "examples/semver-is-compatible-v2/task.json",
+        "heldout": "examples/semver-is-compatible/heldout_test_pr368.py",
+        "heldout_sha256": "8b799158e528dc629ed5109ab6fc4e5db9f55b0ce3f28c310d313789e1283a36",
+        "task_spec_sha256": "8ad94176d183307774d0c06f5c58bf164f132a8eadde1b945f6169fbb5c4ab70",
+        "system": "attest",
+        "attempt": 1
+      }
+    ]
+  },
+  "finished_at_utc": null,
+  "complete": false,
+  "budget": {
+    "approve_usd": null,
+    "per_run_cap_usd": 0.5,
+    "committed_usd": 0.0,
+    "peak_projected_usd": 0.0,
+    "stopped": null
+  },
+  "note": "every scheduled cell is reported once; there is no merge or best-of selection",
+  "provenance_check": {
+    "registered_revision": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+    "snapshot_intact_at_end": true,
+    "working_tree_revision_now": "379c6e2fea21f6d7c37a539b9ea6385b7b6d8a0762f51042da78ec2daaee1a4c",
+    "working_tree_changed_since_launch": true,
+    "comparisons": {
+      "roman-to-numeral": {
+        "valid": true,
+        "reasons": []
+      },
+      "rle-encode": {
+        "valid": true,
+        "reasons": []
+      },
+      "balanced-brackets": {
+        "valid": true,
+        "reasons": []
+      },
+      "durationkit-units-001": {
+        "valid": true,
+        "reasons": []
+      },
+      "semver-is-compatible-pr368-v2": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "invalid_tasks": []
+  },
+  "pacing": {
+    "model": "rolling window of 3600 s per key; attempts counted; safety fraction applied",
+    "hourly_limit_assumed": 60,
+    "budget": 54,
+    "max_concurrency": 2,
+    "max_wait_s": 3900.0,
+    "used_in_window": 53,
+    "blocked_until_epoch": null,
+    "rejections_seen": 0,
+    "waits": [],
+    "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json",
+    "state_shared_across_processes": true,
+    "state_error": null
+  },
+  "resumed_at_utc": null,
+  "rows": [
+    {
+      "scheduled_index": 0,
+      "task": "roman-to-numeral",
+      "task_path": "examples/eval/roman-to-numeral/task.json",
+      "heldout": "examples/eval/roman-to-numeral/heldout.py",
+      "heldout_sha256": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200",
+      "task_spec_sha256": "e9c218e0825ab0557835cf8cd132a801d7f63677646166e019e8207a10dc3954",
+      "system": "baseline",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "BASELINE",
+      "accepted": true,
+      "held_out_correct": true,
+      "held_out_summary": "OK (8 of 8 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a149c9-daf5-717e-bd07-ec7c338f8a64",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 5,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 3,
+      "wall_s": 217.3,
+      "turns": 5,
+      "finished": true,
+      "reasons": [],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/runs/roman-to-numeral-baseline-a1-20261017T121144976152Z",
+      "run_id": "roman-to-numeral-baseline-a1-20261017T121144976152Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-17T12:15:29.440409+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 1,
+      "task": "roman-to-numeral",
+      "task_path": "examples/eval/roman-to-numeral/task.json",
+      "heldout": "examples/eval/roman-to-numeral/heldout.py",
+      "heldout_sha256": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200",
+      "task_spec_sha256": "e9c218e0825ab0557835cf8cd132a801d7f63677646166e019e8207a10dc3954",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "VERIFIED",
+      "accepted": true,
+      "held_out_correct": true,
+      "held_out_summary": "OK (8 of 8 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a149cc-77fc-71e9-a0ee-cf5c28c15583",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 9,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 19,
+      "wall_s": 388.5,
+      "turns": 5,
+      "finished": true,
+      "reasons": [],
+      "warnings": [],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/runs/roman-to-numeral-attest-a1-20261017T121144976229Z",
+      "run_id": "roman-to-numeral-attest-a1-20261017T121144976229Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-17T12:18:20.857168+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 2,
+      "task": "rle-encode",
+      "task_path": "examples/eval/rle-encode/task.json",
+      "heldout": "examples/eval/rle-encode/heldout.py",
+      "heldout_sha256": "021de77e64ade5e93d816e149b34d733c27e149b23bff6c119d87682e4c7bbb5",
+      "task_spec_sha256": "46f6d840c3b61a78e676dd7851d6347660ad71b9f5558f7e34b5411691f148af",
+      "system": "baseline",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "BASELINE",
+      "accepted": true,
+      "held_out_correct": true,
+      "held_out_summary": "OK (9 of 9 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a149cc-35f3-76c5-b728-da3db67402fb",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 4,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 2,
+      "wall_s": 147.3,
+      "turns": 4,
+      "finished": true,
+      "reasons": [],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/runs/rle-encode-baseline-a1-20261017T121529444943Z",
+      "run_id": "rle-encode-baseline-a1-20261017T121529444943Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-17T12:18:03.881741+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 3,
+      "task": "rle-encode",
+      "task_path": "examples/eval/rle-encode/task.json",
+      "heldout": "examples/eval/rle-encode/heldout.py",
+      "heldout_sha256": "021de77e64ade5e93d816e149b34d733c27e149b23bff6c119d87682e4c7bbb5",
+      "task_spec_sha256": "46f6d840c3b61a78e676dd7851d6347660ad71b9f5558f7e34b5411691f148af",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "INFEASIBLE",
+      "accepted": false,
+      "held_out_correct": false,
+      "held_out_summary": "FAILED (7 of 9 methods: ERROR 7); binding FAILED: child process nonzero exit: test_basic exit 1, test_empty exit 1, test_single_runs exit 1, test_long_run exit 1, test_roundtrip exit 1, test_returns_str exit 1, test_non_string_raises_typeerror exit 1",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a149cd-14b3-75da-9763-832bd8a047ed",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 1,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 1,
+      "wall_s": 49.7,
+      "turns": 0,
+      "finished": false,
+      "reasons": [
+        "The required encoding format contradicts universal round-tripping with the unchanged decode. For x='a1', maximal-run encoding must produce 'a111' ('a1' followed by '11'), but decode('a111') returns 'a' repeated 111 times, not 'a1'. The decoder consumes digit characters as part of the preceding count. Satisfying all requirements requires changing either the supported input domain or the encoding format and decoder; neither change is authorized."
+      ],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/runs/rle-encode-attest-a1-20261017T121803884762Z",
+      "run_id": "rle-encode-attest-a1-20261017T121803884762Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-17T12:19:00.583590+00:00",
+      "confusion": "true_reject"
+    },
+    {
+      "scheduled_index": 4,
+      "task": "balanced-brackets",
+      "task_path": "examples/eval/balanced-brackets/task.json",
+      "heldout": "examples/eval/balanced-brackets/heldout.py",
+      "heldout_sha256": "d43d71f0598f2fbf546153d7e19eabffb7e8cd3148a4f910c6f41f13462a06c2",
+      "task_spec_sha256": "b4b1ed357cf1c1bd54b85a7c1e9d3157d00ec207969b2cf0547512c4dbe167c8",
+      "system": "baseline",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "BASELINE",
+      "accepted": true,
+      "held_out_correct": true,
+      "held_out_summary": "OK (8 of 8 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a149cf-50f1-76ef-9bc0-af7d65e24565",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 4,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 2,
+      "wall_s": 179.2,
+      "turns": 4,
+      "finished": true,
+      "reasons": [],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/runs/balanced-brackets-baseline-a1-20261017T121820863788Z",
+      "run_id": "balanced-brackets-baseline-a1-20261017T121820863788Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-17T12:21:27.286094+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 5,
+      "task": "balanced-brackets",
+      "task_path": "examples/eval/balanced-brackets/task.json",
+      "heldout": "examples/eval/balanced-brackets/heldout.py",
+      "heldout_sha256": "d43d71f0598f2fbf546153d7e19eabffb7e8cd3148a4f910c6f41f13462a06c2",
+      "task_spec_sha256": "b4b1ed357cf1c1bd54b85a7c1e9d3157d00ec207969b2cf0547512c4dbe167c8",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "VERIFIED",
+      "accepted": true,
+      "held_out_correct": true,
+      "held_out_summary": "OK (8 of 8 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a149d3-ebbc-700f-801f-5be3fa6f8377",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 9,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 16,
+      "wall_s": 440.8,
+      "turns": 5,
+      "finished": true,
+      "reasons": [],
+      "warnings": [
+        "1 mutant(s) were unknown and excluded from the score"
+      ],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/runs/balanced-brackets-attest-a1-20261017T121900586528Z",
+      "run_id": "balanced-brackets-attest-a1-20261017T121900586528Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-17T12:26:29.065181+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 6,
+      "task": "durationkit-units-001",
+      "task_path": "examples/durationkit-task/task.json",
+      "heldout": "examples/eval/durationkit-task/heldout.py",
+      "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+      "task_spec_sha256": "52f44d7aa75262eecd969a37464e8a7ece88ce0eaa3f4ef17e12e86fa71dc6f5",
+      "system": "baseline",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "BASELINE",
+      "accepted": true,
+      "held_out_correct": true,
+      "held_out_summary": "OK (13 of 13 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a149d1-a21c-751a-bc83-47d2b6f92ef8",
+      "heldout_stripped_from_task": [],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 5,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 3,
+      "wall_s": 144.6,
+      "turns": 5,
+      "finished": true,
+      "reasons": [],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/runs/durationkit-units-001-baseline-a1-20261017T122127289839Z",
+      "run_id": "durationkit-units-001-baseline-a1-20261017T122127289839Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-17T12:23:59.406052+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 7,
+      "task": "durationkit-units-001",
+      "task_path": "examples/durationkit-task/task.json",
+      "heldout": "examples/eval/durationkit-task/heldout.py",
+      "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+      "task_spec_sha256": "52f44d7aa75262eecd969a37464e8a7ece88ce0eaa3f4ef17e12e86fa71dc6f5",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "VERIFIED",
+      "accepted": true,
+      "held_out_correct": true,
+      "held_out_summary": "OK (13 of 13 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_operation_uuid": "01a149da-1dbb-77d0-9053-7faff839e6be",
+      "heldout_stripped_from_task": [],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 9,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 19,
+      "wall_s": 548.5,
+      "turns": 5,
+      "finished": true,
+      "reasons": [],
+      "warnings": [
+        "static tamper scan: 1 flagged line(s): dynamic code or decoded payload; review the patch before trusting self-reported results"
+      ],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/runs/durationkit-units-001-attest-a1-20261017T122359410274Z",
+      "run_id": "durationkit-units-001-attest-a1-20261017T122359410274Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-17T12:33:15.112134+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 8,
+      "task": "semver-is-compatible-pr368-v2",
+      "task_path": "examples/semver-is-compatible-v2/task.json",
+      "heldout": "examples/semver-is-compatible/heldout_test_pr368.py",
+      "heldout_sha256": "8b799158e528dc629ed5109ab6fc4e5db9f55b0ce3f28c310d313789e1283a36",
+      "task_spec_sha256": "8ad94176d183307774d0c06f5c58bf164f132a8eadde1b945f6169fbb5c4ab70",
+      "system": "baseline",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "BASELINE",
+      "accepted": true,
+      "held_out_correct": true,
+      "held_out_summary": "328 passed in 0.68s",
+      "judge_evidence_class": "stdout",
+      "judge_operation_uuid": "01a149d7-2ba7-752f-9cf6-d4d7bc5284c0",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout_pr368.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 5,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 3,
+      "wall_s": 205.5,
+      "turns": 5,
+      "finished": true,
+      "reasons": [],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-reliability-2026-10-17/evaluation-paced-codex/runs/semver-is-compatible-pr368-v2-baseline-a1-20261017T122629075062Z",
+      "run_id": "semver-is-compatible-pr368-v2-baseline-a1-20261017T122629075062Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "b7fdd9eb0b71d237595a96102c461ff76ca7e668d4a4b48c329ea6bb5beed9fc",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-17T12:30:00.044561+00:00",
+      "confusion": "true_accept"
+    }
+  ],
+  "summary": {
+    "baseline": {
+      "scheduled": 5,
+      "completed": 5,
+      "not_run": 0,
+      "confusion": {
+        "true_accept": 5,
+        "false_accept": 0,
+        "false_reject": 0,
+        "true_reject": 0,
+        "infra_error": 0,
+        "unknown": 0,
+        "not_run": 0
+      },
+      "shipped_broken_code": 0,
+      "needs_human": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_s": 0.0,
+      "cells_in_invalid_comparisons": 0,
+      "total_cost_committed_usd": 0.0,
+      "mean_wall_s": 178.8
+    },
+    "attest": {
+      "scheduled": 4,
+      "completed": 4,
+      "not_run": 0,
+      "confusion": {
+        "true_accept": 3,
+        "false_accept": 0,
+        "false_reject": 0,
+        "true_reject": 1,
+        "infra_error": 0,
+        "unknown": 0,
+        "not_run": 0
+      },
+      "shipped_broken_code": 0,
+      "needs_human": 1,
+      "rate_limited_calls": 0,
+      "pacing_wait_s": 0.0,
+      "cells_in_invalid_comparisons": 0,
+      "total_cost_committed_usd": 0.0,
+      "mean_wall_s": 356.9
+    }
+  }
+}

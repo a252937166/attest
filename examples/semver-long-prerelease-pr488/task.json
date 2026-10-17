@@ -1,0 +1,93 @@
+{
+  "id": "semver-long-prerelease-pr488",
+  "title": "Compare long numeric prerelease identifiers without int conversion (python-semver issue #487)",
+  "repo_dir": "repo",
+  "language": "python",
+  "base_image": "python:3.12-slim",
+  "test_runner": "pytest",
+  "import_hint": "",
+  "python_paths": [
+    "src",
+    "tests"
+  ],
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-rA",
+    "-p",
+    "no:cacheprovider",
+    "-o",
+    "addopts=",
+    "tests"
+  ],
+  "checkpoint_timeout": 300,
+  "test_timeout": 180,
+  "allowed_write_globs": [
+    "src/semver/**"
+  ],
+  "protected_globs": [
+    "tests/**",
+    "docs/**",
+    "changelog.d/**",
+    "setup.cfg",
+    "pyproject.toml",
+    "README.rst",
+    "LICENSE.txt",
+    "tox.ini",
+    "noxfile.py",
+    "MANIFEST.in",
+    "Makefile",
+    "*.lock",
+    "requirements*.txt",
+    ".github/**"
+  ],
+  "max_file_bytes": 300000,
+  "heldout_tests": {
+    "tests/test_heldout_pr488.py": "heldout_test_pr488.py"
+  },
+  "statement": "python-semver (src/semver, BSD-3) is a semantic-versioning library whose central class is semver.version.Version (also exported as semver.Version). Bug report (upstream issue #487): Version.is_valid(\"0.0.0-\" + \"1\" * 5000) is True, but Version.parse(\"0.0.0-\" + \"1\" * 5000).compare(...) raises ValueError, because Version._nat_cmp in src/semver/version.py converts every all-digit prerelease identifier with int() and CPython refuses int conversion of strings longer than 4300 digits. Fix the prerelease comparison in src/semver/version.py so that it never converts a long ASCII numeric identifier to an int, while keeping the existing ordering rules exactly. Required semantics of the prerelease comparison: identifiers are the dot-separated parts of the prerelease string (an empty or None prerelease has one empty identifier); an identifier consisting only of ASCII digits is numeric and compares by its decimal value, computed without int(): strip leading zeros (an all-zero identifier becomes \"0\"), compare by length first and then lexicographically; a numeric identifier is lower than any non-numeric identifier; two non-numeric identifiers compare as plain strings; when every identifier of the shorter list is equal, the longer list is higher. Preserve the constructor's legacy behaviour: Version(0, 0, 0, prerelease=...) accepts identifiers with leading zeros and identifiers written with non-ASCII decimal digits (str.isdigit() is true), and such non-ASCII digit identifiers keep comparing by their int() value, so \"١٢\" compares equal to \"12\" and \"１２\" is lower than \"13\"; an identifier for which str.isdigit() is true but int() fails (for example \"²\") must still make compare() raise ValueError, eagerly, even when an earlier identifier would already decide the order, but only when the core versions are equal: a difference in major, minor or patch is decided before the prerelease is examined, so Version(0, 0, 0, prerelease=\"²\") < Version(1, 0, 0, prerelease=\"²\") is True. Keep everything else unchanged: Version.parse keeps rejecting non-canonical prereleases such as \"01\", \"01.2\", \"١٢\" and \"１２\" with ValueError; build metadata is ignored in comparisons; a version with a prerelease is lower than the same core version without one; the prerelease attribute is stored as given. Do not change parsing, the optional native parser, tests, docs or packaging files, and keep the whole existing pytest suite passing.",
+  "acceptance_criteria": [
+    "With v = \"0.0.0-\" + \"1\" * 5000: Version.is_valid(v) is True; Version.parse(v).compare(v) == 0; compare(v, \"0.0.0-2\") == 1 and compare(\"0.0.0-2\", v) == -1 (no ValueError).",
+    "Ordering of long numeric prereleases with Version.parse(\"0.0.0-\" + x): \"9\" * 4999 < \"1\" + \"0\" * 4999; \"1\" + \"0\" * 4998 + \"1\" < \"1\" + \"0\" * 4998 + \"2\"; \"1\" * 5000 < \"alpha\"; \"alpha.\" + \"1\" * 5000 < \"alpha.\" + \"1\" * 5000 + \".1\". For each pair low.compare(high) == -1, high.compare(low) == 1 and sorted([high, low]) == [low, high].",
+    "Build metadata is ignored and release order is preserved: with version = Version.parse(\"0.0.0-\" + \"1\" * 5000), version == version.replace(build=\"other\") and version < Version(0, 0, 0).",
+    "Constructor prereleases compare with the legacy rules, as Version(0, 0, 0, prerelease=left).compare(Version(0, 0, 0, prerelease=right)): (\"0001\", \"1\") -> 0; (\"000\", \"0\") -> 0; (\"02\", \"10\") -> -1; (\"01.2\", \"1.2\") -> 0; (\"2a\", \"10a\") -> 1; (\"01a\", \"1a\") -> -1; (\"-1\", \"0\") -> 1; (\"\", None) -> 0; (\"١٢\", \"12\") -> 0; (\"１２\", \"13\") -> -1; (\"1٢\", \"12\") -> 0; (\"٠٠١\", \"1\") -> 0; the reverse comparison gives the negated result and both .prerelease attributes are stored as given.",
+    "Version.parse(\"0.0.0-\" + p) raises ValueError for p in (\"01\", \"01.2\", \"١٢\", \"１２\").",
+    "Version(0, 0, 0, prerelease=left).compare(Version(0, 0, 0, prerelease=right)) raises ValueError for (left, right) in ((\"²\", \"2\"), (\"a.²\", \"b.0\"), (\"a.0\", \"b.²\")).",
+    "Version(0, 0, 0, prerelease=\"²\") < Version(1, 0, 0, prerelease=\"²\") is True (the core comparison decides before the prerelease is examined).",
+    "The existing pytest suite in tests/ passes unchanged."
+  ],
+  "external": {
+    "imported_at_utc": "2026-10-17T12:21:16.828263+00:00",
+    "files": 119,
+    "total_bytes": 645175,
+    "tree_sha256": "865dda1d136cb826dde670d1cabcacffa2609c18b907436c188fdc4d93fff910",
+    "limits": {
+      "max_files": 2000,
+      "max_total_bytes": 25000000,
+      "max_file_bytes": 300000
+    },
+    "max_turns": 12
+  },
+  "install_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "pip",
+    "install",
+    "--no-cache-dir",
+    "--disable-pip-version-check",
+    "--target",
+    "/tmp/deps",
+    "pytest==8.3.3",
+    "pluggy==1.5.0",
+    "iniconfig==2.0.0",
+    "packaging==24.1"
+  ],
+  "requirements_lock": "pytest==8.3.3 pluggy==1.5.0 iniconfig==2.0.0 packaging==24.1",
+  "upstream": {
+    "url": "https://github.com/python-semver/python-semver",
+    "commit": "887d057e66b7fdfe0adf5a206ac810766b5af938",
+    "reference": "upstream issue #487, fixed by pull request #488 (merge commit 1d515915d50b31f23fd1fb0f572ef608453e80e3); the held-out tests are the pull request's own additions to tests/test_compare.py"
+  }
+}

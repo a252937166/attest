@@ -1,0 +1,38 @@
+{
+  "id": "balanced-brackets",
+  "title": "balanced-brackets",
+  "repo_dir": "repo",
+  "language": "python",
+  "base_image": "python:3.12-slim",
+  "test_runner": "unittest",
+  "import_hint": "from brackets import is_balanced",
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-t",
+    ".",
+    "-v"
+  ],
+  "allowed_write_globs": [
+    "brackets/**"
+  ],
+  "protected_globs": [
+    "tests/**"
+  ],
+  "heldout_tests": {
+    "tests/test_heldout.py": "heldout.py"
+  },
+  "statement": "The brackets package exposes is_bracket (already implemented) and a stub is_balanced(s). Implement is_balanced(s) so that it returns True when the three kinds of brackets (), [] and {} in the string s are correctly matched and nested, and False otherwise. Characters that are not brackets are ignored. The empty string is balanced. is_balanced must return a bool. Raise TypeError when s is not a string. Do not change is_bracket or the tests.",
+  "acceptance_criteria": [
+    "'', '()', '[]', '{}', '()[]{}', '([{}])' are all balanced (True)",
+    "nested mixed brackets with other characters are balanced: '(a[b]{c})', 'f(x[0], y[1])'",
+    "'(', ')', '([)]', '(]', '{[}', '())' are not balanced (False)",
+    "non-bracket characters are ignored",
+    "is_balanced returns a bool",
+    "TypeError when s is not a string"
+  ]
+}

@@ -1,0 +1,719 @@
+{
+  "at_utc": "2026-10-16T19:24:54.808718+00:00",
+  "supervisor": "attest-sealed-supervisor/4",
+  "checkpoint_image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+  "checkpoint_operation_uuid": "01a1462c-47cb-705d-8e42-21d72450a572",
+  "sealed_sha256": "8dfdd7e14e8b1d4c07d81c3fe2f09b25d3a6bd574def4a3e4d09b0f0a7c02131",
+  "expected_ids": [
+    "test_sealed.T.test_one",
+    "test_sealed.T.test_two",
+    "test_sealed.T.test_three"
+  ],
+  "scenarios": [
+    {
+      "scenario": "honest",
+      "operation_uuid": "01a1462c-5528-766a-862c-a5016ce4be88",
+      "status": "SUCCESS",
+      "supervisor_exit": 0,
+      "summary": "OK (3 of 3 methods, each in its own process)",
+      "outcomes": [
+        "ok",
+        "ok",
+        "ok"
+      ],
+      "accepted": true,
+      "expected_accepted": true,
+      "correct": true,
+      "reasons": [],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [],
+      "canary_ok": true,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ok",
+          0
+        ],
+        [
+          "test_must_fail",
+          "FAIL",
+          1
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "",
+      "legacy_order": false
+    },
+    {
+      "scenario": "wrong",
+      "operation_uuid": "01a1462c-5569-77ee-b550-6d9875128464",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: FAIL 3)",
+      "outcomes": [
+        "FAIL",
+        "FAIL",
+        "FAIL"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit 1, test_two exit 1, test_three exit 1"
+      ],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [
+        "no_nonzero_exit",
+        "all_expected_pass"
+      ],
+      "canary_ok": true,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ok",
+          0
+        ],
+        [
+          "test_must_fail",
+          "FAIL",
+          1
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "",
+      "legacy_order": false
+    },
+    {
+      "scenario": "tamper_sealed_file",
+      "operation_uuid": "01a1462c-557e-717d-8960-f40fad5d328d",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: ERROR 3); CANARY FLIPPED (results in the test process were forged)",
+      "outcomes": [
+        "ERROR",
+        "ERROR",
+        "ERROR"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit 1, test_two exit 1, test_three exit 1",
+        "verifier canary flipped: a test that must fail was reported as passing, so outcomes in the test process were forged by candidate code; the run is recorded as tampered"
+      ],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [
+        "no_nonzero_exit",
+        "all_expected_pass",
+        "canary_must_pass_ok",
+        "canary_must_fail_failed"
+      ],
+      "canary_ok": false,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ERROR",
+          1
+        ],
+        [
+          "test_must_fail",
+          "ERROR",
+          1
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "",
+      "legacy_order": false
+    },
+    {
+      "scenario": "premature_exit",
+      "operation_uuid": "01a1462c-567c-72d2-9416-0cf3120b35a1",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: MISSING_RESULT 3); CANARY FLIPPED (results in the test process were forged)",
+      "outcomes": [
+        "MISSING_RESULT",
+        "MISSING_RESULT",
+        "MISSING_RESULT"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "missing, forged or inconsistent child results: test_one MISSING_RESULT, test_two MISSING_RESULT, test_three MISSING_RESULT",
+        "verifier canary flipped: a test that must fail was reported as passing, so outcomes in the test process were forged by candidate code; the run is recorded as tampered"
+      ],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [
+        "no_missing_or_forged_result",
+        "all_expected_pass",
+        "canary_must_pass_ok",
+        "canary_must_fail_failed"
+      ],
+      "canary_ok": false,
+      "canaries": [
+        [
+          "test_must_pass",
+          "MISSING_RESULT",
+          0
+        ],
+        [
+          "test_must_fail",
+          "MISSING_RESULT",
+          0
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "",
+      "legacy_order": false
+    },
+    {
+      "scenario": "forged_results_at_import",
+      "operation_uuid": "01a1462c-6ae9-70e3-8ce9-3d0aafe91bb6",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: ERROR 3); CANARY FLIPPED (results in the test process were forged)",
+      "outcomes": [
+        "ERROR",
+        "ERROR",
+        "ERROR"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit 1, test_two exit 1, test_three exit 1",
+        "verifier canary flipped: a test that must fail was reported as passing, so outcomes in the test process were forged by candidate code; the run is recorded as tampered"
+      ],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [
+        "no_nonzero_exit",
+        "all_expected_pass",
+        "canary_must_pass_ok",
+        "canary_must_fail_failed"
+      ],
+      "canary_ok": false,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ERROR",
+          1
+        ],
+        [
+          "test_must_fail",
+          "ERROR",
+          1
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "",
+      "legacy_order": false
+    },
+    {
+      "scenario": "forged_stderr_text",
+      "operation_uuid": "01a1462c-6e89-7681-878e-d7e19901879a",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: FAIL 3)",
+      "outcomes": [
+        "FAIL",
+        "FAIL",
+        "FAIL"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit 1, test_two exit 1, test_three exit 1"
+      ],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [
+        "no_nonzero_exit",
+        "all_expected_pass"
+      ],
+      "canary_ok": true,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ok",
+          0
+        ],
+        [
+          "test_must_fail",
+          "FAIL",
+          1
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "",
+      "legacy_order": false
+    },
+    {
+      "scenario": "timeout",
+      "operation_uuid": "01a1462c-6efb-7779-8de3-d723d0301577",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: TIMEOUT 3)",
+      "outcomes": [
+        "TIMEOUT",
+        "TIMEOUT",
+        "TIMEOUT"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit None, test_two exit None, test_three exit None",
+        "child process killed by signal: test_one sig 9, test_two sig 9, test_three sig 9",
+        "child process timed out: test_one, test_two, test_three"
+      ],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [
+        "no_nonzero_exit",
+        "no_signal",
+        "no_timeout",
+        "all_expected_pass"
+      ],
+      "canary_ok": true,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ok",
+          0
+        ],
+        [
+          "test_must_fail",
+          "FAIL",
+          1
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "",
+      "legacy_order": false
+    },
+    {
+      "scenario": "crash_signal",
+      "operation_uuid": "01a1462c-709b-70c6-b8dd-e8d6f7f5c642",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "FAILED (3 of 3 methods: CRASH 3)",
+      "outcomes": [
+        "CRASH",
+        "CRASH",
+        "CRASH"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "child process nonzero exit: test_one exit None, test_two exit None, test_three exit None",
+        "child process killed by signal: test_one sig 11, test_two sig 11, test_three sig 11"
+      ],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [
+        "no_nonzero_exit",
+        "no_signal",
+        "all_expected_pass"
+      ],
+      "canary_ok": true,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ok",
+          0
+        ],
+        [
+          "test_must_fail",
+          "FAIL",
+          1
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "",
+      "legacy_order": false
+    },
+    {
+      "scenario": "forge_all_ok",
+      "operation_uuid": "01a1462c-7a7d-7256-8ac8-4fb1300b3c6a",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "OK (3 of 3 methods, each in its own process); CANARY FLIPPED (results in the test process were forged)",
+      "outcomes": [
+        "ok",
+        "ok",
+        "ok"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "verifier canary flipped: a test that must fail was reported as passing, so outcomes in the test process were forged by candidate code; the run is recorded as tampered"
+      ],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [
+        "canary_must_fail_failed"
+      ],
+      "canary_ok": false,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ok",
+          0
+        ],
+        [
+          "test_must_fail",
+          "ok",
+          0
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "",
+      "legacy_order": false
+    },
+    {
+      "scenario": "plant_startup_hook",
+      "operation_uuid": "01a1462c-7ffa-734b-8b42-263a835f05cc",
+      "status": "SUCCESS",
+      "supervisor_exit": 0,
+      "summary": "OK (3 of 3 methods, each in its own process)",
+      "outcomes": [
+        "ok",
+        "ok",
+        "ok"
+      ],
+      "accepted": true,
+      "expected_accepted": true,
+      "correct": true,
+      "reasons": [],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [],
+      "canary_ok": true,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ok",
+          0
+        ],
+        [
+          "test_must_fail",
+          "FAIL",
+          1
+        ]
+      ],
+      "startup_hooks_before": [],
+      "startup_hooks_after": [],
+      "stderr_evidence": "HOOKS: denied /tmp/w PermissionError; WROTE /tmp/deps; denied /tmp/sealed PermissionError; denied /tmp/w PermissionError",
+      "legacy_order": false
+    },
+    {
+      "scenario": "legacy_order_plant_from_existing_step",
+      "operation_uuid": "01a1462c-8888-7295-9e5e-711f04e702c3",
+      "status": "SUCCESS",
+      "supervisor_exit": 1,
+      "summary": "OK (3 of 3 methods, each in its own process); CANARY FLIPPED (results in the test process were forged)",
+      "outcomes": [
+        "ok",
+        "ok",
+        "ok"
+      ],
+      "accepted": false,
+      "expected_accepted": false,
+      "correct": true,
+      "reasons": [
+        "interpreter start-up hook on the test import path (sitecustomize/usercustomize): /tmp/w/sitecustomize.py; candidate code could run in every test process before the nonce was read",
+        "verifier canary flipped: a test that must fail was reported as passing, so outcomes in the test process were forged by candidate code; the run is recorded as tampered"
+      ],
+      "privilege_separation": true,
+      "operation_uid": 0,
+      "sealed_file_unchanged": true,
+      "failed_checks": [
+        "no_startup_hooks_on_import_path",
+        "canary_must_fail_failed"
+      ],
+      "canary_ok": false,
+      "canaries": [
+        [
+          "test_must_pass",
+          "ok",
+          0
+        ],
+        [
+          "test_must_fail",
+          "ok",
+          0
+        ]
+      ],
+      "startup_hooks_before": [
+        "/tmp/w/sitecustomize.py"
+      ],
+      "startup_hooks_after": [
+        "/tmp/w/sitecustomize.py"
+      ],
+      "stderr_evidence": "",
+      "legacy_order": true
+    }
+  ],
+  "all_correct": true,
+  "privilege_separation_active": true,
+  "tamper_prevented_not_only_detected": true,
+  "forgery_caught_by_canary": true,
+  "hook_planting_prevented": false,
+  "legacy_order_detected_as_tamper": true,
+  "ledger": {
+    "model_calls": [],
+    "sandbox_ops": [
+      {
+        "stage": "adversarial-checkpoint",
+        "operation_uuid": "01a1462c-47cb-705d-8e42-21d72450a572",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.531,
+        "raw_cost_diag": 0.00112049,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:24.497933+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-wrong",
+        "operation_uuid": "01a1462c-5569-77ee-b550-6d9875128464",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.574,
+        "raw_cost_diag": 0.01021,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:27.710431+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-tamper_sealed_file",
+        "operation_uuid": "01a1462c-557e-717d-8960-f40fad5d328d",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.723,
+        "raw_cost_diag": 0.011345649999999999,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:27.711426+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-honest",
+        "operation_uuid": "01a1462c-5528-766a-862c-a5016ce4be88",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.563,
+        "raw_cost_diag": 0.010189400000000001,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:27.711941+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-premature_exit",
+        "operation_uuid": "01a1462c-567c-72d2-9416-0cf3120b35a1",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.573,
+        "raw_cost_diag": 0.01010311,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:27.712380+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-forged_results_at_import",
+        "operation_uuid": "01a1462c-6ae9-70e3-8ce9-3d0aafe91bb6",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.664,
+        "raw_cost_diag": 0.01114862,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:33.210797+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-forged_stderr_text",
+        "operation_uuid": "01a1462c-6e89-7681-878e-d7e19901879a",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.618,
+        "raw_cost_diag": 0.010392229999999999,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:34.210214+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-timeout",
+        "operation_uuid": "01a1462c-6efb-7779-8de3-d723d0301577",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 16.083,
+        "raw_cost_diag": 0.01014649,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:34.307187+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-crash_signal",
+        "operation_uuid": "01a1462c-709b-70c6-b8dd-e8d6f7f5c642",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.574,
+        "raw_cost_diag": 0.01017646,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:34.762496+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-forge_all_ok",
+        "operation_uuid": "01a1462c-7a7d-7256-8ac8-4fb1300b3c6a",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.551,
+        "raw_cost_diag": 0.01019799,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:37.206474+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-plant_startup_hook",
+        "operation_uuid": "01a1462c-7ffa-734b-8b42-263a835f05cc",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.6,
+        "raw_cost_diag": 0.010217629999999998,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:38.538711+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "adversarial-legacy_order_plant_from_existing_step",
+        "operation_uuid": "01a1462c-8888-7295-9e5e-711f04e702c3",
+        "image_uuid": "c9ac8c86-56a9-40b3-8b2d-a363ce27d711",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.62,
+        "raw_cost_diag": 0.0111607,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-16T19:24:40.827045+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "totals": {
+      "model_calls": 0,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 0,
+      "cost_usd": null,
+      "cost_usd_committed": 0,
+      "uncertain_unpriced_calls": 0,
+      "by_model": {},
+      "sandbox_operations": 12,
+      "sandbox_duration_s": 32.674,
+      "sandbox_retained_images": [
+        "c9ac8c86-56a9-40b3-8b2d-a363ce27d711"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.11640877
+    }
+  }
+}
