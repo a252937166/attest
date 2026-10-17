@@ -175,6 +175,8 @@ Rules for the test module:
 1. Python standard library only; a single module that must be importable as `import test_sealed`; use unittest.TestCase classes.
 2. Import the public API exactly as the import hint and contract describe. Do not import private names.
 3. One behavior per test method, with descriptive names. Cover every acceptance criterion, including error cases (use assertRaises with the exact exception type).
+   Assert the exception TYPE only: never assert on exception message text (no assertIn/assertEqual on str(cm.exception)) unless an
+   acceptance criterion quotes the exact message, because messages are implementation wording, not behaviour.
 4. Include at least 10 tests. Tests for behavior that is not implemented yet must fail on the current code.
 5. Do not depend on the file system, network, randomness, or the current time. No print statements.
 6. Do not include an `if __name__ == "__main__"` block; the runner handles execution.
@@ -269,7 +271,8 @@ Rules: Python 3.12 standard library only (exceptions have no `.message`; use `st
 and follow from the contract above (a failure must mean a bug or a contract disagreement, never a preference); do not run
 doctests, parse source code or depend on the file system, network, randomness or time; no print statements; no `__main__` block.
 Scope rules: test only behaviour the contract states. Where the contract says a behaviour is unspecified, out of scope or
-not required, do not test it. Test by value: never use subclasses or wrapper objects that override operators, comparisons
+not required, do not test it. Assert exception types, never exception message text, unless the contract quotes the exact
+message. Test by value: never use subclasses or wrapper objects that override operators, comparisons
 or other dunder methods to sabotage the implementation; such tests check implementation strategy, not the contract.
 Workload budget: each test runs alone in its own process on a small sandbox VM with a hard limit of {per_test_timeout} seconds;
 keep every test's work small (at most a few hundred cases per test, inputs under about 10,000 characters, no sleeps or

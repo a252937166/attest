@@ -569,3 +569,14 @@ class SealerSelfErrors(unittest.TestCase):
         self.assertEqual(decision["reason_class"], "sealed_failed")
         self.assertIn("arbiter classified every failing sealed test as defective", decision["explanation"])
         self.assertIn("corrected tests pass on the candidate and still fail on the base", decision["explanation"])
+
+
+class MessageAssertionRule(unittest.TestCase):
+    def test_seal_and_breaker_prompts_forbid_asserting_on_exception_messages(self):
+        from attest.core.prompts import seal_prompt
+        class Task:
+            import_hint = "from pkg import f"
+            allowed_write_globs = ["pkg/**"]
+        spec = {"restated_task": "r", "interface_contract": [], "acceptance_criteria": []}
+        self.assertIn("never assert on exception message text", seal_prompt(Task(), spec, {"pkg/__init__.py": b""}, None))
+        self.assertIn("Assert exception types, never exception message text", breaker_prompt(Task(), spec, "diff", [], per_test_timeout=60))
