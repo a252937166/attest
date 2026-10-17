@@ -5,12 +5,12 @@ budget below, and it runs from a clean checkout of the pinned commit, never from
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `15e145c13578f4da19c2111e86b85b6e55900602` on branch `main` of the review repository (the following documentation commit carries this record with an identical `attest/` digest) |
-| `attest/` package digest (sha256 over path and content of every source) | `d34d3830d3267ef8acddb0c968c6718974457224d2fa01c0c91697d6ab6824d5` |
-| Harness `scripts/run_evaluation.py` sha256 | `8bbe13805a324b06800f562b42a9d5c61cda79df329a507c80cc40587968624f` |
+| Repository commit (code) | `6b786a2e51bba634d63cc8b4ee75bb215c168fa7` on branch `main` of the review repository (the following documentation commit carries this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source) | `166cdcbd46a74cd0c666a19e111762eea64cd973c80396dfad724c1d47791b4e` |
+| Harness `scripts/run_evaluation.py` sha256 | `3214d2b3a1fd1fbc7aac74db0ce8e06752fe4c373db9a872219ee10ac6cdc720` |
 | `examples/` tree digest (tasks, repositories, held-out suites) | `e95a28aa363366160062107128950e9ff4c1888d52dccfdf578299e14e341b78` |
 | Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` |
-| Method `METHOD.md` sha256 | `31f8a6fb413468bd2cf14831ee6b09732d3bf8a6e97a849240fa46907999993f` |
+| Method `METHOD.md` sha256 | `ec415afcf1649040a219968d49a469553058d8299a1dfd3ad557bafe71c138dc` |
 | Guest programs | supervisor `attest-sealed-supervisor/6`; per-test child `e4e7b0b294a2004c…`; canary `9cdc57c1348fae5c…`; sandbox runner `attest-guest/2` `80999537285bacaf…` |
 | Models (Nebius Token Factory) | spec, audit, arbitrate: `nvidia/Nemotron-3-Ultra-550b-a55b`; seal, implement, break: `nvidia/nemotron-3-super-120b-a12b`; summary: `nvidia/Nemotron-3_5-Lightning`; baseline implements with Super |
 | Sampling | temperature 0.2, max_tokens 16000, strict JSON schema output; `reasoning_effort` low for seal and break, medium for implement, low for summary (Super and Lightning roles), model default for the Ultra roles spec, audit and arbitrate; an answer that spends the whole completion budget on reasoning (finish_reason length, no content) is retried once at low effort, both attempts recorded (set after the 17 Oct smoke tests; see the freeze report) |
@@ -24,7 +24,7 @@ From a clean checkout of the pinned commit (the harness snapshots the tree into 
 the snapshot in a fresh process; the schedule records the digests above and the commit):
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout 15e145c13578f4da19c2111e86b85b6e55900602
+git clone <repository> attest-eval && cd attest-eval && git checkout 6b786a2e51bba634d63cc8b4ee75bb215c168fa7
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 20 --max-turns 14 --approve-usd 9.00 --label m5-final \
@@ -32,15 +32,16 @@ python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-
 ```
 
 Proof that the command does what it says: the same command with `--register-only` was run from a clean clone of that commit
-on 17 Oct 2026 at 17:00 UTC (`reports/attest-freeze-2026-10-17/register-only-m5/schedule.json`): 32 cells, 8 tasks, systems
+on 17 Oct 2026 at 17:11 UTC (`reports/attest-freeze-2026-10-17/register-only-m5/schedule.json`): 32 cells, 8 tasks, systems
 baseline and attest, 2 attempts, the digests above, `register_only: true`, nothing started. History of the pin, every step recorded in `reports/attest-freeze-2026-10-17/README.md`: `ce4524be…` failed its own
 proof because registration loaded the external task with the default per-file bound; `06553c83…` fixed that, and its
 validation on the development profile exposed a self-contradictory contract in `kvparse-refactor-001` and a sealed test that
 crashed in its own body; `5242c1fc…` carried those two fixes, and its first Nemotron smoke test saw Super spend the whole
 completion budget on reasoning; `85701f5d…` switched reasoning off for Super, whose implementation quality then dropped;
 `2cbaf941…` bounded reasoning with `reasoning_effort` instead, and its smoke test was held by eleven sealed tests asserting
-the old implementation's error wording; `15e145c1…` makes the sealer and the breaker assert exception types only and is the
-pinned version. `tests/test_budget.py::RegisterOnly` guards the registration path.
+the old implementation's error wording; `15e145c1…` makes the sealer and the breaker assert exception types only; its smoke test ran the whole pipeline but its first
+sealing call still hit the token cap at medium effort, so `6b786a2e…` runs the sealer and the breaker at low effort, retries a
+length runaway once at low effort and honours an operator STOP file; it is the pinned version. `tests/test_budget.py::RegisterOnly` guards the registration path.
 
 ## Budget (for approval; nothing paid runs before it)
 
