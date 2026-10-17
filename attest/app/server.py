@@ -54,7 +54,7 @@ for _dir in IMPORT_DIRS:
         except Exception:  # noqa: BLE001 - a broken directory must not prevent startup
             pass
 DEDUPED = store.dedupe_imports()  # console runs re-imported from disk under a second id (pre-M1 hygiene bug)
-RECONCILED = store.reconcile_interrupted()  # a restart left no worker on queued/running rows; settle them
+RECONCILED = store.reconcile_interrupted(per_run_cap=float(os.environ.get("ATTEST_PER_RUN_USD_CAP", "0.5")))  # settle rows a restart orphaned
 worker = Worker(store, DATA_DIR, EXAMPLES_DIR,
                 per_run_usd_cap=float(os.environ.get("ATTEST_PER_RUN_USD_CAP", "0.5")),
                 daily_usd_cap=float(os.environ.get("ATTEST_DAILY_USD_CAP", "2.0")),

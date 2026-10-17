@@ -72,9 +72,11 @@ class Store:
         self._exec(f"INSERT INTO runs ({cols}) VALUES ({marks})", tuple(fields.values()))
 
     def _nebius_committed(self, since_utc: str) -> float:
+        """Committed USD of today's Nebius runs: finished runs and errored runs alike (a crash after paid calls still spent them;
+        an interrupted run carries the conservative reservation set by reconcile_interrupted)."""
         row = self._conn.execute(
             "SELECT COALESCE(SUM(COALESCE(cost_committed_usd, cost_usd, 0)), 0) FROM runs "
-            "WHERE provider = 'nebius' AND status = 'finished' AND created_at >= ?", (since_utc,)).fetchone()
+            "WHERE provider = 'nebius' AND status IN ('finished', 'error') AND created_at >= ?", (since_utc,)).fetchone()
         return float(row[0] or 0.0)
 
     def _nebius_active(self) -> int:
@@ -147,10 +149,12 @@ class Store:
                            f"{active} active x ${per_run_cap:.2f} reservation = ${projected:.4f}")
         return True, f"${finished:.4f} committed + {active} active reservation(s) within ${daily_cap:.2f}"
 
-    def reconcile_interrupted(self) -> list[dict]:
+    def reconcile_interrupted(self, per_run_cap: float | None = None) -> list[dict]:
         """After a restart, no worker is running the rows left 'queued'/'running'. Finalize any whose bundle landed on
-        disk; mark the rest as errored (interrupted). Finished rows and their evidence are left untouched."""
-        rows = self._exec("SELECT run_id, out_dir FROM runs WHERE status IN ('queued', 'running')").fetchall()
+        disk; mark the rest as errored (interrupted). A Nebius run interrupted without a bundle keeps `per_run_cap` as its
+        committed cost (its real spend is unknown and at most the cap), so the daily budget never undercounts it.
+        Finished rows and their evidence are left untouched."""
+        rows = self._exec("SELECT run_id, out_dir, provider, cost_committed_usd FROM runs WHERE status IN ('queued', 'running')").fetchall()
         reconciled = []
         for row in rows:
             run_id, out_dir = row["run_id"], row["out_dir"]
@@ -168,9 +172,12 @@ class Store:
                     continue
                 except Exception:  # noqa: BLE001 - fall through to error marking
                     pass
-            self.update_run(run_id, status="error", error="interrupted by a service restart before completion",
-                            finished_at=utcnow(), stage="interrupted")
-            reconciled.append({"run_id": run_id, "action": "interrupted"})
+            fields = {"status": "error", "error": "interrupted by a service restart before completion", "finished_at": utcnow(), "stage": "interrupted"}
+            if row["provider"] == "nebius" and per_run_cap is not None and (row["cost_committed_usd"] is None or row["cost_committed_usd"] < per_run_cap):
+                fields["cost_committed_usd"] = per_run_cap  # conservative: the actual spend is unknown, the cap is its bound
+                fields["error"] += f"; committed cost set to the per-run cap ${per_run_cap:.2f} because the actual spend is unknown"
+            self.update_run(run_id, **fields)
+            reconciled.append({"run_id": run_id, "action": "interrupted", "cost_committed_usd": fields.get("cost_committed_usd")})
         return reconciled
 
     def prune_runs(self, data_runs_dir, keep: int = 40, protect: tuple[str, ...] = ("VERIFIED",)) -> list[str]:

@@ -38,10 +38,13 @@ def tls_context():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", default="https://development-gateway.invalid")
+    parser.add_argument("--base-url", default=None, help="defaults to ATTEST_CODEX_BASE_URL or the private config (the gateway is the team's)")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--live", action="store_true", help="Make three minimal inference calls.")
     args = parser.parse_args()
+    args.base_url = args.base_url or config_value("CODEX_BASE_URL")
+    if not args.base_url:
+        raise SystemExit("gateway URL not configured: set ATTEST_CODEX_BASE_URL")
     key = os.environ.get("CODEX_API_KEY", "")
     if not key:
         parser.error("Set CODEX_API_KEY in the process environment; do not pass it as an argument.")

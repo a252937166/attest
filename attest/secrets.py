@@ -74,6 +74,16 @@ def load_secret(name: str) -> str:
     return value
 
 
+def config_value(name: str, default: str | None = None) -> str | None:
+    """A private, non-secret configuration value: the environment first (ATTEST_<NAME>), then ~/.config/attest/notes.json.
+    Used for the development gateway's URL, which is the team's and never appears in the repository."""
+    value = os.environ.get(f"ATTEST_{name}")
+    if value:
+        return value
+    configured = _notes_config().get(name)
+    return str(configured) if configured else default
+
+
 def project_id() -> str:
     """The Token Factory project id. Pilot users must set NEBIUS_PROJECT_ID; the team's default applies only on a machine that
     has the team's credential-note config, so nobody runs against the team's project by accident."""

@@ -105,10 +105,28 @@ class Worker:
                 self.current = None
                 self.queue.task_done()
 
+    def build_runtime(self, run_id: str, provider_name: str, ledger: Ledger):
+        """The provider, executor and grounding client for one run (separated so tests can substitute fakes)."""
+        from ..sandbox.tf_sandboxes import TokenFactorySandboxes
+        if provider_name == "codex":
+            from ..models.codex_gateway import CodexGateway
+            # pacing waits and gateway rejections are visible in the run's event stream, like every other stage message
+            provider = CodexGateway(load_secret("CODEX_API_KEY"), ledger,
+                                    notify=lambda message: self.store.add_event(run_id, utcnow(), "pacing", message))
+        else:
+            from ..models.nebius_tokenfactory import NebiusTokenFactory
+            provider = NebiusTokenFactory(load_secret("NEBIUS_API_KEY"), ledger, usd_cap=self.per_run_usd_cap)
+        executor = TokenFactorySandboxes(load_secret("NEBIUS_API_KEY"), project_id(), ledger)
+        try:
+            from ..core.grounding import Tavily
+            tavily = Tavily(load_secret("TAVILY_API_KEY"))
+        except SecretError:
+            tavily = None
+        return provider, executor, tavily
+
     def _execute(self, run_id: str, path: Path, provider_name: str, profile_label: str) -> None:
         from ..core.pipeline import Pipeline
         from ..core.task import TaskSpec
-        from ..sandbox.tf_sandboxes import TokenFactorySandboxes
 
         self.store.update_run(run_id, status="running", started_at=utcnow(), stage="starting")
         # Recheck the budget and disk at execution time; queued runs may have been waiting while others spent.
@@ -124,20 +142,7 @@ class Worker:
             self.store.update_run(run_id, status="error", error=str(error), finished_at=utcnow(), stage="disk")
             return
         ledger = Ledger()
-        if provider_name == "codex":
-            from ..models.codex_gateway import CodexGateway
-            # pacing waits and gateway rejections are visible in the run's event stream, like every other stage message
-            provider = CodexGateway(load_secret("CODEX_API_KEY"), ledger,
-                                    notify=lambda message: self.store.add_event(run_id, utcnow(), "pacing", message))
-        else:
-            from ..models.nebius_tokenfactory import NebiusTokenFactory
-            provider = NebiusTokenFactory(load_secret("NEBIUS_API_KEY"), ledger, usd_cap=self.per_run_usd_cap)
-        executor = TokenFactorySandboxes(load_secret("NEBIUS_API_KEY"), project_id(), ledger)
-        try:
-            from ..core.grounding import Tavily
-            tavily = Tavily(load_secret("TAVILY_API_KEY"))
-        except SecretError:
-            tavily = None
+        provider, executor, tavily = self.build_runtime(run_id, provider_name, ledger)
         task = TaskSpec.load(path)
 
         def progress(event: dict) -> None:
@@ -156,7 +161,15 @@ class Worker:
                             progress=progress, run_id=run_id)
         # the run directory, the bundle's run_id and the store row share one id, so a later import recognises this run
         self.store.update_run(run_id, out_dir=str(pipeline.out_dir))
-        bundle = pipeline.run()
+        try:
+            bundle = pipeline.run()
+        except Exception as error:  # noqa: BLE001 - the paid calls made before the crash stay on the row and in the daily budget
+            totals = ledger.totals()
+            self.store.update_run(run_id, status="error", error=f"{type(error).__name__}: {str(error)[:300]}"[-1500:], finished_at=utcnow(),
+                                  stage="error", out_dir=str(pipeline.out_dir), cost_usd=totals.get("cost_usd"),
+                                  cost_committed_usd=totals.get("cost_usd_committed"), tokens_in=totals.get("tokens_in"),
+                                  tokens_out=totals.get("tokens_out"), sandbox_ops=totals.get("sandbox_operations"), model_calls=totals.get("model_calls"))
+            return
         totals = bundle["ledger"]["totals"]
         self.store.update_run(run_id, status="finished", verdict=bundle["verdict"]["verdict"], finished_at=utcnow(),
                               out_dir=str(pipeline.out_dir), cost_usd=totals.get("cost_usd"),

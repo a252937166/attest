@@ -18,6 +18,7 @@ import time
 
 from ..http import HttpError, TransportError, request_json
 from ..ledger import Ledger, ModelCall, utcnow
+from ..secrets import config_value
 from .base import ModelError, ModelResult, extract_usage, validate_json
 from .pacing import MAX_429_RETRIES, PacingError, RateGovernor, governor_for
 
@@ -45,13 +46,16 @@ def roles_from_env(default: dict) -> dict:
 class CodexGateway:
     name = "codex_gateway"
 
-    DEFAULT_BASE_URL = os.environ.get("ATTEST_CODEX_BASE_URL", "https://development-gateway.invalid")  # the team's private gateway; set the variable elsewhere
-
     def __init__(self, api_key: str, ledger: Ledger, base_url: str | None = None,
                  roles: dict | None = None, timeout_s: int = 300, deadline_s: int = 420, governor: RateGovernor | None = None,
                  notify=None):
         self._key = api_key
-        self.base = (base_url or self.DEFAULT_BASE_URL).rstrip("/")
+        # The gateway is the team's private service: its URL comes from ATTEST_CODEX_BASE_URL or the private config, never
+        # from this file, so the public repository and the deployed tree carry no host name.
+        base = base_url or config_value("CODEX_BASE_URL")
+        if not base:
+            raise ModelError("the development gateway URL is not configured (set ATTEST_CODEX_BASE_URL); the development profile is for the project team")
+        self.base = base.rstrip("/")
         self.ledger = ledger
         self.roles = roles_from_env(roles or DEFAULT_ROLES)
         self.timeout_s = timeout_s

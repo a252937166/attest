@@ -37,6 +37,7 @@ from .sealed import bind_modules, bind_verification, static_test_ids, summarize
 from .verdict import expected_verdict
 
 RAW_FILE = "verify_raw.json"
+REDACTION_FILE = "REDACTION.json"  # written by scripts/export_public.py next to a redacted copy of a run directory
 
 
 class CheckError(RuntimeError):
@@ -120,6 +121,16 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
     except (OSError, json.JSONDecodeError) as error:
         raise CheckError(f"proof_bundle.json unreadable: {error}") from None
     report.add("bundle_parses", True, f"run {bundle.get('run_id')} verdict {(bundle.get('verdict') or {}).get('verdict')}")
+    redaction_path = run_dir / REDACTION_FILE
+    if redaction_path.is_file():
+        try:
+            redaction = json.loads(redaction_path.read_text(encoding="utf-8"))
+            files = redaction.get("files") or []
+            report.add("redacted_export", True, f"this is a redacted public copy of run {redaction.get('source_run_id')}: {len(files)} file(s) rewritten "
+                       f"({', '.join(f['path'] for f in files)[:160]}); the manifest checked below is the export's own, traced to the original manifest "
+                       f"{(redaction.get('source_manifest_sha256') or 'none (the original had no manifest)')[:16]}; the original is kept privately")
+        except (json.JSONDecodeError, OSError) as error:
+            report.add("redacted_export", False, f"{REDACTION_FILE} unreadable: {error}")
 
     # 1. manifest
     manifest_path = run_dir / MANIFEST_FILE
@@ -363,12 +374,15 @@ def check_bundle(path: str | Path) -> dict:
     out["verdict"] = (bundle.get("verdict") or {}).get("verdict")
     out["manifest_verified"] = any(c["name"] == "manifest_digests" and c["ok"] for c in report.checks)
     out["manifest_present"] = any(c["name"] == "manifest_digests" for c in report.checks)
+    out["redacted_export"] = any(c["name"] == "redacted_export" for c in report.checks)
     return out
 
 
 def format_report(report: dict) -> str:
     state = ("manifest verified: integrity and internal consistency" if report.get("manifest_verified")
              else "manifest MISMATCH" if report.get("manifest_present") else "no manifest: integrity not checkable")
+    if report.get("redacted_export"):
+        state += "; redacted public copy"
     lines = [f"attest check {report['path']}", f"run {report.get('run_id')} verdict {report.get('verdict')} ({state})"]
     for check in report["checks"]:
         mark = "ok  " if check["ok"] else ("warn" if check["ok"] is None or check["severity"] == "warning" else "FAIL")

@@ -1,5 +1,7 @@
 # Attest hardening: verification, budget, disk, arbitration, implementer efficiency (16 Oct 2026)
 
+> Note (17 Oct 2026): `semver-v2-codex-verified/` and `smoke-run-durationkit-codex/` are partial copies of their run directories (the sealed and breaker modules were not copied at the time), so `attest check` reports them as incomplete; they are kept here as recorded and excluded from the public export, whose every bundle must pass the check.
+
 This round closes the code-review gaps in three areas. Everything here was verified; evidence files are named inline.
 Historical run artifacts are preserved; corrected results are recorded separately.
 

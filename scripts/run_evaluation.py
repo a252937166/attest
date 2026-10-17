@@ -107,7 +107,8 @@ def make_snapshot(source_root: Path, dest: Path) -> dict:
     shutil.copytree(source_root / "examples", dest / "examples", ignore=ignore, symlinks=True)
     record = snapshot_digests(dest)
     record.update({"created_at_utc": utcnow(), "source_root": str(source_root), "snapshot_root": str(dest),
-                   "working_tree_revision_at_launch": attest_revision(source_root / "attest")["digest"]})
+                   "working_tree_revision_at_launch": attest_revision(source_root / "attest")["digest"],
+                   "source_git_commit": attest_revision(source_root / "attest")["git_commit"]})
     (dest / "SNAPSHOT.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     return record
 
@@ -124,7 +125,13 @@ def runtime_provenance(snapshot_root: Path, source_root: Path | None) -> dict:
     digests = snapshot_digests(snapshot_root)
     if package_dir != (snapshot_root / "attest").resolve():
         raise SystemExit(f"refusing to run: the imported attest package is {package_dir}, not the snapshot {snapshot_root / 'attest'}")
+    source_commit = None
+    try:
+        source_commit = json.loads((snapshot_root / "SNAPSHOT.json").read_text(encoding="utf-8")).get("source_git_commit")
+    except (OSError, json.JSONDecodeError):
+        pass
     return {"fresh_process": True, "pid": os.getpid(), "snapshot_root": str(snapshot_root), "source_root": str(source_root) if source_root else None,
+            "source_git_commit": source_commit,
             "attest_version": __version__, "attest_revision": digests["attest_revision"], "eval_script_sha256": digests["eval_script_sha256"],
             "examples_digest": digests["examples"], "guest_programs": guest_digests(),
             "python": sys.version.split()[0], "platform": platform.platform(),
@@ -243,10 +250,26 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
                         tavily=None, profile_label=f"eval-{system}-a{cell['attempt']}", arbitrate=(system == "attest"),
                         run_id=f"{task.id}-{system}-a{cell['attempt']}-{stamp}")  # unique per cell even when cells start together
     t0 = time.monotonic()
-    bundle = pipeline.run() if system == "attest" else pipeline.run_baseline()
+    try:
+        bundle = pipeline.run() if system == "attest" else pipeline.run_baseline()
+    except Exception as error:  # noqa: BLE001 - the pipeline wrote its bundle (ERROR) before re-raising; the paid calls stay accounted for
+        totals = ledger.totals()
+        message = f"{type(error).__name__}: {str(error)[:200]}"
+        return {**cell, "status": "completed", "verdict": "ERROR", "accepted": False, "held_out_correct": None, "judge_passed": None,
+                "held_out_summary": "not judged: the run crashed", "cost_usd": totals.get("cost_usd"), "cost_committed_usd": totals.get("cost_usd_committed"),
+                "uncertain_calls": totals.get("uncertain_unpriced_calls"), "model_calls": totals.get("model_calls"),
+                "model_calls_failed": totals.get("model_calls_failed"), "sandbox_ops": totals.get("sandbox_operations"),
+                "wall_s": round(time.monotonic() - t0, 1), "reasons": [message], "warnings": [], "gates": {}, "out_dir": str(pipeline.out_dir),
+                "run_id": pipeline.run_id, "revision_digest": revision_of(pipeline.bundle), "arbitration": None, "error": message,
+                "infra_error": True, "uncertain": "uncertain" in message.lower() or bool(totals.get("uncertain_unpriced_calls"))}
     wall = round(time.monotonic() - t0, 1)
-    judge = pipeline.judge_heldout(heldout_src) if pipeline.checkpoint_uuid else {"correct": None, "summary_line": "no checkpoint; not judged"}
-    totals = bundle["ledger"]["totals"]
+    judge_error = None
+    try:
+        judge = pipeline.judge_heldout(heldout_src) if pipeline.checkpoint_uuid else {"correct": None, "summary_line": "no checkpoint; not judged"}
+    except Exception as error:  # noqa: BLE001 - the verdict stands; the judge result is simply missing and the costs stay accounted for
+        judge_error = f"{type(error).__name__}: {str(error)[:200]}"
+        judge = {"correct": None, "summary_line": f"judge failed: {judge_error}"}
+    totals = ledger.totals()  # after judging, so the judge's sandbox operation is included
     verdict = bundle["verdict"]["verdict"]
     accepted = (verdict in ACCEPTED_VERDICTS) if system == "attest" else bool(bundle["verdict"].get("finished"))
     judge_passed = judge.get("correct")
@@ -258,10 +281,10 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
         correct = judge_passed
     arb = bundle.get("arbitration")
     reasons = bundle["verdict"].get("reasons", [])
-    uncertain = any("uncertain" in r for r in reasons) or bool(totals.get("uncertain_unpriced_calls"))
+    uncertain = any("uncertain" in r for r in reasons) or bool(totals.get("uncertain_unpriced_calls")) or bool(judge_error and "uncertain" in judge_error.lower())
     roles = ((bundle.get("profile") or {}).get("provider") or {}).get("roles")
     return {**cell, "status": "completed", "verdict": verdict, "accepted": accepted, "held_out_correct": correct, "judge_passed": judge_passed,
-            "held_out_summary": judge.get("summary_line"), "judge_evidence_class": judge.get("evidence_class"),
+            "held_out_summary": judge.get("summary_line"), "judge_evidence_class": judge.get("evidence_class"), "judge_error": judge_error,
             "judge_operation_uuid": judge.get("operation_uuid"), "heldout_stripped_from_task": stripped,
             "cost_usd": totals.get("cost_usd"), "cost_committed_usd": totals.get("cost_usd_committed"),
             "uncertain_calls": totals.get("uncertain_unpriced_calls"), "model_calls": totals.get("model_calls"),
@@ -352,6 +375,7 @@ def parse_args(argv=None):
     ap.add_argument("--label", default="", help="short label for the report directory and schedule")
     ap.add_argument("--suite", default="examples/eval/SUITE.json", help="suite file, relative to the project root")
     ap.add_argument("--resume", default="", help="continue the batch in this report directory: only cells never executed are run")
+    ap.add_argument("--register-only", action="store_true", help="snapshot, pre-register the schedule and exit before any cell runs (proves the command)")
     ap.add_argument("--snapshot-root", default="", help=argparse.SUPPRESS)  # set by the launcher when re-executing from the snapshot
     ap.add_argument("--source-root", default="", help=argparse.SUPPRESS)
     return ap.parse_args(argv)
@@ -359,7 +383,7 @@ def parse_args(argv=None):
 
 def launch(args, argv: list[str]) -> int:
     """Working-tree entry: make (or verify) the snapshot and re-execute this script from it in a fresh process."""
-    if args.provider == "nebius":
+    if args.provider == "nebius" and not args.register_only:
         if args.approve_usd is None or args.max_calls is None and args.approve_usd is None:
             print("refusing: --provider nebius needs an explicit batch approval: --approve-usd TOTAL and --max-calls N", file=sys.stderr)
             return 2
@@ -446,7 +470,12 @@ def run_batch(args) -> int:
                                       __import__("attest.core.workspace", fromlist=["snapshot_repo"]).snapshot_repo(TaskSpec.load(snapshot_root / entry["path"]).repo_dir))["spec_sha256"],
                                   "system": system, "attempt": attempt})
         probe_ledger = Ledger()
-        provider_desc = build_provider(args.provider, probe_ledger, args.usd_cap, args.max_calls).describe()
+        try:
+            provider_desc = build_provider(args.provider, probe_ledger, args.usd_cap, args.max_calls).describe()
+        except Exception as error:  # noqa: BLE001 - registering a schedule must work without credentials; a real run needs them
+            if not getattr(args, "register_only", False):
+                raise
+            provider_desc = {"provider": args.provider, "note": f"provider not constructed while registering only ({type(error).__name__})"}
         schedule = {"label": args.label, "registered_at_utc": utcnow(), "attest_version": __version__, "provider": args.provider,
                     "provider_detail": provider_desc, "per_run_usd_cap": args.usd_cap, "approve_usd": args.approve_usd,
                     "max_calls_per_run": args.max_calls, "max_turns": args.max_turns, "workers": args.workers, "attempts_per_cell": args.attempts,
@@ -462,9 +491,13 @@ def run_batch(args) -> int:
                                     "infra_error": "verdict ERROR or a harness exception", "not_run": "scheduled but never executed; reason recorded",
                                     "comparison_invalid": "a task whose cells did not all run the registered revision, or whose snapshot changed during the batch"},
                     "cells": cells}
+        schedule["register_only"] = bool(getattr(args, "register_only", False))
         (out_root / "schedule.json").write_text(json.dumps(schedule, indent=2) + "\n", encoding="utf-8")
         log(f"pre-registered {len(cells)} cells ({len(suite)} tasks x {systems} x {args.attempts} attempt(s)) on provider={args.provider}; "
             f"per-run cap ${args.usd_cap}, batch approval {args.approve_usd}, max calls {args.max_calls}; schedule -> {out_root / 'schedule.json'}")
+        if getattr(args, "register_only", False):
+            log("register-only: no cell was started; the schedule and the snapshot digests are the record of this invocation")
+            return 0
 
     registered_revision = ((schedule.get("provenance") or {}).get("attest_revision") or {}).get("digest")
     if registered_revision and registered_revision != provenance["attest_revision"]["digest"]:
@@ -519,7 +552,7 @@ def run_batch(args) -> int:
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     args = parse_args(argv)
-    if args.provider == "nebius" and args.approve_usd is None and not args.snapshot_root:
+    if args.provider == "nebius" and args.approve_usd is None and not args.snapshot_root and not args.register_only:
         print("refusing: --provider nebius needs an explicit batch approval: --approve-usd TOTAL (hard cap for the whole batch) and --max-calls N. "
               "Nothing was run.", file=sys.stderr)
         return 2

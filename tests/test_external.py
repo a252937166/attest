@@ -1,11 +1,13 @@
 """Milestone M4: bounded import of external repositories. Offline: synthetic tarballs and local directories only."""
 
+import hashlib
 import io
 import json
 import shutil
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from attest.core import external
@@ -226,3 +228,55 @@ class SandboxTransport(unittest.TestCase):
         self.assertIn("exceeds the sandbox request limit", str(cm.exception))
         small = {"/tmp/w/a.py": b"print(1)\n" * 1000}
         self.assertEqual(ex.plan_chunks(small), [small])
+
+
+class RedactedExport(unittest.TestCase):
+    """A redacted public copy of a run stays verifiable: REDACTION.json traces it to the original and the regenerated manifest
+    is marked as derived; the original directory is untouched."""
+
+    def test_redacted_copy_passes_check_and_is_traced(self):
+        import contextlib, io as _io, sys
+        from attest.core.check import check_bundle
+        from attest.core.manifest import MANIFEST_FILE
+        from tests.test_m2 import offline_run
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        import export_public
+        tmp = Path(tempfile.mkdtemp(prefix="attest-redact-"))
+        try:
+            bundle, run_dir = offline_run("honest", tmp / "orig")
+            # plant a private string in the bundle and PROOF.md the way a development run records it, then re-manifest
+            for name in ("proof_bundle.json", "PROOF.md", "ledger.json"):
+                path = run_dir / name
+                private = "https://" + ".".join(("codex", "axiqo", "xyz")) + "/v1"  # assembled so the public scan never finds the host in this test
+                path.write_text(path.read_text(encoding="utf-8").replace("fake", f"fake {private} ", 1), encoding="utf-8")
+            from attest.core.manifest import build_manifest
+            (run_dir / MANIFEST_FILE).write_text(json.dumps(build_manifest(run_dir, bundle["run_id"]), indent=2) + "\n", encoding="utf-8")
+            original_digests = {p.name: hashlib_sha(p) for p in run_dir.iterdir() if p.is_file()}
+            self.assertTrue(check_bundle(run_dir)["ok"])
+            dest = tmp / "public"
+            stats = {"files": 0, "redactions": 0, "redacted_files": [], "skipped_large": [], "redacted_pairs": []}
+            with mock.patch.object(export_public, "ROOT", tmp):
+                export_public.copy_tree(tmp / "orig", dest / "orig", stats)
+                traced = export_public.trace_redacted_runs(stats, dest)
+                verification = export_public.verify_exported_bundles(dest)
+            copy = dest / "orig" / run_dir.name
+            self.assertEqual(len(traced), 1)
+            record = json.loads((copy / "REDACTION.json").read_text())
+            self.assertEqual(record["source_run_id"], bundle["run_id"])
+            self.assertEqual(sorted(f["path"] for f in record["files"]), ["PROOF.md", "ledger.json", "proof_bundle.json"])
+            self.assertTrue(all(f["original_sha256"] != f["redacted_sha256"] for f in record["files"]))
+            manifest = json.loads((copy / MANIFEST_FILE).read_text())
+            self.assertEqual(manifest["derived_from"]["original_manifest_sha256"], record["source_manifest_sha256"])
+            report = check_bundle(copy)
+            self.assertTrue(report["ok"], [c for c in report["checks"] if c["ok"] is False])
+            self.assertTrue(report["redacted_export"])
+            self.assertEqual(verification["failed"], [])
+            self.assertNotIn(private, (copy / "proof_bundle.json").read_text())
+            self.assertEqual({p.name: hashlib_sha(p) for p in run_dir.iterdir() if p.is_file()}, original_digests)  # original untouched
+            self.assertEqual(export_public.scan(dest), [])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+def hashlib_sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
