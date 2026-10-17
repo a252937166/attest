@@ -47,7 +47,7 @@ class NebiusTokenFactory:
     name = "nebius_tokenfactory"
 
     def __init__(self, api_key: str, ledger: Ledger, base_url: str = "https://api.tokenfactory.nebius.com/v1",
-                 roles: dict | None = None, usd_cap: float = 0.50, thinking_roles: tuple[str, ...] = ("spec",),
+                 roles: dict | None = None, usd_cap: float = 0.50, thinking_roles: tuple[str, ...] = ("spec", "audit", "arbitrate"),
                  max_tokens: int = 16000, timeout: int = 300, send_thinking_flag: bool | None = None,
                  max_calls: int | None = None):
         self._key = api_key
@@ -59,9 +59,14 @@ class NebiusTokenFactory:
         self.thinking_roles = thinking_roles
         self.max_tokens = max_tokens
         self.timeout = timeout
-        # chat_template_kwargs.enable_thinking is not in the Token Factory structured-output docs; send it only on request.
+        # Reasoning is controlled explicitly since 17 Oct 2026: the smoke test of the frozen suite saw Nemotron Super spend all
+        # 16,000 completion tokens on reasoning with no visible output (twice), where the same prompts had worked the day
+        # before; a live probe showed `chat_template_kwargs.enable_thinking` (a vLLM parameter, which the Token Factory says
+        # it supports in full) is honoured: false gives zero reasoning tokens and valid JSON. The Ultra roles (spec, audit,
+        # arbitrate) keep thinking on; the Super and Lightning roles run without it. ATTEST_NEBIUS_THINKING_FLAG=0 restores
+        # the model default (not recommended). Recorded in sampling provenance.
         if send_thinking_flag is None:
-            send_thinking_flag = os.environ.get("ATTEST_NEBIUS_THINKING_FLAG", "0") == "1"
+            send_thinking_flag = os.environ.get("ATTEST_NEBIUS_THINKING_FLAG", "1") == "1"
         self.send_thinking_flag = send_thinking_flag
 
     def _headers(self) -> dict:

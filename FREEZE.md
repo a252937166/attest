@@ -13,7 +13,7 @@ budget below, and it runs from a clean checkout of the pinned commit, never from
 | Method `METHOD.md` sha256 | `89926dd10e63c7aec0254d77b89734ca7b8aafebc6330df768ef064f05e85844` |
 | Guest programs | supervisor `attest-sealed-supervisor/6`; per-test child `e4e7b0b294a2004c…`; canary `9cdc57c1348fae5c…`; sandbox runner `attest-guest/2` `80999537285bacaf…` |
 | Models (Nebius Token Factory) | spec, audit, arbitrate: `nvidia/Nemotron-3-Ultra-550b-a55b`; seal, implement, break: `nvidia/nemotron-3-super-120b-a12b`; summary: `nvidia/Nemotron-3_5-Lightning`; baseline implements with Super |
-| Sampling | temperature 0.2, max_tokens 16000, strict JSON schema output |
+| Sampling | temperature 0.2, max_tokens 16000, strict JSON schema output; reasoning (`chat_template_kwargs.enable_thinking`) on for the Ultra roles spec, audit and arbitrate, off for seal, implement, break and summary (set after the 17 Oct smoke test saw Super spend its whole token budget on reasoning; see the freeze report) |
 | Limits | 14 implementer turns (12 for the imported repository task), 12 mutants, mutation threshold 0.5, drift threshold 0.6, 180 s per suite (60 s per test), per-run cap $0.50 reserved before the run, at most 20 model calls per run |
 | Schedule | 8 tasks x 2 systems x 2 attempts = 32 cells, pre-registered, every cell reported, no merge |
 | Batch controls | `--approve-usd 9.00`, concurrency 2, stop on cap, on 3 consecutive infrastructure errors, on any transport-uncertain operation; no Codex involvement, no fallback in either direction |
