@@ -459,16 +459,19 @@ def run_batch(args) -> int:
         if args.tasks:
             wanted = set(args.tasks.split(","))
             suite = [t for t in suite if t["id"] in wanted]
+        from attest.core.workspace import snapshot_repo
         cells = []
         for entry in suite:
+            # every task is loaded and frozen once at registration (with its own per-file bound), so a task that cannot load
+            # fails the registration, before any cell and before any paid call
+            task = TaskSpec.load(snapshot_root / entry["path"])
+            spec_sha = task.frozen(snapshot_repo(task.repo_dir, task.max_file_bytes))["spec_sha256"]
+            heldout_sha = sha256_text((snapshot_root / entry["heldout"]).read_text(encoding="utf-8"))
             for system in systems:
                 for attempt in range(1, args.attempts + 1):
                     cells.append({"scheduled_index": len(cells), "task": entry["id"], "task_path": entry["path"], "heldout": entry["heldout"],
                                   "ground_truth": entry.get("ground_truth", "held_out_suite"), "kind": entry.get("kind"),
-                                  "heldout_sha256": sha256_text((snapshot_root / entry["heldout"]).read_text(encoding="utf-8")),
-                                  "task_spec_sha256": TaskSpec.load(snapshot_root / entry["path"]).frozen(
-                                      __import__("attest.core.workspace", fromlist=["snapshot_repo"]).snapshot_repo(TaskSpec.load(snapshot_root / entry["path"]).repo_dir))["spec_sha256"],
-                                  "system": system, "attempt": attempt})
+                                  "heldout_sha256": heldout_sha, "task_spec_sha256": spec_sha, "system": system, "attempt": attempt})
         probe_ledger = Ledger()
         try:
             provider_desc = build_provider(args.provider, probe_ledger, args.usd_cap, args.max_calls).describe()

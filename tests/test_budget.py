@@ -221,3 +221,32 @@ class ConsoleBudgetAccounting(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RegisterOnly(unittest.TestCase):
+    """The documented M5 command registers 8 tasks x 2 systems x 2 attempts = 32 cells and starts nothing."""
+
+    def test_m5_suite_registers_32_cells_without_running(self):
+        tmp = Path(tempfile.mkdtemp(prefix="attest-register-"))
+        try:
+            digests = harness.snapshot_digests(ROOT)
+            provenance = {"fresh_process": False, "attest_revision": digests["attest_revision"], "eval_script_sha256": digests["eval_script_sha256"],
+                          "examples_digest": digests["examples"], "guest_programs": {}, "python": "test", "platform": "test", "note": "test stub"}
+            args = argparse.Namespace(provider="nebius", tasks="", systems="baseline,attest", attempts=2, workers=2, usd_cap=0.5, approve_usd=9.0,
+                                      max_calls=20, max_turns=14, out=str(tmp), label="m5-final", suite="examples/eval/SUITE-M5.json", resume="",
+                                      snapshot_root=str(ROOT), source_root=str(ROOT), register_only=True)
+            started = []
+            with mock.patch.object(harness, "runtime_provenance", lambda a, b: provenance), \
+                 mock.patch.object(harness, "build_provider", lambda name, ledger, cap, calls, notify=None: PaidFakeProvider(ledger)), \
+                 mock.patch.object(harness, "run_cell", lambda *a, **k: started.append(a) or {}):
+                self.assertEqual(quiet(harness.run_batch, args), 0)
+            self.assertEqual(started, [])
+            schedule = json.loads((tmp / "schedule.json").read_text())
+            self.assertTrue(schedule["register_only"])
+            self.assertEqual(len(schedule["cells"]), 32)
+            self.assertEqual(len(schedule["tasks"]), 8)
+            self.assertEqual(sum(1 for c in schedule["cells"] if c["ground_truth"] == "unsatisfiable"), 4)
+            self.assertTrue(all(c["task_spec_sha256"] and c["heldout_sha256"] for c in schedule["cells"]))
+            self.assertFalse((tmp / "evaluation.json").exists())
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
