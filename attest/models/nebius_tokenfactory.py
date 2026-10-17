@@ -49,7 +49,7 @@ class NebiusTokenFactory:
     def __init__(self, api_key: str, ledger: Ledger, base_url: str = "https://api.tokenfactory.nebius.com/v1",
                  roles: dict | None = None, usd_cap: float = 0.50, thinking_roles: tuple[str, ...] = ("spec", "audit", "arbitrate"),
                  max_tokens: int = 16000, timeout: int = 300, send_thinking_flag: bool | None = None,
-                 max_calls: int | None = None):
+                 max_calls: int | None = None, reasoning_effort: dict | None = None):
         self._key = api_key
         self.base = base_url.rstrip("/")
         self.ledger = ledger
@@ -59,21 +59,26 @@ class NebiusTokenFactory:
         self.thinking_roles = thinking_roles
         self.max_tokens = max_tokens
         self.timeout = timeout
-        # Reasoning is controlled explicitly since 17 Oct 2026: the smoke test of the frozen suite saw Nemotron Super spend all
+        # Reasoning is bounded explicitly since 17 Oct 2026: the smoke test of the frozen suite saw Nemotron Super spend all
         # 16,000 completion tokens on reasoning with no visible output (twice), where the same prompts had worked the day
-        # before; a live probe showed `chat_template_kwargs.enable_thinking` (a vLLM parameter, which the Token Factory says
-        # it supports in full) is honoured: false gives zero reasoning tokens and valid JSON. The Ultra roles (spec, audit,
-        # arbitrate) keep thinking on; the Super and Lightning roles run without it. ATTEST_NEBIUS_THINKING_FLAG=0 restores
-        # the model default (not recommended). Recorded in sampling provenance.
+        # before. Live probes (reasoning-probe*.json in the evaluation folder) showed two honoured controls: `reasoning_effort`
+        # bounds the reasoning (the real sealing prompt: 42 tokens at low, 4,716 at medium, valid JSON both times) and
+        # `chat_template_kwargs.enable_thinking=false` removes it, which cost the implementer its quality in the second smoke
+        # test. The Super and Lightning roles therefore run with a bounded effort (default medium) and the Ultra roles with
+        # the model default that has been working. ATTEST_NEBIUS_THINKING_FLAG=1 additionally sends the enable_thinking flag
+        # (on for thinking_roles, off otherwise). Everything is recorded in sampling provenance.
         if send_thinking_flag is None:
-            send_thinking_flag = os.environ.get("ATTEST_NEBIUS_THINKING_FLAG", "1") == "1"
+            send_thinking_flag = os.environ.get("ATTEST_NEBIUS_THINKING_FLAG", "0") == "1"
         self.send_thinking_flag = send_thinking_flag
+        default_effort = os.environ.get("ATTEST_NEBIUS_REASONING_EFFORT", "medium")
+        self.reasoning_effort = reasoning_effort if reasoning_effort is not None else {
+            "seal": default_effort, "implement": default_effort, "break": default_effort, "summary": "low"}
 
     def _headers(self) -> dict:
         return {"Authorization": "Bearer " + self._key}
 
     def describe(self) -> dict:
-        return {"provider": self.name, "base_url": self.base, "roles": dict(self.roles), "usd_cap": self.usd_cap, "max_calls": self.max_calls,
+        return {"provider": self.name, "base_url": self.base, "roles": dict(self.roles), "usd_cap": self.usd_cap, "max_calls": self.max_calls, "reasoning_effort": dict(self.reasoning_effort),
                 "temperature": self.TEMPERATURE,
                 "thinking_roles": list(self.thinking_roles) if self.send_thinking_flag else [],
                 "send_thinking_flag": self.send_thinking_flag, "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
@@ -126,6 +131,9 @@ class NebiusTokenFactory:
         }
         if self.send_thinking_flag:
             payload["chat_template_kwargs"] = {"enable_thinking": thinking}
+        effort = self.reasoning_effort.get(role)
+        if effort:
+            payload["reasoning_effort"] = effort
         started = utcnow()
         t0 = time.monotonic()
         call = ModelCall(provider=self.name, role=role, stage=stage, requested_model=model,

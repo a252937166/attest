@@ -13,7 +13,7 @@ budget below, and it runs from a clean checkout of the pinned commit, never from
 | Method `METHOD.md` sha256 | `b52fe166d212ca90092228b0938f8f1b04d930349af23ac99ec973aff840f74b` |
 | Guest programs | supervisor `attest-sealed-supervisor/6`; per-test child `e4e7b0b294a2004c…`; canary `9cdc57c1348fae5c…`; sandbox runner `attest-guest/2` `80999537285bacaf…` |
 | Models (Nebius Token Factory) | spec, audit, arbitrate: `nvidia/Nemotron-3-Ultra-550b-a55b`; seal, implement, break: `nvidia/nemotron-3-super-120b-a12b`; summary: `nvidia/Nemotron-3_5-Lightning`; baseline implements with Super |
-| Sampling | temperature 0.2, max_tokens 16000, strict JSON schema output; reasoning (`chat_template_kwargs.enable_thinking`) on for the Ultra roles spec, audit and arbitrate, off for seal, implement, break and summary (set after the 17 Oct smoke test saw Super spend its whole token budget on reasoning; see the freeze report) |
+| Sampling | temperature 0.2, max_tokens 16000, strict JSON schema output; `reasoning_effort` medium for the Super roles seal, implement and break (low for summary), model default for the Ultra roles spec, audit and arbitrate (set after the 17 Oct smoke tests: Super spent its whole token budget on unbounded reasoning, and with reasoning removed its implementation quality dropped; see the freeze report) |
 | Limits | 14 implementer turns (12 for the imported repository task), 12 mutants, mutation threshold 0.5, drift threshold 0.6, 180 s per suite (60 s per test), per-run cap $0.50 reserved before the run, at most 20 model calls per run |
 | Schedule | 8 tasks x 2 systems x 2 attempts = 32 cells, pre-registered, every cell reported, no merge |
 | Batch controls | `--approve-usd 9.00`, concurrency 2, stop on cap, on 3 consecutive infrastructure errors, on any transport-uncertain operation; no Codex involvement, no fallback in either direction |
@@ -50,7 +50,8 @@ sends the reasoning flag explicitly per role and is the pinned version (all desc
 | Demo runs on the public console for the video (3 judge-style runs) | $1.50 ($0.50 each under the existing $2.00 daily cap) | about $0.30 | at most 20 each | the console's per-run and daily caps |
 | **Total** | **$11.00** | **about $3.00 to $4.50** | | |
 
-Verified so far: committed Nebius spend to date is $1.62 across 46 unique local runs (`scripts/usage_report.py`, computed from
-the public price table), about $1.80 including the three server-only runs; the Token Factory console showed about $26 of
-credit on 15 Oct 2026. The console balance has not been re-read programmatically (the Token Factory API documents no balance
-endpoint); the owner's confirmation of the current figure is part of the approval.
+Verified credit: the Token Factory console's billing page read **Account balance $25.00 USD** at 16:55 UTC on 17 Oct 2026
+(read through the owner's signed-in browser session with the owner's consent; only the figure is recorded). Committed Nebius
+spend to date from the ledgers is $1.62 across 46 unique local runs (`scripts/usage_report.py`, public price table), about
+$1.80 including the three server-only runs, plus about $0.10 of smoke tests and probes on 17 Oct. The owner approved the
+$11.00 budget on 17 Oct 2026.

@@ -67,6 +67,7 @@ def sampling_from(provider_description: dict) -> dict:
                           for role, sel in roles.items()}}
     return {"provider": provider, "temperature": desc.get("temperature"), "max_tokens": desc.get("max_tokens"),
             "thinking_roles": desc.get("thinking_roles"), "send_thinking_flag": desc.get("send_thinking_flag"),
+            "reasoning_effort": desc.get("reasoning_effort"),
             "note": "temperature and max_tokens are sent with every request; roles map to model ids",
             "roles": {role: ({"model": sel[0], "effort": sel[1] if len(sel) > 1 else None} if isinstance(sel, (list, tuple)) else {"model": sel, "effort": None})
                       for role, sel in roles.items()}}
