@@ -82,12 +82,21 @@ Protected by default (unless you pass your own `--protect` list): `tests/**`, `t
 `pyproject.toml`, `requirements*.txt`, `requirements/**`, `*.lock`, `poetry.lock`, `Pipfile`, `Pipfile.lock`, `tox.ini`,
 `noxfile.py`, `MANIFEST.in`, `Makefile`, `.github/**`. The implementer can only write inside `--write-glob`.
 
+Runner: choose `--runner unittest` whenever the repository's tests are `unittest.TestCase` classes, even if the project
+itself runs them through pytest (many do): the repository's own suite then runs through the same supervisor as the sealed
+tests (one process per test, bound to digests and a nonce) and needs no pins. Choose `pytest` only for suites that need
+pytest features (fixtures, parametrize); such a suite is run with the task's test command and judged from its console
+output, which the Proof Bundle labels `evidence_class: stdout` with a warning. The sealed, mutation and adversarial gates
+are bound either way.
+
 Pins: the sandbox image is bare `python:3.12-slim`, so the test runner itself must be installed. The four pins above are
 pytest 8.3.3 and its three dependencies; `--runner unittest` needs no pins. Add your repository's runtime dependencies
 the same way, each as `name==version` (an unpinned name is refused). The install runs once, with networking, when the
 checkpoint is created; tests never have network access.
 
-`statement.txt` is one paragraph saying exactly what must change and what must not; `criteria.txt` has one testable
+`statement.txt` and `criteria.txt` are read relative to your current directory (the checkout root in these commands);
+they are yours to keep, so commit them next to `tasks/<task-id>/` if you want to reproduce the run. `statement.txt` is one
+paragraph saying exactly what must change and what must not; `criteria.txt` has one testable
 sentence per line (a criterion may name standard-library modules; "the existing tests still pass" is a good last line).
 Precision here is what the sealed tests are written from: an ambiguous statement produces an ambiguous test suite, and
 the run ends in `NEEDS HUMAN` instead of `VERIFIED`. Say which behaviours are unspecified when you do not care about them.
@@ -104,11 +113,13 @@ tests of the upstream pull request that fixed the issue.
 python -m attest run --task tasks/<task-id>/task.json --out runs --provider nebius --usd-cap 0.5
 ```
 
-The run prints every stage: checkpoint, specification, sealing (the sealed tests are shown failing on your unmodified
-code first), implementation turns (at most 12 for an imported repository), verification, the breaker pass, the drift
-audit and, when a generated test fails, the arbiter's classification. The exit code is 0 for `VERIFIED` and 2 otherwise.
-The Proof Bundle is in `runs/<task>-<timestamp>/`: `PROOF.md` first, then `proof_bundle.json`, the sealed tests, the
-candidate patch, the breaker tests and every supervisor record.
+The run prints every stage with UTC timestamps: checkpoint, specification, sealing (a count of how many sealed tests
+fail on your unmodified code; the tests themselves are in `runs/.../sealed/test_sealed.py` and the per-test record in
+`red.attempt1.json`), implementation turns (at most 12 for an imported repository), verification, the breaker pass, the
+drift audit and, when a generated test fails, the arbiter's classification. The exit code is 0 for `VERIFIED` and 2
+otherwise; when you start the run in the background, read the verdict from `PROOF.md` or `proof_bundle.json`. The Proof
+Bundle is in `runs/<task-id>-<timestamp>/`: `PROOF.md` first, then `proof_bundle.json`, the sealed tests, the candidate
+patch, the breaker tests and every supervisor record.
 
 Verdicts: `VERIFIED` (every gate passed), `NEEDS HUMAN` (a gate failed; the reasons name it), `INFEASIBLE` (the
 specification stage found the request contradictory), `NO CHANGE`, `ERROR` (infrastructure; nothing was retried).
@@ -131,6 +142,10 @@ signature and not independent proof of execution; the operation ids in the bundl
 - Per run: at most 12 implementer turns, 12 mutants, 180 s per test suite (300 s maximum), `--usd-cap` dollars.
 - Model-written tests can be wrong. A `NEEDS HUMAN` with an arbiter classification of `test_defect` means the hold came
   from the test, not from your code; the corrected test and its re-runs are in the bundle.
+- The mutation gate needs at least 4 one-line mutants of the changed lines that could be evaluated. A one- or two-line fix
+  yields about that many, so a single sandbox operation that ends uncertain (recorded as an `unknown` mutant, never
+  replayed) holds the verdict as `NEEDS HUMAN` with the reason "mutation gate incomplete". That is an infrastructure gap,
+  not a finding against your patch: run the task again; the unknown mutant and its error are in `breaker.json`.
 
 ## 6. Send feedback
 

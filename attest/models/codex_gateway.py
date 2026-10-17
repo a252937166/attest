@@ -102,6 +102,7 @@ class CodexGateway:
         return text.replace(self.base, "development-gateway")
 
     def describe(self) -> dict:
+        self.adopt_gateway_policy()  # so the provenance recorded at pipeline start shows the policy the run will use
         pacing = self.governor.snapshot()
         # the gateway is private: bundles record a digest of its URL, not the host name
         return {"provider": self.name, "base_url": None, "base_url_sha256": hashlib.sha256(self.base.encode("utf-8")).hexdigest()[:16],

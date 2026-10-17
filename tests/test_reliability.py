@@ -142,7 +142,8 @@ class BreakerAndArbiterPrompts(unittest.TestCase):
         self.assertIn("unspecified_behavior", text)
         kinds = ARBITRATION_SCHEMA["properties"]["classifications"]["items"]["properties"]["defect_kind"]["enum"]
         self.assertIn("wrong_expectation", kinds)
-        self.assertNotIn("defect_kind", ARBITRATION_SCHEMA["properties"]["classifications"]["items"]["required"])
+        self.assertIn("defect_kind", ARBITRATION_SCHEMA["properties"]["classifications"]["items"]["required"])  # strict mode: nullable, never optional
+        self.assertIn(None, kinds)
 
     def test_arbitration_of_an_adversarial_module_now_checks_the_base(self):
         bundle = run_scenario("arb_clear")
@@ -473,6 +474,12 @@ class GovernorPolicy(unittest.TestCase):
             client.structured("implement", "p", {"type": "object", "properties": {"result": {"type": "integer"}}, "required": ["result"]}, "s")
         self.assertIsNone(gov.budget)
         self.assertIn("not enforced", client.describe()["pacing"]["policy_source"])
+        # describe() itself adopts the policy, so a bundle's provenance shows the adopted policy even before the first call
+        gov3 = RateGovernor("k3", time_fn=clock.time, sleep_fn=clock.sleep)
+        client3 = CodexGateway("cxk_test", ledger, governor=gov3)
+        with mock.patch("attest.models.codex_gateway.request_json", fake_request):
+            self.assertIn("not enforced", client3.describe()["pacing"]["policy_source"])
+        self.assertIsNone(gov3.budget)
 
         def failing_status(method, url, headers, payload=None, timeout=60, max_bytes=0):
             if url.endswith("/status"):
@@ -485,3 +492,48 @@ class GovernorPolicy(unittest.TestCase):
             client2.structured("implement", "p", {"type": "object", "properties": {"result": {"type": "integer"}}, "required": ["result"]}, "s")
         self.assertEqual(gov2.budget, 54)  # unreadable policy keeps the conservative default
         self.assertIn("status unreadable", gov2.policy_source)
+
+
+class StrictSchemas(unittest.TestCase):
+    """Both providers run structured output in strict mode: every object property must be listed in `required`, every
+    object must forbid additional properties. An optional field is nullable, never missing from `required` (the external
+    run of 17 Oct lost its arbitration to HTTP 502 'required is required to include every key in properties')."""
+
+    def test_every_schema_is_strict_mode_compatible(self):
+        from attest.core import prompts
+
+        def walk(node, path):
+            if not isinstance(node, dict):
+                return
+            if node.get("type") == "object" or "properties" in node:
+                props = node.get("properties") or {}
+                self.assertEqual(node.get("additionalProperties"), False, f"{path}: additionalProperties must be false")
+                self.assertEqual(sorted(node.get("required") or []), sorted(props), f"{path}: required must list every property")
+                for name, child in props.items():
+                    walk(child, f"{path}.{name}")
+            if "items" in node:
+                walk(node["items"], f"{path}[]")
+        for name in ("SPEC_SCHEMA", "DRIFT_SCHEMA", "SEAL_SCHEMA", "BREAKER_SCHEMA", "ARBITRATION_SCHEMA", "ACTION_SCHEMA"):
+            walk(getattr(prompts, name), name)
+
+
+class MutationIncomplete(unittest.TestCase):
+    """A mutation gate held because mutants could not be evaluated (no survivor) names the infrastructure cause, not the tests."""
+
+    def test_unknown_mutants_without_survivors_is_its_own_reason_class(self):
+        bundle = {"verdict": {"verdict": "NEEDS HUMAN", "reasons": ["mutation gate incomplete: only 3 of 4 mutants could be evaluated (1 unknown)"]},
+                  "candidate": {"implementer_finished": True, "scope_ok": True},
+                  "gates": {"existing_suite": {"ok": True}, "sealed_binding": {"ok": True}, "mutation": {"ok": False, "detail": "only 3 of 4"},
+                            "adversarial_tests": {"ok": True}, "drift_audit": {"ok": True}},
+                  "verification": {"binding": {"ok": True, "checks": {}}, "sealed": {"tests": []}},
+                  "breaker": {"mutation": {"generated": 4, "evaluated": 3, "killed": 3, "survived": 0, "unknown": 1, "score": 1.0, "threshold": 0.5,
+                                           "mutants": [{"id": "m04", "status": "unknown", "error": "SandboxError: spawn outcome uncertain"}]},
+                              "adversarial": {"summary": {"ran": 5, "passed": 5, "failing": 0, "all_passed": True, "tests": []}, "binding": {"ok": True, "checks": {}}}},
+                  "task": {"title": "t"}, "spec": {}}
+        self.assertEqual(exhibits_module.reason_class(bundle), "mutation_incomplete")
+        decision = exhibits_module.decision(bundle)
+        self.assertIn("could not be evaluated", decision["explanation"])
+        self.assertIn("not a finding against the patch", decision["explanation"])
+        self.assertNotIn("surviving mutants", " ".join(decision["decide"]))
+        bundle["breaker"]["mutation"].update({"survived": 1, "killed": 2, "score": 0.667})
+        self.assertEqual(exhibits_module.reason_class(bundle), "mutation_failed")

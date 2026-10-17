@@ -56,7 +56,9 @@ ARBITRATION_SCHEMA = {
                                                      "enum": ["wrong_expectation", "unspecified_behavior", "excessive_workload",
                                                               "python_incompatibility", "other", None]},
                                      "rationale": {"type": "string"}, "contract_basis": {"type": "string"}},
-                      "required": ["test_id", "classification", "rationale", "contract_basis"]}},
+                      # strict structured output (the gateway and Token Factory) requires every property to be listed as
+                      # required; optional fields are expressed as nullable, never by omission from `required`
+                      "required": ["test_id", "classification", "defect_kind", "rationale", "contract_basis"]}},
         "corrected_module": {"type": ["string", "null"]},
         "corrected_notes": {"type": "string"},
     },
@@ -313,7 +315,7 @@ Classification guidance:
   correction while keeping the oracle. If the timeout plausibly comes from the candidate (an infinite loop on a valid input),
   classify implementation_bug and say which input.
 - Python 3.12 incompatibilities in the test itself are test_defect with defect_kind python_incompatibility.
-Set defect_kind to null for implementation_bug and contract_dispute.
+Set defect_kind to null for implementation_bug and contract_dispute (the field is always present).
 
 Then, ONLY IF every failing test is a test_defect, return `corrected_module`: the COMPLETE corrected Python source of the
 test module (importable as `import {module_name}`, unittest.TestCase classes, Python 3.12 standard library only, no

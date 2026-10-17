@@ -118,4 +118,64 @@ started at 12:11 UTC from a snapshot that still assumed 60 per hour, so it shows
 Started 12:11 UTC 17 Oct 2026: `python3 scripts/run_evaluation.py --provider codex --workers 2 --label pacing-dryrun --out
 reports/attest-reliability-2026-10-17/evaluation-paced-codex` (log `evaluation-paced-codex.log`). The launcher wrote the
 snapshot (package revision `b7fdd9eb0b71`, 34 sources; harness `676b02f66575`; examples `b83c8a78c531`, 61 files) and
-re-executed the harness from it. Results are appended below when the batch completes.
+re-executed the harness from it. Finished 13:24 UTC; `complete: true`, `stopped: null`, committed USD 0.0, 61 Codex calls.
+This is a method and mechanism validation on the development profile, not an evaluation result.
+
+| Cell | Task | System | Verdict | Judge | Label | Calls | Wall | Pacing |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | roman-to-numeral | baseline | BASELINE | correct | true_accept | 5 | 217.3 s | none |
+| 1 | roman-to-numeral | attest | VERIFIED | correct | true_accept | 9 | 388.5 s | none |
+| 2 | rle-encode | baseline | BASELINE | correct | true_accept | 4 | 147.3 s | none |
+| 3 | rle-encode | attest | INFEASIBLE | not correct | true_reject | 1 | 49.7 s | none |
+| 4 | balanced-brackets | baseline | BASELINE | correct | true_accept | 4 | 179.2 s | none |
+| 5 | balanced-brackets | attest | VERIFIED | correct | true_accept | 9 | 440.8 s | none |
+| 6 | durationkit-units-001 | baseline | BASELINE | correct | true_accept | 5 | 144.6 s | none |
+| 7 | durationkit-units-001 | attest | VERIFIED | correct | true_accept | 9 | 548.5 s | none |
+| 8 | semver-is-compatible-pr368-v2 | baseline | BASELINE | correct | true_accept | 5 | 205.5 s | none |
+| 9 | semver-is-compatible-pr368-v2 | attest | VERIFIED | correct | true_accept | 10 | 558.8 s | waited 2707.7 s before start, 13.3 s in calls |
+
+- **Provenance.** Every cell's bundle records revision `b7fdd9eb0b71…`, the registered one; `snapshot_intact_at_end: true`;
+  `working_tree_changed_since_launch: true` (the sources were edited throughout the batch, which is exactly the situation
+  that invalidated the 06:11 dry run) and `invalid_tasks: []`, because the batch never saw those edits. `attest check` passes
+  on all 10 bundles with the manifest verified.
+- **Pacing.** No HTTP 429. One wait: the harness held the last Attest cell for 2,708 s before starting it because the shared
+  window (which also counted the external-task run of M4 and the pilot dry run on the same machine) had no headroom for the
+  15 requests the cell might need; inside that cell the governor waited another 13 s once. The snapshot still modelled the
+  limit as 60 per hour; the gateway had stopped enforcing it at 09:37 UTC, so this wait was unnecessary in hindsight but shows
+  the mechanism (bounded, announced, cross-process) working. With the adopted policy the current code would not have waited.
+- **Holds.** The three tasks held on 17 Oct 06:11 (roman-to-numeral, balanced-brackets, durationkit) are VERIFIED here with
+  judge-correct candidates; rle-encode is INFEASIBLE at the specification stage as before; python-semver is VERIFIED.
+  Five of five baseline cells judged correct. These ten rows are the development profile and say nothing about Nemotron.
+
+## 5. Offline tests
+
+`python3 -m unittest discover -s tests -t .`: 129 tests pass (94 before this round; `tests/test_reliability.py` 25 new:
+supervisor pipe drain and 20,000-subtest run, breaker and arbiter prompts, adversarial base re-run, timeout reason class,
+governor window, bounded wait, rejection blocking, shared state file, concurrency permits, declared policy, Codex client 429
+retry and visible failure, transport still uncertain, harness snapshot, comparison validity, launcher refusals;
+`tests/test_external.py` 10 new, see the M4 report).
+
+## 6. Weaknesses that remain
+
+- The pacing model is inferred from two observations and the gateway's declared status; a change of policy on the gateway
+  side is picked up only through `GET /v1/status` (refreshed every 15 minutes) or through the 429 handling.
+- The state file coordinates processes on one machine; the console on yungou and a developer machine do not share a window
+  (the console's development-profile runs are rare and started by hand).
+- Provenance records a package digest, not a commit, until the public repository is published and development moves into
+  it; the review repository created today in `dist/public` is the first step.
+- The gateway returned one truncated JSON body and one TLS EOF during the external-task run of M4 (both treated as uncertain,
+  never retried); the cause is on the gateway side and is reported to its operator, not worked around here.
+
+## 7. Budget proposal for the paid Nebius run (not started; needs the owner's explicit approval)
+
+| | Proposal |
+| --- | --- |
+| Purpose | M5.1 frozen comparison (`METHOD.md`, `examples/eval/SUITE-M5.json`): plain agent vs Attest; one public demo run for the video; nothing else |
+| Models | Attest: Nemotron 3 Ultra (spec, audit, arbitration), Nemotron 3 Super (seal, implement, break), Nemotron 3.5 Lightning (summary); baseline: Super for implement |
+| Tasks and attempts | 8 tasks x 2 systems x 2 attempts = 32 cells, pre-registered, every cell reported |
+| Expected calls and tokens | about 320 model calls (baseline 4 to 6 per cell, Attest 9 to 15 per cell on the dry runs); about 4 M tokens in total, mostly input (the dry runs averaged 12k tokens per call) |
+| Expected cost | about $2.50 to $3.50 for the 32 cells (recorded Nemotron runs: $0.025 to $0.072 per Attest run, less for baselines; the two python-semver tasks are the largest) |
+| Hard cap | `--approve-usd 9.00` for the batch (reservation of the $0.50 per-run cap before each run, at most 20 calls per run), plus a demo allocation of 3 console runs under the existing $0.50 per-run and $2.00 daily caps (about $0.30 expected) |
+| Concurrency | 2 cells at a time |
+| Stop conditions | batch cap reached; 3 consecutive infrastructure errors; any transport-uncertain operation (never replayed); Codex is not involved and nothing falls back to it or from it |
+| Balance basis | $1.62 committed locally to date across 46 unique Nemotron runs (`scripts/usage_report.py`), about $1.80 with the three server-only runs, against the $26 credit seen on 15 Oct; please confirm the console figure before approving |

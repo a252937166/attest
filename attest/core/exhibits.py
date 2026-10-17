@@ -354,6 +354,9 @@ def reason_class(bundle: dict) -> str:
             return "adversarial_timeout"  # no assertion failed: the test exceeded its budget (unarbitrated)
         return "adversarial_failed"
     if gates.get("mutation") and not gates["mutation"].get("ok") and not gates["mutation"].get("skipped"):
+        mutation = ((bundle.get("breaker") or {}).get("mutation") or {})
+        if (mutation.get("unknown") or 0) > 0 and not (mutation.get("survived") or 0):
+            return "mutation_incomplete"  # nothing survived; too few mutants could be evaluated (sandbox operations unknown)
         return "mutation_failed"
     if gates.get("drift_audit") and not gates["drift_audit"].get("ok"):
         return "drift_failed"
@@ -479,6 +482,14 @@ def decision(bundle: dict) -> dict:
             evidence = {"ref": "E3", "text": example_line("E3") or e3["summary"]}
             decide = ["Read each failing test and classify it yourself; the bundle keeps the test source and the captured output.",
                       "Fix the patch or the task statement accordingly, then run again."]
+        elif klass == "mutation_incomplete":
+            d = e2["detail"]
+            explanation = (f"Every mutant that could be evaluated was caught ({d.get('killed') or 0} of {d.get('evaluated') or 0}), but {d.get('unknown') or 0} "
+                           f"mutant branch(es) could not be evaluated (a sandbox operation ended uncertain or failed and is never replayed), so fewer than "
+                           "the minimum number of mutants were scored. This is an infrastructure gap, not a finding against the patch; the verdict fails closed.")
+            evidence = {"ref": "E2", "text": e2["summary"]}
+            decide = ["Run the task again; a small patch yields only a handful of mutants, so one lost sandbox operation is enough to hold it.",
+                      "The unknown mutant and its error are listed in breaker.json (mutation.mutants)."]
         elif klass == "mutation_failed":
             explanation = ("Too few one-line mutants of the patch were caught by the sealed tests, or none could be evaluated. The acceptance tests "
                            "do not constrain enough of the change for a pass to mean much, so the verdict fails closed.")

@@ -110,8 +110,12 @@ def main() -> int:
         if not args.force:
             print(f"refusing: {dest} exists (use --force)", file=sys.stderr)
             return 2
-        shutil.rmtree(dest)
-    dest.mkdir(parents=True)
+        # replace the exported files but keep the review repository's history (.git) when one was initialised there
+        for child in dest.iterdir():
+            if child.name == ".git":
+                continue
+            shutil.rmtree(child) if child.is_dir() else child.unlink()
+    dest.mkdir(parents=True, exist_ok=True)
     stats = {"files": 0, "redactions": 0, "redacted_files": [], "skipped_large": []}
     for name in ALLOW_TOP:
         source = ROOT / name

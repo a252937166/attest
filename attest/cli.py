@@ -143,7 +143,7 @@ def cmd_import(args) -> int:
     missing = [name for name, value in (("statement", not args.statement_file), ("acceptance_criteria", not criteria), ("import_hint", not args.import_hint),
                                         ("allowed_write_globs", not args.write_glob)) if value]
     next_step = (f"fill in {', '.join(missing)} in {dest / 'task.json'}, then " if missing else "") + \
-        f"`python -m attest run --task {dest / 'task.json'} --out runs --provider nebius`"
+        f"`python -m attest run --task {dest / 'task.json'} --out runs --provider nebius --usd-cap 0.5` (log timestamps are UTC)"
     print(json.dumps({"task": str(dest / "task.json"), "source": {k: source.get(k) for k in ("url", "commit", "files", "total_bytes", "tree_sha256", "tarball_sha256")},
                       "skipped": source.get("skipped"), "materialized_links": source.get("materialized_links"),
                       "write_scope": body["allowed_write_globs"], "protected": body["protected_globs"], "test_command": body["test_command"],
