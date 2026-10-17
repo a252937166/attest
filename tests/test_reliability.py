@@ -537,3 +537,35 @@ class MutationIncomplete(unittest.TestCase):
         self.assertNotIn("surviving mutants", " ".join(decision["decide"]))
         bundle["breaker"]["mutation"].update({"survived": 1, "killed": 2, "score": 0.667})
         self.assertEqual(exhibits_module.reason_class(bundle), "mutation_failed")
+
+
+class SealerSelfErrors(unittest.TestCase):
+    """A sealed test that crashes inside its own body on the unmodified code is a defective test; the red check sends it back."""
+
+    def test_test_internal_errors_detects_unpacking_bugs_but_not_missing_behaviour(self):
+        from attest.core.pipeline import test_internal_errors
+        tests = [
+            {"id": "test_sealed.T.test_bug", "outcome": "ERROR", "failure_tail": 'Traceback (most recent call last):\n  File "/tmp/sealed/test_sealed.py", line 12, in test_bug\n    for a, b in ((1, 2, 3),):\nValueError: too many values to unpack (expected 2)'},
+            {"id": "test_sealed.T.test_missing", "outcome": "ERROR", "failure_tail": 'Traceback (most recent call last):\n  File "/tmp/sealed/test_sealed.py", line 20, in test_missing\n    to_roman(4)\n  File "/tmp/w/roman/core.py", line 9, in to_roman\n    raise NotImplementedError("x")\nNotImplementedError: x'},
+            {"id": "test_sealed.T.test_attr", "outcome": "ERROR", "failure_tail": 'Traceback (most recent call last):\n  File "/tmp/sealed/test_sealed.py", line 30, in test_attr\n    m.new_function()\nAttributeError: module m has no attribute new_function'},
+            {"id": "test_sealed.T.test_assert", "outcome": "FAIL", "failure_tail": 'Traceback (most recent call last):\n  File "/tmp/sealed/test_sealed.py", line 40, in test_assert\n    self.assertEqual(f(1), 2)\nAssertionError: 1 != 2'},
+        ]
+        found = test_internal_errors(tests)
+        self.assertEqual(found, ["test_bug: ValueError: too many values to unpack (expected 2)"])
+
+    def test_arbitration_headline_is_honest_when_the_mutation_check_was_skipped(self):
+        bundle = run_scenario("arb_clear_sealed") if False else None  # the fake cannot produce a sealed failure with a clean correction; covered by the headline unit below
+        from attest.core import exhibits as ex
+        bundle = {"verdict": {"verdict": "NEEDS HUMAN", "reasons": ["x"]}, "candidate": {"implementer_finished": True, "scope_ok": True},
+                  "gates": {"existing_suite": {"ok": True}, "sealed_binding": {"ok": False}, "mutation": {"ok": False, "skipped": True},
+                            "adversarial_tests": {"ok": False, "skipped": True}, "drift_audit": {"ok": True}},
+                  "sealed_tests": {"test_count": 20}, "red_run": {"ran": 20, "failing": 8},
+                  "verification": {"binding": {"ok": False, "checks": {"all_expected_pass": False}}, "sealed": {"tests": [{"id": "test_sealed.T.test_bug", "outcome": "ERROR", "failure_tail": "ValueError: too many values to unpack (expected 2)"}], "passed": 19, "failing": 1, "ran": 20}},
+                  "arbitration": {"counts": {"implementation_bug": 0, "test_defect": 1, "contract_dispute": 0}, "cleared": False, "all_corrected": True, "mutation_ran_ok": False,
+                                  "headline": "h", "modules": [{"module": "sealed", "classifications": [{"test_id": "test_sealed.T.test_bug", "classification": "test_defect", "defect_kind": "other", "rationale": "r", "contract_basis": "c"}],
+                                                                 "cleared_module": True}]},
+                  "task": {"title": "t"}, "spec": {}}
+        decision = ex.decision(bundle)
+        self.assertEqual(decision["reason_class"], "sealed_failed")
+        self.assertIn("arbiter classified every failing sealed test as defective", decision["explanation"])
+        self.assertIn("corrected tests pass on the candidate and still fail on the base", decision["explanation"])

@@ -56,6 +56,29 @@ def _tail(text: str, limit: int = 3500) -> str:
     return text if len(text) <= limit else "...[earlier output omitted]...\n" + text[-limit:]
 
 
+# Exception types that, raised in the last frame of the test module itself, mean the test body is broken rather than the
+# behaviour missing (an unimplemented API raises inside the repository, or AttributeError/NotImplementedError, which are not here).
+TEST_INTERNAL_EXCEPTIONS = ("ValueError: too many values to unpack", "ValueError: not enough values to unpack", "NameError:",
+                            "UnboundLocalError:", "ZeroDivisionError:", "IndentationError:", "SyntaxError:")
+
+
+def test_internal_errors(tests: list[dict], module_file: str = f"/{SEALED_FILE}") -> list[str]:
+    """Sealed tests whose red failure is an error raised by the test module's own code (traceback's last frame in the test
+    file and an exception that cannot come from calling an unimplemented API). Returned as `name: exception` strings."""
+    found = []
+    for test in tests or []:
+        if test.get("outcome") != "ERROR":
+            continue
+        tail = (test.get("failure_tail") or "").strip().splitlines()
+        if not tail:
+            continue
+        last_frame = next((line for line in reversed(tail) if line.strip().startswith('File "')), "")
+        exception = tail[-1].strip()
+        if module_file in last_frame and exception.startswith(TEST_INTERNAL_EXCEPTIONS):
+            found.append(f"{test.get('id', '').split('.')[-1]}: {exception[:120]}")
+    return found
+
+
 class Pipeline:
     def __init__(self, task: TaskSpec, provider, executor, ledger: Ledger, out_dir: Path, max_turns: int = 12,
                  max_mutants: int = 12, mutation_threshold: float = 0.5, mutant_workers: int = 8,
@@ -562,6 +585,9 @@ class Pipeline:
                 feedback = f"{len(missing)} tests crashed, timed out or produced no result on the unmodified code; tests must fail with assertions or exceptions, not by killing the process: {', '.join(missing)[:200]}"
             elif summary["failing"] == 0:
                 feedback = "every test passed on the unmodified code; the suite must fail for behavior that is not implemented yet"
+            elif (defective := test_internal_errors(summary["tests"])) and attempt < MAX_SEAL_ATTEMPTS:
+                feedback = ("these tests crashed inside the test module itself on the unmodified code (" + "; ".join(defective)[:400]
+                            + "); a red test must fail by asserting on the API's behaviour, not by an error in the test body. Fix them.")
             else:
                 sealed_src, sealed_sha, red_summary = candidate_src, sha, summary
                 self.raw_results["red"] = red_result
@@ -917,16 +943,22 @@ class Pipeline:
         # itself failed, the breaker was skipped, so there is no mutation score and arbitration stays advisory only.
         mutation_ran_ok = gates.get("mutation", {}).get("ok") and not gates.get("mutation", {}).get("skipped")
         cleared = bool(results) and mutation_ran_ok and all(r.get("cleared_module") for r in results)
+        all_corrected = bool(results) and all(r.get("cleared_module") for r in results)
         if cleared:
             headline = (f"all {counts['test_defect']} failing generated test(s) classified as test defects; corrected tests "
                         "pass on the candidate and still fail on the base — candidate not falsified by these tests")
+        elif all_corrected:
+            headline = (f"all {counts['test_defect']} failing generated test(s) classified as test defects; corrected tests pass on the "
+                        "candidate and still fail on the base, but the sealed failure skipped the mutation check, so there is no mutation score "
+                        "and the verdict is not cleared; a rerun seals fresh tests")
         elif counts["implementation_bug"]:
             headline = f"{counts['implementation_bug']} failing test(s) indicate a real implementation bug; human review required"
         elif counts["contract_dispute"]:
             headline = f"{counts['contract_dispute']} failing test(s) are contract disputes; a human must decide"
         else:
             headline = "generated-test failures could not be cleared by arbitration; human review required"
-        return {"applied": self.arbitration_apply, "cleared": cleared, "counts": counts, "headline": headline,
+        return {"applied": self.arbitration_apply, "cleared": cleared, "all_corrected": all_corrected, "mutation_ran_ok": bool(mutation_ran_ok),
+                "counts": counts, "headline": headline,
                 "modules": results, "note": "original tests, results and reasons are preserved unchanged; arbitration is "
                 "advisory unless apply mode is on, and never flips an implementation bug or contract dispute"}
 

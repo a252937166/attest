@@ -6,11 +6,27 @@
   "base_image": "python:3.12-slim",
   "test_runner": "unittest",
   "import_hint": "from kvparse import parse, parse_line   (module kvparse.parser)",
-  "test_command": ["/usr/local/bin/python", "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"],
-  "allowed_write_globs": ["kvparse/**"],
-  "protected_globs": ["tests/**"],
-  "heldout_tests": {"tests/test_heldout.py": "heldout.py"},
-  "statement": "Refactor kvparse/parser.py without changing any behaviour. Two changes are requested. (1) parse_line(line) must be rewritten without the hand-rolled index loops: split the line at the first '=' with str.partition, strip the key and the value, raise ValueError when there is no '=' or the stripped key is empty, and remove one pair of matching surrounding quotes (both ends '\"' or both ends \"'\") from a stripped value of length two or more; the function must not contain a 'while' loop. (2) Extract the detection of ignorable lines into a module-level function _is_ignorable(line) -> bool in kvparse/parser.py that returns True exactly when the stripped line is empty or starts with '#' or ';', and make parse use it. The observable behaviour of parse and parse_line must stay byte-for-byte identical for every input: the same return values, the same exception types in the same situations (TypeError for non-string input to parse, ValueError for a malformed line), later duplicate keys still win, and quotes are removed only when the stripped value starts and ends with the same quote character (a value like '\"x\\'' keeps both characters; a lone '\"' is kept). Exception messages are not prescribed. Keep the public names parse and parse_line exported from kvparse, do not modify the tests, and keep the existing suite passing.",
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-t",
+    ".",
+    "-v"
+  ],
+  "allowed_write_globs": [
+    "kvparse/**"
+  ],
+  "protected_globs": [
+    "tests/**"
+  ],
+  "heldout_tests": {
+    "tests/test_heldout.py": "heldout.py"
+  },
+  "statement": "Refactor kvparse/parser.py without changing any behaviour. Two changes are requested. (1) parse_line(line) must be rewritten without the hand-rolled index loops: split the line at the first '=' with str.partition, strip the key and the value, raise ValueError when there is no '=' or the stripped key is empty, and remove one pair of matching surrounding quotes (both ends '\"' or both ends \"'\") from a stripped value of length two or more; the function must not contain a 'while' loop. (2) Extract the detection of ignorable lines into a module-level function _is_ignorable(line) -> bool in kvparse/parser.py that returns True exactly when the stripped line is empty or starts with '#' or ';', and make parse use it. The observable behaviour of parse and parse_line must stay byte-for-byte identical for every str input: the same return values, the same exception types in the same situations (TypeError for non-string input to parse, ValueError for a malformed line), later duplicate keys still win, and quotes are removed only when the stripped value starts and ends with the same quote character (a value like '\"x\\'' keeps both characters; a lone '\"' is kept). Exception messages are not prescribed. parse keeps raising TypeError for non-string input; what parse_line does with a non-string argument (for example a list or a mapping) is unspecified and must not be tested, because the required use of str.partition changes it. Keep the public names parse and parse_line exported from kvparse, do not modify the tests, and keep the existing suite passing.",
   "acceptance_criteria": [
     "parse_line behaviour unchanged: 'a=b' -> ('a','b'); ' a = b ' -> ('a','b'); 'a==b' -> ('a','=b'); 'a = b = c' -> ('a','b = c'); 'a=' -> ('a',''); 'q = \"x\"' -> ('q','x'); \"q = 'x'\" -> ('q','x'); 'q = \"x\\'' -> ('q','\"x\\''); 'q = \"' -> ('q','\"'); \"q = ''\" -> ('q',''); 'q = \" spaced \"' -> ('q',' spaced '); 'k e y = v' -> ('k e y','v'); 'u = \"a\" \"b\"' -> ('u','a\" \"b').",
     "parse_line raises ValueError for '', 'novalue', ' = v', '   ', '=' and '\\t= 1'.",
@@ -18,6 +34,8 @@
     "parse raises ValueError for a malformed line anywhere in the text and TypeError for non-string input (None, 3, a list, bytes).",
     "kvparse.parser._is_ignorable exists, returns True for '   # c', '' and '\\t; c', and False for 'a = 1' and 'a = # not a comment'.",
     "The source of parse_line contains no 'while' loop and uses str.partition.",
-    "The existing tests in tests/ pass unchanged."
-  ]
+    "The existing tests in tests/ pass unchanged.",
+    "Unspecified, not to be tested: parse_line with a non-string argument."
+  ],
+  "contract_resolution": "2026-10-17: the Codex validation run of the frozen suite held a correct refactor on four breaker tests that called parse_line with integer-keyed dicts, which the index-loop baseline happened to accept; the statement demanded identical behaviour for 'every input' while also requiring str.partition, which cannot preserve non-string behaviour. Scoped to str inputs; non-string parse_line arguments are unspecified."
 }

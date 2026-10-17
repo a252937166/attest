@@ -433,6 +433,13 @@ def decision(bundle: dict) -> dict:
             n = e1["detail"].get("candidate_failing") or len(e1["detail"]["failing_ids"])
             explanation = (f"{n} of the {e1['detail']['count']} sealed acceptance tests fail on the candidate. The sealed tests were written before the patch "
                            "from the task statement; each failure is either a missing behaviour or a test that misreads the request.")
+            arbitration = bundle.get("arbitration") or {}
+            counts = arbitration.get("counts") or {}
+            if arbitration and set(k for k, v in counts.items() if v) == {"test_defect"}:
+                explanation += (" The arbiter classified every failing sealed test as defective" + (", and the corrected tests pass on the candidate and still fail on the base"
+                                if arbitration.get("all_corrected") or arbitration.get("cleared") else "") + "; the hold stands because the sealed failure also skipped the mutation check (E6).")
+            elif arbitration and counts.get("implementation_bug"):
+                explanation += f" The arbiter classified {counts['implementation_bug']} of them as implementation bugs (E6)."
             evidence = {"ref": "E1", "text": example_line("E1") or f"Failing sealed tests: {', '.join(_short(i) for i in e1['detail']['failing_ids'])[:160]}."}
             decide = ["Read the failing sealed test and decide whether it states the requirement correctly.",
                       "If it does, the implementation is incomplete; if not, correct the task statement and run again."]

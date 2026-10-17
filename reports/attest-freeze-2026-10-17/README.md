@@ -50,3 +50,41 @@ Verified so far: committed Nebius spend to date is $1.62 across 46 unique local 
 the public price table), about $1.80 including the three server-only runs; the Token Factory console showed about $26 of
 credit on 15 Oct 2026. The console balance has not been re-read programmatically (the Token Factory API documents no balance
 endpoint); the owner's confirmation of the current figure is part of the approval.
+
+## Validation of the frozen suite on the development profile (17 Oct 2026, 15:17 to 15:42 UTC)
+
+`evaluation-newtasks-codex/`: the three tasks that had never run through the harness (`slugkit-regression-001`,
+`kvparse-refactor-001`, `semver-long-prerelease-pr488`), both systems, one attempt, from the frozen clone at commit
+`06553c83…` (revision `36369c7b…` in every row, snapshot intact, working tree unchanged, 62 Codex requests, no pacing wait,
+policy "hourly request counting not enforced" adopted from the gateway). This is method validation, not an evaluation result.
+
+| Cell | Task | System | Verdict | Judge | Label | Calls | Wall |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | slugkit-regression-001 | baseline | BASELINE | correct | true accept | 5 | 204 s |
+| 1 | slugkit-regression-001 | attest | VERIFIED | correct | true accept | 8 | 338 s |
+| 2 | kvparse-refactor-001 | baseline | BASELINE | correct | true accept | 7 | 382 s |
+| 3 | kvparse-refactor-001 | attest | NEEDS HUMAN | correct | false reject | 11 | 757 s |
+| 4 | semver-long-prerelease-pr488 | baseline | BASELINE | correct | true accept | 9 | 272 s |
+| 5 | semver-long-prerelease-pr488 | attest | NEEDS HUMAN | correct | false reject | 16 | 658 s |
+
+Both holds were examined before the suite is used for anything:
+
+- **kvparse (cell 3): a contract defect, found by the breaker.** Four adversarial tests called `parse_line` with integer-keyed
+  dicts (`{0: 'a', 1: '=', 2: 'b'}`), which the index-loop baseline happened to accept; the refactored candidate (which even
+  kept a fallback for non-string sequences) raises `ValueError` for them. The arbiter classified them as implementation bugs,
+  citing the statement's "byte-for-byte identical for every input", and it was right about the text: the statement required
+  both identical behaviour for every input and the use of `str.partition`, which cannot preserve non-string behaviour. The
+  contract is now scoped to `str` inputs and says that `parse_line` with a non-string argument is unspecified
+  (`contract_resolution` in the task). The held-out suite only ever used strings, so the judge's verdict is unchanged.
+- **semver (cell 5): a defective sealed test.** `test_core_precedence_skips_bad_prerelease_conversion` unpacked a six-element
+  tuple into two names and raised `ValueError` before any assertion, on the base (where it counted as red) and on the
+  candidate (where it held the verdict). The arbiter classified it `test_defect`, corrected it, and the corrected module passed
+  on the candidate (20 of 20) and failed on the base (8 errors), yet the headline read "could not be cleared", because the
+  sealed failure had skipped the mutation check and clearing requires a mutation score. Fixed: the headline and the decision
+  copy now say exactly that; and the red check sends a sealed test back to the sealer when its red failure is an error raised
+  inside the test body itself (unpacking errors, name errors; never an exception raised by the repository's code or an
+  `AttributeError` for a missing API), so such a test does not get sealed in the first place
+  (`tests/test_reliability.py::SealerSelfErrors`). The candidate itself passed the upstream pull request's tests again.
+
+Consequence: the frozen version moves to the commit that carries these two changes (see the top of this file for the new
+pin); this validation run and its holds stay recorded as they happened.

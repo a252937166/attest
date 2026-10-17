@@ -55,3 +55,31 @@ if the owner wants development runs listed again (`ATTEST_IMPORT_PROVIDERS=nebiu
 - No judge-style Nemotron run was started after this deployment (no paid inference without the owner's approval); the
   redesigned console was verified in a real browser locally (`reports/attest-m3-2026-10-17/`) and through its public API here.
 - The M5 redeploy (plan item 5.4) will repeat this procedure with the final build.
+
+## Second deployment of the day (15:19 UTC): export verification, budget accounting, freeze
+
+What changed between the two deployments of 17 Oct, and what the server now runs: the budget-accounting fixes (an errored
+run keeps its committed cost; interrupted Nebius runs keep the per-run cap as committed cost; the daily budget counts errored
+runs), the development gateway's URL read from the private environment only (the package carries no host), the strict-mode
+arbitration schema, the register-only harness mode, and the documentation (`FREEZE.md`, `TESTING.md`, README section for
+judges). The tarball (`app.tar.gz`, 4.1 MB, sha256 `0d49b046e96ea838…`) was built from the public export at review commit
+`1054a63` (code identical to the pinned freeze commit `06553c83…`: package digest `36369c7b…`); the export verified all 90
+exported bundles (`attest check` OK, redacted runs traced by `REDACTION.json` with derived manifests) and the privacy scan
+ran last with no hits.
+
+Procedure: consistent store backup (`attest.db.bak-20261017b`), `snapshot.sh before-20261017b`, `MEMORY_MAX=200M ./install.sh`
+(only `attest.service` restarted; `app.prev` now holds the 12:47 build), `snapshot.sh after-20261017b`.
+
+| Check | Result |
+| --- | --- |
+| `GET /api/health` (public) | `version 0.3.0`, worker alive, queue 0, 1,347 MB free, daily budget remaining $2.00 (`health-after-2.json`) |
+| `GET /api/runs`, `GET /api/profiles` | 38 runs, all `nebius`; only the Nemotron profile; `team: false` |
+| Downloaded bundles (`durationkit-units-001-20261015T185629796814Z`, VERIFIED; `rle-encode-20261015T181805Z`, NEEDS HUMAN) | `attest check` OK, 0 errors, 3 warnings each (recorded before M2: no manifest); zips kept here |
+| Page source | no occurrence of the development gateway's name |
+| Other services | before/after diff: memory 372 to 368 MB used, swap, load, disk 1.4 to 1.3 GB free; services, listeners, containers and nginx config identical; the four other endpoints 200 before and after |
+
+Verified locally but exercised on the server only indirectly: the fault-injection paths (`tests/test_budget.py`) run against
+fakes; the server's store now carries the new accounting rules for future runs, and no live run was started to provoke a
+crash. Not deployed anywhere: nothing of this round is pending deployment; the M5 redeploy will follow the paid run.
+
+Disk: 1.3 GB free at 91% use; `app.prev` can be removed after the owner is satisfied with this build to recover about 11 MB.
