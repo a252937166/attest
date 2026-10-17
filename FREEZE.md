@@ -33,13 +33,14 @@ python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-
 
 Proof that the command does what it says: the same command with `--register-only` was run from a clean clone of that commit
 on 17 Oct 2026 at 17:00 UTC (`reports/attest-freeze-2026-10-17/register-only-m5/schedule.json`): 32 cells, 8 tasks, systems
-baseline and attest, 2 attempts, the digests above, `register_only: true`, nothing started. History of the pin: the first
-proof attempt (commit `ce4524be…`) failed because registration loaded the external task with the default per-file bound;
-`06553c83…` fixed that and was validated on the development profile over the three new tasks, which exposed a
-self-contradictory contract in `kvparse-refactor-001` and a sealed test that crashed in its own body; `5242c1fc…` carried
-those two fixes; its Nemotron smoke test then saw Super spend its whole completion budget on reasoning, so `85701f5d…`
-sends the reasoning flag explicitly per role and is the pinned version (all described in
-`reports/attest-freeze-2026-10-17/README.md`). `tests/test_budget.py::RegisterOnly` guards the registration path.
+baseline and attest, 2 attempts, the digests above, `register_only: true`, nothing started. History of the pin, every step recorded in `reports/attest-freeze-2026-10-17/README.md`: `ce4524be…` failed its own
+proof because registration loaded the external task with the default per-file bound; `06553c83…` fixed that, and its
+validation on the development profile exposed a self-contradictory contract in `kvparse-refactor-001` and a sealed test that
+crashed in its own body; `5242c1fc…` carried those two fixes, and its first Nemotron smoke test saw Super spend the whole
+completion budget on reasoning; `85701f5d…` switched reasoning off for Super, whose implementation quality then dropped;
+`2cbaf941…` bounded reasoning with `reasoning_effort` instead, and its smoke test was held by eleven sealed tests asserting
+the old implementation's error wording; `15e145c1…` makes the sealer and the breaker assert exception types only and is the
+pinned version. `tests/test_budget.py::RegisterOnly` guards the registration path.
 
 ## Budget (for approval; nothing paid runs before it)
 
