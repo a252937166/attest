@@ -300,6 +300,12 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
 
 
 def run_cell(cell, budget: Budget, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root: Path, governor=None) -> dict:
+    # An operator stops a batch cleanly by creating <report dir>/STOP: cells not yet started are reported as not run with that
+    # reason, cells in flight finish and write their ledgers, and the batch can be resumed later with --resume.
+    stop_file = Path(out_dir).parent / "STOP"
+    if stop_file.exists():
+        return {**cell, "status": "not_run", "reason": f"stopped by the operator ({stop_file.name} file present)", "verdict": None, "accepted": False,
+                "held_out_correct": None, "cost_usd": None, "cost_committed_usd": None, "wall_s": None, "infra_error": False, "uncertain": False}
     blocked = budget.try_reserve()
     if blocked:
         return {**cell, "status": "not_run", "reason": blocked, "verdict": None, "accepted": False, "held_out_correct": None,
@@ -487,7 +493,8 @@ def run_batch(args) -> int:
                     "pacing": ({"calls_per_cell_reserved": CALLS_PER_CELL, **governor.snapshot()} if governor else None),
                     "stop_conditions": ["batch USD cap reached (reservation of the per-run cap before each run)",
                                         f"{MAX_CONSECUTIVE_INFRA} consecutive infrastructure errors", "any transport-uncertain operation (never replayed)",
-                                        "Codex pacing: a cell whose bounded wait for the hourly budget is exceeded ends as ERROR (reported); no fallback"],
+                                        "Codex pacing: a cell whose bounded wait for the hourly budget is exceeded ends as ERROR (reported); no fallback",
+                                        "operator STOP file in the report directory: cells not yet started are reported as not run; in-flight cells finish and keep their ledgers"],
                     "definitions": {"accepted": "attest: verdict VERIFIED; baseline: implementer finished",
                                     "correct": "existing suite and held-out suite pass on the final patch in a fresh branch (judge); for a task whose ground_truth is "
                                                "'unsatisfiable' no patch counts as correct and a hold (INFEASIBLE or NEEDS HUMAN) is the right outcome",

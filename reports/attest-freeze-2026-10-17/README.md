@@ -147,3 +147,21 @@ that the ValueError message contains "unsupported duration", the wording of the 
 prescribes. The arbiter classified all eleven as wrong expectations and its corrected tests pass on the candidate and still
 fail on the base. The seal and breaker prompts now say to assert exception types only, never message text, unless a criterion
 quotes the exact message; the pin moved to `15e145c1…`. The fourth smoke test from it follows below.
+Fourth smoke test (`smoke/durationkit-units-001-20261017T170038Z`, from the pinned `15e145c1…`): the whole pipeline ran on
+Nemotron with the pinned settings. The sealed suite passed on the candidate, the mutation check and the drift audit ran, one
+of twelve adversarial tests failed, and the arbiter classified it a defect whose corrected version passes on the candidate
+and still fails on the base; the verdict is NEEDS HUMAN because arbitration is advisory, which is the designed outcome. No
+infrastructure failure, no runaway reasoning, no message-wording assertions. The approved evaluation batch was started from
+this commit immediately afterwards (`reports/attest-evaluation-2026-10-17-nebius-m5/batch/`).
+
+## Aborted batch 1 (17:08 to 17:10 UTC)
+
+The approved batch was started from `15e145c1…` at 17:08 UTC and stopped by the operator at 17:10 UTC after smoke test 4's
+ledger showed that the first sealing call had hit the 16,000-token cap at medium reasoning effort and had only been rescued by
+the repair retry; a batch with that exposure could lose cells to the cap. `batch-aborted-1/` keeps the schedule, the one
+completed cell (roman-to-numeral baseline a1, BASELINE, judged correct, $0.0077) and the two run directories that were in
+flight when the process was killed (roman-to-numeral attest a1 at checkpoint with no model call yet; roman-to-numeral baseline
+a2 after a few implementation calls whose ledger was never written because the process ended). Their cost is not recorded by
+the harness; a conservative estimate is at most $0.03. Fixes before the relaunch: the client retries a length runaway with
+empty content once at low reasoning effort (both attempts recorded), the sealer and the breaker run at low effort, and the
+harness honours an operator `STOP` file so that a future stop happens between cells with every ledger written.

@@ -580,3 +580,51 @@ class MessageAssertionRule(unittest.TestCase):
         spec = {"restated_task": "r", "interface_contract": [], "acceptance_criteria": []}
         self.assertIn("never assert on exception message text", seal_prompt(Task(), spec, {"pkg/__init__.py": b""}, None))
         self.assertIn("Assert exception types, never exception message text", breaker_prompt(Task(), spec, "diff", [], per_test_timeout=60))
+
+
+class NebiusReasoningRunaway(unittest.TestCase):
+    """A Nemotron answer that spent its whole completion budget on reasoning (finish_reason=length, no content) is retried once at
+    low reasoning effort; both attempts are in the ledger; a second runaway fails visibly."""
+
+    def _client(self, responses):
+        from attest.models.nebius_tokenfactory import NebiusTokenFactory
+        ledger = Ledger()
+        client = NebiusTokenFactory("key", ledger, usd_cap=0.5)
+        sent = []
+
+        def fake_request(method, url, headers, payload=None, timeout=60, max_bytes=0):
+            sent.append(payload)
+            body = responses.pop(0)
+            return 200, body, {}
+        return client, ledger, sent, fake_request
+
+    @staticmethod
+    def _answer(content, finish, reasoning):
+        return {"model": "nvidia/nemotron-3-super-120b-a12b", "choices": [{"message": {"content": content}, "finish_reason": finish}],
+                "usage": {"prompt_tokens": 1000, "completion_tokens": 16000 if finish == "length" else 200, "completion_tokens_details": {"reasoning_tokens": reasoning}}}
+
+    def test_length_runaway_is_retried_once_at_low_effort(self):
+        schema = {"type": "object", "additionalProperties": False, "properties": {"x": {"type": "integer"}}, "required": ["x"]}
+        client, ledger, sent, fake = self._client([self._answer("", "length", 16000), self._answer('{"x": 1}', "stop", 40)])
+        with mock.patch("attest.models.nebius_tokenfactory.request_json", fake):
+            result = client.structured("seal", "prompt", schema, "seal-1")
+        self.assertEqual(result.json, {"x": 1})
+        self.assertEqual(sent[0]["reasoning_effort"], "low")  # the sealer runs at low effort by default
+        self.assertEqual(sent[1]["reasoning_effort"], "low")
+        self.assertEqual([c.stage for c in ledger.model_calls], ["seal-1", "seal-1-lowretry"])
+        self.assertFalse(ledger.model_calls[0].ok)
+        self.assertIn("finish_reason=length", ledger.model_calls[0].error)
+        self.assertTrue(ledger.model_calls[1].ok)
+        self.assertGreater(ledger.totals()["cost_usd_committed"], 0)
+
+    def test_second_runaway_fails_visibly_and_implementer_uses_medium(self):
+        schema = {"type": "object", "additionalProperties": False, "properties": {"x": {"type": "integer"}}, "required": ["x"]}
+        client, ledger, sent, fake = self._client([self._answer("", "length", 16000), self._answer("", "length", 16000)])
+        with mock.patch("attest.models.nebius_tokenfactory.request_json", fake):
+            with self.assertRaises(ModelError) as cm:
+                client.structured("implement", "prompt", schema, "implement-1")
+        self.assertIn("finish_reason=length", str(cm.exception))
+        self.assertEqual(sent[0]["reasoning_effort"], "medium")
+        self.assertEqual(sent[1]["reasoning_effort"], "low")
+        self.assertEqual(len(ledger.model_calls), 2)
+        self.assertEqual(client.describe()["reasoning_effort"], {"seal": "low", "implement": "medium", "break": "low", "summary": "low"})

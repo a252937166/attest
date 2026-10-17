@@ -71,8 +71,11 @@ class NebiusTokenFactory:
             send_thinking_flag = os.environ.get("ATTEST_NEBIUS_THINKING_FLAG", "0") == "1"
         self.send_thinking_flag = send_thinking_flag
         default_effort = os.environ.get("ATTEST_NEBIUS_REASONING_EFFORT", "medium")
+        # seal and break at low effort: on the real sealing prompt, medium still ran away once (16,000 reasoning tokens in the
+        # fourth smoke test, rescued by the repair retry) while low used 42; the implementer keeps medium (its calls stayed
+        # well under the cap and it benefits from reasoning)
         self.reasoning_effort = reasoning_effort if reasoning_effort is not None else {
-            "seal": default_effort, "implement": default_effort, "break": default_effort, "summary": "low"}
+            "seal": "low", "implement": default_effort, "break": "low", "summary": "low"}
 
     def _headers(self) -> dict:
         return {"Authorization": "Bearer " + self._key}
@@ -134,10 +137,17 @@ class NebiusTokenFactory:
         effort = self.reasoning_effort.get(role)
         if effort:
             payload["reasoning_effort"] = effort
+        return self._send(role, prompt, schema, stage, model, payload, reservation, attempt=1)
+
+    def _send(self, role, prompt, schema, stage, model, payload, reservation, attempt: int) -> ModelResult:
+        """One request; a `finish_reason=length` answer with no visible content (the model spent its whole completion budget on
+        reasoning) is a definite failure and is retried once at low reasoning effort, both attempts recorded."""
         started = utcnow()
         t0 = time.monotonic()
-        call = ModelCall(provider=self.name, role=role, stage=stage, requested_model=model,
-                         requested_effort=("thinking" if thinking else "no-thinking") if self.send_thinking_flag else "default", returned_model=None,
+        flags = payload.get("chat_template_kwargs") or {}
+        effort_label = payload.get("reasoning_effort") or ("thinking" if flags.get("enable_thinking") else "no-thinking" if flags else "default")
+        call = ModelCall(provider=self.name, role=role, stage=stage if attempt == 1 else f"{stage}-lowretry", requested_model=model,
+                         requested_effort=effort_label, returned_model=None,
                          returned_effort=None, started_at_utc=started, elapsed_ms=0, gateway_duration_ms=None,
                          prompt_chars=len(prompt), tokens_in=None, tokens_out=None, tokens_cached=None,
                          usage_raw={}, cost_usd=None, cost_note="USD from public Token Factory price table", ok=False,
@@ -183,6 +193,12 @@ class NebiusTokenFactory:
             finish = (choices[0].get("finish_reason") if choices else None)
             call.error = f"schema violation: {problem}; finish_reason={finish}; content head: {head!r}"
             self.ledger.add_call(call)
+            if finish == "length" and not (head or "").strip() and attempt == 1:
+                # the model spent the whole completion budget on reasoning: a definite failure (nothing to replay), retried once at
+                # low effort if the per-run cap still allows the reservation
+                if self.spent_usd() + reservation <= self.usd_cap and (self.max_calls is None or self.calls_made() < self.max_calls):
+                    low = dict(payload, reasoning_effort="low")
+                    return self._send(role, prompt, schema, stage, model, low, reservation, attempt=2)
             raise ModelError(f"model output violated the schema: {problem} (finish_reason={finish}, content head: {head[:120]!r})")
         call.ok = True
         self.ledger.add_call(call)

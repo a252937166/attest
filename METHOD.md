@@ -54,10 +54,11 @@ averaged into one row. Workers: 2. Order: scheduled index.
 | seal, implement, break | Nemotron Super | implement: Nemotron Super |
 | summary | Nemotron Lightning | not used |
 
-Sampling: temperature 0.2, max_tokens 16000, strict JSON schema output; `reasoning_effort` medium for the Super roles
-(seal, implement, break; low for summary) and the model default for the Ultra roles (spec, audit, arbitrate), because in
-the 17 Oct smoke tests Super spent its whole completion budget on unbounded reasoning, and with reasoning removed its
-implementation quality dropped.
+Sampling: temperature 0.2, max_tokens 16000, strict JSON schema output; `reasoning_effort` low for seal and break, medium
+for implement and low for summary (the Super and Lightning roles), the model default for the Ultra roles (spec, audit,
+arbitrate); an answer that spends its whole completion budget on reasoning is retried once at low effort with both attempts
+recorded. Set after the 17 Oct smoke tests: Super spent its whole completion budget on unbounded reasoning, with reasoning
+removed its implementation quality dropped, and at medium effort the sealer still ran away once.
 
 Per-run cap $0.50 (reserved before the run starts), at most 20 model calls per run, batch cap `--approve-usd` (approved
 17 Oct 2026: $9.00 for the 32 cells, $0.50 for the smoke test, $1.50 for three demo runs), concurrency 2. The harness refuses to start a Nebius batch without an
