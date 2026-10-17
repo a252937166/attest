@@ -30,11 +30,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))  # the export verifies bundles with the package's own checker
 ALLOW_TOP = ["attest", "tests", "examples", "deploy", "scripts", ".github", "README.md", "LICENSE", "PILOT.md", "PILOT_FEEDBACK.md",
-             "METHOD.md", "attest-console.md", "attest-first-slice.md", "attest-product-design.md", "pyproject.toml", ".gitignore"]
+             "METHOD.md", "FREEZE.md", "TESTING.md", "attest-console.md", "attest-first-slice.md", "attest-product-design.md", "pyproject.toml", ".gitignore"]
 ALLOW_REPORTS = ["attest-first-slice-2026-10-15", "attest-verification-2026-10-15", "attest-deployment-2026-10-15", "attest-hardening-2026-10-16",
                  "attest-evaluation-2026-10-16", "attest-deployment-2026-10-16", "attest-competitive-review-2026-10-16", "attest-m1-2026-10-16",
                  "attest-m2-2026-10-17", "attest-m3-2026-10-17", "attest-reliability-2026-10-17", "attest-m4-2026-10-17",
-                 "attest-deployment-2026-10-17"]  # the gateway operations report stays private (internal infrastructure)
+                 "attest-deployment-2026-10-17", "attest-freeze-2026-10-17"]  # the gateway operations report stays private (internal infrastructure)
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".venv", "snapshot", "screens", "refresh-sequence", "runs-private",
                 # two partial copies of run directories kept in the 16 Oct hardening report (sealed and breaker modules were not
                 # copied at the time); they fail `attest check` by construction, so the originals stay private

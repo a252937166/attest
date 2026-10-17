@@ -1,0 +1,117 @@
+{
+  "probed_at_utc": "2026-10-17T15:14:16.168627+00:00",
+  "gateway_policy": "gateway status: hourly request counting not enforced",
+  "results": [
+    {
+      "schema": "SPEC_SCHEMA",
+      "role": "spec",
+      "model": "gpt-6-astra",
+      "effort": "low",
+      "ok": true,
+      "elapsed_s": 26.8,
+      "error": null,
+      "answer_head": "{\"feasible\": true, \"infeasibility_reason\": null, \"restated_task\": \"Add add(a, b) to module m to return the sum of two integers.\", \"interface_contract\": [{\"name\": \"m.add\", \"signature\": \"add(a: int, b: ",
+      "tokens_in": 9412,
+      "tokens_out": 162
+    },
+    {
+      "schema": "SEAL_SCHEMA",
+      "role": "seal",
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "ok": true,
+      "elapsed_s": 15.6,
+      "error": null,
+      "answer_head": "{\"test_file\": \"import unittest\\nfrom m import add\\n\\n\\nclass TestAdd(unittest.TestCase):\\n    def test_add(self):\\n        self.assertEqual(add(1, 2), 3)\\n\", \"test_count\": 1, \"notes\": \"Minimal unittes",
+      "tokens_in": 8868,
+      "tokens_out": 90
+    },
+    {
+      "schema": "BREAKER_SCHEMA",
+      "role": "break",
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "ok": true,
+      "elapsed_s": 14.0,
+      "error": null,
+      "answer_head": "{\"test_file\": \"import unittest\\nfrom m import add\\n\\n\\nclass TestAdd(unittest.TestCase):\\n    def test_zero_plus_zero(self):\\n        self.assertEqual(add(0, 0), 0)\\n\", \"test_count\": 1, \"notes\": \"Test",
+      "tokens_in": 8866,
+      "tokens_out": 102
+    },
+    {
+      "schema": "ARBITRATION_SCHEMA",
+      "role": "arbitrate",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "ok": true,
+      "elapsed_s": 19.2,
+      "error": null,
+      "answer_head": "{\"classifications\": [{\"test_id\": \"test_mod.T.test_x\", \"classification\": \"test_defect\", \"defect_kind\": \"unspecified_behavior\", \"rationale\": \"The test expects 1 from a private helper whose result is uns",
+      "tokens_in": 9431,
+      "tokens_out": 114
+    },
+    {
+      "schema": "DRIFT_SCHEMA",
+      "role": "audit",
+      "model": "gpt-6-astra",
+      "effort": "low",
+      "ok": true,
+      "elapsed_s": 17.6,
+      "error": null,
+      "answer_head": "{\"drift_score\": 0, \"assessment\": \"aligned\", \"scope_narrowed\": [], \"scope_widened\": [], \"unsupported_claims\": [], \"summary\": \"The implementer added exactly the requested function. No additional changes",
+      "tokens_in": 9364,
+      "tokens_out": 58
+    },
+    {
+      "schema": "ACTION_SCHEMA",
+      "role": "implement",
+      "model": "gpt-6-sol",
+      "effort": "medium",
+      "ok": true,
+      "elapsed_s": 18.0,
+      "error": null,
+      "answer_head": "{\"action\": \"finish\", \"path\": null, \"content\": null, \"find\": null, \"replace\": null, \"start_line\": null, \"end_line\": null, \"code\": null, \"reason\": \"probe\", \"summary\": \"done\"}",
+      "tokens_in": 8934,
+      "tokens_out": 65
+    }
+  ],
+  "all_ok": true,
+  "ledger_totals": {
+    "model_calls": 6,
+    "model_calls_failed": 0,
+    "malformed_outputs": 0,
+    "tokens_in": 54875,
+    "tokens_out": 591,
+    "tokens_cached": 7168,
+    "model_elapsed_ms": 105142,
+    "cost_usd": null,
+    "cost_usd_committed": 0.0,
+    "uncertain_unpriced_calls": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_ms": 0,
+    "by_model": {
+      "codex_gateway:gpt-6-astra": {
+        "calls": 3,
+        "tokens_in": 28207,
+        "tokens_out": 334,
+        "tokens_cached": 0,
+        "cost_usd": null,
+        "elapsed_ms": 57542,
+        "failed": 0
+      },
+      "codex_gateway:gpt-6-sol": {
+        "calls": 3,
+        "tokens_in": 26668,
+        "tokens_out": 257,
+        "tokens_cached": 7168,
+        "cost_usd": null,
+        "elapsed_ms": 47600,
+        "failed": 0
+      }
+    },
+    "sandbox_operations": 0,
+    "sandbox_duration_s": 0,
+    "sandbox_retained_images": [],
+    "sandbox_raw_cost_diag_sum": 0
+  }
+}

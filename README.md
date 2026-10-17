@@ -34,6 +34,13 @@ Aliyun backend deployed and verified. Authentication, daily caps, one active req
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).
 The Attest application was not redeployed and the recorded evaluation was not rerun by this operation.
 
+## For judges
+
+Start with `TESTING.md` (offline tests in 15 seconds, `attest check` on a recorded bundle, the live console, your own
+repository), `METHOD.md` (the frozen evaluation method) and `FREEZE.md` (the pinned commit, digests, models, limits and
+the exact evaluation command). Every dated report under `reports/` keeps its failed and inconclusive runs; rehearsals by
+the project's own agents are labelled as rehearsals, not as user testing.
+
 ## Deployment targets
 
 The final console, API, orchestration, and application data/database when needed belong on the existing `yungou` server, confirmed by the owner as DogYun `206.237.18.80` on 2026-10-15. Prepare that application deployment without Docker. Components that genuinely require Docker run on the existing Aliyun host; Nebius Sandboxes remains the primary isolated task executor. Final deployment and any cross-host Docker worker are not yet verified. See [deployment targets](deployment-targets.md) for the user-selected host policy and required deployment evidence.
