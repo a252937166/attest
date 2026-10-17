@@ -91,3 +91,27 @@ Both holds were examined before the suite is used for anything:
 
 Consequence: the frozen version moves to the commit that carries these two changes (see the top of this file for the new
 pin); this validation run and its holds stay recorded as they happened.
+
+## Revalidation of the two corrected tasks at the pinned commit (15:47 to 16:05 UTC)
+
+`evaluation-revalidation-codex/` (`RESULTS.md`), from a clean clone of `5242c1fc…`, revision `bd896d02…` in every row,
+snapshot intact, no pacing wait, 21 Codex requests:
+
+| Cell | Task | System | Verdict | Judge | Label | Calls | Wall |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | kvparse-refactor-001 | baseline | BASELINE | correct | true accept | 5 | 258 s |
+| 1 | kvparse-refactor-001 | attest | VERIFIED | correct | true accept | 10 | 555 s |
+| 2 | semver-long-prerelease-pr488 | baseline | BASELINE | correct | true accept | 5 | 153 s |
+| 3 | semver-long-prerelease-pr488 | attest | ERROR | not judged | infrastructure error | 1 | 29 s |
+
+Cell 1 confirms the kvparse contract fix: the same kind of refactor that was held an hour earlier is now VERIFIED with a
+judge-correct candidate. Cell 3 is the development gateway, not Attest: the first model call (specification) ended with
+`SSL: UNEXPECTED_EOF_WHILE_READING` on the POST, the third such transport failure from the gateway today (two during the M4
+run at 12:35 and 12:41 UTC). As a transport-uncertain operation it was recorded, not retried, and the cell ended ERROR; this
+is reported to the gateway's operator as a blocker for long Codex batches. No cell was rerun or replaced.
+
+Across today's development-profile validation of the eight frozen tasks (paced dry run of the five original tasks, the
+three new tasks, and this revalidation), every Attest hold has now been traced to a named cause and resolved or recorded:
+verifier defect (fixed), two contract gaps (clarified), one wrong expected value (arbiter corrected), one defective sealed
+test (arbiter corrected; red check hardened), one defective breaker test (arbiter blocked by the schema regression, fixed),
+and infrastructure (recorded). The paid Nemotron comparison has not run.
