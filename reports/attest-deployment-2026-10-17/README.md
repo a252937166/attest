@@ -83,3 +83,25 @@ fakes; the server's store now carries the new accounting rules for future runs, 
 crash. Not deployed anywhere: nothing of this round is pending deployment; the M5 redeploy will follow the paid run.
 
 Disk: 1.3 GB free at 91% use; `app.prev` can be removed after the owner is satisfied with this build to recover about 11 MB.
+
+## Third deployment of the day (16:00 UTC): the pinned evaluation code
+
+Tarball `app.tar.gz` 4.6 MB, sha256 `6cd0a13cff359e9c…`, built from the public export at review commit `14c648b` whose
+`attest/` digest equals the pinned freeze commit `5242c1fc…` (`bd896d025d3ab872…`). What changed since the 15:19 build: the
+arbitration headline and decision copy for corrected sealed defects, the red check that sends test-internal crashes back
+to the sealer, the kvparse task contract (not served by the console; it lives under `examples/eval/`), the results
+renderer and the freeze documentation. Procedure identical to the second deployment (store backup `attest.db.bak-20261017c`,
+`snapshot.sh before-20261017c`, scoped `install.sh`, `snapshot.sh after-20261017c`). `grep` on the server confirms the new
+red-check code is in `/opt/attest/app/attest/core/pipeline.py`.
+
+| Check | Result |
+| --- | --- |
+| `GET /api/health` (public) | `version 0.3.0`, worker alive, queue 0 (`health-after-3.json`) |
+| `GET /api/runs`, `GET /api/profiles` | 38 runs, all `nebius`; Nemotron profile only; `team: false` |
+| Downloaded bundle `rle-encode-20261015T181805Z` | `attest check` OK (recorded before M2: no manifest, warnings only) |
+| Page source | no occurrence of the development gateway's name |
+| Other services | before/after diff: memory 365 to 357 MB used, swap, load, disk 1.4 to 1.3 GB; everything else identical; the four other endpoints 200 |
+
+Deployed and verified on the server: everything in the pinned commit. Verified locally only: the fault-injection paths
+(fakes), the harness snapshot and resume (no batch runs on the server), the import command (CLI only). Not deployed
+anywhere: nothing pending.
