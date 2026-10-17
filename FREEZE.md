@@ -5,12 +5,12 @@ budget below, and it runs from a clean checkout of the pinned commit, never from
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `85701f5d4f8b3f62c933294ca5a3e621ff677db0` on branch `main` of the review repository (the following documentation commit carries this record with an identical `attest/` digest) |
-| `attest/` package digest (sha256 over path and content of every source) | `13bc4ae26c3a8dcfc0e7e1eba47464adc642099b9ba0c6cafcb9ba5b00f22aa2` |
+| Repository commit (code) | `2cbaf9413d709d973408ca41e06253bdca66892c` on branch `main` of the review repository (the following documentation commit carries this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source) | `21bd3fa85304190926d4bbd46428f5ed92d5b601f7449c1519fe2515c42ecc50` |
 | Harness `scripts/run_evaluation.py` sha256 | `8bbe13805a324b06800f562b42a9d5c61cda79df329a507c80cc40587968624f` |
 | `examples/` tree digest (tasks, repositories, held-out suites) | `e95a28aa363366160062107128950e9ff4c1888d52dccfdf578299e14e341b78` |
 | Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` |
-| Method `METHOD.md` sha256 | `b52fe166d212ca90092228b0938f8f1b04d930349af23ac99ec973aff840f74b` |
+| Method `METHOD.md` sha256 | `31f8a6fb413468bd2cf14831ee6b09732d3bf8a6e97a849240fa46907999993f` |
 | Guest programs | supervisor `attest-sealed-supervisor/6`; per-test child `e4e7b0b294a2004c…`; canary `9cdc57c1348fae5c…`; sandbox runner `attest-guest/2` `80999537285bacaf…` |
 | Models (Nebius Token Factory) | spec, audit, arbitrate: `nvidia/Nemotron-3-Ultra-550b-a55b`; seal, implement, break: `nvidia/nemotron-3-super-120b-a12b`; summary: `nvidia/Nemotron-3_5-Lightning`; baseline implements with Super |
 | Sampling | temperature 0.2, max_tokens 16000, strict JSON schema output; `reasoning_effort` medium for the Super roles seal, implement and break (low for summary), model default for the Ultra roles spec, audit and arbitrate (set after the 17 Oct smoke tests: Super spent its whole token budget on unbounded reasoning, and with reasoning removed its implementation quality dropped; see the freeze report) |
@@ -24,7 +24,7 @@ From a clean checkout of the pinned commit (the harness snapshots the tree into 
 the snapshot in a fresh process; the schedule records the digests above and the commit):
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout 85701f5d4f8b3f62c933294ca5a3e621ff677db0
+git clone <repository> attest-eval && cd attest-eval && git checkout 2cbaf9413d709d973408ca41e06253bdca66892c
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 20 --max-turns 14 --approve-usd 9.00 --label m5-final \
@@ -32,7 +32,7 @@ python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-
 ```
 
 Proof that the command does what it says: the same command with `--register-only` was run from a clean clone of that commit
-on 17 Oct 2026 at 16:44 UTC (`reports/attest-freeze-2026-10-17/register-only-m5/schedule.json`): 32 cells, 8 tasks, systems
+on 17 Oct 2026 at 16:52 UTC (`reports/attest-freeze-2026-10-17/register-only-m5/schedule.json`): 32 cells, 8 tasks, systems
 baseline and attest, 2 attempts, the digests above, `register_only: true`, nothing started. History of the pin: the first
 proof attempt (commit `ce4524be…`) failed because registration loaded the external task with the default per-file bound;
 `06553c83…` fixed that and was validated on the development profile over the three new tasks, which exposed a
