@@ -1,0 +1,80 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -4,12 +4,72 @@
+ def parse_duration(text: str) -> float:
+     """Parse a duration string and return the number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts a plain non-negative integer (ASCII digits) representing seconds, with optional surrounding whitespace.
++    Also accepts one or more components, each a non-negative integer immediately followed by a unit suffix (d, h, m, s, ms),
++    components ordered from largest to smallest unit (d > h > m > s > ms), each unit used at most once,
++    with optional whitespace around the whole string and between components.
++    Returns the sum of each component converted to seconds (1d=86400, 1h=3600, 1m=60, 1s=1, 1ms=0.001).
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+     stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if not stripped:
++        raise ValueError("duration string is empty")
++    if stripped.isdigit():
++        return float(stripped)
++    i = 0
++    total = 0.0
++    seen_units = set()
++    last_order = float('inf')
++    order_map = {'d': 4, 'h': 3, 'm': 2, 's': 1, 'ms': 0}
++    while i < len(stripped):
++        # Skip whitespace between components
++        while i < len(stripped) and stripped[i].isspace():
++            i += 1
++        if i >= len(stripped):
++            break
++        # Parse number
++        if not stripped[i].isdigit():
++            raise ValueError("expected number at start of component")
++        start = i
++        while i < len(stripped) and stripped[i].isdigit():
++            i += 1
++        num_str = stripped[start:i]
++        num = int(num_str)
++        # Expect unit directly after number (no whitespace allowed)
++        if i >= len(stripped):
++            raise ValueError("missing unit after number")
++        # Parse unit
++        if stripped[i] == 'm':
++            # Check for 'ms'
++            if i + 1 < len(stripped) and stripped[i + 1] == 's':
++                unit = 'ms'
++                i += 2
++            else:
++                unit = 'm'
++                i += 1
++        elif stripped[i] in 'dhms':
++            unit = stripped[i]
++            i += 1
++        else:
++            raise ValueError(f"unknown unit: {stripped[i]!r}")
++        # Process component
++        if unit in seen_units:
++            raise ValueError(f"repeated unit: {unit}")
++        seen_units.add(unit)
++        curr_order = order_map[unit]
++        if curr_order >= last_order:
++            raise ValueError("units not in strictly descending order")
++        last_order = curr_order
++        # Convert to seconds
++        if unit == 'd':
++            total += num * 86400
++        elif unit == 'h':
++            total += num * 3600
++        elif unit == 'm':
++            total += num * 60
++        elif unit == 's':
++            total += num
++        elif unit == 'ms':
++            total += num * 0.001
++    return total

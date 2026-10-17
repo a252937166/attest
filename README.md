@@ -27,7 +27,14 @@ verified in a real browser. Reliability round and milestone M4 (17 Oct 2026, `re
 `reports/attest-m4-2026-10-17/README.md`): the three dry-run holds resolved (one verifier defect in the supervisor's result
 pipe, one wrong expected value in a generated test, one contract gap), supervisor v6, Codex pacing that adopts the
 gateway's declared policy, batches run from an immutable snapshot with provenance checks, the bounded external-repository
-import with a real python-semver task, the pilot kit (`PILOT.md`) and the frozen M5 method (`METHOD.md`). License: MIT.
+import with a real python-semver task, the pilot kit (`PILOT.md`) and the frozen M5 method (`METHOD.md`). Milestone M5
+(17 Oct 2026, `reports/attest-evaluation-2026-10-17-nebius-m5/README.md`, results in `RESULTS.md` of that folder): the
+frozen evaluation ran on Nemotron from the pinned commit `6b786a2e…`, 8 tasks x 2 systems x 2 attempts, all 32 cells
+reported, $1.09 committed. Attest accepted 4 correct patches, shipped 2 broken ones (both on the unsatisfiable rle-encode
+task, the same two the plain agent shipped), held 5 correct patches for a human, left the external semver task unchanged
+twice (correctly) and hit 3 transport-uncertain infrastructure errors; the plain agent accepted 10 correct patches, shipped
+2 broken ones, did not finish once and hit 3 errors. On this suite Attest did not ship fewer broken patches than the plain
+agent; every one of its holds was on a patch the held-out judge accepted. License: MIT.
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,

@@ -1,0 +1,15 @@
+{
+  "drift_score": 0.4,
+  "assessment": "off_target",
+  "scope_narrowed": [
+    "The regex pattern order 'd|h|m|s|ms' causes 'ms' to be split into 'm' and 's', rejecting valid inputs like '500ms', '1s500ms', and '1d1h1m1s1ms'."
+  ],
+  "scope_widened": [
+    "The implementation removes all whitespace (re.sub(r'\\s+', '', stripped)), which incorrectly accepts whitespace between a number and its unit (e.g., '1 h' becomes '1h' and parses successfully) while the contract requires ValueError for such cases."
+  ],
+  "unsupported_claims": [
+    "turn 3 reason: \"Replace the old parse_duration implementation with a new one that supports multi‑component durations while preserving existing plain‑integer behavior and meetin\" — the claim of meeting the contract is unsupported because the tool output only shows existing tests passing; the new acceptance criteria (ms parsing, whitespace rejection) are not validated and the implementation fails them."
+  ],
+  "summary": "The implementation fails to parse 'ms' units due to regex alternation order and incorrectly accepts whitespace between numbers and units. Existing tests pass but the new acceptance criteria are not satisfied.",
+  "threshold": 0.6
+}

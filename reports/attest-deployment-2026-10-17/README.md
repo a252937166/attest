@@ -105,3 +105,37 @@ red-check code is in `/opt/attest/app/attest/core/pipeline.py`.
 Deployed and verified on the server: everything in the pinned commit. Verified locally only: the fault-injection paths
 (fakes), the harness snapshot and resume (no batch runs on the server), the import command (CLI only). Not deployed
 anywhere: nothing pending.
+
+## Fourth deployment of the day (17:17 UTC): the frozen commit 6b786a2e
+
+Built from the public export at the pinned code commit `6b786a2e51bba634d63cc8b4ee75bb215c168fa7` (the package digest
+`166cdcbd46a74cd0…` recorded in `FREEZE.md`). What changed since the 16:00 build: the Nemotron reasoning controls (per-role
+`reasoning_effort`, the one low-effort retry on a runaway, the "assert exception types, never message text" sealing rule) and
+the freeze documentation. Procedure identical to the earlier ones: store backup `attest.db.bak-20261017d`, host snapshot
+`before-20261017d` (17:17:19 UTC), scoped `install.sh`, snapshot `after-20261017d` (17:17:32 UTC); both snapshots are in
+this directory. The before/after diff shows only memory, load and free-disk numbers; services, listeners, containers and the
+nginx configuration are identical.
+
+| Check | Result |
+| --- | --- |
+| `GET /api/health` (public) | `version 0.3.0`, worker alive, queue 0 (`health-after-4.json`, fetched 17:57 UTC) |
+| `reasoning_effort` in `/opt/attest/app/attest/models/nebius_tokenfactory.py` | present |
+| First run on this build | demo run 1, `durationkit-units-001-20261017T172421506287Z`, 17:24 UTC, NEEDS HUMAN, $0.0916 (two adversarial tests held by the frozen rule although the arbiter classified both as test defects) |
+| Recorded runs | `rle-encode-20261015T181805Z` loads with its seven exhibits |
+
+### Correction at 18:00 UTC: AppleDouble files in the deployed tree
+
+While confirming that the server runs the pinned package, `attest_revision()` on the server returned
+`1a0ef77ccf396562…` over 70 files instead of `166cdcbd46a74cd0…` over 35. The per-file comparison
+(`package-files-server-20261017T1758Z.txt` against `package-files-pinned-6b786a2e.txt`) shows the 35 real sources identical
+to the pinned tree and 35 extra entries named `._<file>.py`: AppleDouble resource-fork stubs that macOS `tar` adds to an
+archive unless `COPYFILE_DISABLE=1` is set. The server held 2,060 of them under `/opt/attest/app` (every one 163 bytes with
+the same content, header `00 05 16 07`), deposited by every deployment today. They do not execute, but the digest method
+counts every `attest/**/*.py`, so bundles produced on the server between 12:47 and 18:00 UTC (including demo run 1) record
+`1a0ef77c…` as their `attest_revision` while running exactly the pinned sources. Correction: snapshot `before-20261017e`
+(17:59:58 UTC), deletion of the 163-byte `._*` files only (a first attempt with a wrong `find -size` unit deleted nothing;
+`after-20261017e` records that no-op), snapshot `after-20261017e-clean` (18:00:51 UTC). Afterwards `attest_revision()` on the
+server returns `166cdcbd46a74cd0…` over 35 files, the service is active, `/api/health` is OK and the recorded runs load. No
+restart was needed: the digest is computed per run. `deploy/yungou/build_bundle.sh` now sets `COPYFILE_DISABLE=1`, excludes
+`._*` and `.DS_Store`, and fails if the archive lists such a path (verified locally with `bash -n` only; the next deployment
+exercises it). Bundles recorded before the correction keep their `1a0ef77c…` digest; this note is the explanation.

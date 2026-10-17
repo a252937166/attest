@@ -1,0 +1,89 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -1,15 +1,80 @@
+ """Duration parsing."""
++
++import re
++
++_UNIT_TO_SECONDS = {
++    'd': 86400,
++    'h': 3600,
++    'm': 60,
++    's': 1,
++    'ms': 0.001
++}
++
++_ORDER = ['d', 'h', 'm', 's', 'ms']
++_INDEX = {u: i for i, u in enumerate(_ORDER)}
+ 
+ 
+ def parse_duration(text: str) -> float:
+-    """Parse a duration string and return the number of seconds as a float.
++    """Parse a duration string and return the total number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepted formats:
++    1. A plain non-negative integer (optionally surrounded by whitespace)
++       representing seconds, e.g. ``"90"``.
++    2. One or more components, each a non-negative integer immediately followed
++       by a unit suffix (d, h, m, s, ms). Components must appear in strictly
++       descending unit order (d > h > m > s > ms), each unit at most once.
++       Whitespace is allowed around the entire string and between components,
++       but not between a number and its unit.
++
++    Returns the sum of all components converted to seconds as a float.
++
++    Raises:
++        TypeError: if ``text`` is not a string.
++        ValueError: for malformed input (see contract).
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
++
+     stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if not stripped:
++        raise ValueError("empty duration string")
++
++    # Plain integer seconds (existing behavior)
++    if stripped.isdigit():
++        return float(stripped)
++
++    # Remove *all* whitespace to simplify parsing of components
++    nospace = re.sub(r'\s+', '', stripped)
++    if not nospace:
++        raise ValueError("empty duration string")
++
++    # Pattern for a component: digits followed by unit
++    pattern = re.compile(r'(\d+)(d|h|m|s|ms)')
++    pos = 0
++    total = 0.0
++    seen_units = set()
++    prev_index = -1
++
++    while pos < len(nospace):
++        match = pattern.match(nospace, pos)
++        if not match:
++            raise ValueError(f"malformed duration: {text!r}")
++        number_str, unit = match.groups()
++        # Leading zeros are allowed; int conversion handles them
++        number = int(number_str)
++        if number < 0:
++            raise ValueError(f"negative number in duration: {text!r}")
++        if unit in seen_units:
++            raise ValueError(f"repeated unit '{unit}' in duration: {text!r}")
++        idx = _INDEX[unit]
++        if idx <= prev_index:
++            raise ValueError(f"units out of order in duration: {text!r}")
++        seen_units.add(unit)
++        prev_index = idx
++        total += number * _UNIT_TO_SECONDS[unit]
++        pos = match.end()
++
++    if pos != len(nospace):
++        raise ValueError(f"malformed duration: {text!r}")
++
++    return total

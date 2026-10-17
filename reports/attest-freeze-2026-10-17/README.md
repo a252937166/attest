@@ -166,3 +166,9 @@ a2 after a few implementation calls whose ledger was never written because the p
 the harness; a conservative estimate is at most $0.03. Fixes before the relaunch: the client retries a length runaway with
 empty content once at low reasoning effort (both attempts recorded), the sealer and the breaker run at low effort, and the
 harness honours an operator `STOP` file so that a future stop happens between cells with every ledger written.
+
+Fifth smoke test (`smoke/durationkit-units-001-20261017T171141Z`, from the pinned `6b786a2e…`, $0.043, 11 calls, 7 turns):
+**VERIFIED** on Nemotron with every gate passing (sealed 17 of 17, existing 6 of 6, mutation 8 of 12 killed, adversarial 10 of
+10, drift 0.0); reasoning stayed bounded (sealer 26 tokens, implementer at most 3,516). The approved 32-cell batch was started
+from this commit, registered at 17:15:49 UTC (`reports/attest-evaluation-2026-10-17-nebius-m5/batch/schedule.json`). Smoke tests and probes spent about
+$0.31 of the $0.50 smoke allocation in total (five runs: $0.040, $0.043, $0.077, $0.089, $0.043; probes $0.011).

@@ -1,0 +1,112 @@
+{
+  "applied": false,
+  "cleared": false,
+  "all_corrected": true,
+  "mutation_ran_ok": false,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 11,
+    "contract_dispute": 0
+  },
+  "headline": "all 11 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base, but the sealed failure skipped the mutation check, so there is no mutation score and the verdict is not cleared; a rerun seals fresh tests",
+  "modules": [
+    {
+      "module": "sealed",
+      "classifications": [
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_whitespace_between_number_and_unit_is_rejected",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test asserts that the ValueError message contains 'unsupported duration', but the contract only requires a ValueError be raised for whitespace between number and unit, not a specific message. The candidate correctly rejects the input with a ValueError.",
+          "contract_basis": "Contract says: 'Reject with ValueError: ... whitespace is allowed around the whole string and between components (but not between a number and its unit).' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_empty_string_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects the ValueError message to contain 'unsupported duration', but the contract only requires a ValueError for empty or whitespace-only input. The candidate raises ValueError with a different message.",
+          "contract_basis": "Contract says: 'Reject with ValueError: empty or whitespace-only input.' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_whitespace_only_string_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "Same as empty string: the test checks for a specific message not required by the contract.",
+          "contract_basis": "Contract says: 'Reject with ValueError: empty or whitespace-only input.' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_negative_number_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects 'unsupported duration' in the message, but the contract only requires a ValueError for negative numbers. The candidate raises ValueError with a different message.",
+          "contract_basis": "Contract says: 'Reject with ValueError: negative numbers (leading '-').' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_fractional_number_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects 'unsupported duration' in the message, but the contract only requires a ValueError for fractional numbers. The candidate raises ValueError with a different message.",
+          "contract_basis": "Contract says: 'Reject with ValueError: fractional numbers (decimal point).' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_unknown_unit_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects 'unsupported duration' in the message, but the contract only requires a ValueError for unknown units. The candidate raises ValueError with a different message.",
+          "contract_basis": "Contract says: 'Reject with ValueError: unknown units.' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_repeated_unit_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects 'unsupported duration' in the message, but the contract only requires a ValueError for repeated units. The candidate raises ValueError with a different message.",
+          "contract_basis": "Contract says: 'Reject with ValueError: repeated units.' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_components_out_of_descending_order_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects 'unsupported duration' in the message, but the contract only requires a ValueError for components out of descending order. The candidate raises ValueError with a different message.",
+          "contract_basis": "Contract says: 'Reject with ValueError: components out of descending order.' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_unit_without_preceding_number_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects 'unsupported duration' in the message, but the contract only requires a ValueError for a unit without a number. The candidate raises ValueError with a different message.",
+          "contract_basis": "Contract says: 'Reject with ValueError: a unit without a number.' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_number_without_unit_when_other_components_have_units_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects 'unsupported duration' in the message, but the contract only requires a ValueError for a trailing number without a unit. The candidate raises ValueError with a different message.",
+          "contract_basis": "Contract says: 'Reject with ValueError: number without a unit when other components have units (i.e., trailing number).' No message wording is specified."
+        },
+        {
+          "test_id": "test_sealed.TestParseDurationSealed.test_completely_malformed_text_raises_value_error",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects 'unsupported duration' in the message, but the contract only requires a ValueError for any other malformed text. The candidate raises ValueError with a different message.",
+          "contract_basis": "Contract says: 'Reject with ValueError: any other malformed text.' No message wording is specified."
+        }
+      ],
+      "corrected_notes": "All failing tests were test_defects because they asserted on a specific error message ('unsupported duration') that the contract does not require. The corrected module removes those message assertions, keeping only the exception type checks (ValueError or TypeError) which are contractually required. The two TypeError tests that check the exact message are left unchanged because they pass and the contract does not forbid checking the message for TypeError.",
+      "corrected_module": "arbitration/sealed_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (24 of 24 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a14acc-d48a-73ae-ac7c-f00eaede5ce1"
+      },
+      "base_rerun": {
+        "summary_line": "FAILED (9 of 24 methods: ERROR 9)",
+        "failing": 9,
+        "operation_uuid": "01a14acc-fa10-70ef-8ebb-9ff857cada5a"
+      },
+      "cleared_module": true,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

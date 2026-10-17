@@ -1,0 +1,42 @@
+{
+  "applied": false,
+  "cleared": true,
+  "all_corrected": true,
+  "mutation_ran_ok": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "all 1 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base — candidate not falsified by these tests",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestParseDurationBreaker.test_space_between_number_and_unit_multiple_rejected",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects ValueError for strings with multiple spaces between components (e.g., '1h  30m'), but the contract explicitly allows whitespace between components. The test's expectation is incorrect under the contract.",
+          "contract_basis": "whitespace is allowed around the whole string and between components (but not between a number and its unit)."
+        }
+      ],
+      "corrected_notes": "Changed the failing test to check that whitespace between a number and its unit (e.g., '1  h') raises ValueError, which is required by the contract. The original test incorrectly expected rejection for whitespace between components, which the contract explicitly allows.",
+      "corrected_module": "arbitration/adversarial_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (12 of 12 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a14ad5-03ce-706e-b03a-d5eb915af7e3"
+      },
+      "base_rerun": {
+        "summary_line": "FAILED (6 of 12 methods: ERROR 6)",
+        "failing": 6,
+        "operation_uuid": "01a14ad5-1ce4-7306-8e79-73809cbabb8d"
+      },
+      "cleared_module": true,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

@@ -1,0 +1,78 @@
+[17:00:38] frozen task durationkit-units-001 with 5 files, spec sha256 52f44d7aa752
+[17:00:39] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[17:00:43] checkpoint 172364e3-f8cc-4863-a24e-c419dc4950a5 ready; baseline OK (6 tests)
+[17:00:43] suite binding: bound (6 statically discovered test ids in 1 module(s) match the baseline run)
+[17:00:43] specification
+[17:00:49] spec: feasible=True, 9 criteria, 1 contract entries, 0 external references
+[17:00:49] sealing acceptance tests (attempt 1)
+[17:02:38] seal-1: malformed answer, one repair retry (model output violated the schema: no JSON output (finish_reason=length, content head: ''))
+[17:03:30] sealed 29 test methods (sha256 ebcfb23c9004); red check: 12 of 29 failing on base, 17 passing
+[17:03:30] implementation
+[17:03:33] turn 1: list_files  -> README.md
+[17:03:36] turn 2: read_file durationkit/parse.py -> [15 lines]
+[17:03:59] turn 3: read_file durationkit/parse.py -> [lines 1-15 of 15]
+[17:04:27] turn 4: replace_in_file durationkit/parse.py -> replaced one occurrence in durationkit/parse.py; the file is now 2746 bytes
+[17:04:38] turn 5: run_tests  -> existing test suite: OK (ran 6, passed 6, exit 0)
+[17:04:49] turn 6: run_python  -> exit 0
+[17:04:55] turn 7: run_tests  -> existing test suite: OK (ran 6, passed 6, exit 0)
+[17:04:58] turn 8: finish  -> finished: Extended parse_duration to accept multi-component durations while preserving existing beha
+[17:04:58] verification
+[17:05:07] verify: sealed OK (29 of 29 methods, each in its own process); binding ok
+[17:05:14] existing suite (bound): OK (6 of 6 methods, each in its own process) (6/6)
+[17:05:14] breaker pass
+[17:05:14] breaker: 12 mutants of changed lines; running in parallel branches (workers=8)
+[17:05:33] breaker: killed 9, survived 3, unknown 0, mutation score 0.75
+[17:06:41] breaker tests: FAILED (1 of 12 methods: FAIL 1); binding FAILED
+[17:06:41] drift audit
+[17:06:57] drift audit: score 0.0 (aligned)
+[17:06:57] arbitration: classifying model-generated test failures
+[17:07:23] arbitration: all 1 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base — candidate not falsified by these tests
+[17:07:23] verdict NEEDS HUMAN -> /work/attest/reports/attest-evaluation-2026-10-17-nebius-m5/smoke/durationkit-units-001-20261017T170038Z
+{
+  "verdict": "NEEDS HUMAN",
+  "reasons": [
+    "adversarial suite binding failed: child process nonzero exit: test_space_between_number_and_unit_multiple_rejected exit 1",
+    "model-written adversarial tests failed: 1 of 12 (test_breaker.TestParseDurationBreaker.test_space_between_number_and_unit_multiple_rejected); each failure is a bug or a contract disagreement to resolve"
+  ],
+  "out_dir": "/work/attest/reports/attest-evaluation-2026-10-17-nebius-m5/smoke/durationkit-units-001-20261017T170038Z",
+  "totals": {
+    "model_calls": 14,
+    "model_calls_failed": 1,
+    "malformed_outputs": 1,
+    "tokens_in": 39943,
+    "tokens_out": 51475,
+    "tokens_cached": 0,
+    "model_elapsed_ms": 325273,
+    "cost_usd": 0.088856,
+    "cost_usd_committed": 0.088856,
+    "uncertain_unpriced_calls": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_ms": 0,
+    "by_model": {
+      "nebius_tokenfactory:nvidia/Nemotron-3-Ultra-550b-a55b": {
+        "calls": 3,
+        "tokens_in": 9235,
+        "tokens_out": 11467,
+        "tokens_cached": 0,
+        "cost_usd": 0.043635999999999994,
+        "elapsed_ms": 35439,
+        "failed": 0
+      },
+      "nebius_tokenfactory:nvidia/nemotron-3-super-120b-a12b": {
+        "calls": 11,
+        "tokens_in": 30708,
+        "tokens_out": 40008,
+        "tokens_cached": 0,
+        "cost_usd": 0.045219999999999996,
+        "elapsed_ms": 289834,
+        "failed": 1
+      }
+    },
+    "sandbox_operations": 22,
+    "sandbox_duration_s": 96.102,
+    "sandbox_retained_images": [
+      "172364e3-f8cc-4863-a24e-c419dc4950a5"
+    ],
+    "sandbox_raw_cost_diag_sum": 0.79763608
+  }
+}
