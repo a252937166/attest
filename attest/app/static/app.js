@@ -105,6 +105,7 @@
     renderHome();
     renderHistory();
     if (!state.revealed) { state.revealed = true; requestAnimationFrame(() => $("#home").classList.add("reveal")); }
+    requestAnimationFrame(onScroll);
     const target = opts.hash && /^#[a-z-]+$/.test(opts.hash) ? $(opts.hash) : null;
     if (target) requestAnimationFrame(() => { scrollTo(target, "start"); if (opts.focus) { const el = $(opts.focus); if (el) setTimeout(() => el.focus({ preventScroll: true }), REDUCED ? 0 : 500); } });
     else if (!opts.popstate) window.scrollTo({ top: 0 });
@@ -257,6 +258,15 @@
   }
 
   // ------------------------------------------------------------------ home: live numbers from the API, never invented
+  function countUp(root) {  // the real totals count up once on the first paint; later refreshes set them directly
+    const els = $$("strong[data-n]", root); const t0 = performance.now(), span = 900;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / span), e = 1 - Math.pow(1 - k, 3);
+      els.forEach((el) => { el.textContent = String(Math.round(Number(el.dataset.n) * e)); });
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
   function evidenceRowHtml(r) {
     const v = rowVerdict(r);
     const m = rowMeta(r);
@@ -273,10 +283,14 @@
     const h = state.health;
     const busy = !!(h && (h.current || h.queue > 0));
     const ticker = $("#ticker");
+    const num = (n, cls) => `<strong class="${cls || ""}" data-n="${n}">${n}</strong>`;
     const tickerHtml = runs.length
-      ? `<span class="dot ${busy ? "live" : "idle"}"></span><span><strong>${done.length}</strong> recorded run${done.length === 1 ? "" : "s"} on this console</span><span class="sep"></span><span><strong class="ok">${count("VERIFIED")}</strong> VERIFIED</span><span class="sep"></span><span><strong class="holdc">${count("NEEDS HUMAN")}</strong> NEEDS HUMAN</span><span class="sep"></span><span><strong>${other}</strong> other verdict${other === 1 ? "" : "s"}</span>${busy ? `<span class="sep"></span><span>a live run is in progress</span>` : ""}`
+      ? `<span class="dot ${busy ? "live" : "idle"}"></span><span>${num(done.length)} recorded run${done.length === 1 ? "" : "s"} on this console</span><span class="sep"></span><span>${num(count("VERIFIED"), "ok")} VERIFIED</span><span class="sep"></span><span>${num(count("NEEDS HUMAN"), "holdc")} NEEDS HUMAN</span><span class="sep"></span><span>${num(other)} other verdict${other === 1 ? "" : "s"}</span>${busy ? `<span class="sep"></span><span>a live run is in progress</span>` : ""}`
       : `<span class="dot idle"></span><span>${h ? "No recorded runs yet." : "Service unreachable: the recorded evidence cannot be listed."}</span>`;
-    if (ticker.dataset.sig !== tickerHtml) { ticker.innerHTML = tickerHtml; ticker.dataset.sig = tickerHtml; }
+    if (ticker.dataset.sig !== tickerHtml) {
+      ticker.innerHTML = tickerHtml; ticker.dataset.sig = tickerHtml;
+      if (runs.length && !ticker.dataset.counted && !REDUCED) { ticker.dataset.counted = "1"; countUp(ticker); }
+    }
     const list = $("#evidence-list");
     const rows = done.filter(rowMatches);
     const listHtml = rows.map(evidenceRowHtml).join("") || `<li class="note">${runs.length ? "No runs match this filter." : "No runs are recorded yet."}</li>`;
@@ -812,7 +826,13 @@
     try { await navigator.clipboard.writeText(location.href); const old = btn.textContent; btn.textContent = "Link copied"; setTimeout(() => { btn.textContent = old; }, 2000); }
     catch (e) { btn.textContent = location.href; }
   }
-  function onScroll() { const h = $(".decision"); if (h) h.classList.toggle("compact", window.scrollY > 160 && window.innerWidth > 900); }
+  function onScroll() {
+    const h = $(".decision"); if (h) h.classList.toggle("compact", window.scrollY > 160 && window.innerWidth > 900);
+    if (state.view === "home") {  // the beacon on the left guide line follows the reading position
+      const dot = $("#scroll-dot"), d = document.documentElement;
+      if (dot) { const max = d.scrollHeight - d.clientHeight; dot.style.top = (max > 0 ? Math.min(100, Math.max(0, (d.scrollTop / max) * 100)) : 0) + "%"; }
+    }
+  }
   function goToSection(id, focus) {
     if (state.view === "home") { setRoute(null, false, "#" + id); const el = $("#" + id); scrollTo(el, "start"); if (focus) { const f = $(focus); if (f) setTimeout(() => f.focus({ preventScroll: true }), REDUCED ? 0 : 500); } }
     else showHome({ hash: "#" + id, focus });
@@ -886,7 +906,9 @@
       entries.forEach((en) => { if (en.isIntersecting && state.view === "home") links.forEach((a) => a.classList.toggle("active", a.dataset.section === en.target.id)); });
     }, { rootMargin: "-40% 0px -55% 0px" });
     sections.forEach((s) => nav.observe(s));
-  } else { $("#how")?.classList.add("in"); }
+    const rv = new IntersectionObserver((entries) => entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); rv.unobserve(en.target); } }), { threshold: 0.12 });
+    $$(".rv").forEach((el) => rv.observe(el));
+  } else { $("#how")?.classList.add("in"); $$(".rv").forEach((el) => el.classList.add("in")); }
 
   // ------------------------------------------------------------------ boot
   renderFilters();

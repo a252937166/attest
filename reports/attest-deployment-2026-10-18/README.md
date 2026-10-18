@@ -56,9 +56,52 @@ re-rendered demo run reports `scrollWidth` equal to `innerWidth` (1440) and the 
 (`screens/public-demo-run-after-css-1440.png`). The deployed tree therefore equals the public export at the time of this
 report; the bundle digest `d87673d4…` above describes the tree before this one-file replacement.
 
+## Second deployment of the day, 09:29 UTC: cache-safe assets and the visual pass after the owner's review
+
+The owner opened `https://attest.axiqo.xyz/` after the 08:35 deployment and saw a broken, motionless page unlike their
+reference sites. Diagnosis from here: the static files were served with `Last-Modified` and `ETag` but no
+`Cache-Control`, so a browser that had loaded the previous console earlier in the day could reuse the old `styles.css`
+and `app.js` under heuristic freshness while fetching the new `index.html` (served without validators, hence always
+fresh): new markup with the old stylesheet and script is exactly a broken page without motion. Two independent fixes:
+the HTML now references `styles.css?v=20261018b` and `app.js?v=20261018b` (no cache holds those URLs), and the vhost
+adds `Cache-Control: no-cache` to every response so browsers revalidate against the ETag from now on. The deployment
+rule is recorded in `deploy/yungou/README.md`: bump the version query whenever a static file changes.
+
+The same build carries the visual pass the review asked for (`attest-console.md`, "Console redesign, second pass",
+second round): the brand lockup, the two-row navigation with a section bar, pill buttons, a stronger aurora with grain,
+the drawn underline, counters, scroll-triggered reveals and the beacon line. It also fixes a defect present in every
+earlier capture: the SVG that defines the mark's gradient was `display:none`, and Chrome does not resolve paint servers
+from hidden SVGs, so the mark had rendered as a bare caret without its ring and check. The definitions are now in a
+zero-size, visually hidden SVG and the mark renders completely.
+
+| Time | Step | Result |
+| --- | --- | --- |
+| 09:27 | export (every bundle verified, no scan hits), `build_bundle.sh` from `dist/public` | `app.tar.gz` 5.0 MB, sha256 `8f0184ace9e82df2feca76f450cc20fb7102fdc6d6ced1f863433d334a4bf385`, no AppleDouble entries |
+| 09:28 | upload with `install.sh` and the vhost; pre-checks | digest matches; service idle (current none, queue 0) |
+| 09:28 | store backup through the SQLite backup API | `attest.db.bak-20261018b-full`, 39 rows |
+| 09:29:03 | `snapshot.sh before-20261018b` | `before-20261018b-20261018T092903Z.txt` |
+| 09:29 | `MEMORY_MAX=200M bash install.sh` (installs the vhost, `nginx -t`, reload) | service restarted, nginx configuration test OK |
+| 09:29:18 | `GET /api/health` (`health-after-20261018b.json`) | ok, version 0.3.0, worker alive, queue 0, nothing reconciled |
+| 09:29:25 | `snapshot.sh after-20261018b` | diff against before: timestamp, memory, swap and load only |
+
+| Check after the install | Result |
+| --- | --- |
+| `find /opt/attest/app -name '._*' \| wc -l` | 0 |
+| `attest_revision()` on the server | `166cdcbd46a74cd0…` over 35 files, unchanged |
+| `https://attest.axiqo.xyz/` headers | `Cache-Control: no-cache` |
+| `/static/styles.css?v=20261018b`, `/static/app.js?v=20261018b` | 200 with ETag and `Cache-Control: no-cache` |
+| Public HTML | references the versioned assets; carries the lockup |
+| `/api/runs?limit=200` | 39 rows; service active, 47.2 MB resident |
+| Fresh headless Chrome, 1440 px | the versioned assets are what loads; Instrument Serif active; ticker "39 recorded runs, 8 VERIFIED, 11 NEEDS HUMAN, 20 other verdicts"; section bar active on Overview; the demo run opens with its NEEDS HUMAN seal and a sticky header offset under the two-row navigation; no horizontal overflow; no errors (`screens/public-home-b-1440.png`, `screens/public-lockup-b-1440.png`, `screens/public-demo-run-b-1440.png`) |
+| Fresh headless Chrome, 390 px | no horizontal overflow, no errors (`screens/public-home-b-390.png`) |
+
+A visitor whose browser still holds the 08:35 assets gets the new page on the next normal load: the HTML is never
+served from cache and now names asset URLs no cache has seen.
+
 ## Rollback
 
-`/opt/attest/app.prev` is the 17 Oct 17:17 build (pinned code, M3 console). Restore with
+`/opt/attest/app.prev` is the 08:35 build of today (pinned code, the first second-pass console); the 17 Oct build is no
+longer staged on the host. Restore with
 `mv /opt/attest/app /opt/attest/app.failed && mv /opt/attest/app.prev /opt/attest/app && systemctl restart attest.service`,
 or stop the service and remove only its vhost with `rollback.sh`. Not exercised today.
 

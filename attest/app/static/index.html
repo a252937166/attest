@@ -11,11 +11,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/styles.css">
+<link rel="stylesheet" href="/static/styles.css?v=20261018b">
 </head>
 <body data-view="home">
 <a class="skip" href="#start">Skip to the start panel</a>
-<svg hidden aria-hidden="true" focusable="false">
+<svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
   <defs>
     <linearGradient id="mark-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C3CCFF"/><stop offset="1" stop-color="#5B6CFF"/></linearGradient>
     <symbol id="mark" viewBox="0 0 64 64">
@@ -26,27 +26,31 @@
     </symbol>
   </defs>
 </svg>
-<div class="backdrop" aria-hidden="true"><div class="glow g1"></div><div class="glow g2"></div><div class="grid"></div></div>
+<div class="backdrop" aria-hidden="true"><div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div><div class="grid"></div><div class="grain"></div></div>
 
 <header class="nav" id="nav">
-  <a class="brand" href="/" data-home aria-label="Attest home">
-    <svg class="mark" aria-hidden="true"><use href="#mark"/></svg>
-    <span class="wordmark">Attest</span>
-    <span class="tagline">Evidence-gated coding agent</span>
-  </a>
+  <div class="nav-row">
+    <a class="brand" href="/" data-home aria-label="Attest home">
+      <svg class="mark" aria-hidden="true"><use href="#mark"/></svg>
+      <span class="wordmark">Attest</span>
+      <span class="tagline">evidence-gated coding agent</span>
+    </a>
+    <div class="status" id="status" aria-live="polite">
+      <span class="chip" id="chip-service"><span class="dot" id="chip-service-dot"></span><span id="chip-service-text">Connecting to the service</span></span>
+      <span class="chip" id="chip-budget">Nemotron budget <span class="muted" id="chip-budget-text">loading</span></span>
+      <span class="chip" id="chip-runs">Runs <span class="muted" id="chip-runs-text">loading</span></span>
+    </div>
+    <a class="btn primary sm nav-cta" href="/#start" data-start>Start here</a>
+  </div>
   <nav class="links" id="nav-links" aria-label="Sections">
+    <a href="/#top" data-section="top">Overview</a>
     <a href="/#how" data-section="how">How it works</a>
     <a href="/#built" data-section="built">Built on</a>
     <a href="/#use" data-section="use">How to use</a>
     <a href="/#evidence" data-section="evidence">Evidence</a>
   </nav>
-  <div class="status" id="status" aria-live="polite">
-    <span class="chip" id="chip-service"><span class="dot" id="chip-service-dot"></span><span id="chip-service-text">Connecting to the service</span></span>
-    <span class="chip" id="chip-budget">Nemotron budget <span class="muted" id="chip-budget-text">loading</span></span>
-    <span class="chip" id="chip-runs">Runs <span class="muted" id="chip-runs-text">loading</span></span>
-  </div>
-  <a class="btn primary sm nav-cta" href="/#start" data-start>Start here</a>
 </header>
+<div class="scroll-line" id="scroll-line" aria-hidden="true"><span class="scroll-dot" id="scroll-dot"></span></div>
 
 <!-- The workspace form is a single element. The script places it in the home page's start panel or in the console rail. -->
 <form class="workspace" id="workspace" autocomplete="off">
@@ -82,8 +86,10 @@
 <main class="home" id="home">
   <section class="hero" id="top">
     <div class="hero-copy">
-      <p class="hero-line"><span class="dot live"></span>Public console: recorded evidence first, live runs on request</p>
-      <h1 class="display">Patches should arrive <em>with proof.</em></h1>
+      <div class="lockup" aria-hidden="true"><svg class="mark big"><use href="#mark"/></svg><span class="lockup-word">Attest</span></div>
+      <p class="built-line">built on <strong>NVIDIA Nemotron 3</strong> served by <strong>Nebius Token Factory</strong>, executed in <strong>Token Factory Sandboxes</strong>, verified by <strong>deterministic code</strong></p>
+      <p class="kicker"><span class="dot live"></span>Two ways in: browse recorded evidence, or run a task live</p>
+      <h1 class="display">Patches should arrive <em class="squiggle">with proof.<svg viewBox="0 0 200 12" preserveAspectRatio="none"><path d="M2 8 C 30 1, 55 12, 85 6 S 135 1, 165 8 S 192 7, 198 4"/></svg></em></h1>
       <p class="lead">Attest is a coding agent that has to prove its patch before you merge it. Acceptance tests are sealed before any code exists, the candidate is verified in a fresh sandbox by a supervisor that never imports its code, mutants and adversarial tests try to break it, and one recorded rule turns the evidence into a verdict.</p>
       <p class="credo"><em>Models propose,</em> deterministic code disposes.</p>
       <div class="hero-actions">
@@ -102,20 +108,20 @@
   </section>
 
   <section class="problem" id="problem" aria-labelledby="problem-h">
-    <div class="problem-pull">
+    <div class="problem-pull rv">
       <h2 id="problem-h" class="display-2">A plausible patch is not a verified one.</h2>
       <p>Coding agents write patches that look right, and their own review can be talked into agreeing. A reviewer needs something that cannot be persuaded: tests written before the code existed, executed by a process the candidate cannot influence, and a verdict derived from the record rather than from a model's confidence.</p>
     </div>
     <dl class="changes">
-      <div><dt>Tests before code</dt><dd>An independent Nemotron instance seals the acceptance tests from the contract. They must fail on the untouched repository before the implementer starts.</dd></div>
-      <div><dt>A verifier that cannot be persuaded</dt><dd>A supervisor that never imports the candidate's code runs each sealed test in its own unprivileged process, bound to a per-run nonce, the sealed file's digest and two canaries.</dd></div>
-      <div><dt>Attack the result</dt><dd>One-line mutants must be caught, a second model writes tests against the patch, a drift audit compares the action trail with the request, and an arbiter classifies every generated-test failure.</dd></div>
-      <div><dt>One recorded rule</dt><dd>The verdict follows from the gates alone and ships in a Proof Bundle with numbered exhibits, counterexamples, the usage ledger and a manifest you can re-check offline.</dd></div>
+      <div class="rv"><dt>Tests before code</dt><dd>An independent Nemotron instance seals the acceptance tests from the contract. They must fail on the untouched repository before the implementer starts.</dd></div>
+      <div class="rv"><dt>A verifier that cannot be persuaded</dt><dd>A supervisor that never imports the candidate's code runs each sealed test in its own unprivileged process, bound to a per-run nonce, the sealed file's digest and two canaries.</dd></div>
+      <div class="rv"><dt>Attack the result</dt><dd>One-line mutants must be caught, a second model writes tests against the patch, a drift audit compares the action trail with the request, and an arbiter classifies every generated-test failure.</dd></div>
+      <div class="rv"><dt>One recorded rule</dt><dd>The verdict follows from the gates alone and ships in a Proof Bundle with numbered exhibits, counterexamples, the usage ledger and a manifest you can re-check offline.</dd></div>
     </dl>
   </section>
 
   <section class="how" id="how" aria-labelledby="how-h">
-    <div class="section-head">
+    <div class="section-head rv">
       <h2 id="how-h" class="display-2">How a run earns its verdict</h2>
       <p>Five phases, each recorded in the bundle. The models write tests, patches and audits; deterministic code runs, binds and decides.</p>
     </div>
@@ -136,7 +142,7 @@
       <li class="phase"><h3>Break</h3><p class="who">Nemotron 3 Super writes adversarial tests; Nemotron 3 Ultra audits and arbitrates</p><p>Mutants of the patch must be caught, adversarial tests run against it, a drift audit compares the trail with the request, and an arbiter classifies each failing generated test.</p><p class="ex"><span class="exref">E2</span><span class="exref">E3</span><span class="exref">E5</span><span class="exref">E6</span>breaker, audit, arbitration</p></li>
       <li class="phase"><h3>Attest</h3><p class="who">One recorded rule, no model</p><p>The verdict is derived from the recorded gates. The Proof Bundle carries the exhibits, the counterexample when there is one, the ledger and a manifest; an infrastructure failure is recorded as E7, never retried silently.</p><p class="ex"><span class="exref">E7</span>failure record, when any</p></li>
     </ol>
-    <div class="verdict-row" aria-label="The five verdicts">
+    <div class="verdict-row rv" aria-label="The five verdicts">
       <div><span class="seal VERIFIED">VERIFIED</span><p>Every gate passed in a fresh sandbox. Accept with the evidence.</p></div>
       <div><span class="seal NEEDS">NEEDS HUMAN</span><p>A gate failed or a generated test disagrees with the patch. Hold and decide.</p></div>
       <div><span class="seal INFEASIBLE">INFEASIBLE</span><p>The specification stage found the request contradictory or impossible as written.</p></div>
@@ -146,40 +152,40 @@
   </section>
 
   <section class="built" id="built" aria-labelledby="built-h">
-    <div class="section-head">
+    <div class="section-head rv">
       <h2 id="built-h" class="display-2">Who provides the core capabilities</h2>
       <p>Inference and execution are Nebius and NVIDIA services; the verification, binding and verdict logic is Attest's own code and runs on the console host.</p>
     </div>
     <dl class="ledger">
-      <div class="row"><dt>NVIDIA Nemotron 3 Ultra</dt><dd>Specification, drift audit and arbitration: the roles that need the strongest reasoning.</dd><dd class="tag">inference</dd></div>
-      <div class="row"><dt>NVIDIA Nemotron 3 Super</dt><dd>Sealing, implementation and breaking, as three separate instances; none sees the others' private material.</dd><dd class="tag">inference</dd></div>
-      <div class="row"><dt>NVIDIA Nemotron 3.5 Lightning</dt><dd>Short summaries for the console and PROOF.md.</dd><dd class="tag">inference</dd></div>
-      <div class="row"><dt>Nebius Token Factory</dt><dd>Serves every Nemotron call with schema-constrained JSON output. Each call is priced into the run's ledger under a per-run and a daily cap; an uncertain call is counted conservatively and never replayed.</dd><dd class="tag">inference platform</dd></div>
-      <div class="row"><dt>Nebius Token Factory Sandboxes</dt><dd>One retained checkpoint per task and disposable branches for every verification, mutant and adversarial run, networking off after the checkpoint.</dd><dd class="tag">execution</dd></div>
-      <div class="row"><dt>Attest supervisor and verdict rule</dt><dd>Privilege-separated test supervisor, binding checks, mutation engine, verdict derivation and the offline checker: deterministic Python in the repository.</dd><dd class="tag">deterministic code</dd></div>
+      <div class="row rv"><dt>NVIDIA Nemotron 3 Ultra</dt><dd>Specification, drift audit and arbitration: the roles that need the strongest reasoning.</dd><dd class="tag">inference</dd></div>
+      <div class="row rv"><dt>NVIDIA Nemotron 3 Super</dt><dd>Sealing, implementation and breaking, as three separate instances; none sees the others' private material.</dd><dd class="tag">inference</dd></div>
+      <div class="row rv"><dt>NVIDIA Nemotron 3.5 Lightning</dt><dd>Short summaries for the console and PROOF.md.</dd><dd class="tag">inference</dd></div>
+      <div class="row rv"><dt>Nebius Token Factory</dt><dd>Serves every Nemotron call with schema-constrained JSON output. Each call is priced into the run's ledger under a per-run and a daily cap; an uncertain call is counted conservatively and never replayed.</dd><dd class="tag">inference platform</dd></div>
+      <div class="row rv"><dt>Nebius Token Factory Sandboxes</dt><dd>One retained checkpoint per task and disposable branches for every verification, mutant and adversarial run, networking off after the checkpoint.</dd><dd class="tag">execution</dd></div>
+      <div class="row rv"><dt>Attest supervisor and verdict rule</dt><dd>Privilege-separated test supervisor, binding checks, mutation engine, verdict derivation and the offline checker: deterministic Python in the repository.</dd><dd class="tag">deterministic code</dd></div>
     </dl>
   </section>
 
   <section class="use" id="use" aria-labelledby="use-h">
-    <div class="section-head">
+    <div class="section-head rv">
       <h2 id="use-h" class="display-2">How to use it</h2>
       <p>Everything on this console is public. No account is needed; a team token only reveals a private inference profile.</p>
     </div>
     <ol class="steps">
-      <li><span class="num">1</span><div><h3>Pick a sample task</h3><p>Each task is a small Python repository at a pinned state with a precise request, acceptance criteria and a write scope. The console serves the sample tasks; your own repository goes through the command line at a pinned commit.</p></div></li>
-      <li><span class="num">2</span><div><h3>Browse the recorded evidence, or run it live</h3><p>Browsing opens the latest recorded Proof Bundle at no cost. A live run starts a new pipeline on Nemotron with a <span id="use-cap">capped</span> budget per run and <span id="use-rate">a few</span> runs per visitor per hour; recorded runs took <span id="use-duration">a few minutes</span>. You can leave the page: the run keeps its place and appears in the history with its verdict.</p></div></li>
-      <li><span class="num">3</span><div><h3>Read the verdict, then check it yourself</h3><p>The decision header says whether you can accept the patch and cites the exhibit that matters. Download the Proof Bundle and re-derive every digest, binding and the verdict offline:</p><pre class="code cmd">python -m attest check proof-bundle.zip</pre><p class="note">An integrity check of the record, not a signature: it proves the bundle is internally consistent and that the verdict follows the rule, not that the sandbox operations happened.</p></div></li>
+      <li class="rv"><span class="num">1</span><div><h3>Pick a sample task</h3><p>Each task is a small Python repository at a pinned state with a precise request, acceptance criteria and a write scope. The console serves the sample tasks; your own repository goes through the command line at a pinned commit.</p></div></li>
+      <li class="rv"><span class="num">2</span><div><h3>Browse the recorded evidence, or run it live</h3><p>Browsing opens the latest recorded Proof Bundle at no cost. A live run starts a new pipeline on Nemotron with a <span id="use-cap">capped</span> budget per run and <span id="use-rate">a few</span> runs per visitor per hour; recorded runs took <span id="use-duration">a few minutes</span>. You can leave the page: the run keeps its place and appears in the history with its verdict.</p></div></li>
+      <li class="rv"><span class="num">3</span><div><h3>Read the verdict, then check it yourself</h3><p>The decision header says whether you can accept the patch and cites the exhibit that matters. Download the Proof Bundle and re-derive every digest, binding and the verdict offline:</p><pre class="code cmd">python -m attest check proof-bundle.zip</pre><p class="note">An integrity check of the record, not a signature: it proves the bundle is internally consistent and that the verdict follows the rule, not that the sandbox operations happened.</p></div></li>
     </ol>
   </section>
 
   <section class="evidence" id="evidence" aria-labelledby="evidence-h">
-    <div class="section-head">
+    <div class="section-head rv">
       <h2 id="evidence-h" class="display-2">Recorded evidence</h2>
       <p id="evidence-count">Every run on this console, with its verdict, cost and duration. Open one to read its case file.</p>
     </div>
     <div class="filters" id="home-filters" role="group" aria-label="Filter runs"></div>
-    <ul class="evidence-list" id="evidence-list"></ul>
-    <div class="eval" aria-labelledby="eval-h">
+    <ul class="evidence-list rv" id="evidence-list"></ul>
+    <div class="eval rv" aria-labelledby="eval-h">
       <h3 id="eval-h">The frozen evaluation, 17 October 2026</h3>
       <p>Eight tasks, two systems, two attempts per cell, every scheduled cell reported. The plain agent is the same implementer with the same model, tools and turn budget and no sealed tests, breaker, audit or verdict; both are judged by the same held-out suite, which is stripped from the system under test. Method, commit, digests, models and limits were frozen before the run.</p>
       <div class="tablewrap"><table>
@@ -234,6 +240,6 @@
   </div>
 </aside>
 <button type="button" class="guide-launch" id="guide-launch" hidden><svg class="mark" aria-hidden="true"><use href="#mark"/></svg>Guide</button>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=20261018b"></script>
 </body>
 </html>

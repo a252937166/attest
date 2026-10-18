@@ -13,6 +13,14 @@ Sequence (each step is recorded in `reports/attest-deployment-2026-10-15/`):
 7. Server: one judge-style sample run through the public URL; `snapshot.sh after`; compare with `before`.
 8. Rollback test: `rollback.sh`, verify other vhosts still answer, then reinstall.
 
+## Static files and browser caches (18 Oct 2026)
+
+Before building a bundle that changes anything under `attest/app/static/`, bump the version query on both asset links
+in `index.html` (`/static/styles.css?v=<stamp>` and `/static/app.js?v=<stamp>`). The vhost sends `Cache-Control: no-cache`
+on every response, so browsers revalidate against the ETag; the version query additionally defeats copies cached before
+that header existed. A browser holding the previous build's assets otherwise renders the new markup with the old
+stylesheet and script (seen on 18 Oct 2026, `reports/attest-deployment-2026-10-18/README.md`).
+
 ## 17 Oct 2026 procedure (reliability round, M3 console, M4 import)
 
 1. Local: `python3 scripts/export_public.py --out dist/public --force` (allowlisted copy, gateway host and key shapes

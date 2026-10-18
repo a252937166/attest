@@ -50,6 +50,28 @@ intersection observer, the price pill squeezing the live-mode text in the rail, 
 un-stuck the decision header; all four were fixed and re-captured. The guide covered most of a phone screen on first
 open, so it now starts collapsed on screens up to 900 px wide.
 
+## Second round, after the owner's review of the live site (09:00 to 09:40 UTC)
+
+The owner reported the live page as broken and motionless and not in the spirit of their reference sites. The
+deployment report (`reports/attest-deployment-2026-10-18/README.md`) records the cause on the delivery side (assets
+cached from the previous build) and the fix. On the design side the page was brought up to the reference energy, and a
+defect in every capture above was found and fixed:
+
+- **Correction to the first round.** In all first-round screenshots the brand mark rendered as a bare caret: the SVG
+  holding the mark's gradient definition was `display:none`, and Chrome does not resolve `url(#…)` paint servers from
+  hidden SVGs, so the ring and the check (both gradient-stroked) were invisible. The definitions now live in a zero-size,
+  visually hidden SVG; the mark renders with its dashed seal ring, inner ring and check (`screens/lockup-1440.png`).
+- **Visual pass.** A gradient brand lockup with the mark above the headline and a "built on" line naming the providers;
+  a two-row navigation (brand and status, then a section bar with an underlined active link); pill buttons; a stronger
+  three-colour aurora with a grain overlay; a drawn underline under "with proof"; totals that count up once; blocks
+  that rise once as they scroll into view; a guide line at the left with a beacon that follows the reading position.
+- **Reduced motion.** Instead of removing every animation, the looping and travelling effects stop and one-shot
+  entrances become instant, the policy the reference sites use.
+
+Re-captured with `capture.py --quick`: 24 screens, no page or console errors, every behavioural check as before; the
+offline suite still passes (145 tests) and the static files still name no gateway. The live site was then rendered in
+fresh desktop and phone browsers (see the deployment report).
+
 ## Not verified, stated plainly
 
 - No outside developer or judge has used the page; the guide's wording is the author's.

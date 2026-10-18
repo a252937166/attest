@@ -138,6 +138,18 @@ recorded in bundles (`attest_revision()`, computed over `attest/**/*.py`) are un
   before. One dark scheme (`color-scheme: dark`). The only accent is the indigo used for live execution, links and
   actions; verdict colours are reserved for seals, gates and counterexamples.
 
+Second round, same day, after the owner reviewed the live page against their reference sites: a gradient brand lockup
+with the seal mark above the headline and a "built on" line; a two-row navigation (brand and status, then a section bar
+with an underlined active link); pill buttons; a stronger aurora with grain; a drawn underline; totals that count up
+once; blocks that rise once when they scroll into view; a guide line with a beacon that follows the reading position.
+Reduced motion now stops the looping and travelling effects and makes one-shot entrances instant rather than removing
+every animation. The SVG that defines the mark's gradient is visually hidden with zero size, not `display:none`, because
+Chrome does not resolve paint servers from hidden SVGs (the mark had rendered as a bare caret).
+
+**Caching rule.** `index.html` references `styles.css?v=<stamp>` and `app.js?v=<stamp>`; bump the stamp whenever a static
+file changes, and the vhost sends `Cache-Control: no-cache` so browsers revalidate against the ETag. On 18 Oct 2026 a
+browser that had cached the previous build's assets rendered the new markup with the old stylesheet and script.
+
 Unchanged and re-verified: the ids and selectors the browser tests and the M3 capture rely on (`#main`, `.decision`,
 `#decision-h`, the tab strip, `#log`, `#stepper`, `#history`, `data-focus`), keyed updates (an open disclosure and
 keyboard focus survive 20 refresh cycles of a running run with one render), keyboard navigation, a public page that
