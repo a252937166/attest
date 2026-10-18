@@ -1,9 +1,10 @@
 # Attest console and application API
 
-Status 2026-10-17: implemented and exercised locally (`attest/app/`), FastAPI + uvicorn, single background worker,
-SQLite store, static single-page UI redesigned in milestone M3 (approved design: `design/console-redesign-2026-10-16/`).
-Deployment target: `yungou` (DogYun `206.237.18.80`) without Docker, see `deployment-plan-yungou.md` and `deploy/yungou/`.
-**The live deployment at `https://attest.axiqo.xyz` still runs the pre-M3 console; the M3 build is not deployed yet.**
+Status 2026-10-18: implemented and exercised locally (`attest/app/`), FastAPI + uvicorn, single background worker,
+SQLite store, static single-page UI redesigned in milestone M3 (approved design: `design/console-redesign-2026-10-16/`)
+and given a home page, a brand, a contextual guide and motion in the second pass of 18 Oct 2026 (below).
+Deployment target: `yungou` (DogYun `206.237.18.80`) without Docker, see `deployment-plan-yungou.md` and `deploy/yungou/`;
+the deployment reports under `reports/attest-deployment-*/` say which build the public console runs.
 
 ## Architecture
 
@@ -100,6 +101,47 @@ citation scheme shared with `PROOF.md`, and the development gateway hidden from 
 
 Verification record, screenshots (1440 px and 390 px, light and dark) and the 20-refresh test:
 `reports/attest-m3-2026-10-17/README.md`.
+
+### Console redesign, second pass (18 Oct 2026)
+
+Owner feedback on the M3 console: the brand was not visible, a newcomer got no guidance, there was too little motion
+and the page did not look like a finished product. The second pass keeps the evidence-file structure of M3 (decision
+header, tabs, exhibits E1 to E7, keyed live updates, a public form that never names the development gateway) and
+changes the presentation and the entry. Only `attest/app/static/` changed; the server, the API and the package digest
+recorded in bundles (`attest_revision()`, computed over `attest/**/*.py`) are untouched.
+
+- **Two views, one page.** `/` is a home page: the problem (a plausible patch is not a verified one), how a run earns its
+  verdict (a five-phase chain naming the model or the deterministic component responsible for each phase and the
+  exhibits it produces), who provides the core capabilities (NVIDIA Nemotron 3 Ultra, Super and 3.5 Lightning on Nebius
+  Token Factory, Token Factory Sandboxes, Attest's own supervisor and verdict rule), how to use it (three steps ending
+  with `python -m attest check`), the recorded evidence of this console, and the frozen M5 evaluation table with its
+  narrow reading. `/runs/{id}` is the case file as before, with a breadcrumb back to the home and a "What am I looking
+  at?" link that opens the guide. Both routes serve the same `index.html`; the numbers on the home page (recorded runs
+  by verdict, per-run cap, runs per hour, recorded durations) come from `/api/runs`, `/api/health` and `/api/tasks` and
+  are never typed into the page.
+- **One entry point.** The workspace form (task, browse or live, estimate, run button, team sign-in) exists once; the
+  script places it in the "Start here" panel of the home and moves it into the rail on a run page, so the selected task
+  and mode survive the switch. The live tile shows the recorded cost of the task; the brief under the task select shows
+  the statement, the number of acceptance criteria and the latest recorded verdict.
+- **Brand.** An inline SVG mark (a seal ring around an A whose crossbar is a check) in the navigation, the footer, the
+  guide and the favicon, with the wordmark in the display face.
+- **Guide.** A contextual panel on run pages whose steps depend on the state of the run: finished (the decision, can I
+  accept it, the gates, the counterexample when there is one, take it with you), queued, running (the current stage
+  taken from the event stream, what it does, what comes next) and error (what happened, start again). "Show me" switches
+  to the right tab, scrolls to the element and spotlights it; "Done" or the close button dismisses the guide for this
+  browser (`localStorage`, every access guarded, the page works without it) and a launcher brings it back. On screens up
+  to 900 px wide it starts collapsed.
+- **Motion.** One orchestrated reveal of the hero, a pulse travelling along the phase chain, the verdict seal stamping
+  in, the sticky decision header compacting on scroll, log rows and meter changes animating in place, a sliding tab
+  indicator, skeleton rows while a bundle loads. Everything stops under `prefers-reduced-motion`.
+- **Type and colour.** Instrument Serif for the headline, the seal and the decision sentence; IBM Plex Sans and Mono as
+  before. One dark scheme (`color-scheme: dark`). The only accent is the indigo used for live execution, links and
+  actions; verdict colours are reserved for seals, gates and counterexamples.
+
+Unchanged and re-verified: the ids and selectors the browser tests and the M3 capture rely on (`#main`, `.decision`,
+`#decision-h`, the tab strip, `#log`, `#stepper`, `#history`, `data-focus`), keyed updates (an open disclosure and
+keyboard focus survive 20 refresh cycles of a running run with one render), keyboard navigation, a public page that
+names no gateway, and the offline suite (145 tests). Verification record and screenshots: `reports/attest-ui-2026-10-18/`.
 
 ## Verified locally (2026-10-15)
 

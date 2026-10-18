@@ -34,7 +34,8 @@ ALLOW_TOP = ["attest", "tests", "examples", "deploy", "scripts", ".github", "REA
 ALLOW_REPORTS = ["attest-first-slice-2026-10-15", "attest-verification-2026-10-15", "attest-deployment-2026-10-15", "attest-hardening-2026-10-16",
                  "attest-evaluation-2026-10-16", "attest-deployment-2026-10-16", "attest-competitive-review-2026-10-16", "attest-m1-2026-10-16",
                  "attest-m2-2026-10-17", "attest-m3-2026-10-17", "attest-reliability-2026-10-17", "attest-m4-2026-10-17",
-                 "attest-deployment-2026-10-17", "attest-freeze-2026-10-17", "attest-evaluation-2026-10-17-nebius-m5"]  # the gateway operations report stays private (internal infrastructure)
+                 "attest-deployment-2026-10-17", "attest-freeze-2026-10-17", "attest-evaluation-2026-10-17-nebius-m5",
+                 "attest-ui-2026-10-18", "attest-deployment-2026-10-18"]  # the gateway operations report stays private (internal infrastructure)
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".venv", "snapshot", "screens", "refresh-sequence", "runs-private",
                 # two partial copies of run directories kept in the 16 Oct hardening report (sealed and breaker modules were not
                 # copied at the time); they fail `attest check` by construction, so the originals stay private

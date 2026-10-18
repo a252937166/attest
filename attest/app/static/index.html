@@ -3,63 +3,237 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Attest console</title>
-<meta name="description" content="Attest verifies a coding agent's patch with sealed tests, a fresh sandbox and a Proof Bundle. Browse recorded evidence or run a task live.">
-<meta name="color-scheme" content="light dark">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%274%27 fill=%27%231A1E23%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-family=%27Georgia,serif%27 font-weight=%27600%27 font-size=%2720%27 text-anchor=%27middle%27 fill=%27%23F4F5F3%27%3EA%3C/text%3E%3C/svg%3E">
+<title>Attest: evidence-gated coding agent</title>
+<meta name="description" content="Attest is a coding agent that has to prove its patch before you merge it: sealed tests, a fresh sandbox, a supervisor that never imports the candidate's code, and a Proof Bundle you can check offline. Browse recorded evidence or run a task live on NVIDIA Nemotron via Nebius Token Factory.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0A0C10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230A0C10'/%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%238EA2FF' stroke-width='2.5' stroke-dasharray='3 3.2'/%3E%3Cpath d='M19 45 L32 17 L45 45' fill='none' stroke='%23EAEEF5' stroke-width='4.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M25 36.5 L30 41.5 L37.5 32.5' fill='none' stroke='%238EA2FF' stroke-width='4.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body>
-<a class="skip" href="#main">Skip to the run</a>
-<div class="wrap">
-<header class="bar">
-  <div class="brand"><a class="word" href="/" data-home>Attest</a><span class="tag">Evidence-gated coding agent</span></div>
+<body data-view="home">
+<a class="skip" href="#start">Skip to the start panel</a>
+<svg hidden aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="mark-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C3CCFF"/><stop offset="1" stop-color="#5B6CFF"/></linearGradient>
+    <symbol id="mark" viewBox="0 0 64 64">
+      <circle class="ring" cx="32" cy="32" r="29" fill="none" stroke="url(#mark-g)" stroke-width="2.4" stroke-dasharray="3 3.2"/>
+      <circle cx="32" cy="32" r="23" fill="none" stroke="url(#mark-g)" stroke-width="1.1" opacity=".55"/>
+      <path d="M20 44 L32 18 L44 44" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M25.5 36 L30 40.5 L37.2 32.6" fill="none" stroke="url(#mark-g)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+</svg>
+<div class="backdrop" aria-hidden="true"><div class="glow g1"></div><div class="glow g2"></div><div class="grid"></div></div>
+
+<header class="nav" id="nav">
+  <a class="brand" href="/" data-home aria-label="Attest home">
+    <svg class="mark" aria-hidden="true"><use href="#mark"/></svg>
+    <span class="wordmark">Attest</span>
+    <span class="tagline">Evidence-gated coding agent</span>
+  </a>
+  <nav class="links" id="nav-links" aria-label="Sections">
+    <a href="/#how" data-section="how">How it works</a>
+    <a href="/#built" data-section="built">Built on</a>
+    <a href="/#use" data-section="use">How to use</a>
+    <a href="/#evidence" data-section="evidence">Evidence</a>
+  </nav>
   <div class="status" id="status" aria-live="polite">
     <span class="chip" id="chip-service"><span class="dot" id="chip-service-dot"></span><span id="chip-service-text">Connecting to the service</span></span>
-    <span class="chip" id="chip-budget">Today's Nemotron budget <span class="muted" id="chip-budget-text">loading</span></span>
+    <span class="chip" id="chip-budget">Nemotron budget <span class="muted" id="chip-budget-text">loading</span></span>
     <span class="chip" id="chip-runs">Runs <span class="muted" id="chip-runs-text">loading</span></span>
   </div>
+  <a class="btn primary sm nav-cta" href="/#start" data-start>Start here</a>
 </header>
 
-<div class="app">
-  <aside class="rail" aria-label="Workspace and history">
-  <details id="rail-details" open><summary class="rail-summary">Workspace and history</summary>
-    <section>
-      <h2>Workspace</h2>
-      <label class="field">Task
-        <select id="task" data-focus="task"></select>
-      </label>
-      <div class="modes" role="radiogroup" aria-label="Mode">
-        <label class="mode"><input type="radio" name="mode" value="browse" data-focus="mode-browse" checked><span><span class="l">Browse recorded evidence</span><br><span class="d">No inference. Opens the latest recorded run of this task.</span></span></label>
-        <label class="mode"><input type="radio" name="mode" value="live" data-focus="mode-live"><span><span class="l" id="mode-live-label">Run live on Nemotron</span><br><span class="d">Starts a new run in Nebius Token Factory Sandboxes.</span></span></label>
-      </div>
-      <div class="estimate" id="estimate"></div>
-      <label class="field" id="profile-field" hidden>Inference profile
-        <select id="profile" data-focus="profile"></select>
-      </label>
-      <button type="button" class="btn block" id="go" data-focus="go">Open the latest recorded run</button>
-      <p class="note" id="start-note"></p>
-      <p class="note" id="public-note">Public runs use the Nemotron profile.</p>
-      <details id="signin"><summary>Team sign-in</summary>
-        <label class="field">Team token<input id="admin" type="password" autocomplete="off" data-focus="admin" placeholder="Shown nothing extra until it is valid"></label>
-        <button type="button" class="btn secondary" id="signin-go" data-focus="signin-go">Sign in</button>
-        <p class="note" id="signin-note"></p>
-      </details>
-      <p class="note planned">Planned, not in this build: bring your own Python repository at a pinned commit.</p>
-    </section>
-    <section>
-      <h2>History</h2>
-      <div class="filters" id="filters" role="group" aria-label="Filter history"></div>
-      <ul class="history" id="history"></ul>
-    </section>
+<!-- The workspace form is a single element. The script places it in the home page's start panel or in the console rail. -->
+<form class="workspace" id="workspace" autocomplete="off">
+  <div class="step"><span class="n">1</span>
+    <label class="field">Task
+      <select id="task" data-focus="task"></select>
+    </label>
+    <p class="task-brief" id="task-brief"></p>
+  </div>
+  <div class="step"><span class="n">2</span>
+    <div class="modes" role="radiogroup" aria-label="Mode">
+      <label class="mode"><input type="radio" name="mode" value="browse" data-focus="mode-browse" checked><span class="mode-text"><span class="l">Browse recorded evidence</span><span class="d">Free and instant. Opens the latest recorded Proof Bundle of this task; no inference runs.</span></span><span class="price free">free</span></label>
+      <label class="mode"><input type="radio" name="mode" value="live" data-focus="mode-live"><span class="mode-text"><span class="l" id="mode-live-label">Run live on Nemotron</span><span class="d">Starts a new run in Nebius Token Factory Sandboxes. Takes a few minutes; capped per run and per day.</span></span><span class="price" id="mode-live-price">paid</span></label>
+    </div>
+    <div class="estimate" id="estimate"></div>
+    <label class="field" id="profile-field" hidden>Inference profile
+      <select id="profile" data-focus="profile"></select>
+    </label>
+  </div>
+  <div class="step"><span class="n">3</span>
+    <button type="button" class="btn primary block" id="go" data-focus="go">Open the latest recorded run</button>
+    <p class="note" id="start-note"></p>
+    <p class="note" id="public-note">Public runs use the Nemotron profile.</p>
+  </div>
+  <details id="signin"><summary>Team sign-in</summary>
+    <label class="field">Team token<input id="admin" type="password" autocomplete="off" data-focus="admin" placeholder="Shows nothing extra until it is valid"></label>
+    <button type="button" class="btn ghost sm" id="signin-go" data-focus="signin-go">Sign in</button>
+    <p class="note" id="signin-note"></p>
   </details>
+  <p class="note planned">Planned, not in this build: bring your own Python repository at a pinned commit through the console. The command line already imports one within explicit limits.</p>
+</form>
+
+<main class="home" id="home">
+  <section class="hero" id="top">
+    <div class="hero-copy">
+      <p class="hero-line"><span class="dot live"></span>Public console: recorded evidence first, live runs on request</p>
+      <h1 class="display">Patches should arrive <em>with proof.</em></h1>
+      <p class="lead">Attest is a coding agent that has to prove its patch before you merge it. Acceptance tests are sealed before any code exists, the candidate is verified in a fresh sandbox by a supervisor that never imports its code, mutants and adversarial tests try to break it, and one recorded rule turns the evidence into a verdict.</p>
+      <p class="credo"><em>Models propose,</em> deterministic code disposes.</p>
+      <div class="hero-actions">
+        <a class="btn primary" href="#start" data-start>Start here</a>
+        <a class="btn ghost" href="#how" data-section="how">See how a run earns its verdict</a>
+      </div>
+      <p class="ticker mono" id="ticker"><span class="dot idle"></span>Loading the recorded evidence</p>
+    </div>
+    <aside class="start" id="start" aria-labelledby="start-h">
+      <div class="start-head">
+        <h2 id="start-h">Start here</h2>
+        <p>Three steps. Browsing is free; a live run spends a capped amount of Nemotron inference on Nebius. <span id="start-tasks"></span></p>
+      </div>
+      <div id="workspace-slot-home"></div>
+    </aside>
+  </section>
+
+  <section class="problem" id="problem" aria-labelledby="problem-h">
+    <div class="problem-pull">
+      <h2 id="problem-h" class="display-2">A plausible patch is not a verified one.</h2>
+      <p>Coding agents write patches that look right, and their own review can be talked into agreeing. A reviewer needs something that cannot be persuaded: tests written before the code existed, executed by a process the candidate cannot influence, and a verdict derived from the record rather than from a model's confidence.</p>
+    </div>
+    <dl class="changes">
+      <div><dt>Tests before code</dt><dd>An independent Nemotron instance seals the acceptance tests from the contract. They must fail on the untouched repository before the implementer starts.</dd></div>
+      <div><dt>A verifier that cannot be persuaded</dt><dd>A supervisor that never imports the candidate's code runs each sealed test in its own unprivileged process, bound to a per-run nonce, the sealed file's digest and two canaries.</dd></div>
+      <div><dt>Attack the result</dt><dd>One-line mutants must be caught, a second model writes tests against the patch, a drift audit compares the action trail with the request, and an arbiter classifies every generated-test failure.</dd></div>
+      <div><dt>One recorded rule</dt><dd>The verdict follows from the gates alone and ships in a Proof Bundle with numbered exhibits, counterexamples, the usage ledger and a manifest you can re-check offline.</dd></div>
+    </dl>
+  </section>
+
+  <section class="how" id="how" aria-labelledby="how-h">
+    <div class="section-head">
+      <h2 id="how-h" class="display-2">How a run earns its verdict</h2>
+      <p>Five phases, each recorded in the bundle. The models write tests, patches and audits; deterministic code runs, binds and decides.</p>
+    </div>
+    <div class="chain" id="chain" aria-hidden="true">
+      <div class="chain-line"><span class="chain-pulse"></span></div>
+      <ol class="chain-nodes">
+        <li style="--i:0"><span class="node">1</span><span class="lbl">Seal</span></li>
+        <li style="--i:1"><span class="node">2</span><span class="lbl">Implement</span></li>
+        <li style="--i:2"><span class="node">3</span><span class="lbl">Verify</span></li>
+        <li style="--i:3"><span class="node">4</span><span class="lbl">Break</span></li>
+        <li style="--i:4"><span class="node">5</span><span class="lbl">Attest</span></li>
+      </ol>
+    </div>
+    <ol class="phases" id="phases">
+      <li class="phase"><h3>Seal</h3><p class="who">Nemotron 3 Ultra writes the specification; Nemotron 3 Super seals the tests</p><p>Acceptance tests are written before any code exists and shown failing on the unmodified checkpoint: the red check.</p><p class="ex"><span class="exref">E1</span>sealed tests</p></li>
+      <li class="phase"><h3>Implement</h3><p class="who">Nemotron 3 Super in a Nebius sandbox branch</p><p>The implementer reads, edits and runs the existing tests through validated JSON actions inside the write scope the task names. It never sees the sealed tests.</p><p class="ex"><span class="exref">Patch</span>diff, digests, scope check</p></li>
+      <li class="phase"><h3>Verify</h3><p class="who">Attest's supervisor, deterministic code</p><p>A fresh branch runs the sealed suite one process per test under an unprivileged user. Results are bound to the run's nonce, the sealed file's digest and verifier canaries. The existing and held-out suites run in their own branches.</p><p class="ex"><span class="exref">E1</span><span class="exref">E4</span>bound results</p></li>
+      <li class="phase"><h3>Break</h3><p class="who">Nemotron 3 Super writes adversarial tests; Nemotron 3 Ultra audits and arbitrates</p><p>Mutants of the patch must be caught, adversarial tests run against it, a drift audit compares the trail with the request, and an arbiter classifies each failing generated test.</p><p class="ex"><span class="exref">E2</span><span class="exref">E3</span><span class="exref">E5</span><span class="exref">E6</span>breaker, audit, arbitration</p></li>
+      <li class="phase"><h3>Attest</h3><p class="who">One recorded rule, no model</p><p>The verdict is derived from the recorded gates. The Proof Bundle carries the exhibits, the counterexample when there is one, the ledger and a manifest; an infrastructure failure is recorded as E7, never retried silently.</p><p class="ex"><span class="exref">E7</span>failure record, when any</p></li>
+    </ol>
+    <div class="verdict-row" aria-label="The five verdicts">
+      <div><span class="seal VERIFIED">VERIFIED</span><p>Every gate passed in a fresh sandbox. Accept with the evidence.</p></div>
+      <div><span class="seal NEEDS">NEEDS HUMAN</span><p>A gate failed or a generated test disagrees with the patch. Hold and decide.</p></div>
+      <div><span class="seal INFEASIBLE">INFEASIBLE</span><p>The specification stage found the request contradictory or impossible as written.</p></div>
+      <div><span class="seal NO">NO CHANGE</span><p>The implementer finished without changing any file.</p></div>
+      <div><span class="seal ERROR">ERROR</span><p>The run did not complete. Nothing was certified.</p></div>
+    </div>
+  </section>
+
+  <section class="built" id="built" aria-labelledby="built-h">
+    <div class="section-head">
+      <h2 id="built-h" class="display-2">Who provides the core capabilities</h2>
+      <p>Inference and execution are Nebius and NVIDIA services; the verification, binding and verdict logic is Attest's own code and runs on the console host.</p>
+    </div>
+    <dl class="ledger">
+      <div class="row"><dt>NVIDIA Nemotron 3 Ultra</dt><dd>Specification, drift audit and arbitration: the roles that need the strongest reasoning.</dd><dd class="tag">inference</dd></div>
+      <div class="row"><dt>NVIDIA Nemotron 3 Super</dt><dd>Sealing, implementation and breaking, as three separate instances; none sees the others' private material.</dd><dd class="tag">inference</dd></div>
+      <div class="row"><dt>NVIDIA Nemotron 3.5 Lightning</dt><dd>Short summaries for the console and PROOF.md.</dd><dd class="tag">inference</dd></div>
+      <div class="row"><dt>Nebius Token Factory</dt><dd>Serves every Nemotron call with schema-constrained JSON output. Each call is priced into the run's ledger under a per-run and a daily cap; an uncertain call is counted conservatively and never replayed.</dd><dd class="tag">inference platform</dd></div>
+      <div class="row"><dt>Nebius Token Factory Sandboxes</dt><dd>One retained checkpoint per task and disposable branches for every verification, mutant and adversarial run, networking off after the checkpoint.</dd><dd class="tag">execution</dd></div>
+      <div class="row"><dt>Attest supervisor and verdict rule</dt><dd>Privilege-separated test supervisor, binding checks, mutation engine, verdict derivation and the offline checker: deterministic Python in the repository.</dd><dd class="tag">deterministic code</dd></div>
+    </dl>
+  </section>
+
+  <section class="use" id="use" aria-labelledby="use-h">
+    <div class="section-head">
+      <h2 id="use-h" class="display-2">How to use it</h2>
+      <p>Everything on this console is public. No account is needed; a team token only reveals a private inference profile.</p>
+    </div>
+    <ol class="steps">
+      <li><span class="num">1</span><div><h3>Pick a sample task</h3><p>Each task is a small Python repository at a pinned state with a precise request, acceptance criteria and a write scope. The console serves the sample tasks; your own repository goes through the command line at a pinned commit.</p></div></li>
+      <li><span class="num">2</span><div><h3>Browse the recorded evidence, or run it live</h3><p>Browsing opens the latest recorded Proof Bundle at no cost. A live run starts a new pipeline on Nemotron with a <span id="use-cap">capped</span> budget per run and <span id="use-rate">a few</span> runs per visitor per hour; recorded runs took <span id="use-duration">a few minutes</span>. You can leave the page: the run keeps its place and appears in the history with its verdict.</p></div></li>
+      <li><span class="num">3</span><div><h3>Read the verdict, then check it yourself</h3><p>The decision header says whether you can accept the patch and cites the exhibit that matters. Download the Proof Bundle and re-derive every digest, binding and the verdict offline:</p><pre class="code cmd">python -m attest check proof-bundle.zip</pre><p class="note">An integrity check of the record, not a signature: it proves the bundle is internally consistent and that the verdict follows the rule, not that the sandbox operations happened.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="evidence" id="evidence" aria-labelledby="evidence-h">
+    <div class="section-head">
+      <h2 id="evidence-h" class="display-2">Recorded evidence</h2>
+      <p id="evidence-count">Every run on this console, with its verdict, cost and duration. Open one to read its case file.</p>
+    </div>
+    <div class="filters" id="home-filters" role="group" aria-label="Filter runs"></div>
+    <ul class="evidence-list" id="evidence-list"></ul>
+    <div class="eval" aria-labelledby="eval-h">
+      <h3 id="eval-h">The frozen evaluation, 17 October 2026</h3>
+      <p>Eight tasks, two systems, two attempts per cell, every scheduled cell reported. The plain agent is the same implementer with the same model, tools and turn budget and no sealed tests, breaker, audit or verdict; both are judged by the same held-out suite, which is stripped from the system under test. Method, commit, digests, models and limits were frozen before the run.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th></th><th>Plain agent (16 cells)</th><th>Attest (16 cells)</th></tr></thead>
+        <tbody>
+          <tr><td>Correct patch accepted</td><td>10</td><td>4</td></tr>
+          <tr><td>Broken patch shipped</td><td>2</td><td>2</td></tr>
+          <tr><td>Correct patch held for a human</td><td>0</td><td>5</td></tr>
+          <tr><td>Nothing shipped, correctly</td><td>1</td><td>2</td></tr>
+          <tr><td>Infrastructure error, never replayed</td><td>3</td><td>3</td></tr>
+          <tr><td>Committed cost</td><td>$0.23</td><td>$0.86</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">What this shows, and only this: on this suite Attest did not ship fewer broken patches than the plain agent; both shipped the two patches for the unsatisfiable task, where the sealed tests did not expose the contract's contradiction. Every Attest hold was on a patch the held-out judge accepted, four of them after the arbiter had classified the failing adversarial test as a test defect; arbitration is advisory, so the rule holds. The two NO CHANGE verdicts on the external task are correct refusals. The full report and every cell are in the repository.</p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="foot-brand"><svg class="mark" aria-hidden="true"><use href="#mark"/></svg><span class="wordmark">Attest</span><span class="foot-line">Evidence, not assurance.</span></div>
+    <p class="foot-meta"><span id="foot-version"></span><a href="/api/docs">API documentation</a><a href="/api/health">Service health</a><span>Inference: NVIDIA Nemotron on Nebius Token Factory. Execution: Nebius Token Factory Sandboxes.</span></p>
+  </footer>
+</main>
+
+<div class="console" id="console" hidden>
+  <aside class="rail" aria-label="Workspace and history">
+    <details id="rail-details" open><summary class="rail-summary">Workspace and history</summary>
+      <section>
+        <h2>Workspace</h2>
+        <div id="workspace-slot-rail"></div>
+      </section>
+      <section>
+        <h2>History</h2>
+        <div class="filters" id="filters" role="group" aria-label="Filter history"></div>
+        <ul class="history" id="history"></ul>
+      </section>
+    </details>
   </aside>
   <main class="main" id="main" tabindex="-1"></main>
 </div>
-</div>
+
+<aside class="guide" id="guide" hidden aria-label="Guide">
+  <div class="guide-head">
+    <svg class="mark" aria-hidden="true"><use href="#mark"/></svg>
+    <span class="guide-title" id="guide-title">Guide</span>
+    <span class="guide-count" id="guide-count"></span>
+    <button type="button" class="icon" id="guide-close" aria-label="Close the guide">&times;</button>
+  </div>
+  <div class="guide-body" id="guide-body"></div>
+  <div class="guide-foot">
+    <button type="button" class="btn ghost sm" id="guide-show">Show me</button>
+    <button type="button" class="btn sm" id="guide-next">Next</button>
+  </div>
+</aside>
+<button type="button" class="guide-launch" id="guide-launch" hidden><svg class="mark" aria-hidden="true"><use href="#mark"/></svg>Guide</button>
 <script src="/static/app.js"></script>
 </body>
 </html>

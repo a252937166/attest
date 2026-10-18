@@ -13,7 +13,8 @@ efficiency), `reports/attest-evaluation-2026-10-16/README.md` (plain agent vs At
 `reports/attest-deployment-2026-10-16/README.md` (hardened build live at https://attest.axiqo.xyz). See
 `attest-first-slice.md` for the earlier slices, `attest-console.md` for the console, and `attest-product-design.md` for
 the full design. Competitive review, audit and plan (16 Oct 2026): `reports/attest-competitive-review-2026-10-16/README.md`;
-console redesign (approved 16 Oct 2026, implementation pending): `design/console-redesign-2026-10-16/`. Milestone M1
+console redesign (approved 16 Oct 2026, implemented in M3, second pass with a home page, brand, guide and motion on
+18 Oct 2026: `reports/attest-ui-2026-10-18/README.md`, deployed the same day: `reports/attest-deployment-2026-10-18/README.md`). Milestone M1
 (16 Oct 2026, `reports/attest-m1-2026-10-16/README.md`): the sealed supervisor is the first step of its own branch and the
 repository's own suite runs in a separate branch (closes the root-before-supervisor bypass); verifier canaries and a
 start-up-hook check catch blanket result forgery; unittest repository and held-out suites are bound through the same
@@ -195,11 +196,15 @@ ATTEST_DATA_DIR=./data ATTEST_IMPORT_DIRS=./runs ATTEST_ADMIN_TOKEN=change-me \
   .venv/bin/python -m uvicorn attest.app.server:app --host 127.0.0.1 --port 4070
 ```
 
-Open http://127.0.0.1:4070. The console opens recorded evidence by default (no inference); "Run live on Nemotron" is an
-explicit action that shows the cost and duration range of recorded runs of the same task and the remaining daily
-budget. Judges run the Nemotron profile (rate-limited, budget-capped); the development profile appears only after the
-team token is validated by the server, and the public page source names no gateway. A run reads as a case file: the
-verdict seal, one decision sentence, the key exhibit, then tabs for the request, the patch, the exhibits E1 to E7 with
-counterexamples, the activity and the artifacts with their digests. `scripts/console_replay.py` replays a recorded run
-as a labelled synthetic fixture for development. See `attest-console.md` for the API and the verified behaviour, and
-`deploy/yungou/` for the production deployment without Docker (the redesign is not deployed yet).
+Open http://127.0.0.1:4070. The home page says what problem Attest solves, how a run earns its verdict, who provides the
+core capabilities (NVIDIA Nemotron on Nebius Token Factory, Token Factory Sandboxes, Attest's own supervisor) and how
+to use the console, lists the recorded evidence, and holds the one entry point: pick a task, browse its recorded Proof
+Bundle (no inference) or "Run live on Nemotron", an explicit action that shows the cost and duration range of recorded
+runs of the same task and the remaining daily budget. Judges run the Nemotron profile (rate-limited, budget-capped);
+the development profile appears only after the team token is validated by the server, and the public page source
+names no gateway. A run reads as a case file: the verdict seal, one decision sentence, the key exhibit, then tabs for
+the request, the patch, the exhibits E1 to E7 with counterexamples, the activity and the artifacts with their digests;
+a guide that follows the state of the run explains what each part means and spotlights it. `scripts/console_replay.py`
+replays a recorded run as a labelled synthetic fixture for development. See `attest-console.md` for the API and the
+verified behaviour, and `deploy/yungou/` for the production deployment without Docker (the 18 Oct 2026 console is live;
+`reports/attest-deployment-2026-10-18/README.md`).

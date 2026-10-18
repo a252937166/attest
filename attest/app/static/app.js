@@ -1,7 +1,9 @@
-/* Attest console client. One static page, no framework. A run reads like a case file: decision header, tabs, numbered
-   exhibits. Live runs are updated in place (keyed updates): the log appends rows, the stepper and meters change text,
-   and the detail pane is never rebuilt while a run is in progress, so open disclosures, the selected tab and keyboard
-   focus survive every refresh. */
+/* Attest console client. One static page, no framework, two views. The home explains the problem, how a run earns its
+   verdict, who provides the capabilities and how to use the console, and lists the recorded evidence; the case file for
+   a run shows the decision header, tabs and numbered exhibits. One workspace form is shared by both views (the script
+   moves the element). Live runs are updated in place (keyed updates): the log appends rows, the stepper and meters
+   change text, and the detail pane is never rebuilt while a run is in progress, so open disclosures, the selected tab
+   and keyboard focus survive every refresh. A guide follows the state of the run and spotlights what it talks about. */
 (() => {
   "use strict";
   const $ = (s, r = document) => r.querySelector(s);
@@ -9,6 +11,7 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const qs = new URLSearchParams(location.search);
   const POLL_MS = Math.max(300, Number(qs.get("poll")) || 4000);
+  const REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const usd = (v) => (v == null ? "allowance" : "$" + Number(v).toFixed(3));
   const usdOrNa = (v) => (v == null ? "not billed in USD (team allowance)" : "$" + Number(v).toFixed(4));
   const when = (iso) => (iso ? iso.slice(0, 16).replace("T", " ") + " UTC" : "");
@@ -26,13 +29,25 @@
     "Verify: a fresh branch runs the sealed suite, one process per test, nonce-bound; the existing and held-out suites run in their own branches.",
     "Break and audit: mutants, tests written after the patch, the drift audit and, when generated tests fail, the advisory arbitration.",
     "Attest: the verdict is computed only from the recorded gates and the Proof Bundle is written."];
+  // what each pipeline stage is doing, in the words the guide uses while a run is live
+  const STAGE_NOW = { freeze: ["Freezing the task", "The task statement, the repository files and the specification are hashed so that every later step can be bound to exactly this input."],
+    checkpoint: ["Building the checkpoint", "A sandbox image of the repository at its pinned state is created and the existing test suite is run once as the baseline. Every later step branches from this image."],
+    spec: ["Writing the specification", "An independent Nemotron instance restates the request as a contract with acceptance criteria. The implementer never sees this conversation."],
+    seal: ["Sealing the acceptance tests", "A second instance writes the acceptance tests from the contract. They are sealed now, before any code exists, and their digest is recorded."],
+    red: ["Red check", "The sealed tests run on the unmodified repository. They must fail: a test that already passes proves nothing about the patch."],
+    implement: ["Implementing", "The implementer reads, edits and runs the existing tests through validated JSON actions inside the write scope. Each turn is recorded in the action trail."],
+    verify: ["Verifying under the supervisor", "A fresh branch runs the sealed suite one process per test, bound to the run's nonce, the sealed file's digest and verifier canaries. The existing and held-out suites run in their own branches."],
+    break: ["Trying to break the patch", "One-line mutants must be caught by the sealed tests, and a second instance writes adversarial tests against the patch."],
+    audit: ["Auditing and arbitrating", "A drift audit compares the action trail with the request. If a generated test failed, an arbiter classifies it: implementation bug, test defect or contract dispute."],
+    finished: ["Writing the verdict", "One recorded rule derives the verdict from the gates and the Proof Bundle is written with its manifest."] };
   const PROVIDER_LABEL = { nebius: "Nemotron on Nebius Token Factory" };
   const providerLabel = (p) => PROVIDER_LABEL[p] || "development provider (team allowance)";
   const PROV_TEXT = { live: "Live run started from this console", imported: "Recorded evidence", synthetic: "Synthetic fixture: replayed from a recorded run, not a live execution" };
 
-  const state = { runId: null, tab: "overview", filter: "all", mode: "browse", task: null, profiles: [], profile: null, token: "", team: false,
-    tasks: [], runs: [], health: null, detail: null, expanded: new Set(), onlyRed: false,
+  const state = { view: "home", runId: null, tab: "overview", filter: "all", mode: "browse", task: null, profiles: [], profile: null, token: "", team: false,
+    tasks: [], runs: [], health: null, detail: null, expanded: new Set(), onlyRed: false, revealed: false, spot: null,
     live: { timer: null, lastSeq: 0, events: [], status: null, stage: null, meters: {}, polls: 0 } };
+  const guide = { ctx: null, steps: [], i: 0 };
   window.attestDebug = { polls: 0, renders: 0, panelRenders: 0 };
 
   // ------------------------------------------------------------------ storage (per-viewer convenience, never required)
@@ -40,16 +55,59 @@
     get(key) { try { return sessionStorage.getItem(key); } catch (e) { return null; } },
     set(key, value) { try { sessionStorage.setItem(key, value); } catch (e) { /* storage unavailable: the page still works */ } },
   };
+  const prefs = {
+    get(key) { try { return localStorage.getItem(key); } catch (e) { return null; } },
+    set(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* ignore */ } },
+  };
   const loadExpanded = (runId) => { state.expanded = new Set(); try { JSON.parse(storage.get("attest.expanded." + runId) || "[]").forEach((k) => state.expanded.add(k)); } catch (e) { /* ignore */ } };
   const saveExpanded = () => { if (state.runId) storage.set("attest.expanded." + state.runId, JSON.stringify([...state.expanded])); };
   const focusId = () => { const a = document.activeElement; return a && a.dataset ? a.dataset.focus || null : null; };
   const restoreFocus = (id) => { if (!id) return; const el = document.querySelector(`[data-focus="${id}"]`); if (el && el !== document.activeElement) el.focus({ preventScroll: true }); };
+  const scrollTo = (el, block) => { if (el) el.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: block || "start" }); };
 
   async function api(path, opts) {
     const res = await fetch(path, opts);
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.detail || body.error || res.statusText);
     return body;
+  }
+
+  // ------------------------------------------------------------------ views: the home and the console share one workspace form
+  function placeWorkspace() {
+    const slot = $(state.view === "home" ? "#workspace-slot-home" : "#workspace-slot-rail");
+    const ws = $("#workspace");
+    if (slot && ws && ws.parentElement !== slot) slot.appendChild(ws);
+  }
+  function setView(view) {
+    state.view = view;
+    $("#home").hidden = view !== "home";
+    $("#console").hidden = view !== "console";
+    document.body.dataset.view = view;
+    placeWorkspace();
+    const skip = $(".skip");
+    skip.setAttribute("href", view === "home" ? "#start" : "#main");
+    skip.textContent = view === "home" ? "Skip to the start panel" : "Skip to the run";
+    if (view === "console") $$("#nav-links a").forEach((a) => a.classList.remove("active"));
+    renderGuide();
+  }
+  function setRoute(runId, replace, hash) {
+    const url = runId ? `/runs/${encodeURIComponent(runId)}#${state.tab}` : `/${hash || ""}`;
+    if (replace) history.replaceState(null, "", url); else history.pushState(null, "", url);
+  }
+  function stopLive() { if (state.live.timer) { clearInterval(state.live.timer); state.live.timer = null; } }
+
+  function showHome(opts = {}) {
+    stopLive();
+    state.runId = null; state.detail = null; state.live.status = null;
+    if (!opts.popstate) setRoute(null, !!opts.replace, opts.hash || "");
+    setView("home");
+    document.title = "Attest: evidence-gated coding agent";
+    renderHome();
+    renderHistory();
+    if (!state.revealed) { state.revealed = true; requestAnimationFrame(() => $("#home").classList.add("reveal")); }
+    const target = opts.hash && /^#[a-z-]+$/.test(opts.hash) ? $(opts.hash) : null;
+    if (target) requestAnimationFrame(() => { scrollTo(target, "start"); if (opts.focus) { const el = $(opts.focus); if (el) setTimeout(() => el.focus({ preventScroll: true }), REDUCED ? 0 : 500); } });
+    else if (!opts.popstate) window.scrollTo({ top: 0 });
   }
 
   // ------------------------------------------------------------------ status chips
@@ -59,15 +117,18 @@
     if (!h) { text.textContent = "Service unreachable"; dot.className = "dot idle"; $("#chip-budget-text").textContent = "unknown"; $("#chip-runs-text").textContent = "unknown"; return; }
     const busy = !!h.current || h.queue > 0;
     dot.className = "dot " + (busy ? "live" : "idle");
-    text.textContent = busy ? `Live service: ${h.current ? "running " + h.current : ""}${h.queue ? `${h.current ? ", " : ""}${h.queue} queued` : ""}` : "Live service idle, showing recorded evidence";
+    text.textContent = busy ? `${h.current ? "Live run in progress" : "Live run queued"}${h.queue ? `, ${h.queue} queued` : ""}` : "Service idle, recorded evidence";
+    $("#chip-service").title = busy && h.current ? `Running ${h.current}` : "";
     const b = h.budget || {};
-    $("#chip-budget-text").textContent = b.remaining_usd != null ? `$${Number(b.remaining_usd).toFixed(2)} of $${Number(b.daily_cap_usd).toFixed(2)} left` : "unknown";
+    $("#chip-budget-text").textContent = b.remaining_usd != null ? `$${Number(b.remaining_usd).toFixed(2)} of $${Number(b.daily_cap_usd).toFixed(2)} left today` : "unknown";
     $("#chip-runs-text").textContent = h.disk && h.disk.accepting_runs === false ? "paused, low disk" : "accepted";
+    $("#foot-version").textContent = h.version ? `Attest ${h.version}` : "";
   }
 
   async function loadHealth() {
     try { state.health = await api("/api/health"); } catch (e) { state.health = null; }
     renderStatus(); renderEstimate();
+    if (state.view === "home") renderHome();
   }
 
   // ------------------------------------------------------------------ workspace
@@ -80,6 +141,7 @@
     sel.innerHTML = state.tasks.map((t) => `<option value="${esc(t.task_id)}">${esc(t.title)}${t.heldout ? " (with held-out tests)" : ""}</option>`).join("");
     if (!state.tasks.some((t) => t.task_id === keep)) state.task = state.tasks[0] ? state.tasks[0].task_id : null;
     if (state.task) sel.value = state.task;
+    $("#start-tasks").textContent = state.tasks.length ? `${state.tasks.length} sample task${state.tasks.length === 1 ? "" : "s"} are available.` : "";
     renderEstimate();
   }
 
@@ -100,12 +162,15 @@
 
   function renderEstimate() {
     const t = currentTask();
-    const box = $("#estimate"), go = $("#go");
-    if (!t) { box.innerHTML = "No sample tasks are configured."; go.disabled = true; return; }
+    const box = $("#estimate"), go = $("#go"), brief = $("#task-brief"), price = $("#mode-live-price");
+    if (!t) { box.innerHTML = "No sample tasks are configured."; go.disabled = true; brief.textContent = ""; return; }
     const e = t.estimate || {};
     const h = state.health || {};
     const b = h.budget || {};
     const p = currentProfile();
+    const statement = (t.statement || "").trim();
+    brief.innerHTML = `${esc(statement.length > 150 ? statement.slice(0, 150).replace(/\s+\S*$/, "") + "…" : statement)} <span class="muted">${t.criteria || 0} acceptance criteria.</span>${e.latest_verdict ? ` <span class="seal ${vclass(e.latest_verdict)}" title="Latest recorded verdict">${esc(e.latest_verdict)}</span>` : ""}`;
+    price.textContent = e.runs && e.cost_min_usd != null ? (usd(e.cost_min_usd) === usd(e.cost_max_usd) ? usd(e.cost_min_usd) : `${usd(e.cost_min_usd)} to ${usd(e.cost_max_usd)}`) : `up to ${usd(b.per_run_cap_usd ?? 0.5)}`;
     if (state.mode === "browse") {
       box.innerHTML = e.latest_run_id ? `Opens the latest recorded run of this task (${esc(e.latest_verdict || "finished")}). No inference, no cost.`
         : "No recorded run of this task yet. Pick another task or run it live.";
@@ -125,6 +190,7 @@
   async function loadTasks() {
     try { state.tasks = (await api("/api/tasks")).tasks || []; } catch (e) { state.tasks = []; }
     renderTasks();
+    if (state.view === "home") renderHome();
   }
 
   async function loadProfiles(token) {
@@ -144,18 +210,23 @@
     const v = rowVerdict(r);
     return state.filter === "ERROR" ? v === "ERROR" : v === state.filter;
   }
-  function historyRowHtml(r) {
+  function rowMeta(r) {
     const s = r.summary || {};
-    const v = rowVerdict(r);
     const prov = s.provenance || "imported";
     const stage = r.status === "running" || r.status === "queued" ? (r.stage && r.stage !== r.status ? `, stage ${r.stage}` : "") : "";
-    const meta = `${prov === "synthetic" ? "synthetic fixture" : prov === "live" ? "live" : "recorded"}, ${when(r.created_at)}${s.cost_committed_usd != null || s.cost_usd != null ? ", " + usd(s.cost_committed_usd ?? s.cost_usd) : ""}${s.duration_s != null ? ", " + dur(s.duration_s) : ""}${stage}`;
+    return { prov, text: `${prov === "synthetic" ? "synthetic fixture" : prov === "live" ? "live" : "recorded"}, ${when(r.created_at)}${s.cost_committed_usd != null || s.cost_usd != null ? ", " + usd(s.cost_committed_usd ?? s.cost_usd) : ""}${s.duration_s != null ? ", " + dur(s.duration_s) : ""}${stage}` };
+  }
+  function historyRowHtml(r) {
+    const v = rowVerdict(r);
+    const m = rowMeta(r);
     return `<button type="button" data-run="${esc(r.run_id)}" data-focus="hist-${esc(r.run_id)}" aria-current="${state.runId === r.run_id}">
       <span class="t">${esc(r.task_title)}</span><span class="seal ${vclass(v)}">${esc(v)}</span>
-      <span class="m"><span class="dot ${prov === "synthetic" ? "synthetic" : prov === "live" ? "live" : ""}"></span>${esc(meta)}</span></button>`;
+      <span class="m"><span class="dot ${m.prov === "synthetic" ? "synthetic" : m.prov === "live" ? "live" : ""}"></span>${esc(m.text)}</span></button>`;
   }
   function renderFilters() {
-    $("#filters").innerHTML = FILTERS.map(([k, l]) => `<button type="button" data-filter="${k}" data-focus="filter-${k}" aria-pressed="${state.filter === k}">${l}</button>`).join("");
+    const html = FILTERS.map(([k, l]) => `<button type="button" data-filter="${k}" data-focus="filter-${k}" aria-pressed="${state.filter === k}">${l}</button>`).join("");
+    $("#filters").innerHTML = html;
+    $("#home-filters").innerHTML = html.replace(/data-focus="filter-/g, 'data-focus="hfilter-');
   }
   function renderHistory() {
     const list = $("#history");
@@ -182,27 +253,45 @@
   async function loadRuns() {
     try { const body = await api("/api/runs"); state.runs = body.runs || []; } catch (e) { /* keep the last list */ }
     renderHistory();
+    if (state.view === "home") renderHome();
+  }
+
+  // ------------------------------------------------------------------ home: live numbers from the API, never invented
+  function evidenceRowHtml(r) {
+    const v = rowVerdict(r);
+    const m = rowMeta(r);
+    return `<li><button type="button" class="ev" data-run="${esc(r.run_id)}" data-focus="ev-${esc(r.run_id)}">
+      <span class="seal ${vclass(v)}">${esc(v)}</span><span class="t">${esc(r.task_title)}</span>
+      <span class="m"><span class="dot ${m.prov === "synthetic" ? "synthetic" : m.prov === "live" ? "live" : ""}"></span>${esc(m.text)}</span>
+      <span class="go">Open the case file</span></button></li>`;
+  }
+  function renderHome() {
+    const runs = state.runs;
+    const done = runs.filter((r) => r.status === "finished" || r.status === "error");
+    const count = (v) => done.filter((r) => rowVerdict(r) === v).length;
+    const other = done.length - count("VERIFIED") - count("NEEDS HUMAN");
+    const h = state.health;
+    const busy = !!(h && (h.current || h.queue > 0));
+    const ticker = $("#ticker");
+    const tickerHtml = runs.length
+      ? `<span class="dot ${busy ? "live" : "idle"}"></span><span><strong>${done.length}</strong> recorded run${done.length === 1 ? "" : "s"} on this console</span><span class="sep"></span><span><strong class="ok">${count("VERIFIED")}</strong> VERIFIED</span><span class="sep"></span><span><strong class="holdc">${count("NEEDS HUMAN")}</strong> NEEDS HUMAN</span><span class="sep"></span><span><strong>${other}</strong> other verdict${other === 1 ? "" : "s"}</span>${busy ? `<span class="sep"></span><span>a live run is in progress</span>` : ""}`
+      : `<span class="dot idle"></span><span>${h ? "No recorded runs yet." : "Service unreachable: the recorded evidence cannot be listed."}</span>`;
+    if (ticker.dataset.sig !== tickerHtml) { ticker.innerHTML = tickerHtml; ticker.dataset.sig = tickerHtml; }
+    const list = $("#evidence-list");
+    const rows = done.filter(rowMatches);
+    const listHtml = rows.map(evidenceRowHtml).join("") || `<li class="note">${runs.length ? "No runs match this filter." : "No runs are recorded yet."}</li>`;
+    if (list.dataset.sig !== listHtml) { const f = focusId(); list.innerHTML = listHtml; list.dataset.sig = listHtml; restoreFocus(f); }
+    $("#evidence-count").textContent = done.length ? `${done.length} run${done.length === 1 ? "" : "s"} recorded on this console, newest first, with verdict, provenance, cost and duration. Open one to read its case file.` : "Every run on this console, with its verdict, cost and duration. Open one to read its case file.";
+    // the numbers in "how to use it" come from the service and the recorded estimates
+    const b = (h && h.budget) || {};
+    if (b.per_run_cap_usd != null) $("#use-cap").textContent = `$${Number(b.per_run_cap_usd).toFixed(2)}`;
+    if (h && h.public_runs_per_hour != null) $("#use-rate").textContent = String(h.public_runs_per_hour);
+    const mins = state.tasks.map((t) => (t.estimate || {}).duration_min_s).filter((x) => x != null), maxs = state.tasks.map((t) => (t.estimate || {}).duration_max_s).filter((x) => x != null);
+    if (mins.length && maxs.length) $("#use-duration").textContent = `${dur(Math.min(...mins))} to ${dur(Math.max(...maxs))}`;
   }
 
   // ------------------------------------------------------------------ run views
   const main = () => $("#main");
-  function setRoute(runId, replace) {
-    const url = runId ? `/runs/${encodeURIComponent(runId)}#${state.tab}` : "/";
-    if (replace) history.replaceState(null, "", url); else history.pushState(null, "", url);
-  }
-  function stopLive() { if (state.live.timer) { clearInterval(state.live.timer); state.live.timer = null; } }
-
-  function emptyView() {
-    return `<div class="empty"><h2>Pick a run from the history, or start one.</h2>
-      <p>Attest treats every task as a claim that must be proven. Acceptance tests are sealed before any code exists, the candidate is verified in a fresh sandbox against the pristine sealed copy, and the Proof Bundle records the evidence. Every run ends in one of five verdicts, never a silent guess.</p>
-      <div class="verdicts">
-        <span class="seal VERIFIED">VERIFIED</span><p>Every gate passed in a fresh sandbox. Accept with the evidence.</p>
-        <span class="seal NEEDS">NEEDS HUMAN</span><p>A gate failed or a generated test disagrees with the patch. Hold and decide.</p>
-        <span class="seal INFEASIBLE">INFEASIBLE</span><p>The specification stage found the request contradictory or impossible as written.</p>
-        <span class="seal NO">NO CHANGE</span><p>The implementer finished without changing any file.</p>
-        <span class="seal ERROR">ERROR</span><p>The run did not complete (provider, sandbox, budget or disk). Nothing was certified.</p>
-      </div></div>`;
-  }
 
   function provenanceLine(run, detail) {
     const prov = (run.summary || {}).provenance || detail?.provenance || "imported";
@@ -220,14 +309,17 @@
         ${has ? `<a class="btn secondary" href="${art("PROOF.md")}" target="_blank" rel="noopener">Open PROOF.md</a>` : ""}
         <button type="button" class="btn secondary" data-new-run="${esc(run.task_id)}" data-focus="act-new">Start a new run</button>`;
     }
-    return `<a class="btn" href="/api/runs/${id}/bundle.zip">Download Proof Bundle</a>
+    return `<a class="btn primary" href="/api/runs/${id}/bundle.zip">Download Proof Bundle</a>
       ${detail?.bundle?.candidate?.diff ? `<button type="button" class="btn secondary" data-copy-patch="${esc(run.run_id)}" data-focus="act-copy">Copy patch</button>` : ""}
       <a class="btn secondary" href="${art("PROOF.md")}" target="_blank" rel="noopener">Open PROOF.md</a>`;
   }
 
+  function caseBar(run) {
+    return `<p class="casebar"><a href="/" data-home>Home</a><span class="crumb">Case file</span><span>${esc(run ? run.task_title : "")}</span><button type="button" class="ask" data-guide-open>What am I looking at?</button></p>`;
+  }
   function decisionHeader(seal, statement, explanation, evidence, provenance, actions) {
-    return `<section class="decision" aria-labelledby="decision-h">
-      <div><span class="seal big ${vclass(seal)}" id="decision-h" data-k="seal">${esc(seal)}</span></div>
+    return `<section class="decision" aria-labelledby="decision-h" data-verdict="${esc(vclass(seal))}">
+      <div><span class="seal big${REDUCED ? "" : " stamp"} ${vclass(seal)}" id="decision-h" data-k="seal">${esc(seal)}</span></div>
       <div><p class="statement" data-k="statement">${esc(statement)}</p><p class="explain" data-k="explain">${esc(explanation)}</p>
         ${evidence ? `<p class="primary"><span class="exref" data-k="evref">${esc(evidence.ref)}</span><span data-k="evtext">${esc(evidence.text)}</span></p>` : ""}
         ${provenance}</div>
@@ -239,7 +331,12 @@
     return `<div class="tabs" role="tablist" aria-label="Run sections">${TABS.map(([k, l]) => {
       const on = enabled[k] !== false;
       return `<button type="button" role="tab" id="tab-${k}" data-tab="${k}" data-focus="tab-${k}" aria-selected="${state.tab === k}" aria-controls="panel" tabindex="${state.tab === k ? 0 : -1}" ${on ? "" : `disabled title="${esc(enabled[k] || "Available when the run finishes")}"`}>${l}</button>`;
-    }).join("")}</div>`;
+    }).join("")}<span class="tab-ink" aria-hidden="true"></span></div>`;
+  }
+  function positionTabInk() {
+    const strip = $(".tabs"), on = $("[role=tab][aria-selected=true]"), ink = strip && strip.querySelector(".tab-ink");
+    if (!strip || !on || !ink) return;
+    ink.style.left = on.offsetLeft + "px"; ink.style.width = on.offsetWidth + "px";
   }
   function det(id, summary, body) {
     return `<details data-id="${esc(id)}" ${state.expanded.has(id) ? "open" : ""}><summary data-focus="det-${esc(id)}">${summary}</summary>${body}</details>`;
@@ -281,7 +378,7 @@
         ${cand.tamper_scan ? `<p class="note">Static tamper scan: ${esc(cand.tamper_scan.summary)}.</p>` : ""}
         <p class="more"><a href="#patch" data-tab-link="patch">Open the patch</a></p>
       </div>
-      <div class="block"><h3>Can I accept it</h3>
+      <div class="block" data-guide="accept"><h3>Can I accept it</h3>
         <p><span class="seal ${vclass(b.verdict.verdict)}">${esc(b.verdict.verdict)}</span> ${gates.length ? `${pass} of ${gates.length} gates pass${fail ? `, ${fail} fail` : ""}${notRun ? `, ${notRun} not run` : ""}.` : "No gate was reached."}</p>
         ${(b.verdict.reasons || []).length ? `<ul class="plain">${b.verdict.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
         <h4>What to do</h4><ul class="plain">${(ex.decision.decide || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
@@ -357,9 +454,10 @@
       ${(d4.failing_ids || []).length ? `<ul class="plain">${d4.failing_ids.map((id) => `<li class="fail">${esc(short(id))}</li>`).join("")}</ul>` : ""}
       ${cx.filter((c) => c.exhibit === "E4").map((c) => `<h4>Counterexample: ${esc(c.name)}</h4>${counterBlock(c)}`).join("")}</section>`;
     const e5 = E.E5, d5 = e5.detail;
+    const driftItems = [...(d5.scope_narrowed || []).map((x) => "narrowed: " + x), ...(d5.scope_widened || []).map((x) => "widened: " + x), ...(d5.unsupported_claims || []).map((x) => "unsupported: " + x)];
     html += `<section class="exhibit" aria-labelledby="e5-h"><header><span class="exref">E5</span><h3 id="e5-h">${esc(e5.title)}</h3><span class="sum">${mark(e5.status)} ${esc(e5.summary)}</span></header>
       <p class="why">${esc(d5.summary || e5.why)}</p>
-      ${[...(d5.scope_narrowed || []).map((x) => "narrowed: " + x), ...(d5.scope_widened || []).map((x) => "widened: " + x), ...(d5.unsupported_claims || []).map((x) => "unsupported: " + x)].length ? `<ul class="plain">${[...(d5.scope_narrowed || []).map((x) => "narrowed: " + x), ...(d5.scope_widened || []).map((x) => "widened: " + x), ...(d5.unsupported_claims || []).map((x) => "unsupported: " + x)].map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</section>`;
+      ${driftItems.length ? `<ul class="plain">${driftItems.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</section>`;
     const e6 = E.E6, d6 = e6.detail;
     if (e6.shown) {
       html += `<section class="exhibit" aria-labelledby="e6-h"><header><span class="exref">E6</span><h3 id="e6-h">${esc(e6.title)}</h3><span class="sum">${d6.applied ? "apply mode" : "advisory, verdict unchanged"}</span></header>
@@ -414,10 +512,10 @@
     const id = encodeURIComponent(d.run.run_id);
     return `<div class="block"><h3>Proof Bundle</h3>
       <p>Everything below is in the downloadable zip. ${m.recorded ? `A manifest written at the end of the run lists the sha256 of every file; <span class="mono">attest check</span> recomputes them offline. The digests are an integrity check of the files, not a signature and not proof that the sandbox operations happened; that evidence is in the operation ids and the nonce-bound test records.` : `This run predates the artifact manifest, so the digests below were computed when this page loaded, not recorded with the run.`}</p>
-      <p><a class="btn" href="/api/runs/${id}/bundle.zip">Download everything (zip)</a></p>
+      <p><a class="btn primary" href="/api/runs/${id}/bundle.zip">Download everything (zip)</a></p>
       <ul class="files">${rest.map((f) => `<li><span class="n">${esc(f.path)}</span><span class="p">${esc(f.purpose || "")}</span><span class="s">${kb(f.bytes)}</span><span class="d">sha256 ${esc(f.sha256 || "")}</span></li>`).join("")}
       ${mutants.length ? `<li><span class="n">mutants (${mutants.length} files)</span><span class="p">Source of each mutant used in E2</span><span class="s">${kb(mutants.reduce((a, f) => a + (f.bytes || 0), 0))}</span></li>` : ""}</ul>
-      <h3 style="margin-top:22px">What this bundle proves, and what it does not</h3>
+      <h3 style="margin-top:24px">What this bundle proves, and what it does not</h3>
       <div class="proves"><div><h4>Proves</h4><ul class="plain">${pr.proves.map((x) => `<li>${esc(x)}</li>`).join("") || "<li>Nothing: no gate was reached.</li>"}</ul></div><div><h4>Does not prove</h4><ul class="plain">${pr.does_not_prove.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div></div>
       ${det("limitations", `Limitations recorded in the bundle (${(b.limitations || []).length})`, `<ul class="plain">${(b.limitations || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`)}</div>`;
   }
@@ -430,20 +528,22 @@
     const f = focusId();
     if (!b) {  // a run that errored before any bundle was written (queue full, budget, disk, interrupted)
       const reason = run.error || "no record was written";
-      main().innerHTML = decisionHeader("ERROR", "This run did not complete.", `${reason}. Nothing was certified and no Proof Bundle exists for this run.`,
+      main().innerHTML = caseBar(run) + decisionHeader("ERROR", "This run did not complete.", `${reason}. Nothing was certified and no Proof Bundle exists for this run.`,
         { ref: "E7", text: `Failed at stage ${run.stage || "unknown"}; not retried.` }, provenanceLine(run, d), actionsHtml(run, d))
         + tabsHtml({ patch: "No patch exists", tests: "No verification ran", files: "No bundle was written" })
         + `<div class="panel" role="tabpanel" id="panel" aria-labelledby="tab-${state.tab}" tabindex="0"></div>`;
       renderPanel();
       restoreFocus(f);
+      guideSet("error");
       return;
     }
     const dec = d.exhibits.decision;
-    main().innerHTML = decisionHeader(b.verdict.verdict, dec.statement, dec.explanation, dec.evidence, provenanceLine(run, d), actionsHtml(run, d))
+    main().innerHTML = caseBar(run) + decisionHeader(b.verdict.verdict, dec.statement, dec.explanation, dec.evidence, provenanceLine(run, d), actionsHtml(run, d))
       + tabsHtml({}) + `<div class="panel" role="tabpanel" id="panel" aria-labelledby="tab-${state.tab}" tabindex="0"></div>`;
     renderPanel();
     restoreFocus(f);
     onScroll();
+    guideSet(b.verdict.verdict === "ERROR" ? "error" : "finished");
   }
 
   function renderPanel() {
@@ -460,6 +560,7 @@
     } else {
       panel.innerHTML = (PANELS[state.tab] || overviewPanel)(d);
     }
+    positionTabInk();
     restoreFocus(f);
   }
 
@@ -502,12 +603,13 @@
     const f = focusId();
     const h = liveHeaderText(run, state.live.status, state.live.meters);
     const actions = `<button type="button" class="btn secondary" data-copy-link data-focus="act-link">Copy link to this run</button>`;
-    main().innerHTML = decisionHeader(h.seal, h.statement, h.explanation, h.evidence, provenanceLine(run, d), actions)
+    main().innerHTML = caseBar(run) + decisionHeader(h.seal, h.statement, h.explanation, h.evidence, provenanceLine(run, d), actions)
       + tabsHtml({ patch: "Available when the run finishes", tests: "Available when the run finishes", files: "Available when the run finishes" })
       + `<div class="panel" role="tabpanel" id="panel" aria-labelledby="tab-${state.tab}" tabindex="0"></div>`;
     if (!["overview", "activity"].includes(state.tab)) state.tab = "overview";
     renderPanel();
     restoreFocus(f);
+    guideSet(state.live.status);
   }
   function applyLiveUpdate(body) {
     const run = state.detail.run;
@@ -528,13 +630,14 @@
     const current = reachedIndex(null, state.live.events);
     $$("#stepper li").forEach((li, i) => { li.className = i < current ? "done" : i === current ? "current" : ""; });
     const m = state.live.meters || {};
-    const set = (sel, text) => { const el = $(sel); if (el && el.textContent !== text) el.textContent = text; };
+    const set = (sel, text) => { const el = $(sel); if (el && el.textContent !== text) { el.textContent = text; if (el.classList.contains("tick") || el.tagName !== "STRONG") return; el.classList.add("tick"); setTimeout(() => el.classList.remove("tick"), 600); } };
     set("#m-elapsed", dur(secsBetween(m.started_at || run.started_at, body.status === "running" ? new Date().toISOString() : m.finished_at || new Date().toISOString())) || "0 s");
     set("#m-calls", String(m.model_calls ?? 0)); set("#m-ops", String(m.sandbox_ops ?? 0)); set("#m-cost", usd(m.cost_committed_usd ?? 0));
     const h = liveHeaderText(run, body.status, m);
     set("[data-k=seal]", h.seal); set("[data-k=statement]", h.statement); set("[data-k=explain]", h.explanation); set("[data-k=evref]", h.evidence.ref); set("[data-k=evtext]", h.evidence.text);
-    const seal = $("[data-k=seal]"); if (seal) seal.className = `seal big ${vclass(h.seal)}`;
+    const seal = $("[data-k=seal]"); if (seal) { seal.className = `seal big ${vclass(h.seal)}`; const dec = $(".decision"); if (dec) dec.dataset.verdict = vclass(h.seal); }
     if (statusChanged && body.status === "running" && state.tab === "overview") { const f = focusId(); renderPanel(); restoreFocus(f); }
+    if (statusChanged || guide.ctx !== body.status) guideSet(body.status); else guideRefresh();
   }
   async function pollLive() {
     const id = state.runId; if (!id) return;
@@ -558,8 +661,9 @@
 
   function loadingView(run) {
     const seal = run ? (run.status === "finished" ? run.verdict || "ERROR" : run.status === "error" ? "ERROR" : run.status.toUpperCase()) : "LOADING";
-    return decisionHeader(seal, run ? run.task_title : "Loading the run", "Loading the Proof Bundle.", null, run ? provenanceLine(run, null) : "", "")
-      + tabsHtml({ overview: "Loading", patch: "Loading", tests: "Loading", activity: "Loading", files: "Loading" });
+    return caseBar(run) + decisionHeader(seal, run ? run.task_title : "Loading the run", "Loading the Proof Bundle.", null, run ? provenanceLine(run, null) : "", "")
+      + tabsHtml({ overview: "Loading", patch: "Loading", tests: "Loading", activity: "Loading", files: "Loading" })
+      + `<div class="panel"><div class="skeleton" style="width:40%"></div><div class="skeleton" style="width:72%"></div><div class="skeleton" style="width:58%"></div></div>`;
   }
 
   async function openRun(id, replace) {
@@ -570,16 +674,21 @@
     const m = location.hash.match(/^#(overview|patch|tests|activity|files)$/);
     state.tab = replace && m ? m[1] : "overview";  // deep links and history navigation keep their tab; a new selection starts at the overview
     setRoute(id, replace);
+    setView("console");
+    guide.ctx = null; guide.steps = []; renderGuide();
     const row = state.runs.find((r) => r.run_id === id);
+    document.title = `${row ? row.task_title + ": " : ""}Attest case file`;
     main().innerHTML = loadingView(row);
     renderHistory();
+    if (!replace) window.scrollTo({ top: 0 });
     let detail;
     try { detail = await api(`/api/runs/${encodeURIComponent(id)}`); } catch (e) {
-      main().innerHTML = `<div class="empty"><h2>This run could not be loaded.</h2><p>${esc(e.message)}</p></div>`; return;
+      main().innerHTML = caseBar(row) + `<div class="empty"><h2>This run could not be loaded.</h2><p>${esc(e.message)}</p><p><a href="/" data-home>Back to the home page</a></p></div>`; return;
     }
     if (state.runId !== id) return;
     state.detail = detail;
     const run = detail.run;
+    document.title = `${run.task_title}: Attest case file`;
     if (run.status === "queued" || run.status === "running") {
       state.live.status = run.status; state.live.events = detail.events || []; state.live.lastSeq = state.live.events.reduce((a, e) => Math.max(a, e.seq), 0);
       state.live.meters = { model_calls: run.model_calls, sandbox_ops: run.sandbox_ops, cost_committed_usd: run.cost_committed_usd, started_at: run.started_at };
@@ -590,7 +699,82 @@
     }
   }
 
-  function showEmpty() { stopLive(); state.runId = null; state.detail = null; setRoute(null, true); main().innerHTML = emptyView(); renderHistory(); }
+  // ------------------------------------------------------------------ guide: steps that follow the state of the run
+  function currentStageKey() {
+    const i = reachedIndex(null, state.live.events);
+    return i >= 0 ? STAGES[i][0] : null;
+  }
+  function guideSteps(ctx) {
+    const d = state.detail;
+    if (ctx === "finished" && d && d.bundle) {
+      const v = d.bundle.verdict.verdict;
+      const cx = (d.exhibits && d.exhibits.counterexamples) || [];
+      const steps = [
+        { title: "The decision", target: ".decision", block: "start", html: `<p><strong>The seal is the verdict</strong>${v === "VERIFIED" ? ", and VERIFIED means every gate passed in a fresh sandbox." : v === "NEEDS HUMAN" ? ", and NEEDS HUMAN means a gate failed or a generated test disagreed with the patch, so a person decides." : v === "NO CHANGE" ? ", and NO CHANGE means the implementer finished without editing a file." : v === "INFEASIBLE" ? ", and INFEASIBLE means the specification stage found the request contradictory or impossible as written." : "."}</p><p>The sentence beneath it says why, and the cited exhibit is the key evidence. None of this is a model's opinion: one recorded rule derives it from the gates in the bundle.</p>` },
+        { title: "Can I accept it", target: "[data-guide=accept]", tab: "overview", html: `<p>The Overview answers the reviewer's four questions in order: what was requested, what changed, can I accept it, what the evidence says.</p><p><strong>Weak spots are disclosed even on VERIFIED</strong>, for example mutants the sealed tests did not catch.</p>` },
+        { title: "The evidence, gate by gate", target: ".gates", tab: "tests", html: `<p>Every gate must pass for VERIFIED, and <strong>a skipped gate is never a pass</strong>. The evidence class says how each result was obtained: bound under the supervisor, parsed from a test runner, or a model judgement.</p><p>Below the table, exhibits E1 to E7 show each sealed test on the base and on the candidate, the mutants, the adversarial tests, the drift audit and the arbitration.</p>` },
+      ];
+      if (cx.length) steps.push({ title: "The counterexample", target: ".counter", tab: "tests", block: "center", html: `<p>A failing test is shown as a <strong>counterexample</strong>: the test, its outcome and, when captured, the compared values.</p><p>The arbiter's classification sits beside it: implementation bug, test defect or contract dispute. Arbitration is advisory, so the hold stands either way; the classification tells you where to look.</p>` });
+      steps.push({ title: "Take it with you", target: ".decision .actions", block: "start", html: `<p>Download the Proof Bundle and re-derive every digest, binding and the verdict offline:</p><p><code>python -m attest check proof-bundle.zip</code></p><p>The Files tab lists every artifact with its sha256 and states what the bundle proves and what it does not.</p>` });
+      return steps;
+    }
+    if (ctx === "error") return [
+      { title: "What happened", target: ".decision", block: "start", html: `<p>An <strong>ERROR</strong> verdict is a failure of the infrastructure or the provider, not a judgement of the patch. Nothing was certified.</p><p>Exhibit E7 records the component, the stage and the committed cost. Attest never replays an uncertain request, because a replay could create a second billed sandbox or completion.</p>` },
+      { title: "Start again", target: "[data-new-run]", block: "start", html: `<p>A new run of the same task starts from the workspace. The failed run stays in the history as a record.</p>` }];
+    if (ctx === "queued") return [
+      { title: "Queued", target: ".decision", block: "start", html: `<p>Attest runs <strong>one task at a time</strong> so that each run gets the full sandbox budget. This run starts when the current one finishes.</p><p>You can leave the page: the run keeps its place and appears in the history with its verdict.</p>` }];
+    if (ctx === "running") {
+      const k = currentStageKey() || "freeze";
+      const now = STAGE_NOW[k] || STAGE_NOW.freeze;
+      return [
+        { title: `Now: ${now[0]}`, target: "#stepper", block: "center", dynamic: true, html: `<p>${esc(now[1])}</p><p>The meters show the recorded ledger numbers for this run so far; the log appends one row per recorded event.</p>` },
+        { title: "What happens next", target: "details[data-id=stages-help]", block: "center", html: `<p>The remaining stages are listed under <strong>What each stage does</strong>. The verdict is written only when the last gate has been recorded.</p><p>You can leave the page: the run keeps its place and appears in the history with its verdict.</p>` }];
+    }
+    return [];
+  }
+  function guideSet(ctx) {
+    guide.ctx = ctx; guide.steps = guideSteps(ctx); guide.i = 0;
+    renderGuide();
+  }
+  function guideRefresh() {
+    if (guide.ctx !== "running" || guide.i !== 0) return;
+    const steps = guideSteps("running");
+    if (steps[0] && steps[0].title !== guide.steps[0].title) { guide.steps = steps; renderGuide(); }
+  }
+  function renderGuide() {
+    const g = $("#guide"), launch = $("#guide-launch");
+    const on = state.view === "console" && guide.steps.length > 0;
+    if (!on) { g.hidden = true; launch.hidden = true; clearSpot(); return; }
+    // dismissed for this browser, or not yet asked for on a small screen where the panel would cover the case file
+    const pref = prefs.get("attest.guide");
+    const dismissed = pref === "off" || (pref !== "on" && window.innerWidth <= 900);
+    launch.hidden = !dismissed; g.hidden = dismissed;
+    if (dismissed) { clearSpot(); return; }
+    const s = guide.steps[guide.i];
+    $("#guide-title").textContent = s.title;
+    $("#guide-count").textContent = `${guide.i + 1} of ${guide.steps.length}`;
+    $("#guide-body").innerHTML = s.html;
+    $("#guide-next").textContent = guide.i + 1 < guide.steps.length ? "Next" : "Done";
+    $("#guide-show").hidden = !s.target;
+  }
+  function clearSpot() { if (state.spot) { state.spot.classList.remove("spot"); state.spot = null; } }
+  function spot(sel, block) {
+    clearSpot();
+    const el = $(sel); if (!el) return;
+    el.classList.add("spot"); state.spot = el;
+    scrollTo(el, block || "center");
+  }
+  function guideShow() {
+    const s = guide.steps[guide.i]; if (!s) return;
+    if (s.tab && s.tab !== state.tab) { state.tab = s.tab; setRoute(state.runId, true); renderPanel(); }
+    requestAnimationFrame(() => spot(s.target, s.block));
+  }
+  function guideNext() {
+    if (guide.i + 1 < guide.steps.length) { guide.i++; renderGuide(); guideShow(); }
+    else { prefs.set("attest.guide", "off"); renderGuide(); }
+  }
+  function guideOpen() { prefs.set("attest.guide", "on"); guide.i = 0; renderGuide(); guideShow(); }
+  function guideClose() { prefs.set("attest.guide", "off"); renderGuide(); }
 
   // ------------------------------------------------------------------ actions
   async function startRun() {
@@ -629,18 +813,25 @@
     catch (e) { btn.textContent = location.href; }
   }
   function onScroll() { const h = $(".decision"); if (h) h.classList.toggle("compact", window.scrollY > 160 && window.innerWidth > 900); }
+  function goToSection(id, focus) {
+    if (state.view === "home") { setRoute(null, false, "#" + id); const el = $("#" + id); scrollTo(el, "start"); if (focus) { const f = $(focus); if (f) setTimeout(() => f.focus({ preventScroll: true }), REDUCED ? 0 : 500); } }
+    else showHome({ hash: "#" + id, focus });
+  }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-run],[data-tab],[data-tab-link],[data-filter],[data-copy-patch],[data-copy-link],[data-new-run],[data-home]");
+    const t = e.target.closest("[data-run],[data-tab],[data-tab-link],[data-filter],[data-copy-patch],[data-copy-link],[data-new-run],[data-home],[data-section],[data-start],[data-guide-open]");
     if (!t) return;
     if (t.dataset.run) { openRun(t.dataset.run, false); }
     else if (t.dataset.tab) { if (t.disabled) return; state.tab = t.dataset.tab; setRoute(state.runId, true); renderPanel(); }
     else if (t.dataset.tabLink) { e.preventDefault(); state.tab = t.dataset.tabLink; setRoute(state.runId, true); renderPanel(); $(`#tab-${state.tab}`)?.focus(); }
-    else if (t.dataset.filter) { state.filter = t.dataset.filter; renderFilters(); renderHistory(); $(`[data-focus="filter-${state.filter}"]`)?.focus(); }
+    else if (t.dataset.filter) { state.filter = t.dataset.filter; renderFilters(); renderHistory(); if (state.view === "home") renderHome(); const prefix = t.closest("#home-filters") ? "hfilter-" : "filter-"; $(`[data-focus="${prefix}${state.filter}"]`)?.focus(); }
     else if (t.dataset.copyPatch) copyPatch(t, t.dataset.copyPatch);
     else if (t.hasAttribute("data-copy-link")) copyLink(t);
     else if (t.dataset.newRun !== undefined) { state.mode = "live"; $("input[name=mode][value=live]").checked = true; if (state.tasks.some((x) => x.task_id === t.dataset.newRun)) { state.task = t.dataset.newRun; $("#task").value = state.task; } renderEstimate(); $("#rail-details").open = true; $("#go").focus(); }
-    else if (t.hasAttribute("data-home")) { e.preventDefault(); showEmpty(); }
+    else if (t.hasAttribute("data-home")) { e.preventDefault(); showHome({}); }
+    else if (t.dataset.section) { e.preventDefault(); goToSection(t.dataset.section); }
+    else if (t.hasAttribute("data-start")) { e.preventDefault(); goToSection("start", "#task"); }
+    else if (t.hasAttribute("data-guide-open")) guideOpen();
   });
   document.addEventListener("change", (e) => {
     if (e.target.name === "mode") { state.mode = e.target.value; renderEstimate(); }
@@ -662,24 +853,50 @@
     }
     const h = e.target.closest("#history button");
     if (h && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); const all = $$("#history button"); const i = all.indexOf(h); all[e.key === "ArrowDown" ? Math.min(i + 1, all.length - 1) : Math.max(i - 1, 0)].focus(); }
+    if (e.key === "Escape" && !$("#guide").hidden) guideClose();
   });
   $("#go").addEventListener("click", startRun);
   $("#signin-go").addEventListener("click", signIn);
   $("#admin").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); signIn(); } });
+  $("#guide-close").addEventListener("click", guideClose);
+  $("#guide-next").addEventListener("click", guideNext);
+  $("#guide-show").addEventListener("click", guideShow);
+  $("#guide-launch").addEventListener("click", guideOpen);
   window.addEventListener("scroll", onScroll, { passive: true });
-  window.addEventListener("hashchange", () => { const m = location.hash.match(/^#(overview|patch|tests|activity|files)$/); if (m && m[1] !== state.tab) { state.tab = m[1]; renderPanel(); } });
-  window.addEventListener("popstate", () => { const m = location.pathname.match(/^\/runs\/(.+)$/); if (m) openRun(decodeURIComponent(m[1]), true); else showEmpty(); });
+  window.addEventListener("resize", () => { railAuto(); positionTabInk(); });
+  window.addEventListener("hashchange", () => {
+    if (state.view !== "console") return;
+    const m = location.hash.match(/^#(overview|patch|tests|activity|files)$/); if (m && m[1] !== state.tab) { state.tab = m[1]; renderPanel(); }
+  });
+  window.addEventListener("popstate", () => {
+    const m = location.pathname.match(/^\/runs\/(.+)$/);
+    if (m) openRun(decodeURIComponent(m[1]), true); else showHome({ popstate: true, hash: location.hash });
+  });
   function railAuto() { const d = $("#rail-details"); if (!d) return; const narrow = window.innerWidth <= 900; if (narrow && !state.railTouched) d.open = false; if (!narrow) d.open = true; }
   $("#rail-details").addEventListener("toggle", () => { state.railTouched = true; });
-  window.addEventListener("resize", railAuto);
+
+  // the pipeline chain and the phases animate once they scroll into view; the section links light up as you read
+  if ("IntersectionObserver" in window) {
+    const how = $("#how");
+    const io = new IntersectionObserver((entries) => entries.forEach((en) => { if (en.isIntersecting) { how.classList.add("in"); io.disconnect(); } }), { threshold: 0.2 });
+    if (how) io.observe(how);
+    const links = $$("#nav-links a");
+    const sections = links.map((a) => $("#" + a.dataset.section)).filter(Boolean);
+    const nav = new IntersectionObserver((entries) => {
+      entries.forEach((en) => { if (en.isIntersecting && state.view === "home") links.forEach((a) => a.classList.toggle("active", a.dataset.section === en.target.id)); });
+    }, { rootMargin: "-40% 0px -55% 0px" });
+    sections.forEach((s) => nav.observe(s));
+  } else { $("#how")?.classList.add("in"); }
 
   // ------------------------------------------------------------------ boot
   renderFilters();
   railAuto();
+  const first = location.pathname.match(/^\/runs\/(.+)$/);
+  if (first) setView("console"); else { setView("home"); state.revealed = true; requestAnimationFrame(() => $("#home").classList.add("reveal")); }
   (async () => {
     await Promise.all([loadHealth(), loadProfiles(null), loadTasks(), loadRuns()]);
-    const m = location.pathname.match(/^\/runs\/(.+)$/);
-    if (m) openRun(decodeURIComponent(m[1]), true); else main().innerHTML = emptyView();
+    if (first) openRun(decodeURIComponent(first[1]), true);
+    else { renderHome(); const target = /^#[a-z-]+$/.test(location.hash) ? $(location.hash) : null; if (target) scrollTo(target, "start"); }
   })();
   setInterval(loadHealth, 10000);
   setInterval(loadRuns, 15000);
