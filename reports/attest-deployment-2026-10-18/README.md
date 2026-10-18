@@ -137,14 +137,44 @@ against the ETag because of the `no-cache` header). Server sha256
 re-rendered site reports a document width equal to the viewport at 390 px and at 1440 px, with no errors
 (`screens/public-home-c-390.png`). The bundle digest `832d8778…` describes the tree before this one-file replacement.
 
+## Fourth deployment of the day, 15:03 UTC: the providers' marks at full size and the page-wide review
+
+After the third deployment the owner asked for a larger Nebius logo, for the NVIDIA logo as well, and for a review and
+optimisation of the whole interface, and sent a crop of the run lists showing each run's metadata in a green-bordered
+pill (a class collision between the breaker figure's mutant tiles and the metadata spans). The fourth pass is
+described in `attest-console.md` ("Console redesign, second pass", fourth round) and verified in
+`reports/attest-ui-2026-10-18/README.md` (fourth round). Static files only, plus `attest/app/static/brand/nvidia-logo.svg`;
+no Python file changed, so the package digest is unchanged. No Nebius call was made.
+
+| Time | Step | Result |
+| --- | --- | --- |
+| 14:57 | export (every bundle verified, no scan hits, 233 redacted files), `build_bundle.sh` from `dist/public` | `app.tar.gz` 6.0 MB, sha256 `f2b22aadbc4a34d9393786176b7c4e2c281150f0e02a6d3eb2e960d1f9984036`, 2,849 entries, the brand folder with the three logo files, no screenshots, snapshots, secret-like paths or AppleDouble entries |
+| 15:02 | upload with `install.sh`, `snapshot.sh`, `rollback.sh`, the unit and the vhost; pre-checks | digest matches; staged `attest.env` identical to `/etc/attest/attest.env`; health ok, worker alive, current none, queue 0; 39 run rows, none queued or running; service 52.9 MB resident |
+| 15:03:26 | store backup through the SQLite backup API, with the service's Python 3.12 (`/opt/attest/venv`; the host's system `python3` is too old for `Connection.backup`) | `attest.db.bak-20261018d-full`, 81,920 bytes, 39 runs and 109 events |
+| 15:03:27 | `snapshot.sh before-20261018d` | `before-20261018d-20261018T150327Z.txt` |
+| 15:03:40 | `MEMORY_MAX=200M bash install.sh` | pinned dependencies already satisfied; service restarted; nginx configuration test OK (the usual deprecation warnings of other vhosts); previous tree kept as `/opt/attest/app.prev`. GNU tar reported and ignored `LIBARCHIVE.xattr.com.apple.provenance` headers: macOS extended attributes stored in the archive, no effect on any file (AppleDouble files are still excluded, see below) |
+| 15:03:47 | `GET /api/health` (`health-after-20261018d.json`) | ok, version 0.3.0, worker alive, queue 0, nothing reconciled or deduplicated at startup, 1,330 MB free (9.6%), budget: $0 committed, remaining $2.00 |
+| 15:03:47 | `snapshot.sh after-20261018d` | `after-20261018d-20261018T150347Z.txt`; diff against before: the timestamp, memory, swap, the root file system's free space (1.4 to 1.3 GB, the previous tree kept beside the new one) and load lines only; services, listeners, containers, nginx configuration and the other sites' health codes identical |
+
+| Check after the install | Result |
+| --- | --- |
+| `find /opt/attest/app -name '._*' \| wc -l` | 0 |
+| `attest_revision()` on the server | `166cdcbd46a74cd0…` over 35 files, unchanged |
+| Served static files, sha256 (identical to the working tree and the export) | `styles.css` `f3cc1790…` (43,681 bytes), `index.html` `d97d93c4…` (35,251), `app.js` `cadcf53f…` (83,972), `brand/nvidia-logo.svg` `933bee6a…` (3,133) |
+| `/static/styles.css?v=20261018d`, `/static/app.js?v=20261018d`, `/static/brand/nvidia-logo.svg?v=20261018d`, `/static/brand/nebius-logo.svg?v=20261018d` | 200; ETag and `Cache-Control: no-cache` on the assets; `Cache-Control: no-cache` on the page |
+| `/api/runs?limit=200` | 39 rows; service active, 45.7 MB resident |
+| Fresh headless Chrome, 1440 px (`public-render-d-record.json`) | the `20261018d` assets load; Inter, Newsreader and Space Mono active; the Nebius logo decodes at 131 by 36 and renders 46 px tall, the NVIDIA logo at 210 by 40 and 40 px; hero line "39 recorded runs, 8 VERIFIED, 11 NEEDS HUMAN, 20 other verdicts"; per-task table 6 rows, latest list 5 rows with borderless metadata; the verified case file renders within its content box; the history rail lists 39 rows, borderless; no page or console errors (`screens/public-home-d-1440.png`, `public-built-d-1440.png`, `public-latest-d-1440.png`) |
+| Fresh headless Chrome, 390 px | one-row navigation; the logos 38 px and 33 px tall; per-task rows as cards; no element outside a scroll container past the viewport; no errors (`screens/public-home-d-390.png`, `public-evidence-d-390.png`, `public-case-d-390.png`) |
+
 ## Rollback
 
-`/opt/attest/app.prev` is the 09:29 build of today (pinned code, the second-pass console with the cache fix); the earlier
-builds are no longer staged on the host. Restore with
+`/opt/attest/app.prev` is the 10:01 build of today with the 10:05 stylesheet correction (pinned code, the third-pass
+console); the earlier builds are no longer staged on the host. Restore with
 `mv /opt/attest/app /opt/attest/app.failed && mv /opt/attest/app.prev /opt/attest/app && systemctl restart attest.service`,
 or stop the service and remove only its vhost with `rollback.sh`. Not exercised today.
 
 ## Files
 
-`before-20261018a-20261018T083410Z.txt`, `after-20261018a-20261018T083514Z.txt` (host snapshots), `health-after-20261018a.json`,
-`screens/` (production captures; excluded from the public export like every screenshot).
+`before-20261018{a,b,c,d}-*.txt`, `after-20261018{a,b,c,d}-*.txt` (host snapshots), `health-after-20261018{a,b,c,d}.json`,
+`public-render-d-record.json` (the fourth deployment's browser measurements), `screens/` (production captures; excluded
+from the public export like every screenshot).

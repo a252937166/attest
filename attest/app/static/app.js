@@ -211,18 +211,19 @@
     const v = rowVerdict(r);
     return state.filter === "ERROR" ? v === "ERROR" : v === state.filter;
   }
-  function rowMeta(r) {
+  // provenance, time, cost and duration of a run as separate cells; the dot marks a live run
+  function metaHtml(r) {
     const s = r.summary || {};
     const prov = s.provenance || "imported";
-    const stage = r.status === "running" || r.status === "queued" ? (r.stage && r.stage !== r.status ? `, stage ${r.stage}` : "") : "";
-    return { prov, text: `${prov === "synthetic" ? "synthetic fixture" : prov === "live" ? "live" : "recorded"}, ${when(r.created_at)}${s.cost_committed_usd != null || s.cost_usd != null ? ", " + usd(s.cost_committed_usd ?? s.cost_usd) : ""}${s.duration_s != null ? ", " + dur(s.duration_s) : ""}${stage}` };
+    const label = prov === "synthetic" ? "synthetic fixture" : prov === "live" ? "live" : "recorded";
+    const stage = r.status === "running" || r.status === "queued" ? (r.stage && r.stage !== r.status ? `stage ${r.stage}` : "") : "";
+    const cost = s.cost_committed_usd != null || s.cost_usd != null ? usd(s.cost_committed_usd ?? s.cost_usd) : "";
+    return `<span class="meta"><span class="prov"><span class="dot ${prov === "synthetic" ? "synthetic" : prov === "live" ? "live" : ""}"></span>${label}</span><span>${esc(when(r.created_at))}</span>${cost ? `<span class="num">${esc(cost)}</span>` : ""}${s.duration_s != null ? `<span class="num">${esc(dur(s.duration_s))}</span>` : ""}${stage ? `<span>${esc(stage)}</span>` : ""}</span>`;
   }
   function historyRowHtml(r) {
     const v = rowVerdict(r);
-    const m = rowMeta(r);
     return `<button type="button" data-run="${esc(r.run_id)}" data-focus="hist-${esc(r.run_id)}" aria-current="${state.runId === r.run_id}">
-      <span class="t">${esc(r.task_title)}</span><span class="seal ${vclass(v)}">${esc(v)}</span>
-      <span class="m"><span class="dot ${m.prov === "synthetic" ? "synthetic" : m.prov === "live" ? "live" : ""}"></span>${esc(m.text)}</span></button>`;
+      <span class="t">${esc(r.task_title)}</span><span class="seal ${vclass(v)}">${esc(v)}</span>${metaHtml(r)}</button>`;
   }
   function renderFilters() {
     $("#filters").innerHTML = FILTERS.map(([k, l]) => `<button type="button" data-filter="${k}" data-focus="filter-${k}" aria-pressed="${state.filter === k}">${l}</button>`).join("");
@@ -267,10 +268,8 @@
   }
   function latestRowHtml(r) {
     const v = rowVerdict(r);
-    const m = rowMeta(r);
     return `<li><button type="button" class="ev" data-run="${esc(r.run_id)}" data-focus="ev-${esc(r.run_id)}">
-      <span class="seal ${vclass(v)}">${esc(v)}</span><span class="t">${esc(r.task_title)}</span>
-      <span class="m"><span class="dot ${m.prov === "synthetic" ? "synthetic" : m.prov === "live" ? "live" : ""}"></span>${esc(m.text)}</span></button></li>`;
+      <span class="seal ${vclass(v)}">${esc(v)}</span><span class="t">${esc(r.task_title)}</span>${metaHtml(r)}</button></li>`;
   }
   function taskRowsHtml(done) {
     const byTask = new Map();
@@ -282,9 +281,9 @@
     });
     return [...byTask.values()].map((t) => {
       const lv = rowVerdict(t.latest);
-      return `<tr><td class="t">${esc(t.title)}</td><td class="n">${t.runs}</td><td class="n ok">${t.verified}</td><td class="n holdc">${t.needs}</td><td class="n">${t.other}</td>
-        <td><span class="seal ${vclass(lv)}">${esc(lv)}</span><span class="when">${esc(when(t.latest.created_at))}</span></td>
-        <td><button type="button" class="btn sm" data-run="${esc(t.latest.run_id)}" data-focus="task-${esc(t.latest.task_id)}">Open latest</button></td></tr>`;
+      return `<tr><td class="t">${esc(t.title)}</td><td class="n" data-l="Runs">${t.runs}</td><td class="n ok" data-l="Verified">${t.verified}</td><td class="n holdc" data-l="Needs human">${t.needs}</td><td class="n" data-l="Other">${t.other}</td>
+        <td class="latest"><span class="seal ${vclass(lv)}">${esc(lv)}</span><span class="when">${esc(when(t.latest.created_at))}</span></td>
+        <td class="open"><button type="button" class="btn sm" data-run="${esc(t.latest.run_id)}" data-focus="task-${esc(t.latest.task_id)}">Open latest</button></td></tr>`;
     }).join("");
   }
   function renderHome() {
@@ -296,8 +295,9 @@
     const busy = !!(h && (h.current || h.queue > 0));
     const ticker = $("#ticker");
     const num = (n, cls) => `<strong class="${cls || ""}" data-n="${n}">${n}</strong>`;
+    const stat = (inner) => `<span class="stat">${inner}</span>`;
     const tickerHtml = runs.length
-      ? `<span class="dot ${busy ? "live" : "idle"}"></span><span>${num(done.length)} recorded run${done.length === 1 ? "" : "s"} on this console</span><span class="sep"></span><span>${num(count("VERIFIED"), "ok")} VERIFIED</span><span class="sep"></span><span>${num(count("NEEDS HUMAN"), "holdc")} NEEDS HUMAN</span><span class="sep"></span><span>${num(other)} other verdict${other === 1 ? "" : "s"}</span>${busy ? `<span class="sep"></span><span>a live run is in progress</span>` : ""}`
+      ? `<span class="dot ${busy ? "live" : "idle"}"></span>${stat(`${num(done.length)} recorded run${done.length === 1 ? "" : "s"}`)}<span class="sep"></span>${stat(`${num(count("VERIFIED"), "ok")} VERIFIED`)}<span class="sep"></span>${stat(`${num(count("NEEDS HUMAN"), "holdc")} NEEDS HUMAN`)}<span class="sep"></span>${stat(`${num(other)} other verdict${other === 1 ? "" : "s"}`)}${busy ? `<span class="sep"></span>${stat("a live run is in progress")}` : ""}`
       : `<span class="dot idle"></span><span>${h ? "No recorded runs yet." : "Service unreachable: the recorded evidence cannot be listed."}</span>`;
     if (ticker.dataset.sig !== tickerHtml) {
       ticker.innerHTML = tickerHtml; ticker.dataset.sig = tickerHtml;

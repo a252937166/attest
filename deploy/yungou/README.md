@@ -21,6 +21,10 @@ on every response, so browsers revalidate against the ETag; the version query ad
 that header existed. A browser holding the previous build's assets otherwise renders the new markup with the old
 stylesheet and script (seen on 18 Oct 2026, `reports/attest-deployment-2026-10-18/README.md`).
 
+macOS `tar` also stores extended attributes as `LIBARCHIVE.xattr.com.apple.provenance` headers; GNU tar on the host
+prints "Ignoring unknown extended header keyword" for each and extracts the files unchanged (seen on the 18 Oct 15:03 UTC
+deployment). Harmless; `COPYFILE_DISABLE=1` in `build_bundle.sh` is what keeps AppleDouble `._*` files out.
+
 ## 17 Oct 2026 procedure (reliability round, M3 console, M4 import)
 
 1. Local: `python3 scripts/export_public.py --out dist/public --force` (allowlisted copy, gateway host and key shapes

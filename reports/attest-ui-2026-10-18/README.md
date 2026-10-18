@@ -100,11 +100,57 @@ same `capture.py` with its selectors updated to the new page):
   before; 145 offline tests; no gateway name in the static files or the brand folder. Deployed 10:00 UTC with one
   in-place stylesheet correction for a phone-width overflow (`reports/attest-deployment-2026-10-18/README.md`).
 
+## Fourth round: the providers' marks at full size, and a review of the whole page (10:30 to 15:10 UTC)
+
+The owner asked for a larger Nebius logo, for the NVIDIA logo as well, and for a review and optimisation of the whole
+interface, and sent a crop of the run lists in which the metadata of each run sat in a green-bordered pill. The live
+site was captured at 1440 px and 390 px (every section, the case file and its tabs) and reviewed screen by screen.
+Defects found, with their causes:
+
+- **The pills in the owner's screenshot.** The mutant tiles of the breaker figure were styled with the bare class `.m`,
+  which the metadata spans of the latest-runs list and the history rail also used, so every run row carried the tiles'
+  green border, tinted background and fixed height, and the one-line metadata was clipped at the right edge. The tiles
+  are now `.mt`; the metadata is a row of cells (provenance with its dot, time, cost, duration) that wraps instead of
+  clipping.
+- **The live dot's halo.** The pulse was a growing box shadow and read as a dark disc around the dot; it is now a thin
+  ring that expands and fades.
+- **Architecture diagram.** The text of the pipeline box and of the Proof Bundle box ran past their borders; the boxes
+  were widened and one line shortened. On screens up to 900 px the SVG was unreadable (1200 px of drawing scaled to a
+  phone), so a stacked list of the same six boxes replaces it there.
+- **Terminal and command boxes.** The verbatim `attest check` lines and the `python -m attest check` command hid their
+  ends behind horizontal scrollbars; both wrap now, the terminal with a hanging indent so that continuations align
+  under the message.
+- **Tables on phones.** The per-task table (seven columns) and the frozen-evaluation table could not be read at 390 px;
+  the per-task rows become cards under 640 px (labelled counts, the latest verdict with its time, the button), and the
+  evaluation table lets its headers wrap and keeps a minimum width for the first column.
+- **Phone navigation.** The bar took three rows (brand, service chip, full-width button); it is one row with the brand
+  and the button, and the service state stays visible in the hero line and the start band.
+- **Hero line.** The totals wrapped mid-item; each total is now an unbreakable unit.
+
+What was added: a providers' strip under the hero and above the start band, "Built with" followed by the official
+Nebius lockup at 46 px (38 px on phones) and the NVIDIA logo at 40 px (33 px), each linked to its product page, with
+the role of each provider and the independence line next to them; the same two marks in the footer at 34 px and 30 px.
+The NVIDIA file `attest/app/static/brand/nvidia-logo.svg` carries the geometry of the horizontal logo served on NVIDIA's
+own brand page (`nvidia-logo-horz.svg`, fetched 18 Oct 2026) unchanged, with the wordmark set to white, the colourway the
+brand page itself shows on black; the file comments record this. The owner decided to show the mark after the
+constraint was stated twice (the brand page says the assets may not be used without NVIDIA's written authorization
+and lists sponsorship and co-branding as approved uses); the page says that Attest is an independent entry, not a
+Nebius or NVIDIA product, and that the marks belong to their owners and credit the platform and the models.
+
+Verification: the harness (`capture.py --quick`, selectors unchanged) on the final files: 24 screens, no page or console
+errors, the guide, keyboard, view-switch and compact-header checks as before; the offline suite, 145 tests; no gateway
+name in the static files or the brand folder. In addition the patched files were rendered over the live API before
+deployment (Playwright routes `/`, `/runs/*` and `/static/*` to the working tree, everything else to the server) at
+1440 px and 390 px: no element outside a scroll container extends past the viewport at either width; both logos
+decode at their natural sizes; the metadata spans have no border; the 39 history rows render. After the deployment the
+public site was rendered the same way without routes (`reports/attest-deployment-2026-10-18/README.md`, fourth
+deployment).
+
 ## Not verified, stated plainly
 
 - No outside developer or judge has used the page; the guide's wording is the author's.
 - The light colour scheme of M3 no longer exists; the page declares `color-scheme: dark`.
-- Offline, Instrument Serif falls back to the declared system serif; the captures had network access to the font service.
+- Offline, Inter, Newsreader and Space Mono fall back to the declared system faces; the captures had network access to the font service.
 - The demo run of 17 Oct (`durationkit-units-001-20261017T172421506287Z`) lives in the server's data directory and is not
   among the local fixtures, so the hold shown here is the rle-encode hold of 15 Oct.
 

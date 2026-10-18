@@ -155,6 +155,18 @@ columns, four figures show the sealed-before-code timeline, the supervisor, the 
 recorded facts and named sources, an architecture diagram and a bundle anatomy with verbatim `attest check` lines follow,
 and the evidence section is a per-task summary with the five latest runs (the full history stays in the rail).
 
+Fourth round, same day, after the owner asked for a larger Nebius logo, the NVIDIA logo as well, and a review of the
+whole interface: a providers' strip under the hero ("Built with", the official Nebius lockup at 46 px and the NVIDIA
+logo at 40 px, each linked, with the providers' roles and the independence line) and both marks in the footer. The
+NVIDIA file carries the geometry of the horizontal logo served on NVIDIA's brand page, unchanged, with the wordmark in
+white as that page shows it on black; the owner decided to show the mark after the written-authorization constraint
+was stated, and the page says the marks belong to their owners and that Attest is not a Nebius or NVIDIA product. The
+review of the live page fixed a class collision between the breaker's mutant tiles and the run lists' metadata (every
+run row had carried a green pill with clipped text), the live dot's halo, overflowing text in two architecture boxes,
+terminal and command boxes that hid their ends behind scrollbars, two tables unreadable on phones (per-task rows are
+cards under 640 px), a three-row phone navigation and totals wrapping mid-item; on screens up to 900 px a stacked list
+replaces the architecture SVG. Asset stamp `20261018d`.
+
 **Caching rule.** `index.html` references `styles.css?v=<stamp>` and `app.js?v=<stamp>`; bump the stamp whenever a static
 file changes, and the vhost sends `Cache-Control: no-cache` so browsers revalidate against the ETag. On 18 Oct 2026 a
 browser that had cached the previous build's assets rendered the new markup with the old stylesheet and script.
