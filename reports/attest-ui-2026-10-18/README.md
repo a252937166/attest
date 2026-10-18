@@ -72,6 +72,34 @@ Re-captured with `capture.py --quick`: 24 screens, no page or console errors, ev
 offline suite still passes (145 tests) and the static files still name no gateway. The live site was then rendered in
 fresh desktop and phone browsers (see the deployment report).
 
+## Third round: a design of Attest's own, under the Nebius umbrella (09:45 to 10:10 UTC)
+
+The owner asked for a layout and design of the project's own rather than an echo of their reference site, the Nebius
+and stakeholder marks with a visual language and typography close to the Nebius platform, many more figures
+illustrating the technical design, and a shorter evidence section. What changed (`attest/app/static/`, verified by the
+same `capture.py` with its selectors updated to the new page):
+
+- **Brand research, recorded.** `nebius.com` sets its pages in Inter (interface), Tiempos Text (headlines, a
+  commercial Klim face) and Space Mono (code); its brand colour is the canary `#E0FF4F` (`--g-color-base-brand`), and its
+  logo is served at `https://nebius.com/logo.svg` (canary tile, Blue Whale `#052B42` wordmark). The console therefore uses
+  Inter, Space Mono and Newsreader (a free editorial serif in the Tiempos role), the canary as the single brand accent on
+  a blue-black canvas, and the official logo file copied unchanged into `attest/app/static/brand/`. NVIDIA is credited
+  in text only: its brand page states that the logo may not be used without written authorization and must not imply
+  affiliation. The page says in two places that Attest is an independent entry, not a Nebius or NVIDIA product.
+- **Layout of its own.** A single-row bar; a hero whose visual is a replay of a real Proof Bundle assembling (the
+  VERIFIED slugkit cell of the frozen batch: 23 sealed tests, 12 red on the base, 8 adversarial tests, drift 0.0, 13 model
+  calls, 8 sandbox operations, $0.031, 1 min 56 s, 24 of 24 offline checks); a full-width start band holding the shared
+  workspace form as three columns; four capability figures (the sealed-before-code timeline, the supervisor with its
+  per-test unprivileged children and binding checks, the breaker with the recorded 12 mutants of the 15 Oct judge run and
+  the recorded adversarial test names of the slugkit run, and the verdict rule as a table that mirrors `verdict.py`); an
+  architecture diagram of the host pipeline, Token Factory with the three Nemotron roles, the Sandboxes with the
+  checkpoint and its branch names, and the bundle; the bundle anatomy with eleven verbatim lines of the recorded
+  `attest check` output; three usage steps in a row; and the evidence section as a per-task summary table plus the five
+  latest runs, with the full history left to the console rail.
+- **Captures.** 24 screens at 1440 px and 390 px, no page or console errors; guide, keyboard and view-switch checks as
+  before; 145 offline tests; no gateway name in the static files or the brand folder. Deployed 10:00 UTC with one
+  in-place stylesheet correction for a phone-width overflow (`reports/attest-deployment-2026-10-18/README.md`).
+
 ## Not verified, stated plainly
 
 - No outside developer or judge has used the page; the guide's wording is the author's.

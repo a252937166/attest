@@ -146,6 +146,15 @@ Reduced motion now stops the looping and travelling effects and makes one-shot e
 every animation. The SVG that defines the mark's gradient is visually hidden with zero size, not `display:none`, because
 Chrome does not resolve paint servers from hidden SVGs (the mark had rendered as a bare caret).
 
+Third round, same day, after the owner asked for a design of Attest's own under the Nebius umbrella: Inter, Space Mono
+and Newsreader (the faces of nebius.com, with a free serif in the Tiempos role), the Nebius canary `#E0FF4F` as the single
+brand accent, the official Nebius logo file in `attest/app/static/brand/` with an "independent entry, not a Nebius
+product" line, NVIDIA credited in text only (its brand rules require written authorization). The hero replays a real
+Proof Bundle assembling (the VERIFIED slugkit cell of the frozen batch), the start band holds the workspace form as three
+columns, four figures show the sealed-before-code timeline, the supervisor, the breaker and the verdict rule with
+recorded facts and named sources, an architecture diagram and a bundle anatomy with verbatim `attest check` lines follow,
+and the evidence section is a per-task summary with the five latest runs (the full history stays in the rail).
+
 **Caching rule.** `index.html` references `styles.css?v=<stamp>` and `app.js?v=<stamp>`; bump the stamp whenever a static
 file changes, and the vhost sends `Cache-Control: no-cache` so browsers revalidate against the ETag. On 18 Oct 2026 a
 browser that had cached the previous build's assets rendered the new markup with the old stylesheet and script.

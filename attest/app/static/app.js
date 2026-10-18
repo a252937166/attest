@@ -225,9 +225,7 @@
       <span class="m"><span class="dot ${m.prov === "synthetic" ? "synthetic" : m.prov === "live" ? "live" : ""}"></span>${esc(m.text)}</span></button>`;
   }
   function renderFilters() {
-    const html = FILTERS.map(([k, l]) => `<button type="button" data-filter="${k}" data-focus="filter-${k}" aria-pressed="${state.filter === k}">${l}</button>`).join("");
-    $("#filters").innerHTML = html;
-    $("#home-filters").innerHTML = html.replace(/data-focus="filter-/g, 'data-focus="hfilter-');
+    $("#filters").innerHTML = FILTERS.map(([k, l]) => `<button type="button" data-filter="${k}" data-focus="filter-${k}" aria-pressed="${state.filter === k}">${l}</button>`).join("");
   }
   function renderHistory() {
     const list = $("#history");
@@ -267,13 +265,27 @@
     };
     requestAnimationFrame(step);
   }
-  function evidenceRowHtml(r) {
+  function latestRowHtml(r) {
     const v = rowVerdict(r);
     const m = rowMeta(r);
     return `<li><button type="button" class="ev" data-run="${esc(r.run_id)}" data-focus="ev-${esc(r.run_id)}">
       <span class="seal ${vclass(v)}">${esc(v)}</span><span class="t">${esc(r.task_title)}</span>
-      <span class="m"><span class="dot ${m.prov === "synthetic" ? "synthetic" : m.prov === "live" ? "live" : ""}"></span>${esc(m.text)}</span>
-      <span class="go">Open the case file</span></button></li>`;
+      <span class="m"><span class="dot ${m.prov === "synthetic" ? "synthetic" : m.prov === "live" ? "live" : ""}"></span>${esc(m.text)}</span></button></li>`;
+  }
+  function taskRowsHtml(done) {
+    const byTask = new Map();
+    done.forEach((r) => {  // runs arrive newest first, so the first row seen per task is its latest
+      const t = byTask.get(r.task_id) || { title: r.task_title, runs: 0, verified: 0, needs: 0, other: 0, latest: r };
+      const v = rowVerdict(r);
+      t.runs++; if (v === "VERIFIED") t.verified++; else if (v === "NEEDS HUMAN") t.needs++; else t.other++;
+      byTask.set(r.task_id, t);
+    });
+    return [...byTask.values()].map((t) => {
+      const lv = rowVerdict(t.latest);
+      return `<tr><td class="t">${esc(t.title)}</td><td class="n">${t.runs}</td><td class="n ok">${t.verified}</td><td class="n holdc">${t.needs}</td><td class="n">${t.other}</td>
+        <td><span class="seal ${vclass(lv)}">${esc(lv)}</span><span class="when">${esc(when(t.latest.created_at))}</span></td>
+        <td><button type="button" class="btn sm" data-run="${esc(t.latest.run_id)}" data-focus="task-${esc(t.latest.task_id)}">Open latest</button></td></tr>`;
+    }).join("");
   }
   function renderHome() {
     const runs = state.runs;
@@ -291,17 +303,43 @@
       ticker.innerHTML = tickerHtml; ticker.dataset.sig = tickerHtml;
       if (runs.length && !ticker.dataset.counted && !REDUCED) { ticker.dataset.counted = "1"; countUp(ticker); }
     }
-    const list = $("#evidence-list");
-    const rows = done.filter(rowMatches);
-    const listHtml = rows.map(evidenceRowHtml).join("") || `<li class="note">${runs.length ? "No runs match this filter." : "No runs are recorded yet."}</li>`;
+    const tbody = $("#task-table tbody");
+    const tableHtml = taskRowsHtml(done) || `<tr><td colspan="7" class="skipc">${runs.length ? "No finished runs yet." : h ? "No runs are recorded yet." : "Service unreachable: the recorded evidence cannot be listed."}</td></tr>`;
+    if (tbody.dataset.sig !== tableHtml) { const f = focusId(); tbody.innerHTML = tableHtml; tbody.dataset.sig = tableHtml; restoreFocus(f); }
+    const list = $("#latest-list");
+    const listHtml = done.slice(0, 5).map(latestRowHtml).join("") || `<li class="note">No runs are recorded yet.</li>`;
     if (list.dataset.sig !== listHtml) { const f = focusId(); list.innerHTML = listHtml; list.dataset.sig = listHtml; restoreFocus(f); }
-    $("#evidence-count").textContent = done.length ? `${done.length} run${done.length === 1 ? "" : "s"} recorded on this console, newest first, with verdict, provenance, cost and duration. Open one to read its case file.` : "Every run on this console, with its verdict, cost and duration. Open one to read its case file.";
+    const tasks = new Set(done.map((r) => r.task_id)).size;
+    $("#evidence-count").textContent = done.length ? `${done.length} run${done.length === 1 ? "" : "s"} recorded on this console across ${tasks} task${tasks === 1 ? "" : "s"}, summarised per task. Open a case file to read the exhibits; the full history with filters is in the console.` : "Every run on this console, summarised per task. Open a case file to read the exhibits; the full history with filters is in the console.";
     // the numbers in "how to use it" come from the service and the recorded estimates
     const b = (h && h.budget) || {};
     if (b.per_run_cap_usd != null) $("#use-cap").textContent = `$${Number(b.per_run_cap_usd).toFixed(2)}`;
     if (h && h.public_runs_per_hour != null) $("#use-rate").textContent = String(h.public_runs_per_hour);
     const mins = state.tasks.map((t) => (t.estimate || {}).duration_min_s).filter((x) => x != null), maxs = state.tasks.map((t) => (t.estimate || {}).duration_max_s).filter((x) => x != null);
     if (mins.length && maxs.length) $("#use-duration").textContent = `${dur(Math.min(...mins))} to ${dur(Math.max(...maxs))}`;
+  }
+
+  // ------------------------------------------------------------------ the Proof Bundle replay in the hero (recorded figures, replayed at a fixed pace)
+  const BM = { total: { calls: 13, ops: 8, cost: 0.031 }, stages: 9, stepMs: 950, holdMs: 3600 };
+  function bundleMock() {
+    const fig = $("#bundle-mock"); if (!fig) return;
+    const stages = $$("[data-bm=stages] li", fig), rows = $$("[data-bm=rows] li", fig);
+    const seal = $("[data-bm=seal]", fig), check = $("[data-bm=check]", fig);
+    const calls = $("[data-bm=calls]", fig), ops = $("[data-bm=ops]", fig), cost = $("[data-bm=cost]", fig);
+    const paint = (i) => {  // i = index of the current stage; everything up to and including it is shown
+      stages.forEach((li, k) => { li.className = k < i ? "done" : k === i ? "current" : ""; });
+      rows.forEach((li) => li.classList.toggle("on", Number(li.dataset.stage) <= i));
+      const p = Math.min(1, i / (BM.stages - 1));
+      calls.textContent = String(Math.round(BM.total.calls * p)); ops.textContent = String(Math.round(BM.total.ops * p)); cost.textContent = "$" + (BM.total.cost * p).toFixed(3);
+      const finished = i >= BM.stages - 1;
+      seal.textContent = finished ? "VERIFIED" : "RUNNING"; seal.className = `seal big ${finished ? "VERIFIED" + (REDUCED ? "" : " stamp") : "RUNNING"}`;
+      check.textContent = finished ? "attest check: OK, 24 of 24" : "attest check: pending"; check.classList.toggle("ok", finished);
+      if (finished) stages[BM.stages - 1].className = "done";
+    };
+    if (REDUCED) { paint(BM.stages - 1); return; }
+    let i = 0;
+    const tick = () => { paint(i); const last = i >= BM.stages - 1; i = last ? 0 : i + 1; setTimeout(tick, last ? BM.holdMs : BM.stepMs); };
+    tick();
   }
 
   // ------------------------------------------------------------------ run views
@@ -839,12 +877,16 @@
   }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-run],[data-tab],[data-tab-link],[data-filter],[data-copy-patch],[data-copy-link],[data-new-run],[data-home],[data-section],[data-start],[data-guide-open]");
+    const t = e.target.closest("[data-run],[data-tab],[data-tab-link],[data-filter],[data-copy-patch],[data-copy-link],[data-new-run],[data-home],[data-section],[data-start],[data-guide-open],[data-open-verified]");
     if (!t) return;
     if (t.dataset.run) { openRun(t.dataset.run, false); }
+    else if (t.hasAttribute("data-open-verified")) {  // the newest recorded VERIFIED run, else the newest finished run
+      const pick = state.runs.find((r) => r.status === "finished" && r.verdict === "VERIFIED") || state.runs.find((r) => r.status === "finished");
+      if (pick) openRun(pick.run_id, false); else goToSection("evidence");
+    }
     else if (t.dataset.tab) { if (t.disabled) return; state.tab = t.dataset.tab; setRoute(state.runId, true); renderPanel(); }
     else if (t.dataset.tabLink) { e.preventDefault(); state.tab = t.dataset.tabLink; setRoute(state.runId, true); renderPanel(); $(`#tab-${state.tab}`)?.focus(); }
-    else if (t.dataset.filter) { state.filter = t.dataset.filter; renderFilters(); renderHistory(); if (state.view === "home") renderHome(); const prefix = t.closest("#home-filters") ? "hfilter-" : "filter-"; $(`[data-focus="${prefix}${state.filter}"]`)?.focus(); }
+    else if (t.dataset.filter) { state.filter = t.dataset.filter; renderFilters(); renderHistory(); $(`[data-focus="filter-${state.filter}"]`)?.focus(); }
     else if (t.dataset.copyPatch) copyPatch(t, t.dataset.copyPatch);
     else if (t.hasAttribute("data-copy-link")) copyLink(t);
     else if (t.dataset.newRun !== undefined) { state.mode = "live"; $("input[name=mode][value=live]").checked = true; if (state.tasks.some((x) => x.task_id === t.dataset.newRun)) { state.task = t.dataset.newRun; $("#task").value = state.task; } renderEstimate(); $("#rail-details").open = true; $("#go").focus(); }
@@ -897,9 +939,6 @@
 
   // the pipeline chain and the phases animate once they scroll into view; the section links light up as you read
   if ("IntersectionObserver" in window) {
-    const how = $("#how");
-    const io = new IntersectionObserver((entries) => entries.forEach((en) => { if (en.isIntersecting) { how.classList.add("in"); io.disconnect(); } }), { threshold: 0.2 });
-    if (how) io.observe(how);
     const links = $$("#nav-links a");
     const sections = links.map((a) => $("#" + a.dataset.section)).filter(Boolean);
     const nav = new IntersectionObserver((entries) => {
@@ -908,11 +947,12 @@
     sections.forEach((s) => nav.observe(s));
     const rv = new IntersectionObserver((entries) => entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); rv.unobserve(en.target); } }), { threshold: 0.12 });
     $$(".rv").forEach((el) => rv.observe(el));
-  } else { $("#how")?.classList.add("in"); $$(".rv").forEach((el) => el.classList.add("in")); }
+  } else { $$(".rv").forEach((el) => el.classList.add("in")); }
 
   // ------------------------------------------------------------------ boot
   renderFilters();
   railAuto();
+  bundleMock();
   const first = location.pathname.match(/^\/runs\/(.+)$/);
   if (first) setView("console"); else { setView("home"); state.revealed = true; requestAnimationFrame(() => $("#home").classList.add("reveal")); }
   (async () => {

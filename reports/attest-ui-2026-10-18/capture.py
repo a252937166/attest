@@ -106,8 +106,8 @@ def main() -> int:
         time.sleep(1.5)
 
         shots = [
-            ("home", "/", "#evidence-list li", True),
-            ("home-hero", "/", "#evidence-list li", False),
+            ("home", "/", "#latest-list li", True),
+            ("home-hero", "/", "#latest-list li", False),
             ("running-overview", "/runs/replay-running", "#log li", False),
             ("queued-overview", "/runs/replay-queued", ".decision .statement", False),
             ("verified-overview", f"/runs/{verified}#overview", ".decision .statement", False),
@@ -176,10 +176,10 @@ def main() -> int:
             page.click(".brand")
             page.wait_for_timeout(800)
             record["checks"]["home_from_run"] = page.evaluate("[location.pathname, document.body.dataset.view, document.querySelector('#workspace').parentElement.id, !document.querySelector('#home').hidden]")
-            page.click("[data-section=how]")
+            page.click("[data-section=capabilities]")
             page.wait_for_timeout(1200)
             page.screenshot(path=str(screens / "home-how-1440.png"))
-            record["screens"].append({"file": "home-how-1440.png", "state": "home scrolled to How it works", "viewport": VIEWPORTS["1440"], "url": "/#how"})
+            record["screens"].append({"file": "home-how-1440.png", "state": "home scrolled to What it does", "viewport": VIEWPORTS["1440"], "url": "/#capabilities"})
             # sticky header compaction on scroll, roving tabindex on the tab strip, arrow keys in the history rail
             page.goto(base + f"/runs/{verified}#tests", wait_until="domcontentloaded")
             page.wait_for_selector(".exhibit", state="attached", timeout=20000)

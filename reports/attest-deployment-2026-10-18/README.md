@@ -98,10 +98,49 @@ zero-size, visually hidden SVG and the mark renders completely.
 A visitor whose browser still holds the 08:35 assets gets the new page on the next normal load: the HTML is never
 served from cache and now names asset URLs no cache has seen.
 
+## Third deployment of the day, 10:00 UTC: the console's own design, Nebius-leaning, with technical figures
+
+After the second deployment the owner asked for a layout of Attest's own rather than an echo of their reference site,
+the Nebius and stakeholder marks with a visual language close to the Nebius platform (typography included), more
+figures illustrating the technical design, and a shorter evidence section (the one-row-per-run list was "long-winded").
+The third pass is described in `attest-console.md` ("Console redesign, second pass", third round) and verified in
+`reports/attest-ui-2026-10-18/README.md`. Static files only, plus the official Nebius logo file under
+`attest/app/static/brand/`; the package digest is unchanged.
+
+| Time | Step | Result |
+| --- | --- | --- |
+| 09:59 | export (every bundle verified, no scan hits), `build_bundle.sh` from `dist/public` | `app.tar.gz` 5.3 MB, sha256 `832d877866d2ff22d5a4293340196086556b906f46c543833d1ffcc1c41702bb`, the brand folder included, no AppleDouble entries |
+| 10:00 | upload with `install.sh` and the vhost; pre-checks | digest matches; service idle (current none, queue 0) |
+| 10:00 | store backup through the SQLite backup API | `attest.db.bak-20261018c-full`, 39 rows |
+| 10:00:58 | `snapshot.sh before-20261018c` | `before-20261018c-20261018T100058Z.txt` |
+| 10:01 | `MEMORY_MAX=200M bash install.sh` | service restarted, nginx configuration test OK |
+| 10:01:05 | `GET /api/health` (`health-after-20261018c.json`) | ok, version 0.3.0, worker alive, queue 0, nothing reconciled |
+| 10:01:09 | `snapshot.sh after-20261018c` | diff against before: timestamp, memory, swap and load only |
+
+| Check after the install | Result |
+| --- | --- |
+| `find /opt/attest/app -name '._*' \| wc -l` | 0 |
+| `attest_revision()` on the server | `166cdcbd46a74cd0…` over 35 files, unchanged |
+| `/static/styles.css?v=20261018c`, `/static/app.js?v=20261018c`, `/static/brand/nebius-logo.svg?v=20261018c` | 200; `Cache-Control: no-cache` on the page |
+| Public HTML | references the `20261018c` assets, the bundle replay and the Nebius logo |
+| `/api/runs?limit=200` | 39 rows; service active, 40.9 MB resident |
+| Fresh headless Chrome, 1440 px | the `20261018c` assets load; Inter, Newsreader and Space Mono active; ticker "39 recorded runs, 8 VERIFIED, 11 NEEDS HUMAN, 20 other verdicts"; per-task table 6 rows, latest list 5 rows; the Proof Bundle replay advances Freeze to Audit within seven seconds and cycles about every twelve; the Nebius logo file decodes at 131 by 36; "Open latest" opens the durationkit case file (NEEDS HUMAN); no errors (`screens/public-home-c-1440.png`, `screens/public-home-c-full-1440.png`, `screens/public-case-c-1440.png`) |
+
+### Correction at 10:05 UTC: phone-width overflow
+
+The phone render of the third pass scrolled sideways (document 476 px wide on a 390 px viewport): the latest-runs rows
+kept their metadata on one line and could not shrink. Two rules were changed in `styles.css` (one-column rows with
+wrapping metadata under 640 px, and `minmax(0, 1fr)` columns for the replay's stage strip), the export was rebuilt and
+the single file replaced in place on the server as on 08:38 (root-owned, mode 644, no restart; browsers revalidate
+against the ETag because of the `no-cache` header). Server sha256
+`f7687ef48c386aa0c804820458f7933019127fba4bbcee50d5c592561e230d3d`, the exported file's digest, 40,592 bytes served. The
+re-rendered site reports a document width equal to the viewport at 390 px and at 1440 px, with no errors
+(`screens/public-home-c-390.png`). The bundle digest `832d8778…` describes the tree before this one-file replacement.
+
 ## Rollback
 
-`/opt/attest/app.prev` is the 08:35 build of today (pinned code, the first second-pass console); the 17 Oct build is no
-longer staged on the host. Restore with
+`/opt/attest/app.prev` is the 09:29 build of today (pinned code, the second-pass console with the cache fix); the earlier
+builds are no longer staged on the host. Restore with
 `mv /opt/attest/app /opt/attest/app.failed && mv /opt/attest/app.prev /opt/attest/app && systemctl restart attest.service`,
 or stop the service and remove only its vhost with `rollback.sh`. Not exercised today.
 
