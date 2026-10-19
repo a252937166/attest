@@ -199,6 +199,13 @@ def main():
                 page.evaluate("() => { const d = document.querySelector('#signin'); if (d) d.open = true; }")
                 page.fill("#admin", args.team_token); page.click("#signin-go"); page.wait_for_timeout(1200)
             audit("home", "home")
+            # the hero's replay ends after a few seconds with its final seal and check badge; measure that state too (0.8.3: a longer
+            # badge had squeezed the title beside it into a mid-word break that no measure taken at load could see)
+            try:
+                page.wait_for_function("() => /OK/.test((document.querySelector('[data-bm=check]') || {}).textContent || '')", timeout=30000)
+                audit("home, replay finished", "home-replayed")
+            except Exception:
+                entry.setdefault("notes", []).append("the hero replay did not finish within 30 s")
             page.evaluate("() => document.querySelectorAll('details').forEach(d => d.open = true)")
             audit("home, every details open", "home-open")
             # live mode selected (the paid mode): its explanation and the start button must fit too
