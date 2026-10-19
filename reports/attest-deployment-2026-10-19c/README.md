@@ -107,3 +107,7 @@ not a billing reconciliation: the figure has not been compared with a provider i
 remaining credit balance or any card charge. The run also performed 6 Token Factory Sandbox operations, which the ledger records
 without a USD amount. Nothing in the incident involved a download ticket; tickets authorise no POST (revision 6, R5-07). The
 request-validation repair that would have refused this request with 422 is revision 7 (`reports/attest-revision6-repairs-2026-10-19/README.md`).
+
+[Correction appended 19 Oct 2026, revision 7; the record above is unchanged] The memory limit stated above as `MemoryMax=200M`
+was not in force: yungou runs systemd 219, which ignores `MemoryMax=`; `systemctl show attest` reports `MemoryLimit` unlimited. See
+`reports/attest-deployment-2026-10-19d/README.md`.

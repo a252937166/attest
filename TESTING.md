@@ -59,3 +59,8 @@ Follow `PILOT.md`: import a public GitHub repository at a pinned commit, write t
 ones. Internal rehearsals by the project's own agents are labelled as such and are never presented as external testing.
 The evaluation method is frozen in `METHOD.md` and the pinned version in `FREEZE.md`; the paid comparison runs only after
 the owner approves its budget.
+
+Final-tree rule (revision 7): the suite counts that a pin records come from a clean checkout of the pinned commit of the
+review repository (`git worktree add --detach <dir> <commit>`, then `python -m unittest discover -s tests -t .` inside it),
+run after the batch, the reports and the export exist. A run in the private working tree is reported separately: it holds
+private evidence and file modes that a clean checkout does not have.

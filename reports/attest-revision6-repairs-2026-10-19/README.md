@@ -83,8 +83,31 @@ closure summary rather than in this file, so that the record does not change the
 
 ## Frozen and deployed
 
-REV7-DEPLOY-SECTION
+Pinned in `FREEZE.md` (revision-7 section): code commit `a95e2614d643bc057a1877f81b5ebe774fabaf7e` of the review repository,
+package digest `f836cfd0154faa878214976dab4fcc0a982dde38343e3944afceb8fc7f3336d3` (37 sources), harness `5af2b4989b2b…` (unchanged),
+examples `6db7a2e937d6…`, evidence protocol 4, witness language `attest-witness/1`, the effective provider configurations of the
+proposed Nemotron run (`nemotron-effective-profile.json`, computed offline) and of the development batches, and this folder's
+validation evidence; pin record `fdf5099`. The first pin (`dd361b5`, record `6f6bf76`) was superseded the same afternoon, before any
+deployment, because its clean checkout failed the suite (see above and the pin's history in `FREEZE.md`).
+
+Deployed to yungou (DogYun 206.237.18.80) at 15:29 UTC with the transactional installer (`reports/attest-deployment-2026-10-19d/README.md`):
+release `0.7.0-f836cfd0154f` built from a clean checkout of `fdf5099`, active at `/opt/attest/app`; rollback target
+`/opt/attest/app.prev` = `0.6.0-b11ec0658845` (`bash rollback.sh`). Read-only verification: health 0.7.0 and idle, the published
+`RunRequest` schema strict, the public rows and assets unchanged, no gateway name in any public response, the pages rendered in a
+headless browser. The deployment found that the unit's `MemoryMax=200M` has never been enforced on this host (systemd 219 ignores
+the directive); the unit was not changed, and the earlier records that stated the limit carry appended corrections.
 
 ## Paid calls in this pass
 
-REV7-PAID-SECTION
+No paid Nebius call occurred in this pass.
+
+| Kind | Count | Notes |
+| --- | --- | --- |
+| Nebius Token Factory inference requests | 0 | the Nemotron provider object was constructed once offline, with a placeholder key and blocked sockets, to compute the effective profile; it sent nothing |
+| Production POST, PUT or DELETE requests | 0 | production verification used GET requests and read-only SSH commands; the deployment changed the host through the installer only |
+| Development-gateway model calls | 38 | all recorded with provider `codex_gateway` in the eight bundles; plus 8 GET requests to the gateway's status endpoint while diagnosing the transport failures |
+| Token Factory Sandboxes operations | 36 recorded, and up to 2 more | the batches' execution, as in every development batch; 2 spawns had uncertain outcomes and may have created operations the ledgers could not record; Sandboxes is a beta service, its billing has not been confirmed, and the ledgers record its raw cost diagnostics without a USD amount ($0 committed in every batch) |
+
+The 19 Oct verification incident of the previous pass ($0.055226 journal-accounted across 16 model calls, not an approved smoke test
+and not a reconciled provider invoice) is unchanged and remains recorded in `reports/attest-deployment-2026-10-19c/README.md`. The
+$10 Nemotron proposal in `FREEZE.md` remains unapproved.

@@ -106,6 +106,11 @@ default), so a malformed request is answered 422 before any row, queue entry, re
 verification request that started an unapproved Nemotron run (16 model calls, $0.055226 journal-accounted) would now be refused.
 Tests: the recorded evidence is classified explicitly (a frozen historical corpus, a modern corpus by declared protocol, and an
 inventory that fails on any unclassified run directory), replacing a glob that counted new protocol-3 bundles as historical.
+Running the complete suite on a clean checkout of the review repository, rather than on the private working tree, exposed two
+export defects present since that repository was created: scripts were exported without their executable bit, and the
+exported `.gitignore` ignored every `reports/**/runs/` directory, so the repository held 25 of the 175 exported bundles. Both
+are fixed, the export now fails when git would ignore an exported file, its derived manifests are deterministic, and a clean
+checkout of the pinned commit passes all 367 tests.
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,

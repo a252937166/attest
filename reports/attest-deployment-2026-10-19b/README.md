@@ -76,3 +76,7 @@ locally (`reports/attest-audit-repairs-2026-10-19/ops/`), not on this host.
 `before-20261019b-20261019T084645Z.txt`, `after-20261019b-20261019T084738Z.txt`, `health-before-20261019b.json`,
 `health-after-20261019b.json`, `build-20261019b.log`, `install-20261019b.log`, `public-render-r5-record.json`,
 `screens/public-home-r5-{1440,390}.png`, `screens/public-run-r5-{1440,390}.png`.
+
+[Correction appended 19 Oct 2026, revision 7; the record above is unchanged] The memory limit stated above as `MemoryMax=200M`
+was not in force: yungou runs systemd 219, which ignores `MemoryMax=`; `systemctl show attest` reports `MemoryLimit` unlimited. See
+`reports/attest-deployment-2026-10-19d/README.md`.
