@@ -212,7 +212,7 @@ section.
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `REV6-CODE-COMMIT` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| Repository commit (code) | `da00f41a5542a1c114c2ba1a57a6f0ee7e7ff906` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
 | `attest/` package digest (sha256 over path and content of every source, 36 files) | `b11ec0658845e54d8917ac7a1cdbb32dddd1d16232fa0f377b08971a711837e9` |
 | Harness `scripts/run_evaluation.py` sha256 | `5af2b4989b2b93db7a9c37b4e1d654cb1e8b703bba47c8cfcf3a0e0c36bec5a3` (registers the effective provider profile; labels a hold before any patch by the ground truth) |
 | `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` in the working tree and the exported tree (unchanged since revision 5; a clean git clone normalises the python-semver `docs/make.bat` line endings and computes `e95a28aa…`, the M5 value) |
@@ -236,7 +236,7 @@ the held-out judge establishes the two acceptances; nothing establishes the hold
 ## The exact command (revision 6)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout REV6-CODE-COMMIT
+git clone <repository> attest-eval && cd attest-eval && git checkout da00f41a5542a1c114c2ba1a57a6f0ee7e7ff906
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r6-final \
