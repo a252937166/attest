@@ -1,4 +1,4 @@
-# Repairs after revision 7 (revision 8, versions 0.8.0 and 0.8.1, 19 October 2026)
+# Repairs after revision 7 (revision 8, versions 0.8.0 to 0.8.2, 19 October 2026)
 
 This pass fixes the issues left after revision 7 before any video work: the memory limit on yungou, horizontal overflow on phones,
 the development batches' transport failures, accidental spending, and the separation of the services' costs; it then verifies
@@ -71,7 +71,9 @@ Run after the batches, the reports and the export, on the exact trees that are p
 | 4 | clean checkout of `5177cf4` (the stop fix; the pinned code commit) | 402 | 0 | 0 | 0 |
 | 5 | private working tree after the stop fix | 402 | 0 | 0 | 0 |
 | 6 | clean checkout of `3be63fa`, the pin record the 0.8.0 release is built from | 402 | 0 | 0 | 0 |
-| 7 | clean checkout of `d15046a` (0.8.1, the console repairs; the pinned code commit from then on) | 402 | 0 | 0 | 0 |
+| 7 | clean checkout of `d15046a` (0.8.1, the console repairs) | 402 | 0 | 0 | 0 |
+| 8 | clean checkout of `17a58c5` (the records of the 0.8.1 deployment) | 402 | 0 | 0 | 0 |
+| 9 | clean checkout of `4d37dbb` (0.8.2, the hero's check claim; the pinned code commit from then on) | 402 | 0 | 0 | 0 |
 
 The count grew from 367 (revision 7) by the 28 tests of `tests/test_transport.py`, the five explicit-start tests and two
 installer scenarios; the console's confirmation check and the escaped-host checks of the export were added inside existing tests. A high count is not evidence that the deployment, billing or external services are correct; those
@@ -109,6 +111,13 @@ the static files served byte-identical to the commit's. In Chrome on the public 
 1440 px and a visible window at 390 and 1440 px, 910 states): no offender, no clipped control, no page error, every tab press went
 through, the Guide opened by itself only at 1440 px, and 2,563 GET requests left the browser and no other request. Rollback target:
 `0.8.0-ed41f4c95bd1`.
+
+0.8.2 (`4d37dbb`) corrects one stale claim found while preparing the video: the home page's replay of the 17 Oct bundle
+`slugkit-regression-001-attest-a2` said "attest check: OK, 24 of 24" and "offline check 24 of 24 OK", figures from an earlier
+checker. The current checker passes that bundle as a historical bundle (28 checks, 0 errors, 2 warnings: it predates the evidence
+protocol, so it is checked for internal consistency and never reported as fully verified), as the page's own Proof Bundle section
+already showed. The badge now reads "attest check: OK, historical bundle" and the caption says what the check establishes; the
+Python sources differ only by the version string (package `ed1ac3bad3ec…`). It was pinned in `FREEZE.md` before its deployment.
 
 ## yungou's availability during this pass
 
@@ -170,3 +179,4 @@ credentials and made no external request.
 | `3be63fa` | the revision-8 pin record re-pinned to `5177cf4` before any deployment; the release was built from a clean checkout of this commit |
 | `d15046a` | 0.8.1: the console repairs found on the deployed 0.8.0 (the Guide, the decision card and the overview at narrow desktop widths, two error states); the layout audit's new checks; the pinned code commit, package `3c0cbfca…` |
 | `ab8c445` | the pin record re-pinned to `d15046a` before 0.8.1 was deployed, and the records of the 0.8.0 deployment; the 0.8.1 release was built from a clean checkout of this commit |
+| `4d37dbb` | 0.8.2: the hero replay states the offline check as the current checker reports it; the pinned code commit, package `ed1ac3ba…` |
