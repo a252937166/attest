@@ -140,7 +140,7 @@ cost and its unread Sandboxes operation on record.
 The browser checks of the deployed console then found five console defects outside the overflow measure (at 1024 px the Guide
 covered two of the case file's tabs, the decision card's text was squeezed to about 80 px and the overview's evidence table into a
 sideways scroll; two error states were wrong); version 0.8.1 repairs them in the console's static files, with the pipeline
-unchanged.
+unchanged, and was deployed at 22:18 UTC (`reports/attest-deployment-2026-10-19f/README.md`).
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,

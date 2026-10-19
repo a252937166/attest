@@ -102,6 +102,14 @@ by itself only from 1320 px, the decision's buttons take their own row below 132
 stacks below 1180 px, a task list that failed to load says so, and the rail no longer stretches. The `attest/` Python sources differ
 from 0.8.0 only in the version string (package `3c0cbfcaa9d6…`); the pipeline, the providers and the harness are unchanged.
 
+0.8.1 was installed at 22:18 UTC from a clean checkout of the pin record `ab8c445` (`reports/attest-deployment-2026-10-19f/`) and
+checked the same way: version 0.8.1 and package `3c0cbfcaa9d6…` read back through the deployed interpreter; systemd and the kernel
+enforce 209,715,200 bytes for memory and for memory plus swap on the new main process; queue 0, no reservation, $0.0552 committed;
+the static files served byte-identical to the commit's. In Chrome on the public URL (a headless sweep at eight widths from 320 to
+1440 px and a visible window at 390 and 1440 px, 910 states): no offender, no clipped control, no page error, every tab press went
+through, the Guide opened by itself only at 1440 px, and 2,563 GET requests left the browser and no other request. Rollback target:
+`0.8.0-ed41f4c95bd1`.
+
 ## yungou's availability during this pass
 
 The host was unreachable twice before the deployment (details in the deployment record, from `/var/log/messages` and the nginx
@@ -139,8 +147,9 @@ credentials and made no external request.
 - **yungou's availability.** The host lost its network for 16 minutes and was later powered off from the hypervisor side (above);
   the first cause is not established and neither is under this project's control. `auditd` and `kdump` fail at every boot of this
   host (no `/var/log/audit` directory, no crash-kernel memory), as on 7 Oct; they are unrelated to Attest and were left alone.
-- **The memory drill of the running service** was done on a copy of the deployed release in a temporary unit, not by running
-  `attest.service` itself out of memory, which would have interrupted the public console.
+- **The memory drill of the running service** was done on a copy of the deployed release (0.8.0) in a temporary unit, not by
+  running `attest.service` itself out of memory, which would have interrupted the public console; for 0.8.1 (the same unit, the
+  same Python code apart from the version string) the limits were read back, and the drill was not repeated.
 - **The sealed-oracle rule** holds a correct patch when a sealed test fails by assertion, even after the arbiter classified the test
   a defect and the correction was validated (kvparse in the third batch). This is deliberate (revision 4); its cost is false rejects.
 - **Sandboxes billing** is not reconciled against an invoice; the operation counts and guest times are recorded, no amount.
@@ -160,3 +169,4 @@ credentials and made no external request.
 | `5177cf4` | the run stops at the first uncertain model call in every stage (sealing no longer sends the same prompt again); the pinned code commit, package `ed41f4c9…` |
 | `3be63fa` | the revision-8 pin record re-pinned to `5177cf4` before any deployment; the release was built from a clean checkout of this commit |
 | `d15046a` | 0.8.1: the console repairs found on the deployed 0.8.0 (the Guide, the decision card and the overview at narrow desktop widths, two error states); the layout audit's new checks; the pinned code commit, package `3c0cbfca…` |
+| `ab8c445` | the pin record re-pinned to `d15046a` before 0.8.1 was deployed, and the records of the 0.8.0 deployment; the 0.8.1 release was built from a clean checkout of this commit |

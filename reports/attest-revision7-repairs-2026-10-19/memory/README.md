@@ -60,6 +60,10 @@ Revision 8 was installed on 19 Oct at 20:42 UTC (`reports/attest-deployment-2026
   its bound), and the accepted operation `00000000-0000-0000-0000-00000000d311` named as never read. `attest.service` kept MainPID
   2241 and stayed healthy; the temporary unit, its directory and the uploaded files were removed by the script.
 
+- 0.8.1 (installed at 22:18 UTC, `reports/attest-deployment-2026-10-19f/`, the same unit; its Python code differs from 0.8.0 only by
+  the version string): the installer's step 13 and `readback-after-deploy-20261019f.txt` there read the same three limits on the
+  new main process (PID 4188), usage 40.7 MB, both fail counters 0. The application drill was not repeated.
+
 So the limit is enforced on the running service (configuration, systemd and kernel agree), the kernel ends the process at the limit
 instead of letting it swap, systemd brings it back, and a run cut short this way is settled as interrupted with its committed cost
 and its unread operation on record. The drill did not run `attest.service` itself out of memory: that would have interrupted the

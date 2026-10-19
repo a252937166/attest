@@ -44,6 +44,7 @@ marked as such), and compares each batch bundle's package digest and provider pr
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | revision 7 (`provenance-revision7-export.json`) | 175 | 175 OK | 18 (7 / 3 / 8) | 157 | 175 (125 redacted copies) | 89 of 110; the other 21: 11 bundles predate the recorded digest, 10 sit in an early batch whose schedule registered none | 11 (the 99 others predate profile registration) | none |
 | revision 8 (`provenance-revision8-export.json`) | 181 | 181 OK | 24 (7 / 3 / 14) | 157 | 181 (131 redacted copies) | 95 of 116; the same 21 | 17 | none |
+| 0.8.1, the final export of this pass (`provenance-0.8.1-export.json`) | 181 | 181 OK | 24 (7 / 3 / 14) | 157 | 181 (131 redacted copies) | 95 of 116; the same 21 | 17 | none |
 
 In the revision-8 export no file contains the development gateway's host in any spelling (searched with the pattern that allows
 backslashes before each dot), and the export's own scan and git-ignore checks report nothing.
