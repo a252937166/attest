@@ -18,6 +18,13 @@ at import (a restart invalidates outstanding tickets and the page requests a new
 opens nothing else: not the list, detail, events, estimates, current-run references or profiles, and never admission or an
 exemption from the visitor quota. Public runs download without any credential.
 
+Admission requests (revision-6 review, item 2): `POST /api/runs` takes exactly `task_id`, `provider` and optionally
+`admin_token`. Unknown fields are refused and the provider has no default: it must be named and must be one of the supported
+inference profiles. A malformed body is answered 422 by request validation, before the handler runs, so it creates no row, no
+queue entry, no budget reservation and no provider. (On 19 Oct 2026 a verification request that sent `profile` instead of
+`provider` was admitted as an ordinary public Nemotron run because the provider defaulted to Nebius.) The 422 body names the
+offending fields without echoing the submitted values.
+
 Requester identity (API-01): the hourly visitor quota uses the peer address, unless the peer is one of the trusted proxies
 (`ATTEST_TRUSTED_PROXIES`, default the loopback addresses of the nginx vhost on the same host), in which case the LAST
 X-Forwarded-For item is used, validated as an IP literal. A caller cannot choose its own identity.
@@ -45,9 +52,10 @@ import zipfile
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .. import __version__
 from ..core.exhibits import summary as exhibit_summary
@@ -137,10 +145,26 @@ STATIC = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
 
 
+# The inference profiles a run can be started on: the public Nemotron profile and the team's development profile. Their ids are
+# validated in code rather than published as an enum, so the public OpenAPI schema never names the development gateway.
+SUPPORTED_PROVIDERS = frozenset({"nebius", "codex"})
+
+
 class RunRequest(BaseModel):
-    task_id: str
-    provider: str = "nebius"
-    admin_token: str | None = None
+    """The body of POST /api/runs. Every field is explicit: unknown fields are refused and `provider` is required, with no default
+    (a body that names `profile` instead of `provider` must never start a paid run)."""
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: str = Field(min_length=1, max_length=200)
+    provider: str = Field(min_length=1, max_length=40, description="the inference profile id, as listed by GET /api/profiles")
+    admin_token: str | None = Field(default=None, max_length=512)
+
+    @field_validator("provider")
+    @classmethod
+    def _supported_provider(cls, value: str) -> str:
+        if value not in SUPPORTED_PROVIDERS:
+            raise ValueError("unknown inference profile; GET /api/profiles lists the profiles you may use")
+        return value
 
 
 class TokenRequest(BaseModel):
@@ -471,8 +495,8 @@ def runs(request: Request, limit: int = 50):
 def start_run(body: RunRequest, request: Request):
     requester = _requester(request)
     admin = _is_admin(body.admin_token) or _team_caller(request)
-    if body.provider not in ("nebius", "codex"):
-        raise HTTPException(400, "unknown inference profile")
+    if body.provider not in SUPPORTED_PROVIDERS:  # unreachable after RunRequest validation; kept so the handler never admits a stray value
+        raise HTTPException(422, "unknown inference profile")
     if body.provider == "codex" and not admin:
         raise HTTPException(403, "the development profile is reserved for the project team; judges run the Nemotron profile")
     if worker.task_path(body.task_id) is None:
@@ -599,6 +623,16 @@ def bundle_zip(run_id: str, request: Request):
 @app.get("/runs/{run_id}", response_class=HTMLResponse)
 def index(run_id: str | None = None):
     return (STATIC / "index.html").read_text(encoding="utf-8")
+
+
+@app.exception_handler(RequestValidationError)
+async def invalid_request(request: Request, exc: RequestValidationError):
+    """422 for a malformed request, raised before any handler runs (so nothing was created). The body names each offending field
+    and the rule it broke, never the submitted value (an admin token sent in a malformed body is not echoed back)."""
+    errors = [{"field": ".".join(str(part) for part in (error.get("loc") or ())[1:]) or ".".join(str(part) for part in error.get("loc") or ()),
+               "problem": str(error.get("msg") or ""), "type": str(error.get("type") or "")} for error in exc.errors()]
+    detail = "invalid request: " + "; ".join(f"{e['field'] or 'body'}: {e['problem']}" for e in errors)
+    return JSONResponse(status_code=422, content={"error": "invalid_request", "detail": detail[:600], "errors": errors[:20]})
 
 
 @app.exception_handler(Exception)

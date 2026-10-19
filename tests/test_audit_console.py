@@ -173,7 +173,7 @@ class TrustedProxyIdentity(ConsoleHarness):
         proxied = TestClient(PeerAddress(self.server.app, "127.0.0.1"), raise_server_exceptions=False)
         for i in range(3):
             self.store.create_run(run_id=f"seed-{i}", **_row(created_at=utcnow(), requester="192.0.2.1"))
-        body = {"task_id": "audit-sample"}
+        body = {"task_id": "audit-sample", "provider": "nebius"}
         limited = proxied.post("/api/runs", json=body, headers={"x-forwarded-for": "198.51.100.20, 192.0.2.1"})
         rotated = proxied.post("/api/runs", json=body, headers={"x-forwarded-for": "198.51.100.21, 192.0.2.1"})
         self.assertEqual((limited.status_code, rotated.status_code), (429, 429))
@@ -185,7 +185,7 @@ class TrustedProxyIdentity(ConsoleHarness):
 
     def test_untrusted_peer_cannot_choose_its_identity(self):
         # the TestClient peer is not a trusted proxy: three runs whatever the header says, then 429 for the fourth
-        statuses = [self.client.post("/api/runs", json={"task_id": "audit-sample"}, headers={"x-forwarded-for": f"198.51.100.{30 + i}"}).status_code
+        statuses = [self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"}, headers={"x-forwarded-for": f"198.51.100.{30 + i}"}).status_code
                     for i in range(4)]
         self.assertEqual(statuses, [200, 200, 200, 429])
         self.assertEqual(self.store.count_recent("testclient", "2000-01-01"), 3)
@@ -203,7 +203,7 @@ class AtomicAdmission(ConsoleHarness):
 
         def request(_):
             with TestClient(self.server.app, raise_server_exceptions=False) as local:
-                response = local.post("/api/runs", json={"task_id": "audit-sample"})
+                response = local.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"})
                 return response.status_code, response.json()
 
         with patch.object(self.worker, "enqueue", synchronized), concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
@@ -517,7 +517,7 @@ class WorkerReadiness(ConsoleHarness):
         health = self.client.get("/api/health").json()
         self.assertFalse(health["worker_alive"])
         self.assertFalse(health["ready"])
-        public = self.client.post("/api/runs", json={"task_id": "audit-sample"})
+        public = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"})
         team = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "codex", "admin_token": TOKEN})
         self.assertEqual((public.status_code, team.status_code), (503, 503))
         self.assertIn("worker", public.json()["detail"])
@@ -530,7 +530,7 @@ class WorkerReadiness(ConsoleHarness):
             health = self.client.get("/api/health").json()
             self.assertTrue(health["worker_alive"])
             self.assertTrue(health["ready"])
-            admitted = self.client.post("/api/runs", json={"task_id": "audit-sample"})
+            admitted = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"})
             self.assertEqual(admitted.status_code, 200)
             self.assertEqual(self.store.get_run(admitted.json()["run_id"])["status"], "queued")
             self.worker.stop()
@@ -731,7 +731,7 @@ class QueuePosition(ConsoleHarness):
     def test_position_counts_only_the_runs_ahead(self):
         ids = []
         for _ in range(3):
-            response = self.client.post("/api/runs", json={"task_id": "audit-sample", "admin_token": TOKEN})
+            response = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius", "admin_token": TOKEN})
             self.assertEqual(response.status_code, 200, response.text)
             ids.append(response.json()["run_id"])
         a, b, c = ids
@@ -742,7 +742,7 @@ class QueuePosition(ConsoleHarness):
         self.worker._begin(a)
         self.store.update_run(a, status="running", started_at=utcnow())
         self.assertEqual([position(i) for i in ids], [0, 1, 2])
-        d = self.client.post("/api/runs", json={"task_id": "audit-sample", "admin_token": TOKEN}).json()
+        d = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius", "admin_token": TOKEN}).json()
         self.assertEqual(d["position"], 3)
         self.assertEqual([position(i) for i in ids + [d["run_id"]]], [0, 1, 2, 3], "appending D changes nothing ahead of it")
         events = self.client.get(f"/api/runs/{b}/events").json()
@@ -839,7 +839,7 @@ class ImportedBudgetAtStartup(ConsoleHarness):
         self.assertAlmostEqual(health["budget"]["remaining_usd"], 0.0)
         rows = self.client.get("/api/runs").json()["runs"]
         self.assertEqual([(r["run_id"], r["cost_committed_usd"], r["provenance"]) for r in rows], [("imp-startup", 0.5, "imported")])
-        refused = self.client.post("/api/runs", json={"task_id": "audit-sample"})
+        refused = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"})
         self.assertEqual(refused.status_code, 503)
         self.assertIn("daily Nebius budget", refused.json()["detail"])
         self.assertEqual(self.store.active_count(), 0)
@@ -901,7 +901,7 @@ class TeamVisibility(ConsoleHarness):
         cls.worker._begin(cls.team_id)
         cls.store.update_run(cls.team_id, out_dir=str(out), status="finished", verdict="VERIFIED", stage="finished", finished_at=utcnow())
         cls.store.add_event(cls.team_id, utcnow(), "pacing", "SYNTHETIC_TEAM_EVENT")
-        public = cls.client.post("/api/runs", json={"task_id": "audit-sample", "admin_token": TOKEN})
+        public = cls.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius", "admin_token": TOKEN})
         assert public.status_code == 200, public.text
         cls.public_id = public.json()["run_id"]
 
@@ -1158,12 +1158,12 @@ class DownloadTickets(ConsoleHarness):
         self.assertEqual(self.client.post("/api/runs" + query, json={"task_id": "audit-sample", "provider": "codex"}).status_code, 403)
         for i in range(3):
             self.store.create_run(run_id=f"ticket-quota-{i}", **_row(status="queued", verdict=None, created_at=utcnow(), requester="testclient"))
-        self.assertEqual(self.client.post("/api/runs", json={"task_id": "audit-sample"}).status_code, 429)
-        self.assertEqual(self.client.post("/api/runs" + query, json={"task_id": "audit-sample"}).status_code, 429)
-        self.assertEqual(self.client.post(f"/api/runs?token={TOKEN}", json={"task_id": "audit-sample"}).status_code, 429)
+        self.assertEqual(self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"}).status_code, 429)
+        self.assertEqual(self.client.post("/api/runs" + query, json={"task_id": "audit-sample", "provider": "nebius"}).status_code, 429)
+        self.assertEqual(self.client.post(f"/api/runs?token={TOKEN}", json={"task_id": "audit-sample", "provider": "nebius"}).status_code, 429)
         self.assertEqual(self.client.post(f"/api/runs?token={TOKEN}", json={"task_id": "audit-sample", "provider": "codex"}).status_code, 403)
         self.assertEqual(self.store.count_recent("testclient", "2000-01-01"), 3, "no refused request left a row")
-        admitted = self.client.post("/api/runs", json={"task_id": "audit-sample"}, headers=TEAM_HEADERS)  # the header is the credential
+        admitted = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"}, headers=TEAM_HEADERS)  # the header is the credential
         self.assertEqual(admitted.status_code, 200, admitted.text)
 
     def test_forged_and_malformed_tickets_are_refused(self):
@@ -1210,3 +1210,143 @@ class DownloadTickets(ConsoleHarness):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ------------------------------------------------------------------------------------------- revision-6 review, item 2
+INCIDENT_BODY = {"task_id": "audit-sample", "profile": "development"}  # the shape of the 19 Oct 2026 verification request
+
+
+class StrictRunRequests(ConsoleHarness):
+    """Admission requests are explicit: unknown fields are refused and the provider has no default, so the request that started an
+    unapproved paid run on 19 Oct 2026 (`profile` instead of `provider`, a junk query token) is a 422 now. A refused request never
+    reaches the handler or the worker: no row, no queue entry, no budget reservation, no provider. Every check runs against an idle
+    worker whose runtime builder and sockets are blocked; nothing is dispatched anywhere."""
+
+    def setUp(self):
+        self.enqueued: list = []
+        self.built: list = []
+        original = self.worker.enqueue
+
+        def recording_enqueue(*args, **kwargs):
+            self.enqueued.append((args, kwargs))
+            return original(*args, **kwargs)
+
+        def recording_runtime(*args, **kwargs):
+            self.built.append(args)
+            raise AssertionError("no provider may be built by an admission test")
+
+        self.patchers = [patch.object(self.worker, "enqueue", recording_enqueue), patch.object(Worker, "build_runtime", recording_runtime)]
+        for item in self.patchers:
+            item.start()
+
+    def tearDown(self):
+        for item in reversed(self.patchers):
+            item.stop()
+
+    def state(self) -> dict:
+        budget = self.client.get("/api/health").json()["budget"]
+        return {"rows": sorted(r["run_id"] for r in self.store.list_runs(limit=100000, include_team=True)), "queue": self.worker.queue.qsize(),
+                "queued": list(self.worker._queued), "reserved_usd": budget["reserved_usd"], "active_runs": budget["active_runs"]}
+
+    def assert_refused_without_trace(self, response, before: dict, *fields: str) -> None:
+        self.assertEqual(response.status_code, 422, response.text)
+        body = response.json()
+        self.assertEqual(body["error"], "invalid_request")
+        for field in fields:
+            self.assertIn(field, body["detail"])
+        self.assertEqual(self.state(), before, "a refused request left a row, a queue entry or a reservation")
+        self.assertEqual(self.enqueued, [], "a refused request reached the worker's admission")
+        self.assertEqual(self.built, [], "a refused request built a provider")
+
+    def test_the_incident_request_is_refused_and_leaves_no_trace(self):
+        before = self.state()
+        for query in ("?token=junk", ""):
+            response = self.client.post("/api/runs" + query, json=INCIDENT_BODY)
+            self.assert_refused_without_trace(response, before, "provider: Field required", "profile: Extra inputs are not permitted")
+
+    def test_missing_invalid_and_extra_fields_are_refused_before_admission(self):
+        before = self.state()
+        secret = "synthetic-" + "admin-value-0451"
+        bodies = {
+            "missing provider": ({"task_id": "audit-sample"}, "provider"),
+            "empty provider": ({"task_id": "audit-sample", "provider": ""}, "provider"),
+            "unknown provider": ({"task_id": "audit-sample", "provider": "openai"}, "unknown inference profile"),
+            "provider in the wrong case": ({"task_id": "audit-sample", "provider": "Nebius"}, "unknown inference profile"),
+            "null provider": ({"task_id": "audit-sample", "provider": None}, "provider"),
+            "numeric provider": ({"task_id": "audit-sample", "provider": 7}, "provider"),
+            "list provider": ({"task_id": "audit-sample", "provider": ["nebius"]}, "provider"),
+            "profile next to a valid provider": ({"task_id": "audit-sample", "provider": "nebius", "profile": "development"}, "profile"),
+            "an unknown field with an admin token": ({"task_id": "audit-sample", "provider": "codex", "admin_token": secret, "team": True}, "team"),
+            "missing task": ({"provider": "nebius"}, "task_id"),
+            "not an object": (["audit-sample", "nebius"], "body"),
+        }
+        for name, (body, field) in bodies.items():
+            for headers in ({}, TEAM_HEADERS):  # a team caller's malformed request is refused exactly like a visitor's
+                response = self.client.post("/api/runs", json=body, headers=headers)
+                with self.subTest(name, team=bool(headers)):
+                    self.assert_refused_without_trace(response, before, field)
+                    self.assertNotIn(secret, response.text, "the submitted values are not echoed")
+        for raw, content_type in ((b"", "application/json"), (b"task_id=audit-sample&provider=nebius", "application/x-www-form-urlencoded"),
+                                  (b"{not json", "application/json")):
+            response = self.client.post("/api/runs", content=raw, headers={"Content-Type": content_type})
+            self.assert_refused_without_trace(response, before)
+
+    def test_valid_requests_keep_their_authorization_rules(self):
+        before = self.state()
+        refused = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "codex"})
+        self.assertEqual(refused.status_code, 403, "the development profile still needs the team token")
+        self.assertEqual(self.state(), before)
+        public = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"})
+        self.assertEqual(public.status_code, 200, public.text)
+        self.assertEqual(public.json()["visibility"], PUBLIC)
+        by_body = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "codex", "admin_token": TOKEN})
+        by_header = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "codex"}, headers=TEAM_HEADERS)
+        self.assertEqual((by_body.status_code, by_header.status_code), (200, 200), (by_body.text, by_header.text))
+        self.assertEqual({by_body.json()["visibility"], by_header.json()["visibility"]}, {TEAM})
+        self.assertEqual([args[1] for args, _ in self.enqueued], ["nebius", "codex", "codex"])
+        self.assertEqual(self.built, [], "the idle worker built nothing")
+        unknown = self.client.post("/api/runs", json={"task_id": "no-such-task", "provider": "nebius"})
+        self.assertEqual(unknown.status_code, 404)
+        # the visitor quota still applies to valid public requests (a distinct visitor behind the trusted proxy, three seeded runs)
+        proxied = TestClient(PeerAddress(self.server.app, "127.0.0.1"), raise_server_exceptions=False)
+        for i in range(3):
+            self.store.create_run(run_id=f"strict-quota-{i}", **_row(status="queued", verdict=None, created_at=utcnow(), requester="192.0.2.61"))
+        limited = proxied.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"}, headers={"x-forwarded-for": "192.0.2.61"})
+        self.assertEqual(limited.status_code, 429, limited.text)
+
+    def test_a_download_ticket_never_authorizes_admission(self):
+        out = self.tmp / "data" / "runs" / "strict-team-run"
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "proof_bundle.json").write_text(json.dumps(_bundle("strict-team-run", provider="codex_gateway")), encoding="utf-8")
+        self.store.create_run(run_id="strict-team-run", **_row(provider="codex", profile_label="development", finished_at=utcnow(), out_dir=str(out)))
+        ticket = self.server.mint_download_ticket("strict-team-run")["ticket"]
+        self.assertEqual(self.server.ticket_run_id(ticket), "strict-team-run", "the ticket itself is valid")
+        before = self.state()
+        team_body = {"task_id": "audit-sample", "provider": "codex"}
+        for response in (self.client.post(f"/api/runs?ticket={ticket}", json=team_body),
+                         self.client.post("/api/runs", json=team_body, headers={"X-Attest-Token": ticket}),
+                         self.client.post("/api/runs", json=dict(team_body, admin_token=ticket))):
+            self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual(self.state(), before)
+        self.assert_refused_without_trace(self.client.post(f"/api/runs?ticket={ticket}", json=INCIDENT_BODY), before, "provider")
+        self.assert_refused_without_trace(self.client.post("/api/runs", json=INCIDENT_BODY, headers={"X-Attest-Token": ticket}), before, "provider")
+        # nor an exemption from the visitor quota
+        proxied = TestClient(PeerAddress(self.server.app, "127.0.0.1"), raise_server_exceptions=False)
+        for i in range(3):
+            self.store.create_run(run_id=f"strict-ticket-quota-{i}", **_row(status="queued", verdict=None, created_at=utcnow(), requester="192.0.2.62"))
+        for headers, query in (({"x-forwarded-for": "192.0.2.62"}, f"?ticket={ticket}"),
+                               ({"x-forwarded-for": "192.0.2.62", "X-Attest-Token": ticket}, "")):
+            response = proxied.post("/api/runs" + query, json={"task_id": "audit-sample", "provider": "nebius"}, headers=headers)
+            self.assertEqual(response.status_code, 429, response.text)
+        # both reached admission as an ordinary visitor (quota applied, the public profile) and the quota refused them atomically
+        self.assertEqual([(args[1], args[3], kwargs["quota"] is not None) for args, kwargs in self.enqueued], [("nebius", "judge-demo", True)] * 2)
+        self.assertEqual(self.store.count_recent("192.0.2.62", "2000-01-01"), 3, "no ticket-carrying request left a row")
+
+    def test_the_public_schema_declares_the_strict_body_without_naming_the_gateway(self):
+        response = self.client.get("/api/openapi.json")
+        schema = response.json()["components"]["schemas"]["RunRequest"]
+        self.assertIs(schema["additionalProperties"], False)
+        self.assertEqual(sorted(schema["required"]), ["provider", "task_id"])
+        self.assertNotIn("default", schema["properties"]["provider"])
+        self.assertNotIn("enum", schema["properties"]["provider"])
+        self.assertNotIn("codex", response.text.lower())

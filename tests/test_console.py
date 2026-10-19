@@ -204,7 +204,7 @@ class ConsoleApi(unittest.TestCase):
 
     def test_development_provider_still_requires_the_token(self):
         self.assertEqual(self.client.post("/api/runs", json={"task_id": "durationkit-units-001", "provider": "codex"}).status_code, 403)
-        self.assertEqual(self.client.post("/api/runs", json={"task_id": "durationkit-units-001", "provider": "other"}).status_code, 400)
+        self.assertEqual(self.client.post("/api/runs", json={"task_id": "durationkit-units-001", "provider": "other"}).status_code, 422)
 
     def test_run_page_serves_the_console_for_deep_links(self):
         row = self.runs[0]

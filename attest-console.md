@@ -260,6 +260,12 @@ Evidence and acceptance tests: `reports/attest-audit-repairs-2026-10-19/console/
   successful response; the events endpoint exposes an authoritative `position` from the worker's ordered queue.
 - Accounting (AC-05, AC-06): imports preserve `cost_usd_committed` (recomputed from the call records or the journal for
   legacy bundles); a run counts against every UTC day on which it was queued, started, ran or finished.
+- Admission requests (revision-6 review, item 2): `POST /api/runs` accepts exactly `task_id`, `provider` and an optional
+  `admin_token`. Unknown fields are refused and `provider` is required, with no default, and must name a supported profile
+  (validated in code, so the public OpenAPI schema lists no gateway). A malformed body is answered 422 (`invalid_request`,
+  the offending fields named, the submitted values not echoed) by request validation, before the handler, so it creates no
+  row, queue entry, reservation or provider. Verify admission rules with the offline suites; on the live host use GET
+  requests only (`/api/openapi.json` shows the strict schema).
 - Publication contract: runs carry a `visibility` (`public` or `team`); team runs (the development profile, and imported
   bundles of that provider) are hidden from every read route (list, detail, events, artifacts, zip, current-run and
   estimate references) unless the caller presents the team token in the `X-Attest-Token` header. A query-string token is ignored on every
