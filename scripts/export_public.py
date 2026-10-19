@@ -56,12 +56,13 @@ EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".venv", "snapshot", "screens", 
                 # the 19 Oct audit's synthetic bundles are deliberately defective (they fail `attest check` by design) and its
                 # synthetic work directory is scratch; the audit report describes both
                 "synthetic-bundles", "synthetic-work",
-                # the first (stopped) development batch of 19 Oct 2026 ran the revision before the ledger journal was sealed under
-                # the manifest: its three bundles fail the digest check by construction (the defect it exposed), so they stay private
-                "evaluation-codex",
                 # two partial copies of run directories kept in the 16 Oct hardening report (sealed and breaker modules were not
                 # copied at the time); they fail `attest check` by construction, so the originals stay private
                 "semver-v2-codex-verified", "smoke-run-durationkit-codex"}
+# Specific directories (relative to the project root) that stay private although same-named directories elsewhere are exported:
+# the first (stopped) development batch of 19 Oct 2026 ran the revision before the ledger journal was sealed under the
+# manifest, so its three bundles fail the digest check by construction (the defect it exposed).
+EXCLUDE_PATHS = {"reports/attest-revision-2026-10-19/evaluation-codex"}
 MAX_FILE_BYTES = 2_000_000
 EXPORT_RECORD = "EXPORT.json"  # written at the root of every export; its presence marks a tree this tool produced
 
@@ -154,6 +155,8 @@ def copy_tree(source: Path, dest: Path, stats: dict) -> None:
         rel = path.relative_to(source)
         if any(part in EXCLUDE_DIRS for part in rel.parts):
             continue
+        if any(_label(source, rel).startswith(prefix + "/") for prefix in EXCLUDE_PATHS):
+            continue  # a specific directory stays private; same-named directories elsewhere are exported
         if path.is_symlink() or not path.is_file():
             continue
         label = _label(source, rel)
