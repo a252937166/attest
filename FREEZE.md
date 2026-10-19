@@ -62,7 +62,7 @@ $11.00 budget on 17 Oct 2026.
 
 The M5 pin above is history and stays as it is; the results it produced are in `reports/attest-evaluation-2026-10-17-nebius-m5/`
 (with `CORRECTIONS.md` for the reading of three cells). The revision below changes the pipeline; it has been validated
-offline (177 tests) and on the development gateway (`reports/attest-revision-2026-10-19/README.md`), not yet on Nemotron.
+offline (179 tests) and on the development gateway (`reports/attest-revision-2026-10-19/README.md`), not yet on Nemotron.
 No paid Nebius call runs before the owner approves the proposal at the end of this section.
 
 ## What changed in the method
@@ -85,10 +85,10 @@ sandbox runner (same digests as the M5 pin), the gate-to-verdict rule's structur
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `<pending>` on branch `main` of the review repository |
-| `attest/` package digest | `<pending>` |
-| Harness `scripts/run_evaluation.py` sha256 | `<pending>` |
-| `examples/` tree digest | `<pending>` |
+| Repository commit (code) | `4437b29a233603bf8a0523a6c0092493a92d2aa3` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest | `b27a1c070a852ae2f0f2776c59cebe09cea87307a014ca80a1c37f7e66e68b49` |
+| Harness `scripts/run_evaluation.py` sha256 | `0b7056a05512f569b6c41b78a531002f5b75d73d1919c2c93b0533b77f66f423` |
+| `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` (the M5 registration recorded `e95a28aa…` because its clean clone normalised the line endings of one Windows batch file, `docs/make.bat` of the python-semver checkout, a protected file never executed; no task, repository source or held-out suite differs) |
 | Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged) |
 | Models and sampling (Nebius Token Factory) | unchanged from the M5 pin; the contract auditor runs on the `audit` role (Nemotron 3 Ultra, model default effort); the escalated third breaker attempt runs on the `arbitrate` role (Ultra) |
 | Limits | M5 limits plus the five above |
@@ -96,7 +96,7 @@ sandbox runner (same digests as the M5 pin), the gate-to-verdict rule's structur
 ## The exact command (unchanged in shape; a new report directory)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout <pending commit>
+git clone <repository> attest-eval && cd attest-eval && git checkout 4437b29a233603bf8a0523a6c0092493a92d2aa3
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 20 --max-turns 14 --approve-usd 9.00 --label r4-final \

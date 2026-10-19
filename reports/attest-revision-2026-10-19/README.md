@@ -120,7 +120,7 @@ weaker `gpt-6-luna` as implementer).
 
 ## 6. Regression tests (offline, no credentials)
 
-`python3 -m unittest discover -s tests -t .` ran 177 tests at the end of the day (145 before the revision). New in
+`python3 -m unittest discover -s tests -t .` ran 179 tests at the end of the day (145 before the revision). New in
 `tests/test_revision4.py` and the extended fakes of `tests/test_verification.py`: a demonstrated witness ends INFEASIBLE
 with the witness recorded and checked; a claimed conflict without a demonstration does not stop the run; a specification's
 infeasibility without a demonstrated witness is a hold; a validated adversarial correction re-runs the gate (VERIFIED,
