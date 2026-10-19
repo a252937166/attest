@@ -12,14 +12,19 @@ python3 -m unittest discover -s tests -t .
 
 The suite runs the pipeline against a fake provider and a fake sandbox (every verdict path, tampering scenarios, the
 bound supervisor executed locally, pacing, provenance, budget accounting under failure, the bounded import, redacted
-exports). Then verify a recorded Proof Bundle offline, for example the external-repository run that ended VERIFIED:
+exports, and since revision 4 the executed contract-audit witnesses, validated corrections with gate re-runs, the
+never-overridden sealed assertion, breaker escalation, the unfinished NO CHANGE, the ledger journal and the console's
+reconciliation from it). Then verify a recorded Proof Bundle offline, for example the external-repository run that ended VERIFIED:
 
 ```bash
 python3 -m attest check reports/attest-m4-2026-10-17/runs/semver-long-prerelease-pr488-20261017T132707Z
 ```
 
 It recomputes every artifact digest against the manifest, the sealed and adversarial bindings from the raw supervisor
-records, the ledger totals, the gate-to-verdict rule and `PROOF.md`. Public copies of development-profile runs are
+records, the ledger totals, the gate-to-verdict rule and `PROOF.md`. For bundles of revision 4 it also recomputes the
+digests of corrected test modules and of contract-audit witnesses, checks that a correction kept the test set and changed
+only the failing tests, that a corrected gate rests on the corrected module's own binding, and that an INFEASIBLE verdict
+rests on a demonstrated witness. Public copies of development-profile runs are
 redacted (the team's gateway host and local paths); such a copy carries `REDACTION.json` naming its source run and the
 original manifest's digest, and its manifest is the export's own, so the check still passes and says so.
 

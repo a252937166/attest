@@ -1,0 +1,1137 @@
+{
+  "schedule": {
+    "label": "revision4-codex-2",
+    "registered_at_utc": "2026-10-19T04:17:12.699390+00:00",
+    "attest_version": "0.4.0",
+    "provider": "codex",
+    "provider_detail": {
+      "provider": "codex_gateway",
+      "base_url": null,
+      "base_url_sha256": "68e25b464500800e",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "structured_endpoint": "/run",
+      "native_tools": false,
+      "streaming": false,
+      "auto_retry": false,
+      "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+      "pacing": {
+        "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+        "policy_source": "gateway status: hourly request counting not enforced",
+        "hourly_limit_assumed": null,
+        "budget": null,
+        "max_concurrency": 2,
+        "max_wait_s": 3900.0,
+        "state_shared_across_processes": true
+      }
+    },
+    "per_run_usd_cap": 0.5,
+    "approve_usd": null,
+    "max_calls_per_run": null,
+    "max_turns": 14,
+    "workers": 2,
+    "attempts_per_cell": 1,
+    "systems": [
+      "attest"
+    ],
+    "tasks": [
+      "roman-to-numeral",
+      "rle-encode",
+      "balanced-brackets",
+      "durationkit-units-001",
+      "semver-is-compatible-pr368-v2",
+      "slugkit-regression-001",
+      "kvparse-refactor-001",
+      "semver-long-prerelease-pr488"
+    ],
+    "suite": "examples/eval/SUITE-M5.json",
+    "heldout_stripped_from_system_under_test": true,
+    "provenance": {
+      "fresh_process": true,
+      "pid": 8951,
+      "snapshot_root": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/snapshot",
+      "source_root": "/work/attest",
+      "source_git_commit": null,
+      "attest_version": "0.4.0",
+      "attest_revision": {
+        "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+        "digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+        "files": 35,
+        "git_commit": null,
+        "version": "0.4.0"
+      },
+      "eval_script_sha256": "0b7056a05512f569b6c41b78a531002f5b75d73d1919c2c93b0533b77f66f423",
+      "examples_digest": {
+        "digest": "6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4",
+        "files": 196
+      },
+      "guest_programs": {
+        "supervisor": {
+          "version": "attest-sealed-supervisor/6",
+          "sha256": "93e8c9edacca93fc4b8a8c2cf86b44374aab3a9a752dc35b7af5e3dfdc935211"
+        },
+        "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+        "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+        "guest_runner_sha256": "80999537285bacafdd86e7faad72792e2a7a25f87d691231e76f3905a1aa91b6"
+      },
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "note": "the batch executes the snapshot only; edits to the source tree during the batch cannot reach it and are reported"
+    },
+    "pacing": {
+      "calls_per_cell_reserved": {
+        "baseline": 6,
+        "attest": 15
+      },
+      "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+      "policy_source": "gateway status: hourly request counting not enforced",
+      "policy_checked_at_epoch": 1792383432.6569579,
+      "hourly_limit_assumed": null,
+      "budget": null,
+      "max_concurrency": 2,
+      "max_wait_s": 3900.0,
+      "used_in_window": 21,
+      "blocked_until_epoch": null,
+      "rejections_seen": 0,
+      "waits": [],
+      "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json",
+      "state_shared_across_processes": true,
+      "state_error": null
+    },
+    "stop_conditions": [
+      "batch USD cap reached (reservation of the per-run cap before each run)",
+      "3 consecutive infrastructure errors",
+      "any transport-uncertain operation (never replayed)",
+      "Codex pacing: a cell whose bounded wait for the hourly budget is exceeded ends as ERROR (reported); no fallback",
+      "operator STOP file in the report directory: cells not yet started are reported as not run; in-flight cells finish and keep their ledgers"
+    ],
+    "definitions": {
+      "accepted": "attest: verdict VERIFIED; baseline: implementer finished",
+      "correct": "existing suite and held-out suite pass on the final patch in a fresh branch (judge); for a task whose ground_truth is 'unsatisfiable' no patch counts as correct and a hold (INFEASIBLE or NEEDS HUMAN) is the right outcome",
+      "infra_error": "verdict ERROR or a harness exception",
+      "not_run": "scheduled but never executed; reason recorded",
+      "no_patch": "no patch was produced (Attest NO CHANGE, or a baseline that neither finished nor edited): an unfinished task, counted neither as a rejection nor as an acceptance",
+      "true_reject": "a patch was produced and not accepted, and the judge found it not correct",
+      "comparison_invalid": "a task whose cells did not all run the registered revision, or whose snapshot changed during the batch"
+    },
+    "cells": [
+      {
+        "scheduled_index": 0,
+        "task": "roman-to-numeral",
+        "task_path": "examples/eval/roman-to-numeral/task.json",
+        "heldout": "examples/eval/roman-to-numeral/heldout.py",
+        "ground_truth": "held_out_suite",
+        "kind": "add function",
+        "heldout_sha256": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200",
+        "task_spec_sha256": "e9c218e0825ab0557835cf8cd132a801d7f63677646166e019e8207a10dc3954",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 1,
+        "task": "rle-encode",
+        "task_path": "examples/eval/rle-encode/task.json",
+        "heldout": "examples/eval/rle-encode/heldout.py",
+        "ground_truth": "unsatisfiable",
+        "kind": "add function (unsatisfiable contract)",
+        "heldout_sha256": "021de77e64ade5e93d816e149b34d733c27e149b23bff6c119d87682e4c7bbb5",
+        "task_spec_sha256": "46f6d840c3b61a78e676dd7851d6347660ad71b9f5558f7e34b5411691f148af",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 2,
+        "task": "balanced-brackets",
+        "task_path": "examples/eval/balanced-brackets/task.json",
+        "heldout": "examples/eval/balanced-brackets/heldout.py",
+        "ground_truth": "held_out_suite",
+        "kind": "add function",
+        "heldout_sha256": "d43d71f0598f2fbf546153d7e19eabffb7e8cd3148a4f910c6f41f13462a06c2",
+        "task_spec_sha256": "b4b1ed357cf1c1bd54b85a7c1e9d3157d00ec207969b2cf0547512c4dbe167c8",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 3,
+        "task": "durationkit-units-001",
+        "task_path": "examples/durationkit-task/task.json",
+        "heldout": "examples/eval/durationkit-task/heldout.py",
+        "ground_truth": "held_out_suite",
+        "kind": "extend function",
+        "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+        "task_spec_sha256": "52f44d7aa75262eecd969a37464e8a7ece88ce0eaa3f4ef17e12e86fa71dc6f5",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 4,
+        "task": "semver-is-compatible-pr368-v2",
+        "task_path": "examples/semver-is-compatible-v2/task.json",
+        "heldout": "examples/semver-is-compatible/heldout_test_pr368.py",
+        "ground_truth": "held_out_suite",
+        "kind": "external repository, add method (upstream PR tests held out)",
+        "heldout_sha256": "8b799158e528dc629ed5109ab6fc4e5db9f55b0ce3f28c310d313789e1283a36",
+        "task_spec_sha256": "8ad94176d183307774d0c06f5c58bf164f132a8eadde1b945f6169fbb5c4ab70",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 5,
+        "task": "slugkit-regression-001",
+        "task_path": "examples/eval/slugkit-regression/task.json",
+        "heldout": "examples/eval/slugkit-regression/heldout.py",
+        "ground_truth": "held_out_suite",
+        "kind": "regression repair",
+        "heldout_sha256": "f7a390c9d4348b63e3d2d44bed0a895f29b90168a41cae6cc4d86a42b1451a4b",
+        "task_spec_sha256": "987fe1b0a3245cb08f903a86cb72427c4ebb793032b34424023f5bfe8fcff385",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 6,
+        "task": "kvparse-refactor-001",
+        "task_path": "examples/eval/kvparse-refactor/task.json",
+        "heldout": "examples/eval/kvparse-refactor/heldout.py",
+        "ground_truth": "held_out_suite",
+        "kind": "behaviour-preserving refactor",
+        "heldout_sha256": "ade28a389049792076e1f34a061a741eb91e947399289969bd2bf5f145c9a7af",
+        "task_spec_sha256": "2d7ee5a74ab239372319cc67612f29a86dc88f6a70368a0697f29483789d5fd0",
+        "system": "attest",
+        "attempt": 1
+      },
+      {
+        "scheduled_index": 7,
+        "task": "semver-long-prerelease-pr488",
+        "task_path": "examples/semver-long-prerelease-pr488/task.json",
+        "heldout": "examples/semver-long-prerelease-pr488/heldout_test_pr488.py",
+        "ground_truth": "held_out_suite",
+        "kind": "external repository, bug fix (upstream PR tests held out)",
+        "heldout_sha256": "38f5e4633146391c2510f41fce0aee17fb049546b3f1e288c548dbb3455414f6",
+        "task_spec_sha256": "d68b82a7812623a4f828de375f5cf07a18c01e9c4a54b171ebedfdf61fe74fa6",
+        "system": "attest",
+        "attempt": 1
+      }
+    ],
+    "register_only": false,
+    "resumptions": [
+      {
+        "at_utc": "2026-10-19T04:44:22.817049+00:00",
+        "cells": [
+          5,
+          6,
+          7
+        ],
+        "provenance_check": "snapshot digests verified by the launcher"
+      }
+    ]
+  },
+  "finished_at_utc": "2026-10-19T05:09:32.064863+00:00",
+  "complete": true,
+  "budget": {
+    "approve_usd": null,
+    "per_run_cap_usd": 0.5,
+    "committed_usd": 0.0,
+    "peak_projected_usd": 0.0,
+    "stopped": null
+  },
+  "note": "every scheduled cell is reported once; there is no merge or best-of selection",
+  "provenance_check": {
+    "registered_revision": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+    "snapshot_intact_at_end": true,
+    "working_tree_revision_now": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+    "working_tree_changed_since_launch": false,
+    "comparisons": {
+      "roman-to-numeral": {
+        "valid": true,
+        "reasons": []
+      },
+      "rle-encode": {
+        "valid": true,
+        "reasons": []
+      },
+      "balanced-brackets": {
+        "valid": true,
+        "reasons": []
+      },
+      "durationkit-units-001": {
+        "valid": true,
+        "reasons": []
+      },
+      "semver-is-compatible-pr368-v2": {
+        "valid": true,
+        "reasons": []
+      },
+      "slugkit-regression-001": {
+        "valid": true,
+        "reasons": []
+      },
+      "kvparse-refactor-001": {
+        "valid": true,
+        "reasons": []
+      },
+      "semver-long-prerelease-pr488": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "invalid_tasks": []
+  },
+  "pacing": {
+    "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+    "policy_source": "gateway status: hourly request counting not enforced",
+    "policy_checked_at_epoch": 1792386025.0583522,
+    "hourly_limit_assumed": null,
+    "budget": null,
+    "max_concurrency": 2,
+    "max_wait_s": 3900.0,
+    "used_in_window": 112,
+    "blocked_until_epoch": null,
+    "rejections_seen": 0,
+    "waits": [],
+    "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json",
+    "state_shared_across_processes": true,
+    "state_error": null
+  },
+  "resumed_at_utc": "2026-10-19T04:44:22.817049+00:00",
+  "interrupted": [],
+  "interrupted_note": "run directories whose cell never reported a row (the process died mid-run); their ledger journals are read back and their committed USD is part of the batch total; the cell itself ran again",
+  "rows": [
+    {
+      "scheduled_index": 0,
+      "task": "roman-to-numeral",
+      "task_path": "examples/eval/roman-to-numeral/task.json",
+      "heldout": "examples/eval/roman-to-numeral/heldout.py",
+      "ground_truth": "held_out_suite",
+      "kind": "add function",
+      "heldout_sha256": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200",
+      "task_spec_sha256": "e9c218e0825ab0557835cf8cd132a801d7f63677646166e019e8207a10dc3954",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "VERIFIED",
+      "accepted": true,
+      "held_out_correct": true,
+      "judge_passed": true,
+      "changed_paths": 1,
+      "held_out_summary": "OK (8 of 8 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_error": null,
+      "judge_operation_uuid": "01a1526d-b209-75c2-865a-5619899337b5",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 10,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 20,
+      "wall_s": 844.1,
+      "turns": 5,
+      "finished": true,
+      "reasons": [],
+      "warnings": [],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/runs/roman-to-numeral-attest-a1-20261019T041712703144Z",
+      "run_id": "roman-to-numeral-attest-a1-20261019T041712703144Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-19T04:31:22.950383+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 1,
+      "task": "rle-encode",
+      "task_path": "examples/eval/rle-encode/task.json",
+      "heldout": "examples/eval/rle-encode/heldout.py",
+      "ground_truth": "unsatisfiable",
+      "kind": "add function (unsatisfiable contract)",
+      "heldout_sha256": "021de77e64ade5e93d816e149b34d733c27e149b23bff6c119d87682e4c7bbb5",
+      "task_spec_sha256": "46f6d840c3b61a78e676dd7851d6347660ad71b9f5558f7e34b5411691f148af",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "INFEASIBLE",
+      "accepted": false,
+      "held_out_correct": false,
+      "judge_passed": false,
+      "changed_paths": 0,
+      "held_out_summary": "FAILED (7 of 9 methods: ERROR 7); binding FAILED: child process nonzero exit: test_basic exit 1, test_empty exit 1, test_single_runs exit 1, test_long_run exit 1, test_roundtrip exit 1, test_returns_str exit 1, test_non_string_raises_typeerror exit 1",
+      "judge_evidence_class": "bound",
+      "judge_error": null,
+      "judge_operation_uuid": "01a15263-78ab-7215-80db-59519b16d108",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 2,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 3,
+      "wall_s": 174.1,
+      "turns": 0,
+      "finished": false,
+      "reasons": [
+        "contract contradiction demonstrated by an executed witness (requirements AC10, AC12): For input 'a1', the mandated format produces 'a111', which the unchanged decoder interprets as 111 copies of 'a', violating the required round trip.; witness output: CONTRADICTION AC10 AC12: input 'a1' requires encoding 'a111', but unchanged decode returns 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/runs/rle-encode-attest-a1-20261019T041712703230Z",
+      "run_id": "rle-encode-attest-a1-20261019T041712703230Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-19T04:20:13.130932+00:00",
+      "confusion": "true_reject"
+    },
+    {
+      "scheduled_index": 2,
+      "task": "balanced-brackets",
+      "task_path": "examples/eval/balanced-brackets/task.json",
+      "heldout": "examples/eval/balanced-brackets/heldout.py",
+      "ground_truth": "held_out_suite",
+      "kind": "add function",
+      "heldout_sha256": "d43d71f0598f2fbf546153d7e19eabffb7e8cd3148a4f910c6f41f13462a06c2",
+      "task_spec_sha256": "b4b1ed357cf1c1bd54b85a7c1e9d3157d00ec207969b2cf0547512c4dbe167c8",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "VERIFIED",
+      "accepted": true,
+      "held_out_correct": true,
+      "judge_passed": true,
+      "changed_paths": 1,
+      "held_out_summary": "OK (8 of 8 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_error": null,
+      "judge_operation_uuid": "01a1526d-f9d1-77d0-b269-1aa23e91247b",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 9,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 16,
+      "wall_s": 682.1,
+      "turns": 4,
+      "finished": true,
+      "reasons": [],
+      "warnings": [],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/runs/balanced-brackets-attest-a1-20261019T042013134893Z",
+      "run_id": "balanced-brackets-attest-a1-20261019T042013134893Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-19T04:31:42.182808+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 3,
+      "task": "durationkit-units-001",
+      "task_path": "examples/durationkit-task/task.json",
+      "heldout": "examples/eval/durationkit-task/heldout.py",
+      "ground_truth": "held_out_suite",
+      "kind": "extend function",
+      "heldout_sha256": "ffeee347f5f4668065f44851f4f32b31d2b61401b33c06b5b1d7445be310a756",
+      "task_spec_sha256": "52f44d7aa75262eecd969a37464e8a7ece88ce0eaa3f4ef17e12e86fa71dc6f5",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "VERIFIED",
+      "accepted": true,
+      "held_out_correct": true,
+      "judge_passed": true,
+      "changed_paths": 1,
+      "held_out_summary": "OK (13 of 13 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_error": null,
+      "judge_operation_uuid": "01a15278-7b82-72de-8b6f-3124cc4adc62",
+      "heldout_stripped_from_task": [],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 13,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 22,
+      "wall_s": 699.9,
+      "turns": 7,
+      "finished": true,
+      "reasons": [],
+      "warnings": [
+        "arbitration (validated corrections re-run their gates): all 2 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (2 of 2 corrected test(s) fail on the unmodified base); the affected gate(s) are re-run on the corrected modules"
+      ],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/runs/durationkit-units-001-attest-a1-20261019T043122954196Z",
+      "run_id": "durationkit-units-001-attest-a1-20261019T043122954196Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": {
+        "counts": {
+          "implementation_bug": 0,
+          "test_defect": 2,
+          "contract_dispute": 0
+        },
+        "cleared": true,
+        "headline": "all 2 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (2 of 2 corrected test(s) fail on the unmodified base); the affected gate(s) are re-run on the corrected modules"
+      },
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-19T04:43:12.272483+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 4,
+      "task": "semver-is-compatible-pr368-v2",
+      "task_path": "examples/semver-is-compatible-v2/task.json",
+      "heldout": "examples/semver-is-compatible/heldout_test_pr368.py",
+      "ground_truth": "held_out_suite",
+      "kind": "external repository, add method (upstream PR tests held out)",
+      "heldout_sha256": "8b799158e528dc629ed5109ab6fc4e5db9f55b0ce3f28c310d313789e1283a36",
+      "task_spec_sha256": "8ad94176d183307774d0c06f5c58bf164f132a8eadde1b945f6169fbb5c4ab70",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "ERROR",
+      "accepted": false,
+      "held_out_correct": false,
+      "judge_passed": false,
+      "changed_paths": 0,
+      "held_out_summary": "16 failed, 312 passed in 0.68s",
+      "judge_evidence_class": "stdout",
+      "judge_error": null,
+      "judge_operation_uuid": "01a15276-4b1d-7745-9711-935e11fdac8b",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout_pr368.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 6,
+      "model_calls_failed": 2,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 3,
+      "wall_s": 537.5,
+      "turns": 0,
+      "finished": false,
+      "reasons": [
+        "model provider: inference outcome uncertain (URLError: <urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)>); not retried (outcome uncertain; not retried)"
+      ],
+      "warnings": [],
+      "gates": {},
+      "out_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/runs/semver-is-compatible-pr368-v2-attest-a1-20261019T043142186170Z",
+      "run_id": "semver-is-compatible-pr368-v2-attest-a1-20261019T043142186170Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": true,
+      "uncertain": true,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-19T04:40:45.713743+00:00",
+      "confusion": "infra_error"
+    },
+    {
+      "scheduled_index": 5,
+      "task": "slugkit-regression-001",
+      "task_path": "examples/eval/slugkit-regression/task.json",
+      "heldout": "examples/eval/slugkit-regression/heldout.py",
+      "ground_truth": "held_out_suite",
+      "kind": "regression repair",
+      "heldout_sha256": "f7a390c9d4348b63e3d2d44bed0a895f29b90168a41cae6cc4d86a42b1451a4b",
+      "task_spec_sha256": "987fe1b0a3245cb08f903a86cb72427c4ebb793032b34424023f5bfe8fcff385",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "VERIFIED",
+      "accepted": true,
+      "held_out_correct": true,
+      "judge_passed": true,
+      "changed_paths": 1,
+      "held_out_summary": "OK (10 of 10 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_error": null,
+      "judge_operation_uuid": "01a15286-07dd-7406-b217-58a463f99fe6",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 11,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 8,
+      "wall_s": 808.3,
+      "turns": 6,
+      "finished": true,
+      "reasons": [],
+      "warnings": [
+        "static tamper scan: 1 flagged line(s): dynamic code or decoded payload; review the patch before trusting self-reported results",
+        "mutation gate: no mutable sites were generated on the changed lines; only the adversarial suite (10 tests) tests the patch structurally"
+      ],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/runs/slugkit-regression-001-attest-a1-20261019T044422819802Z",
+      "run_id": "slugkit-regression-001-attest-a1-20261019T044422819802Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-19T04:57:58.867480+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 6,
+      "task": "kvparse-refactor-001",
+      "task_path": "examples/eval/kvparse-refactor/task.json",
+      "heldout": "examples/eval/kvparse-refactor/heldout.py",
+      "ground_truth": "held_out_suite",
+      "kind": "behaviour-preserving refactor",
+      "heldout_sha256": "ade28a389049792076e1f34a061a741eb91e947399289969bd2bf5f145c9a7af",
+      "task_spec_sha256": "2d7ee5a74ab239372319cc67612f29a86dc88f6a70368a0697f29483789d5fd0",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "VERIFIED",
+      "accepted": true,
+      "held_out_correct": true,
+      "judge_passed": true,
+      "changed_paths": 1,
+      "held_out_summary": "OK (9 of 9 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_error": null,
+      "judge_operation_uuid": "01a15286-46a8-7397-9639-c53b4d2896bd",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 10,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 19,
+      "wall_s": 824.1,
+      "turns": 5,
+      "finished": true,
+      "reasons": [],
+      "warnings": [],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/runs/kvparse-refactor-001-attest-a1-20261019T044422819873Z",
+      "run_id": "kvparse-refactor-001-attest-a1-20261019T044422819873Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": null,
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-19T04:58:15.111788+00:00",
+      "confusion": "true_accept"
+    },
+    {
+      "scheduled_index": 7,
+      "task": "semver-long-prerelease-pr488",
+      "task_path": "examples/semver-long-prerelease-pr488/task.json",
+      "heldout": "examples/semver-long-prerelease-pr488/heldout_test_pr488.py",
+      "ground_truth": "held_out_suite",
+      "kind": "external repository, bug fix (upstream PR tests held out)",
+      "heldout_sha256": "38f5e4633146391c2510f41fce0aee17fb049546b3f1e288c548dbb3455414f6",
+      "task_spec_sha256": "d68b82a7812623a4f828de375f5cf07a18c01e9c4a54b171ebedfdf61fe74fa6",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "VERIFIED",
+      "accepted": true,
+      "held_out_correct": true,
+      "judge_passed": true,
+      "changed_paths": 1,
+      "held_out_summary": "450 passed, 1 skipped in 0.87s",
+      "judge_evidence_class": "stdout",
+      "judge_error": null,
+      "judge_operation_uuid": "01a15290-9e31-76b2-ba22-9a1d58fe3b3c",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout_pr488.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 14,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 18,
+      "wall_s": 686.5,
+      "turns": 8,
+      "finished": true,
+      "reasons": [],
+      "warnings": [
+        "existing suite evidence is parsed console output (test runner 'pytest' is parsed from console output; only unittest suites run bound); the sealed, mutation and adversarial gates are bound",
+        "arbitration (validated corrections re-run their gates): all 1 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (every corrected sealed test fails on the unmodified base (red check preserved)); the affected gate(s) are re-run on the corrected modules"
+      ],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "stdout"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        },
+        "mutation": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": true,
+          "evidence_class": "bound"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/runs/semver-long-prerelease-pr488-attest-a1-20261019T045758872283Z",
+      "run_id": "semver-long-prerelease-pr488-attest-a1-20261019T045758872283Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "revision_digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "supervisor": "attest-sealed-supervisor/6",
+      "arbitration": {
+        "counts": {
+          "implementation_bug": 0,
+          "test_defect": 1,
+          "contract_dispute": 0
+        },
+        "cleared": true,
+        "headline": "all 1 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (every corrected sealed test fails on the unmodified base (red check preserved)); the affected gate(s) are re-run on the corrected modules"
+      },
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-19T05:09:31.920975+00:00",
+      "confusion": "true_accept"
+    }
+  ],
+  "summary": {
+    "attest": {
+      "scheduled": 8,
+      "completed": 8,
+      "not_run": 0,
+      "confusion": {
+        "true_accept": 6,
+        "false_accept": 0,
+        "false_reject": 0,
+        "true_reject": 1,
+        "no_patch": 0,
+        "infra_error": 1,
+        "unknown": 0,
+        "not_run": 0
+      },
+      "shipped_broken_code": 0,
+      "needs_human": 1,
+      "no_patch": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_s": 0.0,
+      "cells_in_invalid_comparisons": 0,
+      "total_cost_committed_usd": 0.0,
+      "mean_wall_s": 657.1
+    }
+  }
+}

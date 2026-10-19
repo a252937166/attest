@@ -1,0 +1,66 @@
+[04:44:22] snapshot /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-semver/snapshot: attest revision 87aa03b95d6e (35 sources), eval script 0b7056a05512, examples 6db7a2e937d6 (196 files)
+[04:44:22] fresh process from the snapshot: /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-semver/snapshot/scripts/run_evaluation.py --provider ...
+[04:44:26] codex pacing policy: gateway status: hourly request counting not enforced
+[04:44:26] pre-registered 1 cells (1 tasks x ['attest'] x 1 attempt(s)) on provider=codex; per-run cap $0.5, batch approval None, max calls None; schedule -> /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-semver/schedule.json
+[04:44:26] frozen task semver-is-compatible-pr368-v2 with 30 files, spec sha256 2acbd8a4dda7
+[04:44:28] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=on
+[04:44:38] checkpoint bc852347-45d3-492b-9b9f-3f875a576c4f ready; baseline 312 passed in 0.67s (312 tests)
+[04:44:38] suite binding: stdout (test runner 'pytest' is parsed from console output; only unittest suites run bound)
+[04:44:38] specification
+[04:46:41] spec: feasible=True, 14 criteria, 1 contract entries, 0 external references
+[04:46:41] contract audit
+[04:47:44] contract audit: consistent (0 demonstrated, 0 claimed only)
+[04:47:44] sealing acceptance tests (attempt 1)
+[04:51:15] sealed 23 test methods (sha256 e48c44302241); red check: 19 of 23 failing on base, 4 passing
+[04:51:15] implementation
+[04:52:04] turn 1: read_file src/semver/version.py -> [lines 365-430 of 703]
+[04:53:12] turn 2: replace_in_file src/semver/version.py -> replaced one occurrence in src/semver/version.py; the file is now 23798 bytes
+[04:54:14] turn 3: run_tests  -> existing test suite: 312 passed in 0.60s (ran 312, passed 312, exit 0)
+[04:54:48] turn 4: run_python  -> exit 1
+[04:55:36] turn 5: run_python  -> exit 1
+[04:56:07] turn 6: run_python  -> exit 0
+[04:57:38] turn 7: finish  -> finished: Added Version.is_compatible in src/semver/version.py with directional compatibility rules,
+[04:57:38] verification
+[04:57:49] verify: sealed OK (23 of 23 methods, each in its own process); binding ok
+[04:57:54] existing suite (stdout): 312 passed in 0.63s (312/312)
+[04:57:54] breaker pass
+[04:57:54] breaker: 12 mutants of changed lines; running in parallel branches (workers=8)
+[04:58:20] breaker: killed 12, survived 0, unknown 0, mutation score 1.0
+[04:59:26] breaker tests: OK (8 of 8 methods, each in its own process); binding ok
+[04:59:26] drift audit
+[05:00:34] drift audit: score 0.0 (aligned)
+[05:00:34] verdict VERIFIED -> /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-semver/runs/semver-is-compatible-pr368-v2-attest-a1-20261019T044426577842Z
+  [ 0] semver-is-compatible-pr368-v2 attest    a1 completed verdict=VERIFIED     correct=True  -> true_accept  $0.0 967.6s rev=87aa03b9 paced=0.0s
+
+=== SUMMARY (all scheduled cells) ===
+{
+  "attest": {
+    "scheduled": 1,
+    "completed": 1,
+    "not_run": 0,
+    "confusion": {
+      "true_accept": 1,
+      "false_accept": 0,
+      "false_reject": 0,
+      "true_reject": 0,
+      "no_patch": 0,
+      "infra_error": 0,
+      "unknown": 0,
+      "not_run": 0
+    },
+    "shipped_broken_code": 0,
+    "needs_human": 0,
+    "no_patch": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_s": 0.0,
+    "cells_in_invalid_comparisons": 0,
+    "total_cost_committed_usd": 0.0,
+    "mean_wall_s": 967.6
+  }
+}
+budget: {"approve_usd": null, "per_run_cap_usd": 0.5, "committed_usd": 0.0, "peak_projected_usd": 0.0, "stopped": null}
+provenance: {"registered_revision": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856", "snapshot_intact_at_end": true, "working_tree_revision_now": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856", "working_tree_changed_since_launch": false, "invalid_tasks": []}
+pacing: {"model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only", "policy_source": "gateway status: hourly request counting not enforced", "policy_checked_at_epoch": 1792385066.561177, "hourly_limit_assumed": null, "budget": null, "max_concurrency": 2, "max_wait_s": 3900.0, "used_in_window": 107, "blocked_until_epoch": null, "rejections_seen": 0, "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json", "state_shared_across_processes": true, "state_error": null} waits=0
+
+wrote /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-semver/evaluation.json
+exit 0

@@ -39,10 +39,42 @@ DRIFT_SCHEMA = {
 
 SEAL_SCHEMA = {
     "type": "object", "additionalProperties": False,
+    "properties": {
+        "test_file": {"type": "string"}, "test_count": {"type": "integer"}, "notes": {"type": "string"},
+        # which test methods cover which acceptance criterion (1-based index into the contract's list); the pipeline checks
+        # that every criterion is claimed by at least one existing test method and records the gaps
+        "coverage": {"type": "array",
+                     "items": {"type": "object", "additionalProperties": False,
+                               "properties": {"criterion": {"type": "integer"}, "tests": {"type": "array", "items": {"type": "string"}}},
+                               "required": ["criterion", "tests"]}},
+    },
+    "required": ["test_file", "test_count", "notes", "coverage"],
+}
+BREAKER_SCHEMA = {
+    "type": "object", "additionalProperties": False,
     "properties": {"test_file": {"type": "string"}, "test_count": {"type": "integer"}, "notes": {"type": "string"}},
     "required": ["test_file", "test_count", "notes"],
 }
-BREAKER_SCHEMA = SEAL_SCHEMA
+
+# Contract audit (19 Oct 2026): a model looks for requirements that no implementation confined to the write scope can
+# satisfy, and must back every claim with a WITNESS PROGRAM that is executed on the unmodified repository. A claim without a
+# demonstrating witness is recorded as a suspicion, never as a verdict.
+CONTRACT_AUDIT_SCHEMA = {
+    "type": "object", "additionalProperties": False,
+    "properties": {
+        "consistent": {"type": "boolean"},
+        "conflicts": {"type": "array",
+                      "items": {"type": "object", "additionalProperties": False,
+                                "properties": {"requirement_ids": {"type": "array", "items": {"type": "string"}},
+                                               "summary": {"type": "string"},
+                                               "witness": {"type": "string"}},
+                                "required": ["requirement_ids", "summary", "witness"]}},
+        "notes": {"type": "string"},
+    },
+    "required": ["consistent", "conflicts", "notes"],
+}
+WITNESS_MARKER = "CONTRADICTION"
+WITNESS_EXIT_CODE = 3
 
 ARBITRATION_SCHEMA = {
     "type": "object", "additionalProperties": False,
@@ -65,7 +97,7 @@ ARBITRATION_SCHEMA = {
     "required": ["classifications", "corrected_module", "corrected_notes"],
 }
 
-ACTIONS = ["list_files", "read_file", "replace_in_file", "write_file", "run_tests", "run_python", "undo", "finish"]
+ACTIONS = ["list_files", "read_file", "search", "replace_in_file", "write_file", "run_tests", "run_python", "undo", "finish"]
 ACTION_SCHEMA = {
     "type": "object", "additionalProperties": False,
     "properties": {
@@ -86,6 +118,39 @@ ACTION_SCHEMA = {
 
 def _tree(files: dict[str, bytes]) -> str:
     return "\n".join(f"- {path} ({len(data)} bytes)" for path, data in sorted(files.items()))
+
+
+def _outline(source: bytes, limit: int = 80) -> list[str]:
+    """`def` and `class` lines of a Python source with their line numbers (a map for navigating a long file)."""
+    lines = []
+    for number, raw in enumerate(source.decode("utf-8", "replace").splitlines(), 1):
+        stripped = raw.lstrip()
+        if stripped.startswith(("def ", "class ", "async def ")):
+            lines.append(f"{number}: {raw.rstrip()[:110]}")
+            if len(lines) >= limit:
+                lines.append("... (outline truncated)")
+                break
+    return lines
+
+
+def _tree_with_outlines(files: dict[str, bytes], focus: list[str] | None, budget: int = 6_000) -> str:
+    """The tree, plus a def/class outline (with line numbers) for the Python files the task may change, so the implementer
+    can jump to a symbol instead of paging through a long file."""
+    parts = [_tree(files)]
+    used = 0
+    for path, data in sorted(files.items()):
+        if not path.endswith(".py") or not _focused(path, focus or ["**"]):
+            continue
+        outline = _outline(data)
+        if not outline:
+            continue
+        block = f"\nOUTLINE OF {path} ({len(data.decode('utf-8', 'replace').splitlines())} lines; line: definition):\n" + "\n".join(outline)
+        if used + len(block) > budget:
+            parts.append(f"\n(outline of {path} omitted: prompt size budget; use search to locate symbols)")
+            continue
+        used += len(block)
+        parts.append(block)
+    return "\n".join(parts)
 
 
 def _focused(path: str, patterns: list[str]) -> bool:
@@ -147,9 +212,63 @@ Produce JSON with:
 """
 
 
-def seal_prompt(task, spec: dict, snapshot: dict[str, bytes], feedback: str | None, sources: str = "") -> str:
+def numbered_criteria(criteria: list[str]) -> str:
+    return "\n".join(f"AC{i}: {text}" for i, text in enumerate(criteria, 1)) or "(none)"
+
+
+def contract_audit_prompt(task, spec: dict, snapshot: dict[str, bytes]) -> str:
+    """Ask for requirement conflicts that no implementation within the write scope can resolve, each backed by a witness program."""
+    lead = ""
+    if not spec.get("feasible", True):
+        lead = (f"\nTHE SPECIFICATION STAGE ALREADY JUDGED THE TASK INFEASIBLE, SAYING: {spec.get('infeasibility_reason')}\n"
+                "Treat that as a claim to test, not as a fact: either demonstrate it with a witness or report that it could not be demonstrated.\n")
+    return f"""You are the CONTRACT AUDITOR of Attest. Before any code is written, you check whether the frozen contract below can be
+satisfied at all by an implementation that may change only the files in the write scope. A contract is unsatisfiable when two
+of its requirements cannot both hold for some concrete input, or when a requirement conflicts with code outside the write scope
+(or code the contract says must stay unchanged). Typical cases: a round trip through an unchanged inverse function that cannot
+represent every input; two acceptance criteria that demand different outputs for the same input; an error case that contradicts
+a normal case; a requirement that a fixed caller makes impossible.
+{lead}
+TASK STATEMENT:
+{task.statement}
+
+RESTATED TASK:
+{spec["restated_task"]}
+
+INTERFACE CONTRACT:
+{json.dumps(spec["interface_contract"], indent=2)}
+
+ACCEPTANCE CRITERIA (referenced by id):
+{numbered_criteria(spec["acceptance_criteria"])}
+
+OUT OF SCOPE (must not change): {json.dumps(spec.get("out_of_scope") or [])}
+WRITE SCOPE (the only files an implementation may change): {json.dumps(task.allowed_write_globs)}
+IMPORT HINT: {task.import_hint or "(none)"}
+
+REPOSITORY BEFORE ANY CHANGE (full text for files in the write scope, excerpts for the rest):
+{_dump_files(snapshot, task.allowed_write_globs)}
+
+For EVERY conflict you report you must supply a WITNESS PROGRAM, because a claim without an executed demonstration is recorded
+as a suspicion and does not stop the run. The witness is a standalone Python 3.12 program (standard library only, no network,
+no file writes, under 20 seconds) that will be executed in the repository root of the UNMODIFIED repository (the write-scope
+files are still in their original state, so a function to be implemented may be a stub or missing: do not call it). It must:
+- compute something from the fixed code or the contract itself (for example call the unchanged inverse function on candidate
+  outputs, enumerate every possible output up to a stated bound, or evaluate the two criteria on the same concrete input) that
+  shows the requirements cannot all hold for a concrete input it names;
+- print exactly one line starting with `{WITNESS_MARKER} <requirement ids>: <one-sentence explanation naming the input>` and exit
+  with code {WITNESS_EXIT_CODE} when the conflict is demonstrated; print `NOT DEMONSTRATED: <reason>` and exit with code 0 when
+  it could not demonstrate it (an exit code other than 0 or {WITNESS_EXIT_CODE}, or a traceback, counts as a broken witness);
+- never fake the demonstration: the printed line must follow from the computation (an exhaustive bounded search must state its
+  bound; a direct evaluation must show both values).
+Report at most 3 conflicts. If the contract is consistent, return consistent=true and an empty conflicts list.
+Return JSON: consistent, conflicts (requirement_ids, summary, witness = the complete program source), notes (one or two sentences).
+"""
+
+
+def seal_prompt(task, spec: dict, snapshot: dict[str, bytes], feedback: str | None, sources: str = "", audit_hint: str = "") -> str:
     feedback_block = f"\nPREVIOUS ATTEMPT WAS REJECTED. REASON: {feedback}\nFix that problem in this attempt.\n" if feedback else ""
     feedback_block += ("\n" + sources + "\n") if sources else ""
+    feedback_block += ("\n" + audit_hint + "\n") if audit_hint else ""
     return f"""You are an INDEPENDENT ACCEPTANCE TEST AUTHOR for Attest. You have not seen and will not see the implementation.
 You have NO filesystem and NO tools: do not try to create or edit files; return the complete module source as the JSON string `test_file`.
 Write the sealed acceptance tests that decide whether an implementation of the contract below is correct.
@@ -161,8 +280,8 @@ CONTRACT (restated task):
 INTERFACE CONTRACT:
 {json.dumps(spec["interface_contract"], indent=2)}
 
-ACCEPTANCE CRITERIA:
-{json.dumps(spec["acceptance_criteria"], indent=2)}
+ACCEPTANCE CRITERIA (referenced by id in your coverage map):
+{numbered_criteria(spec["acceptance_criteria"])}
 
 IMPORT HINT: {task.import_hint or "(none)"}
 {feedback_block}
@@ -174,13 +293,17 @@ Rules for the test module:
    `assertRaisesRegexp`; do not run doctests or inspect the code under test's source; each test must call the public API directly.
 1. Python standard library only; a single module that must be importable as `import test_sealed`; use unittest.TestCase classes.
 2. Import the public API exactly as the import hint and contract describe. Do not import private names.
-3. One behavior per test method, with descriptive names. Cover every acceptance criterion, including error cases (use assertRaises with the exact exception type).
+3. One behavior per test method, with descriptive names. Cover EVERY acceptance criterion, including error cases (use assertRaises with the exact exception type).
    Assert the exception TYPE only: never assert on exception message text (no assertIn/assertEqual on str(cm.exception)) unless an
    acceptance criterion quotes the exact message, because messages are implementation wording, not behaviour.
+   For a criterion that relates two operations (a round trip, an inverse, consistency between functions), test it on inputs that
+   stress the relation, in particular inputs containing the characters or values the other operation treats specially, not only
+   on friendly inputs.
 4. Include at least 10 tests. Tests for behavior that is not implemented yet must fail on the current code.
 5. Do not depend on the file system, network, randomness, or the current time. No print statements.
 6. Do not include an `if __name__ == "__main__"` block; the runner handles execution.
-Return JSON: test_file (the full module source), test_count, notes (one line on coverage decisions).
+Return JSON: test_file (the full module source), test_count, notes (one line on coverage decisions), coverage (one entry per
+acceptance criterion: its number and the test method names that check it; a criterion with no test is a gap you must close).
 """
 
 
@@ -200,6 +323,15 @@ def implement_prompt(task, spec: dict, workspace, transcript: list[dict], turn: 
     if remaining <= 3:
         nudge = (f"\nBUDGET WARNING: only {remaining} turn(s) remain. If the code is written, run the existing tests once and "
                  "then finish; do not start new exploration.\n")
+    reads_in_a_row = 0
+    for entry in reversed(transcript):
+        if entry["action"]["action"] in ("read_file", "list_files", "search"):
+            reads_in_a_row += 1
+        else:
+            break
+    if reads_in_a_row >= 3:
+        nudge += (f"\nNAVIGATION WARNING: your last {reads_in_a_row} turns only read or searched and changed nothing. Use `search` with the "
+                  "symbol name to get its exact line, read that range once, then edit with replace_in_file. Do not page through a file.\n")
     return f"""You are the IMPLEMENTER stage of Attest. You change the repository so that it satisfies the contract.
 Hidden acceptance tests written by an independent author will be run on your final code; you cannot see them, so implement the whole contract faithfully, including error cases.
 You act through ONE JSON action per turn. Turn {turn} of {max_turns}. Finish early when done.{nudge}
@@ -216,12 +348,13 @@ ACCEPTANCE CRITERIA:
 OUT OF SCOPE (do not change): {json.dumps(spec["out_of_scope"])}
 {sources}
 WRITE SCOPE: only files matching {task.allowed_write_globs}; files matching {task.protected_globs} are protected and any attempt is rejected.
-REPOSITORY TREE (current workspace):
-{_tree(workspace.files)}
+REPOSITORY TREE (current workspace), with a def/class outline of the files you may change:
+{_tree_with_outlines(workspace.files, task.allowed_write_globs)}
 
 ACTIONS (set unused fields to null):
 - list_files: show the tree.
-- read_file: path (+ optional start_line/end_line) -> file content with line counts. Large files are truncated; read ranges.
+- read_file: path (+ optional start_line/end_line) -> file content with line numbers of the range. Large files are truncated; read ranges.
+- search: find (a symbol name, a literal snippet or a regular expression) + optional path (null = the whole tree) -> every matching line with its file and line number. USE THIS TO LOCATE A FUNCTION OR CLASS; it costs one turn and replaces paging through a file.
 - replace_in_file: path + find + replace. PREFERRED WAY TO EDIT. `find` must be an exact, unique snippet of the current file (copy it verbatim, including indentation); it is replaced once by `replace`.
 - write_file: path + content for NEW files or complete rewrites of small files (content must be the COMPLETE file).
 - run_tests: runs the repository's existing test suite in a throwaway sandbox branch with your current changes.
@@ -229,6 +362,7 @@ ACTIONS (set unused fields to null):
 - undo: revert your most recent write_file or replace_in_file (use this to roll back an edit that broke the file instead of patching over it).
 - finish: summary -> ends implementation; your current workspace becomes the candidate patch.
 Every action needs a one-sentence reason. Edit first, then verify; do not spend turns re-reading what you already saw.
+Locate before you read: the outline above and `search` give you the line of any symbol, so one ranged read_file is enough.
 After you write or replace code it is syntax-checked immediately and any error is reported to you; fix or `undo` it before moving on.
 Before you `finish`, run the existing test suite at least once after your last edit; a finish while there are untested edits is sent back to you once with a reminder.
 
@@ -245,7 +379,9 @@ def breaker_prompt(task, spec: dict, diff: str, sealed_test_names: list[str], so
 put the complete Python source of the test module into the JSON field `test_file` as a string. A candidate patch has passed its sealed acceptance tests. Your job is to try to
 falsify it: write additional adversarial tests that a correct implementation of the contract must pass but a sloppy one
 would fail. Think about boundaries, empty and extreme inputs, type edge cases, error paths, invariants that must hold,
-interactions with existing behavior, and anything the sealed tests (names below) did not obviously cover.
+interactions with existing behavior, and anything the sealed tests (names below) did not obviously cover. For a requirement
+that relates two operations (a round trip, an inverse, consistency between functions) include inputs that stress the relation,
+in particular inputs containing the characters or values the other operation treats specially.
 
 RESTATED TASK:
 {spec["restated_task"]}
@@ -326,6 +462,10 @@ test module (importable as `import {module_name}`, unittest.TestCase classes, Py
 the tests that were already fine unchanged). If any test is an implementation_bug or a contract_dispute, set
 `corrected_module` to null — do not try to make a buggy candidate pass. Never change a test's expected values just to match
 the candidate's output; a corrected test must still follow from the contract and must still fail on an unimplemented version.
+The correction is checked mechanically before it counts: it must keep every test method (same class and method names, none
+added or removed), change only the methods that failed (imports may be added), and the corrected tests must pass on the
+candidate and still discriminate (fail on the unmodified base, or be caught by a mutant of the patch). A correction that
+touches a passing test or drops a test is rejected whole.
 
 ORIGINAL TASK STATEMENT:
 {task.statement}

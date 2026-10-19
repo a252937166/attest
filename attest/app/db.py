@@ -138,11 +138,15 @@ class Store:
                 entry["duration_max_s"] = duration if entry["duration_max_s"] is None else max(entry["duration_max_s"], duration)
         return out
 
-    def nebius_budget_ok(self, per_run_cap: float, daily_cap: float, since_utc: str) -> tuple[bool, str]:
-        """Recheck before execution: this run is already counted among the active runs, so it reserves one slot."""
+    def nebius_budget_ok(self, per_run_cap: float, daily_cap: float, since_utc: str, executing: bool = True) -> tuple[bool, str]:
+        """Recheck before execution (`executing=True`): this run is already counted among the active runs, so at least one
+        reservation is in force. With `executing=False` (the health endpoint of an idle service) only rows that really are
+        queued or running count, so an idle service reports zero active reservations instead of a phantom one."""
         with self._lock:
             finished = self._nebius_committed(since_utc)
-            active = max(1, self._nebius_active())
+            active = self._nebius_active()
+            if executing:
+                active = max(1, active)
             projected = finished + active * per_run_cap
         if projected > daily_cap + 1e-9:
             return False, (f"daily Nebius budget ${daily_cap:.2f} exceeded at execution: ${finished:.4f} committed + "
@@ -151,9 +155,12 @@ class Store:
 
     def reconcile_interrupted(self, per_run_cap: float | None = None) -> list[dict]:
         """After a restart, no worker is running the rows left 'queued'/'running'. Finalize any whose bundle landed on
-        disk; mark the rest as errored (interrupted). A Nebius run interrupted without a bundle keeps `per_run_cap` as its
-        committed cost (its real spend is unknown and at most the cap), so the daily budget never undercounts it.
+        disk; mark the rest as errored (interrupted). A Nebius run interrupted without a bundle takes its committed cost
+        from the run's ledger journal when one exists (known costs plus every reservation never closed by a call record,
+        which stays committed until reconciled against the provider's billing); without a journal it keeps `per_run_cap`
+        (its real spend is unknown and at most the cap). The daily budget therefore never undercounts an interrupted run.
         Finished rows and their evidence are left untouched."""
+        from ..ledger import JOURNAL_FILE, read_journal
         rows = self._exec("SELECT run_id, out_dir, provider, cost_committed_usd FROM runs WHERE status IN ('queued', 'running')").fetchall()
         reconciled = []
         for row in rows:
@@ -173,11 +180,20 @@ class Store:
                 except Exception:  # noqa: BLE001 - fall through to error marking
                     pass
             fields = {"status": "error", "error": "interrupted by a service restart before completion", "finished_at": utcnow(), "stage": "interrupted"}
-            if row["provider"] == "nebius" and per_run_cap is not None and (row["cost_committed_usd"] is None or row["cost_committed_usd"] < per_run_cap):
-                fields["cost_committed_usd"] = per_run_cap  # conservative: the actual spend is unknown, the cap is its bound
-                fields["error"] += f"; committed cost set to the per-run cap ${per_run_cap:.2f} because the actual spend is unknown"
+            journal = read_journal(Path(out_dir) / JOURNAL_FILE) if out_dir else None
+            if row["provider"] == "nebius":
+                if journal is not None:
+                    fields["cost_committed_usd"] = max(float(row["cost_committed_usd"] or 0.0), float(journal["cost_usd_committed"]))
+                    fields["cost_usd"] = journal.get("cost_usd")
+                    fields["model_calls"] = journal.get("model_calls")
+                    fields["error"] += (f"; committed cost ${fields['cost_committed_usd']:.4f} read from the run's ledger journal "
+                                        f"({journal['model_calls']} call record(s), {journal['open_reservations']} open reservation(s) kept at their bound)")
+                elif per_run_cap is not None and (row["cost_committed_usd"] is None or row["cost_committed_usd"] < per_run_cap):
+                    fields["cost_committed_usd"] = per_run_cap  # conservative: the actual spend is unknown, the cap is its bound
+                    fields["error"] += f"; committed cost set to the per-run cap ${per_run_cap:.2f} because the actual spend is unknown (no ledger journal)"
             self.update_run(run_id, **fields)
-            reconciled.append({"run_id": run_id, "action": "interrupted", "cost_committed_usd": fields.get("cost_committed_usd")})
+            reconciled.append({"run_id": run_id, "action": "interrupted", "cost_committed_usd": fields.get("cost_committed_usd"),
+                               "journal": bool(journal)})
         return reconciled
 
     def prune_runs(self, data_runs_dir, keep: int = 40, protect: tuple[str, ...] = ("VERIFIED",)) -> list[str]:

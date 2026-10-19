@@ -71,6 +71,19 @@ def _provenance_lines(prov: dict | None) -> list[str]:
     return lines
 
 
+def _audit_lines(audit: dict | None) -> str:
+    if not audit:
+        return "Not run (bundle predates the contract audit, or the run ended before the specification)."
+    if audit.get("error"):
+        return f"Unavailable: {audit['error']}"
+    head = (f"Outcome: {audit.get('outcome')}. Auditor `{audit.get('model')}`; consistent={audit.get('consistent')}. {audit.get('notes') or ''} "
+            f"Rule: {audit.get('rule') or ''}")
+    rows = [[", ".join(c.get("requirement_ids") or []), (c.get("summary") or "")[:160], c.get("status"), c.get("exit_code") if c.get("exit_code") is not None else "-",
+             (c.get("stdout_tail") or "").strip().splitlines()[0][:160] if (c.get("stdout_tail") or "").strip() else "-", c.get("operation_uuid") or "-"]
+            for c in audit.get("conflicts") or []]
+    return head + "\n\n" + _table(rows, ["Requirements", "Claimed conflict", "Witness result", "Exit", "First output line", "Operation"])
+
+
 def render_markdown(bundle: dict) -> str:
     verdict = bundle["verdict"]
     ledger = (bundle.get("ledger") or {}).get("totals") or {}
@@ -157,7 +170,10 @@ def render_markdown(bundle: dict) -> str:
                ["Name", "Signature", "Behavior", "Errors"]),
         "",
         "Acceptance criteria:",
-        "\n".join(f"{i + 1}. {c}" for i, c in enumerate(spec["acceptance_criteria"])) or "(none)",
+        "\n".join(f"AC{i + 1}. {c}" for i, c in enumerate(spec["acceptance_criteria"])) or "(none)",
+        "",
+        "## 2b. Contract audit (executed witnesses)",
+        _audit_lines(bundle.get("contract_audit")),
         "",
         "## 3. E1 Sealed tests (written before implementation by an independent model instance)",
         f"`{sealed['path']}` sha256 `{sealed['sha256']}`, {sealed['test_count']} test methods, sealed at {sealed['sealed_at_utc']} "
@@ -165,8 +181,14 @@ def render_markdown(bundle: dict) -> str:
         "",
         f"Red check on the unmodified checkpoint (one child process per test under the supervisor): {red.get('summary_line', 'n/a')}: "
         f"{red.get('failing', 0)} of {red.get('ran', 0)} methods failing, {red.get('passed', 0)} passing; operation `{red.get('operation_uuid')}`.",
+        (f"Coverage map (the sealer's own claim): " + (f"criteria without a claimed test: {', '.join(sealed['coverage_gaps'])}." if sealed.get("coverage_gaps")
+         else "every acceptance criterion is claimed by at least one existing test method.")) if sealed.get("coverage") is not None else "",
         "",
         _table(_test_rows(red, sealed_v), ["Sealed test method", "Base (red)", "Candidate"]),
+        (f"Corrected sealed module (E6): `{verify['corrected'].get('path')}` sha256 `{verify['corrected'].get('sha256')}`; corrected tests "
+         f"{', '.join(t.split('.')[-1] for t in verify['corrected'].get('changed_tests') or [])}; on the candidate {(verify['corrected'].get('summary') or {}).get('summary_line')}; "
+         f"validated: {verify['corrected'].get('discrimination')}; operation `{verify['corrected'].get('operation_uuid')}`. The sealed gate was re-run on it.")
+        if verify.get("corrected") else "",
         "",
         "## 4. Candidate patch",
         f"{len(candidate['changed_paths'])} changed path(s); scope check {'passed' if candidate['scope_ok'] else ('not run' if candidate['scope_ok'] is None else 'FAILED')}; "
@@ -225,6 +247,12 @@ def render_markdown(bundle: dict) -> str:
         "",
         _table([[t["id"].split(".")[-1], t["outcome"]] for t in ((adversarial or {}).get("summary") or {}).get("tests", []) if t["outcome"] != "ok"],
                ["Failing adversarial test", "Outcome"]) if adversarial and not adversarial.get("unusable") and "summary" in adversarial else "",
+        (f"Corrected adversarial module (E6): `{adversarial['corrected'].get('path')}` sha256 `{adversarial['corrected'].get('sha256')}`; corrected tests "
+         f"{', '.join(t.split('.')[-1] for t in adversarial['corrected'].get('changed_tests') or [])}; on the candidate {(adversarial['corrected'].get('summary') or {}).get('summary_line')}; "
+         f"validated: {adversarial['corrected'].get('discrimination')}; operation `{adversarial['corrected'].get('operation_uuid')}`. The adversarial gate was re-run on it.")
+        if adversarial and adversarial.get("corrected") else "",
+        (f"Adversarial authoring: {adversarial.get('attempts')} attempt(s)" + ("; the last escalated to the arbiter's model after syntax errors" if adversarial.get("escalated") else "") + ".")
+        if adversarial and adversarial.get("attempts") else "",
         "",
         "### Counterexamples",
         ("\n".join(
@@ -245,8 +273,11 @@ def render_markdown(bundle: dict) -> str:
          "Unsupported claims: " + ("; ".join(drift.get("unsupported_claims") or []) or "none")) if drift and "drift_score" in drift else "",
         "",
         "## 8b. E6 Arbitration of generated-test failures",
-        (f"{arbitration['headline']} (mode: {'apply' if arbitration.get('applied') else 'advisory'}). "
-         f"Classifications: {arbitration['counts']}. {arbitration.get('note', '')}") if arbitration else
+        (f"{arbitration['headline']} (mode: {'validated corrections re-run their gates' if arbitration.get('applied') else 'advisory'}). "
+         f"Classifications: {arbitration['counts']}. {arbitration.get('note', '')}"
+         + (f" Rule: {arbitration['rule']}" if arbitration.get("rule") else "")
+         + (" Gates re-run on validated corrections: " + "; ".join(f"{a.get('gate')} (tests {', '.join(t.split('.')[-1] for t in a.get('changed_tests') or [])}; {a.get('discrimination')})"
+                                                                 for a in arbitration.get("applied_to_gates") or []) + "." if arbitration.get("applied_to_gates") else "")) if arbitration else
         "Not run (the verdict was not a generated-test NEEDS HUMAN, or arbitration was disabled).",
         "",
         _table([[c["test_id"].split(".")[-1], c["classification"], (c.get("rationale") or "")[:140], (c.get("contract_basis") or "")[:140]]
@@ -254,8 +285,11 @@ def render_markdown(bundle: dict) -> str:
                ["Failing test", "Classification", "Rationale", "Contract basis"]) if arbitration else "",
         "",
         "\n".join(f"- `{m['module']}` corrected re-run: candidate {((m.get('candidate_rerun') or {}).get('summary_line') or 'n/a')}; "
-                 f"base {((m.get('base_rerun') or {}).get('summary_line') or 'n/a')}; cleared={m.get('cleared_module')}"
-                 + (f"; error: {m['error']}" if m.get('error') else "")
+                 f"base {((m.get('base_rerun') or {}).get('summary_line') or 'n/a')}"
+                 + (f"; mutant re-runs {len(m.get('mutant_reruns') or [])}" if m.get("mutant_reruns") else "")
+                 + f"; validated={m.get('validated', m.get('cleared_module'))}"
+                 + ("; sealed assertion failure: never overridden, the hold stands" if m.get("sealed_assertion_hold") else "")
+                 + (f"; not applied: {m['error']}" if m.get('error') else "")
                  for m in (arbitration or {}).get("modules", [])) if arbitration else "",
         "",
         "## 9. Grounding",
@@ -306,9 +340,9 @@ def render_markdown(bundle: dict) -> str:
         "proof_bundle.json). `python -m attest check <run dir or zip>` recomputes the digests, the sealed and adversarial bindings from "
         "`verify_raw.json`, the ledger totals and the gate-to-verdict rule, and re-renders this document.",
         "",
-        _table([[name, purpose_of(name)] for name in ("proof_bundle.json", "PROOF.md", MANIFEST_FILE, "task.frozen.json", "spec.json", "sealed/test_sealed.py",
-                                                       "candidate.patch", "verify.json", "verify_raw.json", "breaker.json", "breaker_tests.py",
-                                                       "drift.json", "arbitration.json", "ledger.json")], ["Artifact", "Purpose"]),
+        _table([[name, purpose_of(name)] for name in ("proof_bundle.json", "PROOF.md", MANIFEST_FILE, "task.frozen.json", "spec.json", "contract_audit.json",
+                                                       "sealed/test_sealed.py", "candidate.patch", "verify.json", "verify_raw.json", "breaker.json", "breaker_tests.py",
+                                                       "drift.json", "arbitration.json", "ledger.json", "ledger.jsonl")], ["Artifact", "Purpose"]),
         "",
     ]
     return "\n".join(p for p in parts if p is not None)

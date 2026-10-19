@@ -85,7 +85,7 @@ def cmd_run(args) -> int:
                         mutant_workers=args.mutant_workers, drift_threshold=args.drift_threshold,
                         tavily=None if args.no_grounding else build_tavily(), profile_label=args.profile_label or
                         ("development" if args.provider == "codex" else "submission-pilot"),
-                        arbitrate=not args.no_arbitration, arbitration_apply=args.arbitration_apply)
+                        arbitrate=not args.no_arbitration, arbitration_apply=not args.arbitration_advisory)
     bundle = pipeline.run()
     print(json.dumps({"verdict": bundle["verdict"]["verdict"], "reasons": bundle["verdict"]["reasons"],
                       "out_dir": str(pipeline.out_dir), "totals": bundle["ledger"]["totals"]}, indent=2))
@@ -199,9 +199,10 @@ def main(argv=None) -> int:
     run.add_argument("--mutant-workers", type=int, default=8)
     run.add_argument("--drift-threshold", type=float, default=0.6)
     run.add_argument("--no-grounding", action="store_true", help="skip Tavily grounding even if the key is available")
-    run.add_argument("--no-arbitration", action="store_true", help="skip the advisory arbitration of generated-test failures")
-    run.add_argument("--arbitration-apply", action="store_true",
-                     help="let arbitration clear a NEEDS HUMAN to VERIFIED when every failing generated test is a corrected, re-verified defect")
+    run.add_argument("--no-arbitration", action="store_true", help="skip the arbitration of generated-test failures")
+    run.add_argument("--arbitration-advisory", action="store_true",
+                     help="record the arbiter's classifications and validated corrections but never re-run a gate on them (the default "
+                          "re-runs the affected gate when a correction passes the mechanical validation; a sealed assertion failure is never overridden)")
     run.set_defaults(func=cmd_run)
     imp = sub.add_parser("import", help="import an external repository (GitHub at a pinned commit, or a local directory) as a bounded task")
     src = imp.add_mutually_exclusive_group(required=True)

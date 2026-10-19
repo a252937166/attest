@@ -10,6 +10,10 @@ Factory; execution: Nebius Token Factory Sandboxes. The plain agent is the same 
 and turn budget and no sealed tests, breaker, audit or verdict; both arms are judged by the same held-out suite, which
 is stripped from the system under test.
 
+Correction (19 Oct 2026, `CORRECTIONS.md`): the three cells labelled `true_reject` below (the two Attest `NO CHANGE` cells and the
+plain agent's unfinished attempt on the external task) were unfinished tasks that produced no patch, not correct refusals; the
+results files are unchanged, the reading is corrected there.
+
 ## Result
 
 | | Plain agent (16 cells) | Attest (16 cells) |

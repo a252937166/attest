@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/styles.css?v=20261018d">
+<link rel="stylesheet" href="/static/styles.css?v=20261019a">
 </head>
 <body data-view="home">
 <a class="skip" href="#start">Skip to the start panel</a>
@@ -118,9 +118,9 @@
     <div class="built" aria-label="Built with">
       <span class="built-label">Built with</span>
       <div class="built-logos">
-        <a class="built-logo nebius" href="https://nebius.com/token-factory" target="_blank" rel="noopener" title="Nebius Token Factory"><img src="/static/brand/nebius-logo.svg?v=20261018d" alt="Nebius" width="167" height="46"></a>
+        <a class="built-logo nebius" href="https://nebius.com/token-factory" target="_blank" rel="noopener" title="Nebius Token Factory"><img src="/static/brand/nebius-logo.svg?v=20261019a" alt="Nebius" width="167" height="46"></a>
         <span class="built-divider" aria-hidden="true"></span>
-        <a class="built-logo nvidia" href="https://developer.nvidia.com/nemotron" target="_blank" rel="noopener" title="NVIDIA Nemotron"><img src="/static/brand/nvidia-logo.svg?v=20261018d" alt="NVIDIA" width="210" height="40"></a>
+        <a class="built-logo nvidia" href="https://developer.nvidia.com/nemotron" target="_blank" rel="noopener" title="NVIDIA Nemotron"><img src="/static/brand/nvidia-logo.svg?v=20261019a" alt="NVIDIA" width="210" height="40"></a>
       </div>
       <div class="built-text">
         <p>Inference on <strong>Nebius Token Factory</strong>, execution in <strong>Token Factory Sandboxes</strong>, models <strong>NVIDIA Nemotron 3</strong> Ultra, Super and 3.5 Lightning.</p>
@@ -195,7 +195,7 @@
           <figcaption>Mutants: the recorded judge run of 15 Oct 2026 (durationkit, 12 generated, 8 caught, 4 survived). Adversarial tests: the slugkit run above. The three labels are the arbiter's classes.</figcaption>
         </figure>
         <h3>Break it before you trust it</h3>
-        <p>Every changed line is mutated one way at a time; the sealed tests must notice. A second model writes tests against the patch. When a generated test fails, an arbiter classifies it, corrected tests are re-run on the candidate and on the base, and the hold still stands: arbitration is advisory.</p>
+        <p>Every changed line is mutated one way at a time; the sealed tests must notice. A second model writes tests against the patch. When a generated test fails, an arbiter classifies it; a correction counts only if it keeps every test, changes only the failing ones, passes on the candidate and still fails on the base or is caught by a mutant, and then the gate is re-run. A sealed test that failed by assertion or by an exception raised in the code under test is never overridden.</p>
       </article>
       <article class="cap rv">
         <figure class="fig rule" aria-label="The one rule from gates to verdict">
@@ -211,7 +211,7 @@
               <tr class="sum"><td>All of the above, implementer finished, scope held</td><td colspan="2"><span class="seal VERIFIED">VERIFIED</span></td></tr>
             </tbody>
           </table>
-          <p class="rule-abort"><span class="seal INFEASIBLE">INFEASIBLE</span> contradictory request, decided at the specification. <span class="seal NO">NO CHANGE</span> no file edited. <span class="seal ERROR">ERROR</span> infrastructure, never a judgement of the patch.</p>
+          <p class="rule-abort"><span class="seal INFEASIBLE">INFEASIBLE</span> contradictory request, demonstrated by a witness program executed on the unmodified repository. <span class="seal NO">NO CHANGE</span> no patch produced: finished without editing, or the turn budget ran out (unfinished). <span class="seal ERROR">ERROR</span> infrastructure, never a judgement of the patch.</p>
         </figure>
         <h3>One recorded rule</h3>
         <p>The verdict is a pure function of the recorded gates. A skipped gate never counts as a pass, no model opinion enters, and the rule is written into every bundle so that the offline check re-derives the same verdict.</p>
@@ -248,9 +248,9 @@
       </svg>
       <ol class="arch-stack">
         <li><b>Console and CLI</b><span>pick a task, browse or run live; attest run, attest import, attest check</span></li>
-        <li class="main"><b>Attest pipeline, on the host</b><span>freeze, checkpoint, spec, seal, red, implement, verify, break, audit, arbitrate, attest</span></li>
-        <li class="nebius"><b>Nebius Token Factory, inference</b><span>Nemotron 3 Ultra: specification, drift audit, arbitration. Nemotron 3 Super: sealing, implementation, breaking. Nemotron 3.5 Lightning: summaries.</span><span class="mono">schema-constrained JSON, priced per call, never replayed</span></li>
-        <li class="nebius"><b>Token Factory Sandboxes, execution</b><span>one retained checkpoint image per task; disposable branches: red, verify, existing, heldout, mutant 1 to 12, breaker, arbitration</span><span class="mono">networking off after the checkpoint</span></li>
+        <li class="main"><b>Attest pipeline, on the host</b><span>freeze, checkpoint, spec, contract audit (executed witnesses), seal, red, implement, verify, break, audit, arbitrate, attest</span></li>
+        <li class="nebius"><b>Nebius Token Factory, inference</b><span>Nemotron 3 Ultra: specification, contract audit, drift audit, arbitration. Nemotron 3 Super: sealing, implementation, breaking. Nemotron 3.5 Lightning: summaries.</span><span class="mono">schema-constrained JSON, priced per call, never replayed</span></li>
+        <li class="nebius"><b>Token Factory Sandboxes, execution</b><span>one retained checkpoint image per task; disposable branches: witness 1 to 3, red, verify, existing, heldout, mutant 1 to 12, breaker, arbitration re-runs</span><span class="mono">networking off after the checkpoint</span></li>
         <li><b>Attest's own deterministic code, on the host and inside each branch</b><span>task freeze and digests, the sealed-test supervisor (per-test processes, nonce, canaries), binding checks, mutation engine, the verdict rule, manifest and the offline checker</span><span class="mono">attest_revision 166cdcbd recorded in every bundle of the frozen evaluation</span></li>
         <li class="out"><b>Proof Bundle</b><span>exhibits E1 to E7, counterexample, ledger, manifest; re-derived offline by attest check</span></li>
       </ol>
@@ -281,8 +281,9 @@
           <li><span class="f">trajectory.jsonl</span><span class="p">the implementer's action trail <span class="exref">E5</span></span></li>
           <li><span class="f">verify_raw.json</span><span class="p">raw supervisor results <span class="exref">E1</span> <span class="exref">E4</span></span></li>
           <li><span class="f">breaker.json, mutants_*.py</span><span class="p">mutants and adversarial tests <span class="exref">E2</span> <span class="exref">E3</span></span></li>
+          <li><span class="f">contract_audit.json, contract_audit/witness_*.py</span><span class="p">claimed conflicts and their executed witnesses</span></li>
           <li><span class="f">drift.json, arbitration.json</span><span class="p">audit and classifications <span class="exref">E5</span> <span class="exref">E6</span></span></li>
-          <li><span class="f">ledger.json</span><span class="p">every model call and sandbox operation, priced</span></li>
+          <li><span class="f">ledger.json, ledger.jsonl</span><span class="p">every model call and sandbox operation, priced; the journal survives an interruption</span></li>
         </ul>
       </figure>
       <figure class="fig term rv" aria-label="Recorded output of the offline check">
@@ -324,7 +325,7 @@
           <tr><td>Correct patch accepted</td><td>10</td><td>4</td></tr>
           <tr><td>Broken patch shipped</td><td>2</td><td>2</td></tr>
           <tr><td>Correct patch held for a human</td><td>0</td><td>5</td></tr>
-          <tr><td>Nothing shipped, correctly</td><td>1</td><td>2</td></tr>
+          <tr><td>No patch produced (unfinished task; labelled a correct refusal at the time, corrected on 19 Oct)</td><td>1</td><td>2</td></tr>
           <tr><td>Infrastructure error, never replayed</td><td>3</td><td>3</td></tr>
           <tr><td>Committed cost</td><td>$0.23</td><td>$0.86</td></tr>
         </tbody>
@@ -336,7 +337,7 @@
   <footer class="foot">
     <div class="foot-row">
       <div class="foot-brand"><svg class="mark" aria-hidden="true"><use href="#mark"/></svg><span class="wordmark">Attest</span><span class="foot-line">Evidence, not assurance.</span></div>
-      <div class="foot-built"><div class="foot-logos"><a href="https://nebius.com/token-factory" target="_blank" rel="noopener" title="Nebius Token Factory"><img class="nebius" src="/static/brand/nebius-logo.svg?v=20261018d" alt="Nebius" width="124" height="34"></a><a href="https://developer.nvidia.com/nemotron" target="_blank" rel="noopener" title="NVIDIA Nemotron"><img class="nvidia" src="/static/brand/nvidia-logo.svg?v=20261018d" alt="NVIDIA" width="158" height="30"></a></div><span>Built on Nebius Token Factory with NVIDIA Nemotron 3. An entry to the Nebius x NVIDIA Global AI Hackathon 2026; an independent project, not a Nebius or NVIDIA product. The Nebius and NVIDIA marks belong to their owners.</span></div>
+      <div class="foot-built"><div class="foot-logos"><a href="https://nebius.com/token-factory" target="_blank" rel="noopener" title="Nebius Token Factory"><img class="nebius" src="/static/brand/nebius-logo.svg?v=20261019a" alt="Nebius" width="124" height="34"></a><a href="https://developer.nvidia.com/nemotron" target="_blank" rel="noopener" title="NVIDIA Nemotron"><img class="nvidia" src="/static/brand/nvidia-logo.svg?v=20261019a" alt="NVIDIA" width="158" height="30"></a></div><span>Built on Nebius Token Factory with NVIDIA Nemotron 3. An entry to the Nebius x NVIDIA Global AI Hackathon 2026; an independent project, not a Nebius or NVIDIA product. The Nebius and NVIDIA marks belong to their owners.</span></div>
     </div>
     <p class="foot-meta"><span id="foot-version"></span><a href="/api/docs">API documentation</a><a href="/api/health">Service health</a></p>
   </footer>
@@ -373,6 +374,6 @@
   </div>
 </aside>
 <button type="button" class="guide-launch" id="guide-launch" hidden><svg class="mark" aria-hidden="true"><use href="#mark"/></svg>Guide</button>
-<script src="/static/app.js?v=20261018d"></script>
+<script src="/static/app.js?v=20261019a"></script>
 </body>
 </html>

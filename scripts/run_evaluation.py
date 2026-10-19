@@ -283,7 +283,9 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
     reasons = bundle["verdict"].get("reasons", [])
     uncertain = any("uncertain" in r for r in reasons) or bool(totals.get("uncertain_unpriced_calls")) or bool(judge_error and "uncertain" in judge_error.lower())
     roles = ((bundle.get("profile") or {}).get("provider") or {}).get("roles")
+    candidate = bundle.get("candidate") or {}
     return {**cell, "status": "completed", "verdict": verdict, "accepted": accepted, "held_out_correct": correct, "judge_passed": judge_passed,
+            "changed_paths": len(candidate.get("changed_paths") or []) + len(candidate.get("deleted_paths") or []),
             "held_out_summary": judge.get("summary_line"), "judge_evidence_class": judge.get("evidence_class"), "judge_error": judge_error,
             "judge_operation_uuid": judge.get("operation_uuid"), "heldout_stripped_from_task": stripped,
             "cost_usd": totals.get("cost_usd"), "cost_committed_usd": totals.get("cost_usd_committed"),
@@ -326,13 +328,42 @@ def run_cell(cell, budget: Budget, provider_name, usd_cap, max_calls, out_dir, m
     return row
 
 
+def interrupted_cells(runs_dir: Path, rows: list[dict], already: list[dict]) -> list[dict]:
+    """Run directories under `runs_dir` that no completed row owns: read their ledger journals (reservations written before
+    each request, call records after) so an interrupted cell's spend is never erased. Entries already listed by an earlier
+    resumption are kept as they were (and not counted twice)."""
+    from attest.ledger import JOURNAL_FILE, read_journal
+    owned = {r.get("out_dir") for r in rows if r.get("out_dir")}
+    known = {i["out_dir"]: dict(i, counted_before=True) for i in already}
+    found = []
+    for run_dir in sorted(p for p in Path(runs_dir).iterdir() if p.is_dir()) if Path(runs_dir).is_dir() else []:
+        if str(run_dir) in owned or (run_dir / "proof_bundle.json").is_file() and str(run_dir) in owned:
+            continue
+        if str(run_dir) in known:
+            found.append(known[str(run_dir)])
+            continue
+        if (run_dir / "proof_bundle.json").is_file():
+            continue  # a finished run some row owns under another path spelling; never double count a reported bundle
+        journal = read_journal(run_dir / JOURNAL_FILE)
+        if journal is None:
+            continue
+        found.append({"out_dir": str(run_dir), "run_id": run_dir.name, "cost_usd": journal.get("cost_usd"),
+                      "cost_usd_committed": journal.get("cost_usd_committed"), "model_calls": journal.get("model_calls"),
+                      "open_reservations": journal.get("open_reservations"), "open_reserved_usd": journal.get("open_reserved_usd"),
+                      "uncertain_unpriced_calls": journal.get("uncertain_unpriced_calls"), "counted_before": False})
+    return found
+
+
 def classify(row):
-    """Confusion label against ground truth (held-out correctness)."""
+    """Confusion label against ground truth (held-out correctness). A cell that produced no patch at all (Attest's NO CHANGE,
+    or a baseline that neither finished nor changed a file) is `no_patch`: an unfinished task, never a correct rejection."""
     if row.get("status") == "not_run":
         return "not_run"
     correct = row.get("held_out_correct")
     if row.get("infra_error") or row.get("verdict") in INFRA_VERDICTS:
         return "infra_error"
+    if row.get("verdict") == "NO CHANGE" or (row.get("system") == "baseline" and not row.get("finished") and row.get("changed_paths") == 0):
+        return "no_patch"
     if correct is None:
         return "unknown"
     if row["accepted"] and correct:
@@ -351,13 +382,13 @@ def summarize(rows, systems, validity: dict | None = None):
         srows = [r for r in rows if r["system"] == system]
         done = [r for r in srows if r.get("status") == "completed"]
         conf = {k: sum(1 for r in srows if r["confusion"] == k)
-                for k in ("true_accept", "false_accept", "false_reject", "true_reject", "infra_error", "unknown", "not_run")}
+                for k in ("true_accept", "false_accept", "false_reject", "true_reject", "no_patch", "infra_error", "unknown", "not_run")}
         costs = [r.get("cost_committed_usd") if r.get("cost_committed_usd") is not None else r.get("cost_usd") for r in done]
         costs = [c for c in costs if c is not None]
         walls = [r["wall_s"] for r in done if r.get("wall_s") is not None]
-        needs_human = sum(1 for r in done if r.get("verdict") not in ("VERIFIED", "BASELINE") and not r.get("infra_error"))
+        needs_human = sum(1 for r in done if r.get("verdict") not in ("VERIFIED", "BASELINE", "NO CHANGE") and not r.get("infra_error"))
         summary[system] = {"scheduled": len(srows), "completed": len(done), "not_run": conf["not_run"], "confusion": conf,
-                           "shipped_broken_code": conf["false_accept"], "needs_human": needs_human,
+                           "shipped_broken_code": conf["false_accept"], "needs_human": needs_human, "no_patch": conf["no_patch"],
                            "rate_limited_calls": sum(r.get("rate_limited_calls") or 0 for r in done),
                            "pacing_wait_s": round(sum((r.get("pacing_wait_ms") or 0) for r in done) / 1000 + sum(r.get("paced_wait_before_start_s") or 0 for r in srows), 1),
                            "cells_in_invalid_comparisons": sum(1 for r in srows if r["task"] in invalid),
@@ -458,9 +489,15 @@ def run_batch(args) -> int:
                                                        "provenance_check": "snapshot digests verified by the launcher"})
         (out_root / "schedule.json").write_text(json.dumps(schedule, indent=2) + "\n", encoding="utf-8")
         committed = sum(float(r.get("cost_committed_usd") or r.get("cost_usd") or 0.0) for r in previous_rows)
-        log(f"resuming: {len(previous_rows)} completed cells kept, {len(cells)} cells to run")
+        # cells that were in flight when the previous process died left a run directory with a ledger journal but no row:
+        # their known costs and open reservations are kept and counted, and the cell runs again as a fresh attempt
+        interrupted = interrupted_cells(runs_dir, previous_rows, existing.get("interrupted") or [])
+        committed += sum(float(i.get("cost_usd_committed") or 0.0) for i in interrupted if not i.get("counted_before"))
+        log(f"resuming: {len(previous_rows)} completed cells kept, {len(cells)} cells to run, {len(interrupted)} interrupted run director(ies) "
+            f"with ${sum(float(i.get('cost_usd_committed') or 0.0) for i in interrupted):.4f} committed from their ledger journals")
     else:
         committed = 0.0
+        interrupted = []
         suite = json.loads((snapshot_root / args.suite).read_text(encoding="utf-8"))["tasks"]
         if args.tasks:
             wanted = set(args.tasks.split(","))
@@ -499,6 +536,9 @@ def run_batch(args) -> int:
                                     "correct": "existing suite and held-out suite pass on the final patch in a fresh branch (judge); for a task whose ground_truth is "
                                                "'unsatisfiable' no patch counts as correct and a hold (INFEASIBLE or NEEDS HUMAN) is the right outcome",
                                     "infra_error": "verdict ERROR or a harness exception", "not_run": "scheduled but never executed; reason recorded",
+                                    "no_patch": "no patch was produced (Attest NO CHANGE, or a baseline that neither finished nor edited): an unfinished "
+                                                "task, counted neither as a rejection nor as an acceptance",
+                                    "true_reject": "a patch was produced and not accepted, and the judge found it not correct",
                                     "comparison_invalid": "a task whose cells did not all run the registered revision, or whose snapshot changed during the batch"},
                     "cells": cells}
         schedule["register_only"] = bool(getattr(args, "register_only", False))
@@ -531,6 +571,9 @@ def run_batch(args) -> int:
                                        "working_tree_changed_since_launch": (working_tree != provenance["attest_revision"]["digest"]) if working_tree else None,
                                        "comparisons": validity, "invalid_tasks": sorted(t for t, v in validity.items() if not v["valid"])},
                   "pacing": governor.snapshot() if governor else None, "resumed_at_utc": resumed_at,
+                  "interrupted": interrupted,
+                  "interrupted_note": ("run directories whose cell never reported a row (the process died mid-run); their ledger journals are "
+                                       "read back and their committed USD is part of the batch total; the cell itself ran again"),
                   "rows": ordered, "summary": summarize(ordered, systems, validity)}
         (out_root / "evaluation.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         return report

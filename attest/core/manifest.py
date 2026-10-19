@@ -42,7 +42,10 @@ PURPOSES: tuple[tuple[str, str], ...] = (
     (r"^drift\.json$", "Drift audit (E5)"),
     (r"^arbitration\.json$", "Arbitration of generated-test failures (E6)"),
     (r"^arbitration/.*\.py$", "Corrected test module produced by the arbiter (E6)"),
+    (r"^contract_audit\.json$", "Contract audit: claimed conflicts and the result of executing their witness programs"),
+    (r"^contract_audit/witness_\d+\.py$", "Witness program written by the contract auditor and executed on the unmodified repository"),
     (r"^ledger\.json$", "Model calls and sandbox operations with usage and cost"),
+    (r"^ledger\.jsonl$", "Append-only ledger journal: reservations before each request, call records as they complete"),
     (r"^judge\.json$", "Independent judge result (evaluation harness only)"),
 )
 

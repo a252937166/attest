@@ -49,8 +49,10 @@ WHY = {
     "E4": "Tests the implementer never saw (for example the upstream pull request's own tests), run on the candidate in a separate branch.",
     "E5": "A model compares the action trail and the diff against the request. It is a judgement (evidence class model), never the basis "
           "of VERIFIED on its own.",
-    "E6": "An arbiter classifies each failing generated test as an implementation bug, a test defect or a contract dispute, corrects pure "
-          "test defects and re-runs them on the candidate and the base. Advisory: it never clears a bug or a dispute.",
+    "E6": "An arbiter classifies each failing generated test as an implementation bug, a test defect or a contract dispute and offers a "
+          "corrected module for pure test defects. A correction counts only after mechanical validation (same test methods, only the failing "
+          "ones changed, passes on the candidate, still fails on the base or is caught by a mutant); the corrected gate is then re-run. The "
+          "classification itself is a model judgement; a sealed test that failed by assertion or by an exception raised in the code under test is never overridden.",
     "E7": "What failed, in which component and stage, what was spent, and that nothing was retried or certified.",
 }
 
@@ -133,7 +135,12 @@ def exhibits(bundle: dict) -> list[dict]:
         status = _gate_result(gate)
     else:
         status = "not_run"
-    if count and cand_ran:
+    corrected_sealed = ver.get("corrected") if (gate or {}).get("corrected") else None
+    if count and cand_ran and corrected_sealed:
+        summary = (f"{sealed_v.get('failing', 0)} of {count} failed on the candidate as sealed; {len(corrected_sealed.get('changed_tests') or [])} test(s) corrected "
+                   f"by the arbiter and validated ({corrected_sealed.get('discrimination')}); the corrected module passes "
+                   f"({(corrected_sealed.get('summary') or {}).get('summary_line')})")
+    elif count and cand_ran:
         summary = (f"{red.get('failing', 0)} of {count} failed on the unmodified base; {sealed_v.get('passed', 0)} of {count} pass on the candidate"
                    + ("" if binding.get("ok") else "; binding FAILED" if binding else ""))
     elif count:
@@ -150,7 +157,11 @@ def exhibits(bundle: dict) -> list[dict]:
                              "integrity_failed": [c for c in failed_checks if c in INTEGRITY_CHECKS],
                              "canary_ok": sealed_v.get("canary_ok"), "author_model": sealed.get("author_model"),
                              "sha256": sealed.get("sha256"), "attempts": sealed.get("attempts"),
-                             "red_operation_uuid": red.get("operation_uuid"), "verify_operation_uuid": ver.get("operation_uuid")}})
+                             "red_operation_uuid": red.get("operation_uuid"), "verify_operation_uuid": ver.get("operation_uuid"),
+                             "corrected": ({"changed_tests": corrected_sealed.get("changed_tests"), "sha256": corrected_sealed.get("sha256"),
+                                            "discrimination": corrected_sealed.get("discrimination"),
+                                            "summary_line": (corrected_sealed.get("summary") or {}).get("summary_line")} if corrected_sealed else None),
+                             "coverage_gaps": sealed.get("coverage_gaps") or []}})
 
     # E2 mutation check
     gate = gates.get("mutation")
@@ -173,8 +184,14 @@ def exhibits(bundle: dict) -> list[dict]:
     gate = gates.get("adversarial_tests")
     adv_failing = _failing(adv_summary.get("tests"))
     adv_binding = adversarial.get("binding") or {}
+    corrected_adv = adversarial.get("corrected") if (gate or {}).get("corrected") else None
     if adversarial.get("unusable"):
         status, summary = "fail", f"unusable: {str(adversarial['unusable'])[:160]}"
+    elif corrected_adv:
+        status = _gate_result(gate)
+        summary = (f"{len(adv_failing)} of {adv_summary.get('ran', 0)} failed as written ({', '.join(_short(t.get('id')) for t in adv_failing)[:120]}); "
+                   f"{len(corrected_adv.get('changed_tests') or [])} test(s) corrected by the arbiter and validated ({corrected_adv.get('discrimination')}); "
+                   f"the corrected module passes ({(corrected_adv.get('summary') or {}).get('summary_line')})")
     elif adversarial.get("skipped") and not adv_summary:
         # pre-M1 fail-open record: the gate was recorded as passed although no adversarial test ran
         status, summary = "not_run", f"no adversarial tests ran ({str(adversarial['skipped'])[:120]}); the gate of this older bundle counted it as a pass, which the current rule no longer allows"
@@ -200,7 +217,11 @@ def exhibits(bundle: dict) -> list[dict]:
                              "failed_checks": [k for k, ok in (adv_binding.get("checks") or {}).items() if not ok],
                              "author_model": adversarial.get("author_model"), "sha256": adversarial.get("sha256"),
                              "notes": adversarial.get("notes"), "unusable": adversarial.get("unusable"),
-                             "canary_ok": adv_summary.get("canary_ok"), "operation_uuid": adversarial.get("operation_uuid")}})
+                             "canary_ok": adv_summary.get("canary_ok"), "operation_uuid": adversarial.get("operation_uuid"),
+                             "escalated": adversarial.get("escalated"), "attempts": adversarial.get("attempts"),
+                             "corrected": ({"changed_tests": corrected_adv.get("changed_tests"), "sha256": corrected_adv.get("sha256"),
+                                            "discrimination": corrected_adv.get("discrimination"),
+                                            "summary_line": (corrected_adv.get("summary") or {}).get("summary_line")} if corrected_adv else None)}})
 
     # E4 held-out tests
     gate = gates.get("heldout_suite")
@@ -243,11 +264,16 @@ def exhibits(bundle: dict) -> list[dict]:
                             "defect_kind_label": DEFECT_KIND_LABEL.get(c.get("defect_kind")) if c.get("defect_kind") else None}
                            for m in arbitration.get("modules") or [] for c in m.get("classifications") or []]
         reruns = [{"module": m.get("module"), "candidate": (m.get("candidate_rerun") or {}).get("summary_line"),
-                   "base": (m.get("base_rerun") or {}).get("summary_line"), "cleared": m.get("cleared_module"), "error": m.get("error")}
+                   "base": (m.get("base_rerun") or {}).get("summary_line"), "cleared": m.get("cleared_module"), "validated": m.get("validated"),
+                   "discrimination": (m.get("corrected") or {}).get("discrimination"), "changed_tests": (m.get("corrected") or {}).get("changed_tests"),
+                   "mutant_reruns": len(m.get("mutant_reruns") or []), "sealed_assertion_hold": m.get("sealed_assertion_hold"), "error": m.get("error")}
                   for m in arbitration.get("modules") or []]
+        applied = arbitration.get("applied_to_gates") or []
         items.append({"ref": "E6", "title": EXHIBIT_TITLE["E6"], "gate": None, "status": "informative", "shown": True,
                       "summary": arbitration.get("headline") or "", "why": WHY["E6"], "evidence_class": "model",
                       "detail": {"applied": bool(arbitration.get("applied")), "cleared": bool(arbitration.get("cleared")),
+                                 "applied_to_gates": applied, "validated_modules": arbitration.get("validated_modules") or [],
+                                 "rule": arbitration.get("rule"),
                                  "counts": arbitration.get("counts") or {}, "classifications": classifications, "reruns": reruns,
                                  "note": arbitration.get("note")}})
     else:
@@ -325,15 +351,22 @@ def reason_class(bundle: dict) -> str:
     verdict = (bundle.get("verdict") or {}).get("verdict") or "ERROR"
     if verdict == "VERIFIED":
         return "verified"
+    if verdict == "NO CHANGE" and ((bundle.get("candidate") or {}).get("unfinished") or (bundle.get("candidate") or {}).get("implementer_finished") is False):
+        return "unfinished_no_patch"
     if verdict in ABORT_VERDICTS:
         return verdict.lower().replace(" ", "_")
     gates = bundle.get("gates") or {}
+    if not gates and verdict == "NEEDS HUMAN" and (bundle.get("spec") or {}).get("feasible") is False:
+        return "infeasibility_unproven"
     ver = bundle.get("verification") or {}
     checks = (ver.get("binding") or {}).get("checks") or {}
     candidate = bundle.get("candidate") or {}
     if any(not checks.get(c, True) for c in INTEGRITY_CHECKS):
         return "integrity"
     if gates.get("sealed_binding") and not gates["sealed_binding"].get("ok"):
+        arb_modules = (bundle.get("arbitration") or {}).get("modules") or []
+        if any(m.get("module") == "sealed" and m.get("sealed_assertion_hold") for m in arb_modules):
+            return "sealed_assertion_hold"
         return "sealed_failed"
     if gates.get("existing_suite") and not gates["existing_suite"].get("ok"):
         return "existing_failed"
@@ -419,6 +452,17 @@ def decision(bundle: dict) -> dict:
         statement = "Accept this patch."
         if verdict_record.get("cleared_by_arbitration"):
             weak.append("The verdict was cleared by arbitration in apply mode: every failing generated test was classified as a defect, corrected and re-verified (E6).")
+        for correction in verdict_record.get("corrections") or []:
+            label = "sealed tests" if correction.get("gate") == "sealed_binding" else "tests written after the patch"
+            weak.append(f"{len(correction.get('changed_tests') or [])} of the {label} failed as written and were corrected by the arbiter; the correction kept every "
+                        f"test method, changed only the failing ones, passes on the candidate and discriminates ({correction.get('discrimination')}), and the gate "
+                        "was re-run on it (E6). Whether the original test was wrong is the arbiter's judgement; both versions are in the bundle.")
+        if d.get("coverage_gaps"):
+            weak.append(f"The sealer's own coverage map names no test for acceptance criteria {', '.join(d['coverage_gaps'])} (E1); the sealed suite may not exercise them.")
+        audit = bundle.get("contract_audit") or {}
+        if audit.get("outcome") == "conflicts claimed, none demonstrated":
+            weak.append("The contract auditor suspected a conflict between requirements but its witness program could not demonstrate one; the suspicion was "
+                        "handed to the sealer and is recorded in contract_audit.json.")
     elif verdict == "NEEDS HUMAN":
         statement = "Hold this patch."
         decide = []
@@ -429,6 +473,19 @@ def decision(bundle: dict) -> dict:
             evidence = {"ref": "E1", "text": f"Binding checks failed: {', '.join(failed)[:160]}."}
             decide = ["Inspect the candidate patch and the supervisor record in verify.json for tampering.",
                       "Run the task again on a fresh checkpoint; a second integrity failure is a security finding, not noise."]
+        elif klass == "sealed_assertion_hold":
+            n = e1["detail"].get("candidate_failing") or len(e1["detail"]["failing_ids"])
+            arbitration = bundle.get("arbitration") or {}
+            module = next((m for m in arbitration.get("modules") or [] if m.get("module") == "sealed"), {})
+            validated = bool(module.get("cleared_module"))
+            explanation = (f"{n} of the {e1['detail']['count']} sealed acceptance tests fail on the candidate because the candidate's behaviour contradicts "
+                           "the test written before the patch (an assertion failed, or the code under test raised). The arbiter classified the failing test(s) as defective"
+                           + (" and its corrected tests pass on the candidate and still fail on the unmodified base" if validated else "")
+                           + ". A sealed test is the pre-registered acceptance criterion, so Attest never overrides it on a model's judgement: the hold "
+                           "stands and the arbiter's view, the original test and the corrected test are all recorded for you (E6).")
+            evidence = {"ref": "E6", "text": arbitration.get("headline") or example_line("E1") or ""}
+            decide = ["Compare the original sealed test with the arbiter's correction and the contract; decide which encodes the requirement.",
+                      "If the correction is right, accept the patch on that basis and tighten the task statement so the next sealer reads it the same way."]
         elif klass == "sealed_failed":
             n = e1["detail"].get("candidate_failing") or len(e1["detail"]["failing_ids"])
             explanation = (f"{n} of the {e1['detail']['count']} sealed acceptance tests fail on the candidate. The sealed tests were written before the patch "
@@ -436,8 +493,15 @@ def decision(bundle: dict) -> dict:
             arbitration = bundle.get("arbitration") or {}
             counts = arbitration.get("counts") or {}
             if arbitration and set(k for k, v in counts.items() if v) == {"test_defect"}:
-                explanation += (" The arbiter classified every failing sealed test as defective" + (", and the corrected tests pass on the candidate and still fail on the base"
-                                if arbitration.get("all_corrected") or arbitration.get("cleared") else "") + "; the hold stands because the sealed failure also skipped the mutation check (E6).")
+                module = next((m for m in arbitration.get("modules") or [] if m.get("module") == "sealed"), {})
+                if module.get("cleared_module") or arbitration.get("all_corrected") or arbitration.get("cleared"):
+                    explanation += (" The arbiter classified every failing sealed test as defective, and the corrected tests pass on the candidate and still "
+                                    "fail on the base; the hold stands because "
+                                    + (module.get("error") or "this bundle recorded the correction as advisory (the sealed failure skipped the mutation check)")
+                                    + " (E6).")
+                else:
+                    explanation += (" The arbiter classified every failing sealed test as defective, but the correction did not pass the mechanical validation"
+                                    + (f" ({module.get('error')})" if module.get("error") else "") + "; the hold stands (E6).")
             elif arbitration and counts.get("implementation_bug"):
                 explanation += f" The arbiter classified {counts['implementation_bug']} of them as implementation bugs (E6)."
             evidence = {"ref": "E1", "text": example_line("E1") or f"Failing sealed tests: {', '.join(_short(i) for i in e1['detail']['failing_ids'])[:160]}."}
@@ -467,14 +531,21 @@ def decision(bundle: dict) -> dict:
             decide = ["State the missing requirement in the task statement (the arbiter's contract basis names the gap).",
                       "Run the task again; if the patch already matches the clarified contract, the disputed test is void."]
         elif klass == "adversarial_test_defects":
-            kinds = sorted({c.get("defect_kind") for m in (bundle.get("arbitration") or {}).get("modules") or []
+            arbitration = bundle.get("arbitration") or {}
+            kinds = sorted({c.get("defect_kind") for m in arbitration.get("modules") or []
                             for c in m.get("classifications") or [] if c.get("defect_kind")})
             kind_text = (" Defect kinds: " + "; ".join(DEFECT_KIND_LABEL.get(k, k) for k in kinds) + ".") if kinds else ""
-            explanation = ("Every failing test written after the patch was classified as defective by the arbiter; the corrected tests pass on the "
-                           "candidate and still fail on the unmodified base. Arbitration is advisory, so the hold stands until a human confirms." + kind_text)
-            evidence = {"ref": "E6", "text": (bundle.get("arbitration") or {}).get("headline") or e3["summary"]}
-            decide = ["Check the arbiter's corrections in E6 (original and corrected tests are both kept).",
-                      "If you agree, accept the patch on that basis or re-run with arbitration in apply mode."]
+            module = next((m for m in arbitration.get("modules") or [] if m.get("module") == "adversarial"), {})
+            if not arbitration.get("applied"):
+                why = "Arbitration ran in advisory mode, so the hold stands until a human confirms."
+            elif module.get("error"):
+                why = f"The correction did not pass the mechanical validation ({module['error']}), so the gate was not re-run and the hold stands."
+            else:
+                why = "The correction was not validated, so the gate was not re-run and the hold stands."
+            explanation = ("Every failing test written after the patch was classified as defective by the arbiter. " + why + kind_text)
+            evidence = {"ref": "E6", "text": arbitration.get("headline") or e3["summary"]}
+            decide = ["Check the arbiter's classifications and the correction in E6 (original and corrected tests are both kept).",
+                      "If you agree with the arbiter, accept the patch on that basis; otherwise treat the failing test as a finding."]
         elif klass == "adversarial_timeout":
             ids = e3["detail"].get("timeout_ids") or e3["detail"].get("failing_ids") or []
             explanation = ("A test written after the patch did not finish within its per-test time budget and was killed; no assertion failed. "
@@ -516,16 +587,43 @@ def decision(bundle: dict) -> dict:
             explanation = "The candidate changed files outside the allowed write scope or touched protected paths, so it is rejected regardless of test results."
             evidence = {"ref": "gates", "text": reasons[0] if reasons else "scope policy violated"}
             decide = ["Review the violations in the Patch tab; then narrow the patch or widen the task's write scope deliberately."]
+        elif klass == "infeasibility_unproven":
+            explanation = ("The specification stage judged the task infeasible, but the contract auditor's witness programs did not demonstrate a "
+                           "contradiction when they ran on the unmodified repository. An undemonstrated claim of infeasibility is a hold, not a verdict: "
+                           "no sealed tests were written and no implementation was attempted.")
+            evidence = {"ref": "contract_audit", "text": (spec.get("infeasibility_reason") or (reasons[0] if reasons else ""))[:300]}
+            decide = ["Read the specification's reason and the witness results in contract_audit.json.",
+                      "If the task is feasible, clarify the statement so the specification stage reads it that way and run again; if not, record the contradiction."]
         else:
             explanation = "The gates did not all pass. The recorded reasons name what failed; nothing was certified."
             evidence = {"ref": "gates", "text": reasons[0][:200] if reasons else "see the recorded reasons"}
             decide = ["Read the recorded reasons and the gates table; resolve each failure, then run again."]
     elif verdict == "INFEASIBLE":
         statement = "This task cannot be implemented as stated."
-        explanation = ("The specification stage judged the request infeasible before any code was written, and recorded why. No sealed tests "
-                       "were written and no implementation was attempted.")
-        evidence = {"ref": "spec", "text": (spec.get("infeasibility_reason") or (reasons[0] if reasons else ""))[:300]}
-        decide = ["Revise the task statement or the contract so the conflict disappears, then run again."]
+        audit = bundle.get("contract_audit") or {}
+        shown_conflict = next((c for c in audit.get("conflicts") or [] if c.get("demonstrated")), None)
+        if shown_conflict:
+            explanation = (f"The contract auditor claimed that requirements {', '.join(shown_conflict.get('requirement_ids') or [])} cannot both hold, and its "
+                           "witness program demonstrated the conflict when Attest ran it on the unmodified repository in a sandbox (exit code "
+                           f"{shown_conflict.get('exit_code')}, operation {shown_conflict.get('operation_uuid')}). No sealed tests were written and no "
+                           "implementation was attempted. The witness's reasoning is the model's; its execution and output are recorded.")
+            evidence = {"ref": "contract_audit", "text": ((shown_conflict.get("stdout_tail") or "").strip().splitlines() or [shown_conflict.get("summary") or ""])[0][:300]}
+            decide = ["Read the witness program and its output in contract_audit/; it names the input on which the requirements conflict.",
+                      "Revise the task statement or the contract so the conflict disappears, then run again."]
+        else:
+            explanation = ("The specification stage judged the request infeasible before any code was written, and recorded why. No sealed tests "
+                           "were written and no implementation was attempted.")
+            evidence = {"ref": "spec", "text": (spec.get("infeasibility_reason") or (reasons[0] if reasons else ""))[:300]}
+            decide = ["Revise the task statement or the contract so the conflict disappears, then run again."]
+    elif verdict == "NO CHANGE" and klass == "unfinished_no_patch":
+        statement = "The implementer did not produce a patch."
+        turns = (bundle.get("trajectory") or {}).get("turns")
+        explanation = (f"The implementer used its whole turn budget ({turns} turn(s)) without finishing and without changing a file. This is an "
+                       "unfinished task, not a judgement that no change was needed and not a repair: there is no candidate, so nothing was verified "
+                       "and nothing was certified.")
+        evidence = {"ref": "trajectory", "text": reasons[0][:200] if reasons else "turn budget exhausted without a patch"}
+        decide = ["Read the implementer's action trail (the Activity tab) to see where the turns went.",
+                  "Run again with a larger turn budget or a narrower task; a task the model cannot navigate in the budget stays unfinished."]
     elif verdict == "NO CHANGE":
         statement = "The implementer changed nothing."
         explanation = "The implementer finished without modifying any file, so there is no candidate to verify. Nothing was certified."
@@ -615,7 +713,15 @@ def proves(bundle: dict) -> dict:
         if row["evidence_class"] == "stdout":
             no.append(f"That the {row['label'].lower()} result is bound: it is parsed console output of the repository's test command, not per-test exit codes (gates table).")
     if e6["status"] == "informative":
-        no.append("That the arbiter's classifications are correct: arbitration is a model judgement, kept advisory, and the original tests and results are preserved (E6).")
+        if e6["detail"].get("applied_to_gates"):
+            no.append("That the arbiter's classification of the corrected test(s) is right: the correction was validated by execution and the gate re-run, "
+                      "but which side was wrong is a model judgement; the original tests and results are preserved (E6).")
+        else:
+            no.append("That the arbiter's classifications are correct: arbitration is a model judgement and the original tests and results are preserved (E6).")
+    audit = bundle.get("contract_audit") or {}
+    if verdict == "INFEASIBLE" and any(c.get("demonstrated") for c in audit.get("conflicts") or []):
+        yes.append("A witness program written by the contract auditor demonstrated the contract's contradiction when executed on the unmodified repository (contract_audit).")
+        no.append("That the witness's reasoning is sound beyond what its recorded output shows: the program is the model's, only its execution is Attest's.")
     if verdict == "NEEDS HUMAN":
         no.append("That the patch is wrong: a failing generated test may itself be defective or may ask a question the contract leaves open (E3, E6).")
     if verdict == "ERROR":

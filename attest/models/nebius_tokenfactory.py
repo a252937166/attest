@@ -96,7 +96,11 @@ class NebiusTokenFactory:
         return sum(1 for c in self.ledger.model_calls if c.provider == self.name)
 
     def spent_usd(self) -> float:
-        return sum(c.cost_usd or 0.0 for c in self.ledger.model_calls if c.provider == self.name)
+        """Committed USD of this provider within the run: known costs, the reservation of every call whose outcome is unknown,
+        and every reservation still open (a request in flight). The per-run cap binds on this conservative figure."""
+        known = sum(c.cost_usd if c.cost_usd is not None else (c.reserved_usd or 0.0) for c in self.ledger.model_calls if c.provider == self.name)
+        open_reserved = sum(r.get("reserved_usd") or 0.0 for r in self.ledger.open_reservations if r.get("provider") == self.name)
+        return known + open_reserved
 
     def reserve_usd(self, model: str, prompt_chars: int) -> float:
         """Upper-bound cost of one call: every prompt char at 1/3 token plus the full max_tokens output."""
@@ -141,7 +145,9 @@ class NebiusTokenFactory:
 
     def _send(self, role, prompt, schema, stage, model, payload, reservation, attempt: int) -> ModelResult:
         """One request; a `finish_reason=length` answer with no visible content (the model spent its whole completion budget on
-        reasoning) is a definite failure and is retried once at low reasoning effort, both attempts recorded."""
+        reasoning) is a definite failure and is retried once at low reasoning effort, both attempts recorded. The reservation
+        is journaled before the request leaves and closed by the call record, so an interrupted process leaves the bound behind."""
+        reservation_id = self.ledger.reserve(self.name, role, stage if attempt == 1 else f"{stage}-lowretry", model, reservation)
         started = utcnow()
         t0 = time.monotonic()
         flags = payload.get("chat_template_kwargs") or {}
@@ -158,12 +164,18 @@ class NebiusTokenFactory:
         except TransportError as error:
             call.elapsed_ms = int((time.monotonic() - t0) * 1000)
             call.error = f"transport: {error}"
-            self.ledger.add_call(call)
+            call.settlement = "unsettled"  # the request may have been billed: the reservation stays committed until reconciled
+            self.ledger.add_call(call, reservation_id)
             raise ModelError(f"inference outcome uncertain ({error}); not retried", uncertain=True) from None
         except HttpError as error:
             call.elapsed_ms = int((time.monotonic() - t0) * 1000)
             call.error = str(error)
-            self.ledger.add_call(call)
+            if 400 <= error.status < 500:
+                call.cost_usd = 0.0  # the provider refused the request (quota, schema, auth): nothing was generated, nothing is billed
+                call.settlement = "known"
+            else:
+                call.settlement = "unsettled"  # a server-side failure may or may not have been metered: the reservation stays committed
+            self.ledger.add_call(call, reservation_id)
             raise ModelError(str(error)) from None
         call.elapsed_ms = int((time.monotonic() - t0) * 1000)
         body = body or {}
@@ -192,7 +204,7 @@ class NebiusTokenFactory:
             head = (text or "").strip().replace("\n", " ")[:240]
             finish = (choices[0].get("finish_reason") if choices else None)
             call.error = f"schema violation: {problem}; finish_reason={finish}; content head: {head!r}"
-            self.ledger.add_call(call)
+            self.ledger.add_call(call, reservation_id)
             if finish == "length" and not (head or "").strip() and attempt == 1:
                 # the model spent the whole completion budget on reasoning: a definite failure (nothing to replay), retried once at
                 # low effort if the per-run cap still allows the reservation
@@ -201,5 +213,5 @@ class NebiusTokenFactory:
                     return self._send(role, prompt, schema, stage, model, low, reservation, attempt=2)
             raise ModelError(f"model output violated the schema: {problem} (finish_reason={finish}, content head: {head[:120]!r})")
         call.ok = True
-        self.ledger.add_call(call)
+        self.ledger.add_call(call, reservation_id)
         return ModelResult(json=parsed, text=text, call=call)

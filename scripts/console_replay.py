@@ -30,7 +30,7 @@ PRODUCTION_DATA_DIRS = ("/var/lib/attest", "/opt/attest", "/etc/attest")
 LOG_LINE = re.compile(r"^\[(\d\d):(\d\d):(\d\d)\]\s+(.*)$")
 STAGE_RULES = (
     (r"^frozen task", "freeze"), (r"^creating checkpoint|^checkpoint .* ready|^suite binding|^install", "checkpoint"),
-    (r"^specification|^spec:", "spec"), (r"^sealing|^sealed \d+", "seal"), (r"red check", "red"),
+    (r"^specification|^spec:", "spec"), (r"^contract audit", "contract"), (r"^sealing|^sealed \d+", "seal"), (r"red check", "red"),
     (r"^implementation|^turn \d+:", "implement"), (r"^verification|^verify:|^existing suite|^tamper scan", "verify"),
     (r"^held-out", "heldout"), (r"^breaker", "break"), (r"^drift audit", "audit"), (r"^arbitration", "arbitrate"),
     (r"^verdict|^ABORT", "finished"), (r"^MODEL ERROR", "error"),

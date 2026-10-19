@@ -78,6 +78,11 @@ CANDIDATE_SRC = '''def parse_duration(text: str) -> float:
     return float(total)
 '''
 TAMPERING_CANDIDATE_SRC = "import sys, os\nsys.modules['unittest'] = sys.modules.get('unittest')\n" + CANDIDATE_SRC
+# witness programs the fake contract auditor returns; the fake executor "runs" them by their exit marker
+WITNESS_DEMONSTRATES = "import sys\nprint('CONTRADICTION AC1,AC2: for input \"1h\" AC1 demands 3600 and AC2 demands 60')\nsys.exit(3)\n"
+WITNESS_NOT_SHOWN = "import sys\nprint('NOT DEMONSTRATED: no input found up to length 6')\nsys.exit(0)\n"
+BREAKER_WITH_SYNTAX_ERROR = SEALED_SRC.replace("class T(", "class B(").replace("def test_a(self):", "def test_a(self)")  # missing colon
+CORRECTED_TEST_A = 'self.assertEqual(parse_duration("1h"), 3600.0, "corrected")'
 
 
 class FakeProvider:
@@ -91,33 +96,67 @@ class FakeProvider:
     def describe(self):
         return {"provider": self.name}
 
+    def breaker_payload(self, stage):
+        if self.scenario == "breaker_syntax_error" and not stage.endswith("-escalated"):
+            return {"test_file": BREAKER_WITH_SYNTAX_ERROR, "test_count": 6, "notes": "fake broken breaker"}
+        src = THIN_BREAKER_SRC if self.scenario == "no_mutants_thin_adversarial" else SEALED_SRC.replace("class T(", "class B(")
+        return {"test_file": src, "test_count": 6, "notes": "fake breaker"}
+
+    def arbitration_payload(self, stage):
+        module = "test_sealed" if stage.endswith("sealed") else "test_breaker"
+        klass = "T" if module == "test_sealed" else "B"
+        original = SEALED_SRC if module == "test_sealed" else SEALED_SRC.replace("class T(", "class B(")
+        defect = {"test_id": f"{module}.{klass}.test_a", "classification": "test_defect", "defect_kind": "wrong_expectation",
+                  "rationale": "fake defect", "contract_basis": "fake"}
+        corrected = original.replace('self.assertEqual(parse_duration("1h"), 3600.0)', CORRECTED_TEST_A, 1)
+        if self.scenario in ("arb_clear", "arb_refactor", "sealed_one_fail", "sealed_one_crash", "sealed_one_code_error"):
+            return {"classifications": [defect], "corrected_module": corrected, "corrected_notes": "fixed defect"}
+        if self.scenario == "arb_identical":
+            return {"classifications": [defect], "corrected_module": original, "corrected_notes": "no real change"}
+        if self.scenario == "arb_drops_test":
+            dropped = "\n".join(line for line in corrected.splitlines() if "def test_f" not in line and "parse_duration(\"1x\")" not in line) + "\n"
+            return {"classifications": [defect], "corrected_module": dropped, "corrected_notes": "dropped a test"}
+        if self.scenario == "arb_alters_passing":
+            altered = corrected.replace('self.assertEqual(parse_duration("2m"), 120.0)', 'self.assertEqual(parse_duration("2m"), 120.0, "touched")', 1)
+            return {"classifications": [defect], "corrected_module": altered, "corrected_notes": "touched a passing test"}
+        return {"classifications": [{"test_id": "test_sealed.T.test_x", "classification": "implementation_bug", "defect_kind": None,
+                                     "rationale": "fake", "contract_basis": "fake"}],
+                "corrected_module": None, "corrected_notes": "fake: treated as a real bug, no correction"}
+
     def structured(self, role, prompt, schema, stage):
         if role == "spec":
-            payload = {"feasible": True, "infeasibility_reason": None, "restated_task": "add units",
+            infeasible = self.scenario in ("spec_infeasible_unproven", "spec_infeasible_demonstrated")
+            criteria = ["units work", "errors raise ValueError"] if self.scenario == "coverage_gap" else ["units work"]
+            payload = {"feasible": not infeasible, "infeasibility_reason": "fake: the criteria contradict" if infeasible else None,
+                       "restated_task": "add units",
                        "interface_contract": [{"name": "parse_duration", "signature": "parse_duration(text: str) -> float",
                                                "behavior": "parse", "error_cases": ["ValueError"]}],
-                       "acceptance_criteria": ["units work"], "out_of_scope": ["tests"], "external_references_needed": []}
+                       "acceptance_criteria": criteria, "out_of_scope": ["tests"], "external_references_needed": []}
         elif role == "seal":
-            payload = {"test_file": SEALED_SRC, "test_count": 6, "notes": "fake"}
-        elif role == "break":
-            src = THIN_BREAKER_SRC if self.scenario == "no_mutants_thin_adversarial" else SEALED_SRC.replace("class T(", "class B(")
-            payload = {"test_file": src, "test_count": 6, "notes": "fake breaker"}
+            payload = {"test_file": SEALED_SRC, "test_count": 6, "notes": "fake", "coverage": [{"criterion": 1, "tests": ["test_a", "test_b"]}]}
+        elif role == "break" or (role == "arbitrate" and stage.startswith("break-tests")):
+            payload = self.breaker_payload(stage)
+        elif role == "audit" and stage == "contract-audit":
+            if self.scenario in ("contract_conflict", "spec_infeasible_demonstrated"):
+                payload = {"consistent": False, "notes": "fake conflict", "conflicts": [
+                    {"requirement_ids": ["AC1", "AC2"], "summary": "AC1 and AC2 demand different values for the same input", "witness": WITNESS_DEMONSTRATES}]}
+            elif self.scenario in ("contract_claim_unproven", "spec_infeasible_unproven"):
+                payload = {"consistent": False, "notes": "fake suspicion", "conflicts": [
+                    {"requirement_ids": ["AC1"], "summary": "AC1 may be impossible", "witness": WITNESS_NOT_SHOWN}]}
+            else:
+                payload = {"consistent": True, "notes": "fake: consistent", "conflicts": []}
         elif role == "audit":
             score = 0.9 if self.scenario == "drift_high" else 0.1
             payload = {"drift_score": score, "assessment": "off_target" if score > 0.5 else "aligned", "scope_narrowed": [],
                        "scope_widened": [], "unsupported_claims": [], "summary": "fake audit"}
         elif role == "arbitrate":
-            if self.scenario == "arb_clear":
-                payload = {"classifications": [{"test_id": "test_breaker.B.test_a", "classification": "test_defect",
-                                                "rationale": "fake defect", "contract_basis": "fake"}],
-                           "corrected_module": SEALED_SRC.replace("class T(", "class B("), "corrected_notes": "fixed defect"}
-            else:
-                payload = {"classifications": [{"test_id": "test_sealed.T.test_x", "classification": "implementation_bug",
-                                                "rationale": "fake", "contract_basis": "fake"}],
-                           "corrected_module": None, "corrected_notes": "fake: treated as a real bug, no correction"}
+            payload = self.arbitration_payload(stage)
         else:
             self.turn += 1
-            if self.turn == 1:
+            if self.scenario == "implementer_idle":
+                payload = {"action": "read_file", "path": "durationkit/parse.py", "content": None, "find": None, "replace": None,
+                           "start_line": None, "end_line": None, "code": None, "reason": "looking", "summary": None}
+            elif self.turn == 1:
                 content = TAMPERING_CANDIDATE_SRC if self.scenario == "tamper_scan" else CANDIDATE_SRC
                 payload = {"action": "write_file", "path": "durationkit/parse.py", "content": content, "find": None,
                            "replace": None, "start_line": None, "end_line": None, "code": None, "reason": "implement", "summary": None}
@@ -128,8 +167,12 @@ class FakeProvider:
                          returned_model="fake", returned_effort=None, started_at_utc=utcnow(), elapsed_ms=1,
                          gateway_duration_ms=None, prompt_chars=len(prompt), tokens_in=1, tokens_out=1, tokens_cached=0,
                          usage_raw={}, cost_usd=None, cost_note="fake", ok=True)
+        self.decorate(call)
         self.ledger.add_call(call)
         return ModelResult(json=payload, text=None, call=call)
+
+    def decorate(self, call):
+        """Hook for paid fakes: set cost and reservation BEFORE the ledger records (and journals) the call."""
 
 
 class FakeExecutor:
@@ -188,14 +231,20 @@ class FakeExecutor:
                             "expected_ids": ids, "discovery_error": None})
             for k, test_id in enumerate(ids):
                 # on the unmodified base (red check, and the arbitration base re-run of a corrected module) the behaviour
-                # under test is not implemented, so every test errors; a corrected module must still fail here
+                # under test is not implemented, so every test errors; a corrected module must still fail here. In the
+                # `arb_refactor` scenario the base already behaves correctly (a refactor), so the corrected adversarial module
+                # passes on the base and must be caught by a mutant instead.
                 red = name in ("sealed", "arbbase") and not candidate_present
-                if red:
+                if red and name == "arbbase" and self.scenario == "arb_refactor":
+                    tests.append(self._record(test_id))
+                elif red:
                     tests.append(self._record(test_id, "ERROR", 1))
+                elif name == "arbmut" and self.scenario == "arb_refactor" and k == 0:
+                    tests.append(self._record(test_id, "FAIL", 1))
                 elif mutant:
                     survive = self.scenario == "mutants_survive"
                     tests.append(self._record(test_id) if (survive or k) else self._record(test_id, "FAIL", 1))
-                elif name == "breaker" and self.scenario in ("breaker_fail", "arb_clear") and k == 0:
+                elif name == "breaker" and self.scenario in ("breaker_fail", "arb_clear", "arb_refactor", "arb_drops_test", "arb_alters_passing", "arb_identical") and k == 0:
                     tests.append(self._record(test_id, "FAIL", 1))
                 elif name == "existing" and self.scenario == "existing_fail_bound" and k == 0:
                     tests.append(self._record(test_id, "FAIL", 1))
@@ -214,6 +263,14 @@ class FakeExecutor:
                 tests[0].update(exit_code=None, timed_out=True, outcome="TIMEOUT")
             if self.scenario == "sealed_defect":
                 tests = [{**t, "exit_code": 1, "outcome": "FAIL", "child_outcome": "FAIL"} for t in tests]
+            if self.scenario == "sealed_one_fail" and b"corrected" not in self._source(files, job["modules"][0]["path"]):
+                tests[0].update(exit_code=1, outcome="FAIL", child_outcome="FAIL", failure_tail="AssertionError: 3600.0 != 60.0")
+            if self.scenario == "sealed_one_code_error" and b"corrected" not in self._source(files, job["modules"][0]["path"]):
+                tests[0].update(exit_code=1, outcome="ERROR", child_outcome="ERROR",
+                                failure_tail='Traceback (most recent call last):\n  File "/tmp/sealed/test_sealed.py", line 5, in test_a\n    self.assertEqual(parse_duration("1h"), 3600.0)\n  File "/tmp/w/durationkit/parse.py", line 9, in parse_duration\n    raise TypeError("bad")\nTypeError: bad')
+            if self.scenario == "sealed_one_crash" and b"corrected" not in self._source(files, job["modules"][0]["path"]):
+                tests[0].update(exit_code=1, outcome="ERROR", child_outcome="ERROR",
+                                failure_tail='Traceback (most recent call last):\n  File "/tmp/sealed/test_sealed.py", line 5, in test_a\n    a, b = (1, 2, 3)\nValueError: too many values to unpack (expected 2)')
         canaries, canary_ok = [], None
         if job.get("canary"):
             forged = self.scenario == "forge_all_ok" and sealed_on_candidate
@@ -251,6 +308,12 @@ class FakeExecutor:
                 fake_text = "".join(f"{i.split('.')[-1]} ({i}) ... ok\n" for i in report["expected_ids"]) + f"\nRan {len(report['expected_ids'])} tests\n\nOK\n"
                 stderr = fake_text if self.scenario == "forged_text" else ""
                 results.append(StepResult(name, step["cmd"], exit_code, False, 0.1, "SEALED-RESULT-WRITTEN\n", stderr))
+            elif name.startswith("witness-"):
+                source = files.get(step["cmd"][-1], b"").decode()
+                if "sys.exit(3)" in source:
+                    results.append(StepResult(name, step["cmd"], 3, False, 0.1, "CONTRADICTION AC1,AC2: for input \"1h\" AC1 demands 3600 and AC2 demands 60\n", ""))
+                else:
+                    results.append(StepResult(name, step["cmd"], 0, False, 0.1, "NOT DEMONSTRATED: no input found up to length 6\n", ""))
             elif name.endswith("_result"):
                 prefix = name[:-len("_result")]
                 if self.scenario in ("premature_exit", "forged_text") and candidate_present and not mutant and prefix == "sealed":
@@ -283,7 +346,7 @@ class FakeExecutor:
         return self._run(stage, files, steps, disposable=True)
 
 
-def run_scenario(scenario, apply=False, heldout=None, return_executor=False):
+def run_scenario(scenario, apply=True, heldout=None, return_executor=False):
     tmp = Path(tempfile.mkdtemp(prefix="attest-test-"))
     try:
         ledger = Ledger()
@@ -399,16 +462,128 @@ class VerificationBinding(unittest.TestCase):
         self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN")
         self.assertTrue(any("drift audit score" in r for r in bundle["verdict"]["reasons"]), bundle["verdict"])
 
-    def test_arbitration_is_advisory_then_clears_in_apply_mode(self):
+    def test_validated_correction_reruns_the_adversarial_gate(self):
+        applied = run_scenario("arb_clear")
+        self.assertEqual(applied["verdict"]["verdict"], "VERIFIED", applied["verdict"])
+        module = applied["arbitration"]["modules"][0]
+        self.assertTrue(module["validated"], module)
+        self.assertEqual(module["corrected"]["changed_tests"], ["test_breaker.B.test_a"])
+        self.assertIn("fail on the unmodified base", module["corrected"]["discrimination"])
+        gate = applied["gates"]["adversarial_tests"]
+        self.assertTrue(gate["ok"] and gate["corrected"], gate)
+        self.assertEqual(gate["original_failing"], ["test_breaker.B.test_a"])
+        self.assertEqual(applied["verdict"]["derivation"]["corrected_gates"], ["adversarial_tests"])
+        self.assertEqual(applied["verdict"]["before_corrections"]["verdict"], "NEEDS HUMAN")
+        self.assertIn("adversarial tests failed", " ".join(applied["verdict"]["before_corrections"]["reasons"]))
+        self.assertEqual(applied["breaker"]["adversarial"]["corrected"]["sha256"], module["corrected"]["sha256"])
+        self.assertFalse(applied["verdict"].get("cleared_by_arbitration", False))  # no legacy clearing: the gate itself was re-run
+
+    def test_advisory_mode_records_the_validated_correction_but_keeps_the_hold(self):
         advisory = run_scenario("arb_clear", apply=False)
         self.assertEqual(advisory["verdict"]["verdict"], "NEEDS HUMAN", advisory["verdict"])
-        self.assertTrue(advisory["arbitration"]["cleared"], advisory["arbitration"])  # recommends clearing
-        self.assertFalse(advisory["verdict"].get("cleared_by_arbitration", False))    # but does not apply it
-        applied = run_scenario("arb_clear", apply=True)
-        self.assertEqual(applied["verdict"]["verdict"], "VERIFIED", applied["verdict"])
-        self.assertTrue(applied["verdict"].get("cleared_by_arbitration"))
-        self.assertEqual(applied["arbitration"]["counts"]["test_defect"], 1)
-        self.assertIn("adversarial tests failed", " ".join(applied["verdict"]["superseded_reasons"]))
+        self.assertTrue(advisory["arbitration"]["modules"][0]["validated"])
+        self.assertEqual(advisory["arbitration"]["applied_to_gates"], [])
+        self.assertFalse(advisory["gates"]["adversarial_tests"].get("corrected"))
+
+    def test_corrections_that_drop_or_touch_other_tests_or_change_nothing_are_rejected(self):
+        for scenario, expected in (("arb_drops_test", "changed the set of test methods"), ("arb_alters_passing", "altered tests that were not failing"),
+                                   ("arb_identical", "identical to the original")):
+            bundle = run_scenario(scenario)
+            module = bundle["arbitration"]["modules"][0]
+            self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", scenario)
+            self.assertFalse(module["validated"], scenario)
+            self.assertIn(expected, module["error"], scenario)
+            self.assertIsNone(module["candidate_rerun"], f"{scenario}: a rejected correction is never run")
+
+    def test_corrected_adversarial_module_that_passes_on_the_base_must_be_caught_by_a_mutant(self):
+        bundle = run_scenario("arb_refactor")
+        module = bundle["arbitration"]["modules"][0]
+        self.assertTrue(module["validated"], module)
+        self.assertIn("catch mutant", module["corrected"]["discrimination"])
+        self.assertEqual(len(module["mutant_reruns"]), 1)
+        self.assertEqual(bundle["verdict"]["verdict"], "VERIFIED")
+
+    def test_sealed_assertion_failure_is_never_overridden(self):
+        bundle = run_scenario("sealed_one_fail")
+        self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", bundle["verdict"])
+        module = bundle["arbitration"]["modules"][0]
+        self.assertEqual(module["module"], "sealed")
+        self.assertTrue(module["sealed_assertion_hold"])
+        self.assertTrue(module["cleared_module"], "the correction was validated by execution and recorded for the human")
+        self.assertFalse(module["validated"])
+        self.assertEqual(bundle["arbitration"]["applied_to_gates"], [])
+        self.assertIn("never overridden", bundle["arbitration"]["headline"])
+
+    def test_sealed_error_raised_by_the_code_under_test_is_never_overridden(self):
+        bundle = run_scenario("sealed_one_code_error")
+        self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", bundle["verdict"])
+        module = bundle["arbitration"]["modules"][0]
+        self.assertTrue(module["sealed_assertion_hold"])
+        self.assertEqual(module["sealed_disagreeing_tests"], ["test_sealed.T.test_a"])
+        self.assertTrue(module["cleared_module"] and not module["validated"])
+        self.assertIn("exception raised in the code under test", bundle["arbitration"]["headline"])
+
+    def test_sealed_test_that_crashed_in_its_own_body_is_corrected_and_the_breaker_reruns(self):
+        bundle, executor = run_scenario("sealed_one_crash", return_executor=True)
+        self.assertEqual(bundle["verdict"]["verdict"], "VERIFIED", bundle["verdict"])
+        gate = bundle["gates"]["sealed_binding"]
+        self.assertTrue(gate["ok"] and gate["corrected"], gate)
+        self.assertIn("red check preserved", bundle["verification"]["corrected"]["discrimination"])
+        self.assertTrue(bundle["breaker"]["after_sealed_correction"])
+        self.assertTrue(bundle["gates"]["mutation"]["ok"] and bundle["gates"]["adversarial_tests"]["ok"])
+        self.assertEqual([c["gate"] for c in bundle["verdict"]["corrections"]], ["sealed_binding"])
+        self.assertTrue(bundle["verdict"]["corrections"][0]["breaker_rerun"])
+        stages = [op["stage"] for op in executor.operations]
+        self.assertIn("arbitrate-sealed-candidate", stages)
+        self.assertTrue(any(s.startswith("mutant-") for s in stages[stages.index("arbitrate-sealed-candidate"):]), "mutants ran after the correction")
+
+    def test_breaker_syntax_errors_escalate_to_the_arbiter_model(self):
+        bundle = run_scenario("breaker_syntax_error")
+        adversarial = bundle["breaker"]["adversarial"]
+        self.assertTrue(adversarial["escalated"], adversarial)
+        self.assertEqual(adversarial["attempts"], 3)
+        self.assertEqual(adversarial["author_role"], "arbitrate")
+        self.assertEqual(bundle["verdict"]["verdict"], "VERIFIED")
+        self.assertTrue(bundle["gates"]["adversarial_tests"]["ok"])
+
+    def test_demonstrated_contract_conflict_ends_infeasible_with_the_witness_recorded(self):
+        bundle = run_scenario("contract_conflict")
+        self.assertEqual(bundle["verdict"]["verdict"], "INFEASIBLE", bundle["verdict"])
+        audit = bundle["contract_audit"]
+        self.assertEqual(audit["outcome"], "contradiction demonstrated")
+        conflict = audit["conflicts"][0]
+        self.assertTrue(conflict["demonstrated"])
+        self.assertEqual(conflict["exit_code"], 3)
+        self.assertEqual(conflict["witness_path"], "contract_audit/witness_1.py")
+        self.assertIn("CONTRADICTION", conflict["stdout_tail"])
+        self.assertIsNone(bundle["sealed_tests"], "no sealing after a demonstrated contradiction")
+        self.assertIn("executed witness", bundle["verdict"]["reasons"][0])
+
+    def test_claimed_conflict_without_a_demonstration_does_not_stop_the_run(self):
+        bundle = run_scenario("contract_claim_unproven")
+        self.assertEqual(bundle["contract_audit"]["outcome"], "conflicts claimed, none demonstrated")
+        self.assertEqual(bundle["verdict"]["verdict"], "VERIFIED", bundle["verdict"])
+
+    def test_spec_infeasibility_needs_a_demonstrated_witness(self):
+        held = run_scenario("spec_infeasible_unproven")
+        self.assertEqual(held["verdict"]["verdict"], "NEEDS HUMAN", held["verdict"])
+        self.assertIn("no executed witness demonstrated", held["verdict"]["reasons"][0])
+        shown = run_scenario("spec_infeasible_demonstrated")
+        self.assertEqual(shown["verdict"]["verdict"], "INFEASIBLE", shown["verdict"])
+
+    def test_turn_budget_exhausted_without_a_patch_is_an_unfinished_no_change(self):
+        bundle = run_scenario("implementer_idle")
+        self.assertEqual(bundle["verdict"]["verdict"], "NO CHANGE")
+        self.assertTrue(bundle["candidate"]["unfinished"])
+        self.assertFalse(bundle["candidate"]["implementer_finished"])
+        self.assertIn("unfinished", bundle["verdict"]["reasons"][0])
+        self.assertIn("without a patch", bundle["verdict"]["reasons"][0])
+
+    def test_sealer_coverage_gaps_are_recorded_after_the_last_attempt(self):
+        bundle = run_scenario("coverage_gap")
+        self.assertEqual(bundle["sealed_tests"]["coverage_gaps"], ["AC2"])
+        self.assertEqual(bundle["sealed_tests"]["attempts"], 3)  # the gap was fed back twice, then accepted and recorded
+        self.assertEqual(bundle["verdict"]["verdict"], "VERIFIED")
 
     def test_sealed_test_failure_triggers_arbitration(self):
         # A sealed test that FAILs makes the child exit 1; that nonzero exit must not be mistaken for tampering, so

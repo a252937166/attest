@@ -121,8 +121,11 @@ otherwise; when you start the run in the background, read the verdict from `PROO
 Bundle is in `runs/<task-id>-<timestamp>/`: `PROOF.md` first, then `proof_bundle.json`, the sealed tests, the candidate
 patch, the breaker tests and every supervisor record.
 
-Verdicts: `VERIFIED` (every gate passed), `NEEDS HUMAN` (a gate failed; the reasons name it), `INFEASIBLE` (the
-specification stage found the request contradictory), `NO CHANGE`, `ERROR` (infrastructure; nothing was retried).
+Verdicts: `VERIFIED` (every gate passed; a gate may have been re-run on a corrected generated test after the correction was
+validated by execution, which the bundle says), `NEEDS HUMAN` (a gate failed; the reasons name it; a sealed test that failed by assertion or by an exception raised in the code under test always holds, even when the arbiter calls it defective), `INFEASIBLE` (the contract auditor's witness program,
+executed on your unmodified repository, demonstrated that the requirements contradict each other; the program and its
+output are in `contract_audit/`), `NO CHANGE` (no patch was produced: the implementer finished without editing, or ran out
+of turns, which the bundle reports as unfinished), `ERROR` (infrastructure; nothing was retried).
 
 ## 4. Check the bundle offline
 

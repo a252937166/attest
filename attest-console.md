@@ -217,3 +217,17 @@ Run directories named in `ATTEST_IMPORT_DIRS` are registered at startup only whe
 so their bundles and ledgers (which name the development gateway in runs recorded before 17 Oct) are not downloadable there.
 New development-profile bundles record only a digest of the gateway URL. Deployment bundles are built from the redacted
 public export (`scripts/export_public.py`), so the reports shipped to the server carry no gateway host either.
+
+### Revision 4 (19 Oct 2026): verdict copy, arbitration exhibit, new artifacts
+
+The console reads the same exhibits module as PROOF.md, so most of revision 4 reaches it without interface changes: the
+decision header now distinguishes an unfinished NO CHANGE ("The implementer did not produce a patch.") from a finished one,
+explains an INFEASIBLE verdict by the executed witness (requirements, exit code, operation id, the witness's output line),
+names the reason classes `infeasibility_unproven` and `sealed_assertion_hold`, and lists validated corrections and
+coverage gaps among the weak spots of a VERIFIED verdict. E6 shows, per module, the corrected tests, the candidate and
+base re-runs, the number of mutant re-runs and whether the correction was validated (or why not); its header says which
+gate was re-run. The guide's sentence for NO CHANGE and INFEASIBLE follows the new meanings. New downloadable artifacts:
+`contract_audit.json`, `contract_audit/witness_N.py`, `ledger.jsonl`. The home page's capability text, pipeline list and
+bundle-file list mention the contract audit, the validated corrections and the journal. Asset stamp `20261019a`; no
+Python change to the console itself beyond the health message (an idle service reports zero active reservations) and the
+artifact allowlist.

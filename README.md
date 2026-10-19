@@ -37,6 +37,17 @@ twice (correctly) and hit 3 transport-uncertain infrastructure errors; the plain
 2 broken ones, did not finish once and hit 3 errors. On this suite Attest did not ship fewer broken patches than the plain
 agent; every one of its holds was on a patch the held-out judge accepted. License: MIT.
 
+Revision 4 (19 Oct 2026, `reports/attest-revision-2026-10-19/README.md`, version 0.4.0): INFEASIBLE now requires a witness
+program, written by a contract auditor and executed on the unmodified repository, that demonstrates the contradiction (a
+bare claim of infeasibility is a hold); the sealer returns a coverage map that is checked for completeness; a failing
+generated test corrected by the arbiter counts only after mechanical validation (same test methods, only the failing ones
+changed, passes on the candidate, still fails on the base or is caught by a mutant) and then re-runs its gate, while a
+sealed test that failed by assertion or by an exception raised in the code under test is never overridden; breaker syntax errors escalate to the arbiter's model; the
+implementer has `search`, a def/class outline and a navigation warning, and an exhausted turn budget is reported as an
+unfinished task (`NO CHANGE`, harness label `no_patch`), never as a correct refusal (`reports/attest-evaluation-2026-10-17-nebius-m5/CORRECTIONS.md`);
+every run keeps an append-only ledger journal with reservations written before each request, the console reconciles an
+interrupted run from it, and an idle service no longer reports a phantom reservation. The frozen M5 results are unchanged.
+
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).
@@ -118,6 +129,7 @@ python3 -m attest import --github https://github.com/<owner>/<repo> --commit <40
 python3 scripts/replay_holds.py --run <run-dir> --task <task.json> --module original=<tests.py> --out replay.json [--sandbox]  # re-run breaker tests on candidate and base
 python3 scripts/run_evaluation.py --resume reports/<batch-dir>     # continue an interrupted batch from its own snapshot (cells never executed only)
 python3 scripts/export_public.py --out dist/public                 # allowlisted, redacted copy for the public repository, with a secret scan
+python3 -m attest run --task examples/eval/rle-encode/task.json --out runs --provider codex --arbitration-advisory   # record corrections, never re-run a gate on them
 ```
 
 External repositories (M4, `attest/core/external.py`, `PILOT.md`): a public GitHub repository at a pinned commit, or a local
@@ -162,6 +174,22 @@ test module before and after, makes every import-path root root-owned, checks fo
 two verifier canaries (one must pass, one must fail) after the suite. The verdict is bound to the test IDs proven red,
 the digests, the nonce and the canaries, so edited tests, forged console output, hidden tests, early exits and blanket
 result forgery are recorded as failures (see `tests/test_verification.py`, `tests/test_m1.py`).
+
+Contract audit (revision 4): after the specification, the `audit` role looks for requirements that no implementation confined
+to the write scope can satisfy and must back each claim with a witness program; Attest runs every witness in a disposable
+branch of the unmodified checkpoint and records the program, its digest, exit code, output and operation id. A conflict is
+demonstrated only by exit code 3 and a `CONTRADICTION` line; INFEASIBLE rests on a demonstrated witness and on nothing else.
+The sealer's coverage map (which test checks which criterion) is checked for completeness and its gaps are recorded.
+
+Arbitration (revision 4): a corrected generated-test module counts only when it keeps every test method, changes only the
+failing ones, passes on the candidate under the supervisor and still discriminates (every corrected sealed test fails on
+the base; a corrected adversarial module fails on the base or is caught by a mutant). The affected gate is then re-run and
+the verdict re-derived; `verdict.before_corrections` keeps the first derivation. A sealed test that failed by assertion or by an exception raised in the code under test is never overridden. The third breaker attempt, after two modules that do not compile, escalates to the arbiter's model.
+
+Ledger journal (revision 4): `ledger.jsonl` in every run directory records a reservation before each Nebius request and the
+call record as soon as it is known; `attest.ledger.read_journal` sums known costs and open reservations, which the console's
+restart reconciliation and the harness's resume use for interrupted runs. Transport-uncertain calls stay `unsettled` at
+their reservation; nothing uncertain is ever replayed.
 
 Order rule: the sealed supervisor is the only step of the verification branch; nothing that imports candidate code runs
 before it in the same sandbox operation. The repository's own suite and the held-out suite run afterwards in their own

@@ -57,3 +57,61 @@ Verified credit: the Token Factory console's billing page read **Account balance
 spend to date from the ledgers is $1.62 across 46 unique local runs (`scripts/usage_report.py`, public price table), about
 $1.80 including the three server-only runs, plus about $0.10 of smoke tests and probes on 17 Oct. The owner approved the
 $11.00 budget on 17 Oct 2026.
+
+# Revised version (revision 4, 19 Oct 2026): pinned for the next paid validation
+
+The M5 pin above is history and stays as it is; the results it produced are in `reports/attest-evaluation-2026-10-17-nebius-m5/`
+(with `CORRECTIONS.md` for the reading of three cells). The revision below changes the pipeline; it has been validated
+offline (177 tests) and on the development gateway (`reports/attest-revision-2026-10-19/README.md`), not yet on Nemotron.
+No paid Nebius call runs before the owner approves the proposal at the end of this section.
+
+## What changed in the method
+
+| Stage | M5 (pinned above) | Revision 4 |
+| --- | --- | --- |
+| Infeasibility | the specification model's `feasible=false` ended the run INFEASIBLE on its word | a contract auditor must back every conflict with a witness program; Attest executes it on the unmodified checkpoint; INFEASIBLE only on exit code 3 plus a `CONTRADICTION` line; an undemonstrated claim is a hold (`infeasibility_unproven`) or a sealer hint |
+| Sealing | tests only | tests plus a coverage map (criterion to test methods), checked for completeness; gaps fed back, then recorded |
+| Breaker authoring | 2 attempts, same model | 3 attempts; compile error names the line; the third attempt uses the arbiter's model |
+| Arbitration | advisory: classification, corrected module re-run on candidate and base, verdict unchanged | correction counts only after mechanical validation (same test methods, only failing ones changed, at most 3, passes on the candidate, every corrected sealed test fails on the base; a corrected adversarial module fails on the base or is caught by a mutant); the affected gate is re-run and the verdict re-derived; a sealed test that failed by assertion or by an exception raised in the code under test is never overridden |
+| Implementer | list, read (ranges), replace, write, run_tests, run_python, undo, finish | plus `search`; def/class outline of write-scope files in the prompt and in truncated reads; closest-line hint on a failed replace; navigation warning after three read-only turns |
+| NO CHANGE | one reason text for finished and unfinished | unfinished recorded (`candidate.unfinished`), own reason class and copy; harness label `no_patch` |
+| Ledger | written at the end | append-only journal during the run (reservation before each request); `settlement` per call; interrupted runs reconciled from the journal (console and harness) |
+
+Limits added to every bundle's provenance: `max_corrected_tests 3`, `max_mutants_for_discrimination 3`, `max_breaker_attempts 3`,
+`max_witnesses 3`, `witness_timeout_s 60`. Unchanged: supervisor `attest-sealed-supervisor/6`, per-test child, canary and
+sandbox runner (same digests as the M5 pin), the gate-to-verdict rule's structure, the never-replay rule, the per-run caps.
+
+## The pin
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `<pending>` on branch `main` of the review repository |
+| `attest/` package digest | `<pending>` |
+| Harness `scripts/run_evaluation.py` sha256 | `<pending>` |
+| `examples/` tree digest | `<pending>` |
+| Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged) |
+| Models and sampling (Nebius Token Factory) | unchanged from the M5 pin; the contract auditor runs on the `audit` role (Nemotron 3 Ultra, model default effort); the escalated third breaker attempt runs on the `arbitrate` role (Ultra) |
+| Limits | M5 limits plus the five above |
+
+## The exact command (unchanged in shape; a new report directory)
+
+```bash
+git clone <repository> attest-eval && cd attest-eval && git checkout <pending commit>
+export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
+python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
+    --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 20 --max-turns 14 --approve-usd 9.00 --label r4-final \
+    --out reports/attest-evaluation-2026-10-XX-nebius-r4
+```
+
+## Proposed paid work (awaiting the owner's approval; nothing runs before it)
+
+| Budget line | Purpose | Models | Expected | Maximum | Calls | Stop rules |
+| --- | --- | --- | --- | --- | --- | --- |
+| Smoke test | one Nemotron run of `durationkit-units-001` and one of `rle-encode` through the CLI from the pinned checkout, to see the contract audit and the arbitration path on Nemotron output before a batch | Ultra (spec, contract audit, drift, arbitrate), Super (seal, implement, break), Lightning (summary) | about $0.15 | $1.00 | at most 22 per run (the audit adds one) | the run's own cap |
+| Revised evaluation (32 cells, same suite, same method otherwise) | measure the revision against the M5 result: false accepts on rle-encode, false holds, the external task | as above | $3.00 to $4.00 (M5 cost $1.09 for 32 cells; the audit adds one Ultra call and up to three sandbox branches per Attest cell, the arbitration re-runs add branches on holds) | $9.00 (`--approve-usd`) | at most 22 per run | batch cap; 3 consecutive infrastructure errors; any transport-uncertain operation (never replayed) |
+| Total | | | about $3.50 | **$10.00** | | |
+
+Credit: the last verified reading of the Token Factory billing page is $25.00 at 16:55 UTC on 17 Oct 2026; committed spend
+since then is about $1.49 (plus at most $0.03 unrecorded). Reading the current balance and its expiry needs the owner's
+signed-in browser session (the debugging session was not available on 19 Oct without closing the owner's Chrome, which was
+not done); the account is never recharged by the project.

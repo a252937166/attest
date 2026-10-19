@@ -5,6 +5,7 @@ from __future__ import annotations
 import difflib
 import fnmatch
 import hashlib
+import re
 from pathlib import Path, PurePosixPath
 
 SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", "node_modules", ".venv"}
@@ -76,10 +77,54 @@ class Workspace:
             text = f"[lines {first}-{last} of {len(lines)}]\n" + "".join(lines[first - 1:last])
         else:
             text = f"[{len(lines)} lines]\n" + text
-        return text if len(text) <= limit else text[:limit] + f"\n...[truncated at {limit} chars; use start_line/end_line to read the rest]..."
+        if len(text) <= limit:
+            return text
+        outline = self.outline(rel)
+        where = ("\nOUTLINE (line: definition), so the next read can target a range:\n" + "\n".join(outline[:80])) if outline else ""
+        return text[:limit] + f"\n...[truncated at {limit} chars; use start_line/end_line to read the rest]...{where}"
+
+    def search(self, pattern: str, path: str | None = None, limit: int = 60) -> str:
+        """Lines matching `pattern` (a regular expression, or the literal text when it is not a valid one) in one file or in
+        every text file of the workspace, as `path:line: text`. Bounded, so a broad pattern cannot flood the transcript."""
+        if not pattern:
+            return "INVALID ACTION: search needs a non-empty find pattern"
+        try:
+            regex = re.compile(pattern)
+        except re.error:
+            regex = re.compile(re.escape(pattern))
+        targets = [self.normalize(path)] if path else sorted(self.files)
+        if path and targets[0] not in self.files:
+            raise FileNotFoundError(targets[0])
+        hits: list[str] = []
+        total = 0
+        for rel in targets:
+            data = self.files[rel]
+            if b"\0" in data[:4096]:
+                continue  # binary
+            for number, line in enumerate(data.decode("utf-8", "replace").splitlines(), 1):
+                if regex.search(line):
+                    total += 1
+                    if len(hits) < limit:
+                        hits.append(f"{rel}:{number}: {line.rstrip()[:200]}")
+        if not hits:
+            return f"no match for {pattern!r}" + (f" in {targets[0]}" if path else " in the workspace")
+        head = f"{total} matching line(s)" + (f" (showing the first {limit})" if total > limit else "") + ":\n"
+        return head + "\n".join(hits)
+
+    def outline(self, path: str) -> list[str]:
+        """`def`/`class` lines with line numbers of a Python file (empty for other files)."""
+        rel = self.normalize(path)
+        if rel not in self.files or not rel.endswith(".py"):
+            return []
+        out = []
+        for number, raw in enumerate(self.files[rel].decode("utf-8", "replace").splitlines(), 1):
+            if raw.lstrip().startswith(("def ", "class ", "async def ")):
+                out.append(f"{number}: {raw.rstrip()[:110]}")
+        return out
 
     def replace(self, path: str, find: str, replacement: str) -> str:
-        """Replace exactly one occurrence of `find`; refuse when the snippet is absent or ambiguous."""
+        """Replace exactly one occurrence of `find`; refuse when the snippet is absent or ambiguous. When it is absent the
+        refusal names the closest lines of the file, so the next attempt can copy the real text."""
         rel = self.check_writable(path)
         if rel not in self.files:
             raise FileNotFoundError(rel)
@@ -87,8 +132,22 @@ class Workspace:
             raise PolicyViolation("replace_in_file needs a non-empty find snippet")
         text = self.files[rel].decode("utf-8", "replace")
         count = text.count(find)
+        if count == 0:
+            first = next((line for line in find.splitlines() if line.strip()), find).strip()
+            candidates = [line for line in text.splitlines() if line.strip()]
+            close = difflib.get_close_matches(first, [c.strip() for c in candidates], n=3, cutoff=0.6)
+            hint = ""
+            if close:
+                numbered = []
+                for match in close:
+                    for number, line in enumerate(text.splitlines(), 1):
+                        if line.strip() == match:
+                            numbered.append(f"line {number}: {line.rstrip()[:160]}")
+                            break
+                hint = "; closest lines in the file: " + " | ".join(numbered)
+            raise PolicyViolation(f"find snippet occurs 0 times in {rel}; it must occur exactly once (copy the current text verbatim, including indentation{hint})")
         if count != 1:
-            raise PolicyViolation(f"find snippet occurs {count} times in {rel}; it must occur exactly once")
+            raise PolicyViolation(f"find snippet occurs {count} times in {rel}; it must occur exactly once (include more surrounding lines)")
         new_text = text.replace(find, replacement, 1)
         data = new_text.encode("utf-8")
         if len(data) > MAX_FILE_BYTES:

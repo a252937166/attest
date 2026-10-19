@@ -145,14 +145,15 @@ class BreakerAndArbiterPrompts(unittest.TestCase):
         self.assertIn("defect_kind", ARBITRATION_SCHEMA["properties"]["classifications"]["items"]["required"])  # strict mode: nullable, never optional
         self.assertIn(None, kinds)
 
-    def test_arbitration_of_an_adversarial_module_now_checks_the_base(self):
-        bundle = run_scenario("arb_clear")
+    def test_arbitration_of_an_adversarial_module_checks_the_base_and_advisory_mode_keeps_the_hold(self):
+        bundle = run_scenario("arb_clear", apply=False)
         module = bundle["arbitration"]["modules"][0]
         self.assertEqual(module["module"], "adversarial")
         self.assertIsNotNone(module["base_rerun"], "the corrected adversarial module must be shown to still fail on the base")
         self.assertGreater(module["base_rerun"]["failing"], 0)
-        self.assertTrue(module["cleared_module"])
-        self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN")  # advisory: the hold stands
+        self.assertEqual(module["base_rerun"]["corrected_tests_failing_on_base"], ["test_breaker.B.test_a"])
+        self.assertTrue(module["cleared_module"] and module["validated"])
+        self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN")  # advisory mode: the gate is not re-run, the hold stands
 
 
 class ExhibitsTimeouts(unittest.TestCase):
@@ -513,7 +514,7 @@ class StrictSchemas(unittest.TestCase):
                     walk(child, f"{path}.{name}")
             if "items" in node:
                 walk(node["items"], f"{path}[]")
-        for name in ("SPEC_SCHEMA", "DRIFT_SCHEMA", "SEAL_SCHEMA", "BREAKER_SCHEMA", "ARBITRATION_SCHEMA", "ACTION_SCHEMA"):
+        for name in ("SPEC_SCHEMA", "DRIFT_SCHEMA", "SEAL_SCHEMA", "BREAKER_SCHEMA", "ARBITRATION_SCHEMA", "ACTION_SCHEMA", "CONTRACT_AUDIT_SCHEMA"):
             walk(getattr(prompts, name), name)
 
 

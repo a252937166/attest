@@ -1,0 +1,55 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -185,21 +185,38 @@
+ 
+     @classmethod
+     def _nat_cmp(cls, a: Optional[str], b: Optional[str]) -> int:
+-        def cmp_prerelease_tag(a, b):
+-            if isinstance(a, int) and isinstance(b, int):
+-                return _cmp(a, b)
+-            elif isinstance(a, int):
+-                return -1
+-            elif isinstance(b, int):
+-                return 1
++        def normalize(parts):
++            normalized = []
++            for identifier in parts:
++                if identifier and all("0" <= char <= "9" for char in identifier):
++                    normalized.append((True, identifier.lstrip("0") or "0"))
++                elif identifier.isdigit():
++                    # Preserve the legacy int conversion (and its exceptions) for
++                    # non-ASCII digits. Do this for every identifier up front.
++                    normalized.append((True, int(identifier)))
++                else:
++                    normalized.append((False, identifier))
++            return normalized
++
++        a_parts = normalize((a or "").split("."))
++        b_parts = normalize((b or "").split("."))
++
++        def compare_numeric(value_a, value_b):
++            # Legacy Unicode identifiers are stored as ints; converting those
++            # back to decimal text is bounded by the successful int conversion.
++            text_a = str(value_a) if isinstance(value_a, int) else value_a
++            text_b = str(value_b) if isinstance(value_b, int) else value_b
++            return _cmp((len(text_a), text_a), (len(text_b), text_b))
++
++        for (numeric_a, sub_a), (numeric_b, sub_b) in zip(a_parts, b_parts):
++            if numeric_a and numeric_b:
++                cmp_result = compare_numeric(sub_a, sub_b)
++            elif numeric_a:
++                cmp_result = -1
++            elif numeric_b:
++                cmp_result = 1
+             else:
+-                return _cmp(a, b)
+-
+-        a_parts = [int(x) if x.isdigit() else x for x in (a or "").split(".")]
+-        b_parts = [int(x) if x.isdigit() else x for x in (b or "").split(".")]
+-
+-        for sub_a, sub_b in zip(a_parts, b_parts):
+-            cmp_result = cmp_prerelease_tag(sub_a, sub_b)
++                cmp_result = _cmp(sub_a, sub_b)
+             if cmp_result != 0:
+                 return cmp_result
+ 

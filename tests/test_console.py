@@ -73,6 +73,9 @@ class ConsoleApi(unittest.TestCase):
         self.assertIn("remaining_usd", h["budget"])
         self.assertAlmostEqual(h["budget"]["remaining_usd"], h["budget"]["daily_cap_usd"])  # nothing spent today in a fresh store
         self.assertEqual(h["public_runs_per_hour"], 3)
+        self.assertEqual(h["budget"]["active_runs"], 0)
+        self.assertIn("0 active reservation(s)", h["budget"]["detail"])  # an idle service reports no phantom reservation
+        self.assertTrue(h["budget"]["nebius_ok"])
 
     def test_run_rows_carry_summary_and_imported_provenance(self):
         self.assertTrue(self.runs)

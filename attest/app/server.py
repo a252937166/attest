@@ -32,7 +32,8 @@ ARTIFACT_PATTERN = re.compile(
     r"^(?:PROOF\.md|proof_bundle\.json|manifest\.json|candidate\.patch|ledger\.json|spec\.json|verify\.json|verify_raw\.json|"
     r"breaker\.json|drift\.json|grounding\.json|arbitration\.json|trajectory\.jsonl|tamper_scan\.json|task\.frozen\.json|"
     r"baseline\.json|judge\.json|breaker_tests\.py|red\.attempt\d+\.json|breaker_tests\.attempt\d+\.py|breaker_response\.attempt\d+\.json|"
-    r"mutants_[A-Za-z0-9_-]+\.py|sealed/test_sealed\.py|sealed/test_sealed\.attempt\d+\.py|arbitration/(?:sealed|adversarial)_corrected\.py)$")
+    r"mutants_[A-Za-z0-9_-]+\.py|sealed/test_sealed\.py|sealed/test_sealed\.attempt\d+\.py|arbitration/(?:sealed|adversarial)_corrected\.py|"
+    r"contract_audit\.json|contract_audit/witness_\d+\.py|ledger\.jsonl)$")
 MEDIA_TYPES = {".md": "text/markdown", ".json": "application/json", ".jsonl": "application/json", ".patch": "text/x-diff", ".py": "text/x-python"}
 
 # Inference profiles. The public list names only the judge profile; the development profile is returned only to a caller
@@ -142,7 +143,8 @@ def _manifest_for(out_dir: Path, run_id: str) -> dict | None:
 def health():
     today = _today()
     disk = worker.disk()
-    budget_ok, budget_detail = store.nebius_budget_ok(worker.per_run_usd_cap, worker.daily_usd_cap, today)
+    # executing=False: the health report describes the service as it is; an idle service has zero active reservations
+    budget_ok, budget_detail = store.nebius_budget_ok(worker.per_run_usd_cap, worker.daily_usd_cap, today, executing=False)
     remaining = store.nebius_remaining(worker.per_run_usd_cap, worker.daily_usd_cap, today)
     return {"ok": True, "version": __version__, "worker_alive": worker.thread.is_alive(), "queue": worker.queue.qsize(),
             "current": worker.current, "data_dir": str(DATA_DIR), "time_utc": dt.datetime.now(dt.timezone.utc).isoformat(),

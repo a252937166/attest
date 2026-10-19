@@ -33,6 +33,8 @@ from .exhibits import decision, exhibits
 from .manifest import MANIFEST_FILE, build_manifest, verify_manifest
 from .proof import render_markdown
 from .provenance import attest_revision
+from .pipeline import methods_changed
+from .prompts import WITNESS_EXIT_CODE, WITNESS_MARKER
 from .sealed import bind_modules, bind_verification, static_test_ids, summarize
 from .verdict import expected_verdict
 
@@ -205,6 +207,47 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
     if patch_path.is_file() and candidate.get("diff") is not None:
         report.add("candidate_patch_matches", patch_path.read_text(encoding="utf-8") == candidate["diff"], "candidate.patch equals the diff recorded in the bundle")
 
+    # 2b. corrected generated-test modules (arbitration): digest, unchanged test set and only-failing-tests-changed, recomputed
+    corrected_records = {}
+    if verification.get("corrected"):
+        corrected_records["sealed"] = (verification["corrected"], run_dir / (sealed.get("path") or "sealed/test_sealed.py"), "test_sealed")
+    if adversarial.get("corrected"):
+        corrected_records["adversarial"] = (adversarial["corrected"], run_dir / "breaker_tests.py", "test_breaker")
+    for label, (record, original_path, module_name) in corrected_records.items():
+        corrected_path = run_dir / (record.get("path") or f"arbitration/{label}_corrected.py")
+        if not corrected_path.is_file() or not original_path.is_file():
+            report.add(f"{label}_corrected_module", False, f"corrected or original module missing ({corrected_path.name}, {original_path.name})")
+            continue
+        corrected_src = corrected_path.read_text(encoding="utf-8")
+        original_src = original_path.read_text(encoding="utf-8")
+        report.add(f"{label}_corrected_digest", _sha_text(corrected_src) == record.get("sha256"),
+                   f"{corrected_path.name} sha256 {_sha_text(corrected_src)[:16]} vs recorded {str(record.get('sha256'))[:16]}")
+        try:
+            same_set = set(static_test_ids(corrected_src, module_name)) == set(static_test_ids(original_src, module_name))
+            changed = methods_changed(original_src, corrected_src, module_name)
+            within = changed <= set(record.get("original_failing") or []) and "<module>" not in changed and bool(changed)
+            report.add(f"{label}_correction_scope", same_set and within,
+                       f"the correction keeps the test set ({'yes' if same_set else 'NO'}) and changes only the failing tests "
+                       f"({', '.join(sorted(changed))[:160] or 'nothing'}; recorded failing: {', '.join(record.get('original_failing') or [])[:160]})")
+        except SyntaxError as error:
+            report.add(f"{label}_correction_scope", False, f"a module does not parse: {error}")
+    audit = bundle.get("contract_audit") or {}
+    for conflict in audit.get("conflicts") or []:
+        if conflict.get("witness_path"):
+            witness_path = run_dir / conflict["witness_path"]
+            if witness_path.is_file():
+                digest = _sha_text(witness_path.read_text(encoding="utf-8"))
+                report.add("witness_digest", digest == conflict.get("witness_sha256"), f"{conflict['witness_path']} sha256 {digest[:16]} vs recorded {str(conflict.get('witness_sha256'))[:16]}")
+            else:
+                report.add("witness_digest", False, f"{conflict['witness_path']} missing from the run directory")
+            if conflict.get("demonstrated"):
+                report.add("witness_demonstration_recorded", conflict.get("exit_code") == WITNESS_EXIT_CODE and any(
+                    line.startswith(WITNESS_MARKER) for line in (conflict.get("stdout_tail") or "").splitlines()),
+                    f"a demonstrated conflict records exit code {WITNESS_EXIT_CODE} and a {WITNESS_MARKER} line (recorded exit {conflict.get('exit_code')})")
+    if (bundle.get("verdict") or {}).get("verdict") == "INFEASIBLE" and audit:
+        report.add("infeasible_has_demonstrated_witness", any(c.get("demonstrated") for c in audit.get("conflicts") or []),
+                   "an INFEASIBLE verdict produced by this revision rests on at least one demonstrated witness")
+
     # 3. bindings from raw supervisor results
     raw_path = run_dir / RAW_FILE
     raw = None
@@ -231,6 +274,16 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
         elif "sealed" in raw and raw.get("sealed") is None and verification.get("binding") is not None:
             report.add("sealed_binding_recomputed", (verification["binding"].get("checks") or {}).get("result_file_present") is False,
                        "no raw sealed result; the recorded binding must say the result file was absent")
+        for label, key, module_record in (("sealed", "sealed_corrected", verification.get("corrected")), ("adversarial", "adversarial_corrected", adversarial.get("corrected"))):
+            if module_record and raw.get(key) is not None:
+                recomputed_binding = bind_verification(raw[key], module_record.get("expected_ids") or [], module_record.get("sha256"), module_record.get("nonce"))
+                recorded = module_record.get("binding") or {}
+                same = recomputed_binding["checks"] == recorded.get("checks") and recomputed_binding["ok"] == recorded.get("ok")
+                report.add(f"{label}_corrected_binding_recomputed", same, f"binding of the corrected {label} module recomputed from the raw result " + ("matches the record" if same else "differs from the record"))
+                report.add(f"{label}_corrected_outcomes_match_raw", _outcomes(summarize(raw[key])["tests"]) == _outcomes((module_record.get("summary") or {}).get("tests")),
+                           f"per-test outcomes of the corrected {label} module equal those in the raw result")
+                report.add(f"{label}_corrected_passes", bool((module_record.get("summary") or {}).get("all_passed")) and bool(recorded.get("ok")),
+                           f"the corrected {label} module passes on the candidate with the binding intact")
         if adversarial.get("sha256") and raw.get("adversarial") is not None:
             adv_summary = adversarial.get("summary") or {}
             recomputed_binding = bind_verification(raw["adversarial"], adversarial.get("expected_ids") or [], adversarial["sha256"], adv_summary.get("nonce"))
@@ -291,14 +344,24 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
         if bool(gates["existing_suite"].get("ok")) != bool(existing.get("all_passed")):
             mismatches.append("existing_suite")
     if "sealed_binding" in gates and verification.get("binding") is not None:
-        if bool(gates["sealed_binding"].get("ok")) != bool(verification["binding"].get("ok")):
+        if gates["sealed_binding"].get("corrected"):
+            corrected = verification.get("corrected") or {}
+            expected_ok = bool((corrected.get("summary") or {}).get("all_passed")) and bool((corrected.get("binding") or {}).get("ok")) and bool(corrected.get("discrimination"))
+            if bool(gates["sealed_binding"].get("ok")) != expected_ok:
+                mismatches.append("sealed_binding (corrected)")
+        elif bool(gates["sealed_binding"].get("ok")) != bool(verification["binding"].get("ok")):
             mismatches.append("sealed_binding")
     heldout = verification.get("heldout")
     if "heldout_suite" in gates and heldout:
         if bool(gates["heldout_suite"].get("ok")) != bool(heldout.get("all_passed")):
             mismatches.append("heldout_suite")
     if "adversarial_tests" in gates and adversarial and not gates["adversarial_tests"].get("skipped"):
-        if "summary" in adversarial or adversarial.get("unusable"):
+        if gates["adversarial_tests"].get("corrected"):
+            corrected = adversarial.get("corrected") or {}
+            expected_ok = bool((corrected.get("summary") or {}).get("all_passed")) and bool((corrected.get("binding") or {}).get("ok")) and bool(corrected.get("discrimination"))
+            if bool(gates["adversarial_tests"].get("ok")) != expected_ok:
+                mismatches.append("adversarial_tests (corrected)")
+        elif "summary" in adversarial or adversarial.get("unusable"):
             expected_ok = (not adversarial.get("unusable")) and bool((adversarial.get("summary") or {}).get("all_passed")) and bool((adversarial.get("binding") or {}).get("ok"))
             if bool(gates["adversarial_tests"].get("ok")) != expected_ok:
                 mismatches.append("adversarial_tests")

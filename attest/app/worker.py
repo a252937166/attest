@@ -141,7 +141,17 @@ class Worker:
         except RuntimeError as error:
             self.store.update_run(run_id, status="error", error=str(error), finished_at=utcnow(), stage="disk")
             return
-        ledger = Ledger()
+        def meters(live: dict) -> None:
+            # every reservation and every call record updates the row at once, so a process that dies mid-run leaves the
+            # committed figure (known costs plus open reservations) in the store, not only in memory
+            try:
+                self.store.update_run(run_id, model_calls=live.get("model_calls"), sandbox_ops=live.get("sandbox_operations"),
+                                      cost_committed_usd=live.get("cost_usd_committed"), cost_usd=live.get("cost_usd"),
+                                      tokens_in=live.get("tokens_in"), tokens_out=live.get("tokens_out"))
+            except Exception:  # noqa: BLE001 - meters never break a run; the ledger journal in the run directory is the record
+                pass
+
+        ledger = Ledger(on_change=meters)
         provider, executor, tavily = self.build_runtime(run_id, provider_name, ledger)
         task = TaskSpec.load(path)
 

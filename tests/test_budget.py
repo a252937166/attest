@@ -40,11 +40,12 @@ class PaidFakeProvider(FakeProvider):
                              error="transport: timed out", reserved_usd=RESERVE)
             self.ledger.add_call(call)
             raise ModelError("inference outcome uncertain (timed out); not retried", uncertain=True)
-        result = super().structured(role, prompt, schema, stage)
-        result.call.cost_usd = COST
-        result.call.reserved_usd = RESERVE
-        result.call.provider = self.name
-        return result
+        return super().structured(role, prompt, schema, stage)
+
+    def decorate(self, call):
+        call.cost_usd = COST
+        call.reserved_usd = RESERVE
+        call.provider = self.name
 
 
 class CrashingExecutor(FakeExecutor):
