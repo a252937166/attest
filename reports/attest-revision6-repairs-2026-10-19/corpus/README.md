@@ -39,6 +39,7 @@ export had two defects that the private tree hides: scripts were exported withou
 ignored every `reports/**/runs/` directory, so the review repository held 25 of the 175 exported bundles. Both are repaired
 (`969f721`, `b21782d`; the 150 bundles are committed in `1a6a523`), the export now fails when git would ignore any exported file, the
 semver symlink test builds its own fixture (the export publishes no links), and the recorded protocol-2 bundle test requires its
-fixture. On a clean checkout of `1a6a523`: 367 tests, 0 failures, 0 errors, 0 skips; `RecordedCorpusHistorical` checks 157
+fixture. Committing the evidence also showed that every export rewrote 104 derived manifests' timestamps; `a95e261` makes the export
+deterministic. On clean checkouts of `1a6a523` and of the pinned `a95e261`: 367 tests, 0 failures, 0 errors, 0 skips; `RecordedCorpusHistorical` checks 157
 historical bundles, `RecordedCorpusModern` 18 modern bundles in 7 folders, and `RecordedCorpusInventory` finds no unclassified run
 directory among the 175 (the private working tree adds the 9 known-defective and synthetic run directories, which are not exported).
