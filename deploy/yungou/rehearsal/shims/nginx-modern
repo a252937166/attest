@@ -1,0 +1,14 @@
+#!/bin/bash
+# Rehearsal shim for the nginx binary: "-t" passes, or fails when REHEARSAL_NGINX_T_FAIL=1 (injected configuration error).
+. "$(dirname "$0")/_log.sh"
+shim_log nginx-modern "$*"
+if [ "${1:-}" = "-t" ]; then
+  if [ "${REHEARSAL_NGINX_T_FAIL:-0}" = 1 ]; then
+    echo "nginx: [emerg] rehearsal-injected configuration error" >&2
+    echo "nginx: configuration file test failed (rehearsal shim)" >&2
+    exit 1
+  fi
+  echo "nginx: the configuration file syntax is ok (rehearsal shim)"
+  echo "nginx: configuration file test is successful (rehearsal shim)"
+fi
+exit 0

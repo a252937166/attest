@@ -1,0 +1,34 @@
+#!/bin/bash
+# Rehearsal shim for systemctl. Logs every call; "restart <unit>" (re)starts the fake health server on REHEARSAL_HEALTH_PORT
+# serving the version of the tree REHEARSAL_APP_LINK points at; stop / disable --now stop it; is-active reports its state;
+# daemon-reload, enable and reload are no-ops (REHEARSAL_RELOAD_FAIL=1 makes "reload" fail).
+. "$(dirname "$0")/_log.sh"
+shim_log systemctl "$*"
+state="${REHEARSAL_DIR:-/tmp}/state"; mkdir -p "$state"
+pidfile="$state/fake-health.pid"
+stop_server() {
+  if [ -f "$pidfile" ]; then
+    pid=$(cat "$pidfile")
+    kill "$pid" 2>/dev/null || true
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
+    rm -f "$pidfile"
+  fi
+}
+start_server() {
+  extra=""
+  [ -z "${REHEARSAL_HEALTH_BAD_VERSION:-}" ] || extra="$extra --misreport-version $REHEARSAL_HEALTH_BAD_VERSION"
+  [ -z "${REHEARSAL_HEALTH_DEAD_WORKER:-}" ] || extra="$extra --dead-worker-version $REHEARSAL_HEALTH_DEAD_WORKER"
+  # shellcheck disable=SC2086
+  nohup "${REHEARSAL_REAL_PYTHON:-python3}" "${REHEARSAL_SHIMS:-$(dirname "$0")}/fake_health.py" --port "${REHEARSAL_HEALTH_PORT:?}" \
+    --app-link "${REHEARSAL_APP_LINK:?}" $extra >> "${REHEARSAL_DIR:-/tmp}/logs/fake-health.log" 2>&1 < /dev/null &
+  echo $! > "$pidfile"
+}
+case "${1:-}" in
+  restart) stop_server; start_server; exit 0 ;;
+  start) [ -f "$pidfile" ] || start_server; exit 0 ;;
+  stop) stop_server; exit 0 ;;
+  disable) if [ "${2:-}" = "--now" ]; then stop_server; fi; exit 0 ;;
+  is-active) if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then echo active; exit 0; else echo inactive; exit 3; fi ;;
+  reload) if [ "${REHEARSAL_RELOAD_FAIL:-0}" = 1 ]; then echo "Job for ${2:-nginx}.service failed (rehearsal-injected)" >&2; exit 1; fi; exit 0 ;;
+  *) exit 0 ;;
+esac

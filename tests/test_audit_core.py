@@ -1,0 +1,782 @@
+"""Acceptance tests for the core verification findings of the 19 Oct 2026 audit (CORE-01 to CORE-07) and the atomic bundle write
+(API-08). Offline only: the fake provider and executor of tests/test_verification.py supply controlled evidence; the real
+supervisor runs locally (not as root) for the process-group and cleanup findings.
+
+Counterexamples (must hold or fail the checker) and positive controls (must still verify) sit side by side so that a repair
+which merely fails closed everywhere would be caught too."""
+
+import contextlib
+import io
+import json
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from pathlib import Path
+from unittest import mock
+
+from attest.core import pipeline as pipeline_module
+from attest.core.check import check_bundle
+from attest.core.manifest import MANIFEST_FILE, build_manifest, verify_manifest
+from attest.core.pipeline import (Pipeline, classification_problems, classify_mutant_run, correction_problems, methods_changed,
+                                  oracle_disagreement)
+from attest.core.proof import write_bundle
+from attest.core.sealed import (CLEANUP_GRACE_S, SUPERVISOR_VERSION, bind_verification, guest_files_for, new_nonce, outcome_class,
+                                sealed_steps, static_test_ids, structural_problems)
+from attest.core.task import TaskSpec
+from attest.core.verdict import EVIDENCE_PROTOCOL_VERSION, expected_verdict, legacy_clearing_allowed
+from attest.ledger import Ledger
+from tests.test_verification import TASK, FakeExecutor, FakeProvider, run_scenario
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def kept_run(scenario: str, **kwargs) -> tuple[dict, Path, Path]:
+    """Run the offline pipeline into a kept temporary directory; returns (bundle, run_dir, tmp_root)."""
+    tmp = Path(tempfile.mkdtemp(prefix=f"attest-audit-{scenario}-"))
+    ledger = Ledger()
+    pipeline = Pipeline(task=TaskSpec.load(TASK), provider=FakeProvider(ledger, scenario), executor=FakeExecutor(ledger, scenario), ledger=ledger,
+                        out_dir=tmp, max_turns=4, max_mutants=6, mutant_workers=2, tavily=None, profile_label="audit-offline",
+                        run_id=f"audit-{scenario}", **kwargs)
+    with contextlib.redirect_stdout(io.StringIO()):
+        bundle = pipeline.run()
+    return bundle, pipeline.out_dir, tmp
+
+
+def failed_checks(report: dict) -> dict:
+    return {c["name"]: c["detail"] for c in report["checks"] if c["ok"] is False and c["severity"] == "error"}
+
+
+def rewrite_bundle(run_dir: Path, mutate) -> None:
+    """Apply `mutate(bundle)` to proof_bundle.json, re-render PROOF.md and regenerate the manifest, as a forger who controls the
+    whole directory would, so that only the semantic finding under test can fail the checker (not a digest mismatch)."""
+    path = run_dir / "proof_bundle.json"
+    bundle = json.loads(path.read_text(encoding="utf-8"))
+    mutate(bundle)
+    write_bundle(run_dir, bundle)
+    (run_dir / MANIFEST_FILE).write_text(json.dumps(build_manifest(run_dir, bundle.get("run_id")), indent=2) + "\n", encoding="utf-8")
+
+
+def rewrite_raw(run_dir: Path, mutate) -> None:
+    path = run_dir / "verify_raw.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    mutate(raw)
+    path.write_text(json.dumps(raw) + "\n", encoding="utf-8")
+    run_id = json.loads((run_dir / "proof_bundle.json").read_text(encoding="utf-8")).get("run_id")
+    (run_dir / MANIFEST_FILE).write_text(json.dumps(build_manifest(run_dir, run_id), indent=2) + "\n", encoding="utf-8")
+
+
+class Core01UntrustedDiscriminationEvidence(unittest.TestCase):
+    """CORE-01: lost, forged or untrusted execution results never become discrimination evidence, and tampered original
+    adversarial evidence is never turned into a test defect."""
+
+    def test_lost_base_result_leaves_the_correction_unvalidated(self):
+        bundle = run_scenario("arb_base_lost")
+        self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", bundle["verdict"])
+        module = bundle["arbitration"]["modules"][0]
+        self.assertFalse(module["validated"])
+        self.assertIn("base re-run evidence untrusted", module["error"])
+        self.assertIn("result_file_present", module["base_rerun"]["untrusted"])
+        self.assertEqual(module["base_rerun"]["corrected_tests_failing_on_base"], [])
+        self.assertFalse(bundle["gates"]["adversarial_tests"].get("corrected"))
+
+    def test_forged_mutant_rerun_is_not_discrimination(self):
+        bundle = run_scenario("arb_mutant_forged")
+        self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", bundle["verdict"])
+        module = bundle["arbitration"]["modules"][0]
+        self.assertFalse(module["validated"])
+        self.assertIn("no validly killed mutant", module["error"])
+        self.assertEqual(len(module["mutant_reruns"]), 3, "every candidate mutant was tried; none produced trusted evidence")
+        for rerun in module["mutant_reruns"]:
+            self.assertEqual(rerun["corrected_tests_failing"], [])
+            self.assertIn("nonce_matches", rerun["structural_problems"])
+            self.assertIn("structural problems", rerun["untrusted"])
+
+    def test_forged_original_adversarial_failure_is_never_arbitrated(self):
+        bundle = run_scenario("adversarial_forged_original")
+        self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", bundle["verdict"])
+        self.assertFalse(bundle["gates"]["adversarial_tests"]["ok"])
+        arbitration = bundle["arbitration"]
+        self.assertEqual(arbitration["modules"], [])
+        self.assertIn("not attempted", arbitration["headline"])
+        self.assertIn("no_missing_or_forged_result", arbitration["headline"])
+        self.assertEqual(arbitration["applied_to_gates"], [])
+
+    def test_positive_controls_still_verify_and_record_recomputable_evidence(self):
+        for scenario in ("arb_clear", "arb_refactor"):
+            bundle, run_dir, tmp = kept_run(scenario)
+            try:
+                self.assertEqual(bundle["verdict"]["verdict"], "VERIFIED", (scenario, bundle["verdict"]))
+                corrected = bundle["breaker"]["adversarial"]["corrected"]
+                self.assertTrue(corrected["base_rerun"]["binding"]["checks"]["nonce_matches"])
+                self.assertEqual(corrected["base_rerun"]["structural_problems"], [])
+                raw = json.loads((run_dir / "verify_raw.json").read_text())
+                self.assertIsNotNone(raw["adversarial_corrected_base"])
+                report = check_bundle(run_dir)
+                self.assertTrue(report["ok"], failed_checks(report))
+                names = {c["name"] for c in report["checks"]}
+                self.assertIn("adversarial_base_evidence_recomputed", names)
+                self.assertIn("adversarial_discrimination_recomputed", names)
+                if scenario == "arb_refactor":
+                    self.assertIn("adversarial_mutant_rerun_recomputed", names)
+                    self.assertIsNotNone(raw["adversarial_corrected_mutants"])
+                # tampering with the recorded base outcome is caught offline
+                rewrite_bundle(run_dir, lambda b: b["breaker"]["adversarial"]["corrected"]["base_rerun"]["outcomes"].update(
+                    {"test_breaker.B.test_a": "red"}) if scenario == "arb_refactor" else b["breaker"]["adversarial"]["corrected"]["base_rerun"].update({"corrected_tests_failing_on_base": []}))
+                tampered = check_bundle(run_dir)
+                self.assertFalse(tampered["ok"])
+                self.assertIn("adversarial_base_evidence_recomputed", failed_checks(tampered))
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_outcome_classes_and_structural_filter(self):
+        self.assertEqual(outcome_class({"exit_code": 0, "outcome": "ok", "nonce_ok": True}), "green")
+        self.assertEqual(outcome_class({"exit_code": 1, "outcome": "FAIL", "nonce_ok": True}), "red")
+        self.assertEqual(outcome_class({"exit_code": 1, "outcome": "ERROR", "nonce_ok": True}), "red")
+        self.assertEqual(outcome_class({"exit_code": None, "signal": 9, "timed_out": True, "outcome": "TIMEOUT"}), "timeout")
+        for record in ({"exit_code": 1, "outcome": "FORGED", "nonce_ok": False}, {"exit_code": None, "signal": 11, "outcome": "CRASH"},
+                       {"exit_code": 1, "outcome": "MISSING_RESULT"}, {"exit_code": 0, "outcome": "MISMATCH", "nonce_ok": True},
+                       {"exit_code": 1, "outcome": "skipped", "nonce_ok": True}, {"exit_code": 0, "outcome": "FAIL", "nonce_ok": True}):
+            self.assertEqual(outcome_class(record), "untrusted", record)
+        binding = {"checks": {"all_expected_pass": False, "no_nonzero_exit": False, "no_timeout": False, "no_signal": False, "nonce_matches": True}}
+        result = {"tests": [{"id": "a", "signal": 9, "timed_out": True}]}
+        self.assertEqual(structural_problems(binding, result), [], "a supervisor-killed timeout is excused, with its signal")
+        result = {"tests": [{"id": "a", "signal": 11, "timed_out": False}]}
+        self.assertEqual(structural_problems(binding, result), ["no_signal"], "a crash is structural")
+        self.assertEqual(structural_problems({"checks": {"nonce_matches": False}}, {"tests": []}), ["nonce_matches"])
+        self.assertEqual(structural_problems(None, None), ["result_file_present"])
+
+
+class Core02SealedOracleNeverWeakened(unittest.TestCase):
+    """CORE-02: an exception raised while a sealed test runs is a disagreement with the candidate whatever its type or frame;
+    the executed oracle is never corrected on that basis. Only a supervisor-killed timeout may be corrected."""
+
+    def test_candidate_caused_exceptions_in_test_code_are_disagreements(self):
+        tails = ['  File "/tmp/sealed/test_sealed.py", line 5, in test_pair\n    a, b = f()\nValueError: too many values to unpack (expected 2)',
+                 '  File "/tmp/sealed/test_sealed.py", line 5, in test_attr\n    self.assertEqual(f().value, 1)\nAttributeError: \'int\' object has no attribute \'value\'',
+                 '  File "/tmp/sealed/test_sealed.py", line 5, in test_type\n    self.assertEqual(f() + 1, 2)\nTypeError: can only concatenate str (not "int") to str',
+                 '  File "/tmp/sealed/test_sealed.py", line 5, in test_div\n    self.assertEqual(10 / f(), 5)\nZeroDivisionError: division by zero',
+                 '  File "/tmp/sealed/test_sealed.py", line 5, in test_name\n    self.assertEqual(g(), 1)\nNameError: name \'g\' is not defined']
+        for tail in tails:
+            self.assertTrue(oracle_disagreement({"outcome": "ERROR", "failure_tail": tail}), tail)
+        self.assertTrue(oracle_disagreement({"outcome": "FAIL", "failure_tail": "AssertionError: 1 != 2"}))
+        self.assertFalse(oracle_disagreement({"outcome": "TIMEOUT", "timed_out": True}))
+
+    def test_weakened_tuple_test_does_not_restore_verified(self):
+        """The audit's example: a contract demands exactly (1, 2); the candidate returns (1, 2, 3); the correct test errors in
+        its own body; the arbiter offers `a, b, *extra = f()`. The correction passes on the candidate and fails on the base, and
+        the hold still stands."""
+        for scenario in ("sealed_one_crash", "sealed_one_code_error", "sealed_one_fail"):
+            bundle = run_scenario(scenario)
+            self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", (scenario, bundle["verdict"]))
+            module = bundle["arbitration"]["modules"][0]
+            self.assertTrue(module["sealed_assertion_hold"], scenario)
+            self.assertTrue(module["cleared_module"], f"{scenario}: the correction itself was validated by execution and recorded for the human")
+            self.assertFalse(module["validated"], scenario)
+            self.assertFalse(bundle["gates"]["sealed_binding"].get("corrected"), scenario)
+            self.assertEqual(bundle["arbitration"]["applied_to_gates"], [], scenario)
+
+    def test_supervisor_killed_timeout_is_the_only_sealed_correction(self):
+        bundle = run_scenario("sealed_one_timeout")
+        self.assertEqual(bundle["verdict"]["verdict"], "VERIFIED", bundle["verdict"])
+        self.assertTrue(bundle["gates"]["sealed_binding"]["corrected"])
+        self.assertEqual(bundle["verdict"]["corrections"][0]["gate"], "sealed_binding")
+
+
+class Core03MutantEvidence(unittest.TestCase):
+    """CORE-03: incomplete, non-isolated, forged, crashed or timed-out mutant runs are unknown, never killed, and `attest check`
+    recomputes every mutant from its raw result."""
+
+    def _result(self, **over):
+        tests = [{"id": "test_sealed.T.test_a", "exit_code": 1, "signal": None, "timed_out": False, "outcome": "FAIL", "nonce_ok": True},
+                 {"id": "test_sealed.T.test_b", "exit_code": 0, "signal": None, "timed_out": False, "outcome": "ok", "nonce_ok": True}]
+        result = {"supervisor": SUPERVISOR_VERSION, "privilege_separation": True, "nonce": "n", "completed": True, "cleanup_incomplete": 0,
+                  "sealed_sha256_before": "s", "sealed_sha256_after": "s", "expected_ids": [t["id"] for t in tests], "discovery_error": None,
+                  "tests": tests, "canaries": [], "startup_hooks_before": [], "startup_hooks_after": []}
+        result.update(over)
+        return result
+
+    def _classify(self, result):
+        binding = bind_verification(result, ["test_sealed.T.test_a", "test_sealed.T.test_b"], "s", "n", canary=False)
+        return classify_mutant_run(result, binding, ["test_sealed.T.test_a", "test_sealed.T.test_b"])
+
+    def test_authentic_failure_kills_and_untrusted_runs_are_unknown(self):
+        status, evidence, killed_by = self._classify(self._result())
+        self.assertEqual((status, killed_by), ("killed", ["test_sealed.T.test_a"]), evidence)
+        survived = self._result()
+        survived["tests"][0].update(exit_code=0, outcome="ok")
+        self.assertEqual(self._classify(survived)[0], "survived")
+        for name, over in (("incomplete", {"completed": False}), ("no_isolation", {"privilege_separation": False}),
+                           ("isolation_unrecorded", {"privilege_separation": None}), ("wrong_nonce", {"nonce": "other"}),
+                           ("module_changed", {"sealed_sha256_after": "x"}), ("discovery_error", {"discovery_error": "boom"}),
+                           ("zero_tests", {"tests": [], "expected_ids": []}), ("cleanup_incomplete", {"cleanup_incomplete": 1}),
+                           ("startup_hook", {"startup_hooks_before": ["/tmp/w/sitecustomize.py"]})):
+            status, evidence, _ = self._classify(self._result(**over))
+            self.assertEqual(status, "unknown", (name, evidence))
+        forged = self._result()
+        forged["tests"][0].update(outcome="FORGED", nonce_ok=False)
+        self.assertEqual(self._classify(forged)[0], "unknown")
+        missing = self._result()
+        missing["tests"][0].update(outcome="MISSING_RESULT", exit_code=1)
+        self.assertEqual(self._classify(missing)[0], "unknown")
+        crashed = self._result()
+        crashed["tests"][0].update(outcome="CRASH", exit_code=None, signal=11)
+        self.assertEqual(self._classify(crashed)[0], "unknown")
+        timed = self._result()
+        timed["tests"][0].update(outcome="TIMEOUT", exit_code=None, signal=9, timed_out=True, nonce_ok=False)
+        status, evidence, _ = self._classify(timed)
+        self.assertEqual(status, "unknown")
+        self.assertIn("timed out", evidence)
+        self.assertIsNone(self._classify(None)[2] or None)
+
+    def test_incomplete_and_timed_out_mutant_runs_do_not_score_and_the_gate_holds(self):
+        for scenario in ("mutants_incomplete", "mutants_timeout"):
+            bundle = run_scenario(scenario)
+            mutation = bundle["breaker"]["mutation"]
+            self.assertEqual(mutation["killed"], 0, (scenario, mutation))
+            self.assertEqual(mutation["unknown"], mutation["generated"], scenario)
+            self.assertIsNone(mutation["score"])
+            self.assertFalse(bundle["gates"]["mutation"]["ok"], scenario)
+            self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", scenario)
+            self.assertTrue(all(m["status"] == "unknown" for m in mutation["mutants"]), scenario)
+        honest = run_scenario("honest")
+        self.assertEqual(honest["breaker"]["mutation"]["killed"], honest["breaker"]["mutation"]["generated"])
+        self.assertTrue(all(m["evidence"].startswith("1 sealed test") or "authentic" in m["evidence"] for m in honest["breaker"]["mutation"]["mutants"]))
+
+    def test_checker_reclassifies_mutants_from_raw_results(self):
+        bundle, run_dir, tmp = kept_run("honest")
+        try:
+            raw = json.loads((run_dir / "verify_raw.json").read_text())
+            self.assertEqual(set(raw["mutants"]), {m["id"] for m in bundle["breaker"]["mutation"]["mutants"]})
+            report = check_bundle(run_dir)
+            self.assertTrue(report["ok"], failed_checks(report))
+            self.assertIn("mutants_recomputed", {c["name"] for c in report["checks"]})
+            # forge a kill: mark a mutant's raw result incomplete while the record still says killed
+            first = bundle["breaker"]["mutation"]["mutants"][0]["id"]
+            rewrite_raw(run_dir, lambda r: r["mutants"][first].update({"completed": False}))
+            tampered = check_bundle(run_dir)
+            self.assertFalse(tampered["ok"])
+            self.assertIn("mutants_recomputed", failed_checks(tampered))
+            self.assertIn("mutation_score_recomputed", failed_checks(tampered))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class Core04SupervisorProcessGroups(unittest.TestCase):
+    """CORE-04: the real supervisor kills the test child's whole process group at the per-test timeout, drains pipes for a
+    bounded grace only, reaps the child and records the cleanup; a descendant that escaped the group is reported."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="attest-core04-"))
+        self.repo = self.tmp / "w"
+        (self.repo / "pkg").mkdir(parents=True)
+        (self.repo / "pkg" / "__init__.py").write_text("def f(x):\n    return x + 1\n", encoding="utf-8")
+        self.pidfile = self.tmp / "grandchild.pid"
+
+    def tearDown(self):
+        pid = self._grandchild()
+        if pid:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _grandchild(self):
+        try:
+            return int(self.pidfile.read_text().strip() or 0)
+        except (OSError, ValueError):
+            return None
+
+    def _alive(self, pid) -> bool:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        try:
+            waited, _ = os.waitpid(pid, os.WNOHANG)  # reap a zombie we may own
+            return waited == 0
+        except ChildProcessError:
+            return True
+
+    def _run(self, module_src: str, per_test_timeout: int = 2) -> tuple[dict, float]:
+        suite_dir = self.tmp / "suite"
+        files = guest_files_for(str(suite_dir), "test_mod", module_src, repo_dir=str(self.repo), extra_paths=[], canary=True)
+        for path, data in files.items():
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+            Path(path).write_bytes(data)
+        nonce = new_nonce()
+        steps = sealed_steps(sys.executable, str(self.repo), str(suite_dir), nonce, [], {}, timeout=120, per_test_timeout=per_test_timeout, step_prefix="s")
+        env = {**os.environ, "PYTHONPATH": str(self.repo), "PIDFILE": str(self.pidfile)}
+        started = time.monotonic()
+        subprocess.run(steps[0]["cmd"], cwd=steps[0]["cwd"], env=env, capture_output=True, timeout=120)
+        elapsed = time.monotonic() - started
+        out = subprocess.run(steps[1]["cmd"], cwd=steps[1]["cwd"], env=env, capture_output=True, timeout=60).stdout.decode()
+        return json.loads(out), elapsed
+
+    GRANDCHILD = ("import os, time, signal\n"
+                  "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+                  "open(os.environ['PIDFILE'], 'w').write(str(os.getpid()))\n"
+                  "time.sleep(120)\n")
+
+    def test_descendant_holding_the_pipes_is_killed_with_the_group_and_the_timeout_is_bounded(self):
+        module = ("import os, subprocess, sys, time, unittest\n"
+                  "from pkg import f\n"
+                  "class T(unittest.TestCase):\n"
+                  "    def test_hang(self):\n"
+                  f"        subprocess.Popen([sys.executable, '-c', {self.GRANDCHILD!r}])  # inherits stdout/stderr, ignores TERM\n"
+                  "        time.sleep(120)\n"
+                  "    def test_ok(self):\n"
+                  "        self.assertEqual(f(1), 2)\n")
+        result, elapsed = self._run(module, per_test_timeout=2)
+        by = {t["id"].split(".")[-1]: t for t in result["tests"]}
+        self.assertEqual(by["test_hang"]["outcome"], "TIMEOUT", by["test_hang"])
+        self.assertTrue(by["test_hang"]["cleanup"]["group_killed"], by["test_hang"]["cleanup"])
+        self.assertFalse(by["test_hang"]["cleanup"]["grace_exceeded"], "the grandchild died with the group, so the pipes closed at once")
+        self.assertTrue(by["test_hang"]["cleanup"]["complete"])
+        self.assertEqual(result["cleanup_incomplete"], 0)
+        self.assertEqual(by["test_ok"]["outcome"], "ok")
+        self.assertLess(elapsed, 2 + CLEANUP_GRACE_S + 8, "the supervisor returned within the timeout plus a bounded cleanup")
+        pid = self._grandchild()
+        self.assertTrue(pid)
+        deadline = time.monotonic() + 5
+        while self._alive(pid) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        self.assertFalse(self._alive(pid), "no descendant remains")
+        binding = bind_verification(result, static_test_ids(module, "test_mod"), None, result["nonce"])
+        self.assertTrue(binding["checks"]["supervisor_cleanup_complete"])
+        self.assertFalse(binding["checks"]["no_timeout"])
+
+    def test_descendant_holding_the_result_fd_cannot_stall_the_drain(self):
+        module = ("import os, subprocess, sys, time, unittest\n"
+                  "from pkg import f\n"
+                  "class T(unittest.TestCase):\n"
+                  "    def test_hang(self):\n"
+                  "        fd = int(sys.argv[2])  # the child's result pipe, handed to a sleeping grandchild\n"
+                  f"        subprocess.Popen([sys.executable, '-c', {self.GRANDCHILD!r}], pass_fds=(fd,))\n"
+                  "        time.sleep(120)\n"
+                  "    def test_ok(self):\n"
+                  "        self.assertEqual(f(1), 2)\n")
+        result, elapsed = self._run(module, per_test_timeout=2)
+        by = {t["id"].split(".")[-1]: t for t in result["tests"]}
+        self.assertEqual(by["test_hang"]["outcome"], "TIMEOUT")
+        self.assertTrue(by["test_hang"]["cleanup"]["complete"])
+        self.assertEqual(by["test_hang"]["result_bytes"], 0)
+        self.assertLess(elapsed, 2 + CLEANUP_GRACE_S + 8)
+        pid = self._grandchild()
+        deadline = time.monotonic() + 5
+        while pid and self._alive(pid) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        self.assertFalse(pid and self._alive(pid))
+
+    def test_descendant_that_escaped_the_group_is_reported_and_bounded(self):
+        module = ("import os, subprocess, sys, time, unittest\n"
+                  "from pkg import f\n"
+                  "class T(unittest.TestCase):\n"
+                  "    def test_hang(self):\n"
+                  f"        subprocess.Popen([sys.executable, '-c', {self.GRANDCHILD!r}], start_new_session=True)  # leaves the group\n"
+                  "        time.sleep(120)\n"
+                  "    def test_ok(self):\n"
+                  "        self.assertEqual(f(1), 2)\n")
+        result, elapsed = self._run(module, per_test_timeout=2)
+        by = {t["id"].split(".")[-1]: t for t in result["tests"]}
+        cleanup = by["test_hang"]["cleanup"]
+        self.assertEqual(by["test_hang"]["outcome"], "TIMEOUT")
+        self.assertTrue(cleanup["group_killed"])
+        self.assertTrue(cleanup["grace_exceeded"], "the escaped grandchild kept stdout open past the grace period")
+        self.assertLess(elapsed, 2 + 2 * CLEANUP_GRACE_S + 10, "bounded even when a descendant escaped")
+        pid = self._grandchild()
+        if os.path.isdir("/proc"):
+            # the Linux guest: the marked escapee is found through /proc and killed, so the cleanup completes
+            self.assertEqual(cleanup["escaped_killed"], 1, cleanup)
+            self.assertEqual(cleanup["escaped_remaining"], 0)
+            self.assertTrue(cleanup["complete"])
+            self.assertEqual(result["cleanup_incomplete"], 0)
+        else:
+            # no /proc: the supervisor cannot find the escapee, says so, and the host binding refuses VERIFIED
+            self.assertFalse(cleanup["complete"], cleanup)
+            self.assertEqual(result["cleanup_incomplete"], 1)
+            binding = bind_verification(result, static_test_ids(module, "test_mod"), None, result["nonce"])
+            self.assertFalse(binding["checks"]["supervisor_cleanup_complete"])
+            self.assertTrue(any("cleanup" in r for r in binding["reasons"]), binding["reasons"])
+            self.assertTrue(pid and self._alive(pid), "the escapee is still alive here (killed in tearDown)")
+
+
+class Core05CorrectionScope(unittest.TestCase):
+    """CORE-05: a correction may change only the failing tests' bodies (plus additive, non-colliding imports); every other
+    change is rejected, and the arbiter's classifications must cover exactly the failing tests."""
+
+    ORIGINAL = ("import unittest\nfrom m import f\n\n\ndef helper():\n    return 1\n\n\nclass T(unittest.TestCase):\n    def setUp(self):\n        self.k = 1\n\n"
+                "    def test_a(self):\n        self.assertEqual(f(1), 2)\n\n    def test_b(self):\n        self.assertEqual(f(2), 3)\n")
+
+    def _problems(self, corrected, failing=("test_x.T.test_a",)):
+        return correction_problems(self.ORIGINAL, corrected, "test_x", set(failing), 3)
+
+    def test_body_only_corrections_with_additive_imports_pass(self):
+        fixed = self.ORIGINAL.replace("self.assertEqual(f(1), 2)", "self.assertEqual(f(1), 3)")
+        self.assertEqual(self._problems(fixed), ([], {"test_x.T.test_a"}))
+        with_import = "import math\n" + fixed
+        self.assertEqual(self._problems(with_import), ([], {"test_x.T.test_a"}))
+        with_local_import = fixed.replace("        self.assertEqual(f(1), 3)", "        import math\n        self.assertEqual(f(1), math.floor(3.5))")
+        self.assertEqual(self._problems(with_local_import), ([], {"test_x.T.test_a"}))
+
+    def test_import_rebinding_removal_and_metadata_changes_are_rejected(self):
+        fixed = self.ORIGINAL.replace("self.assertEqual(f(1), 2)", "self.assertEqual(f(1), 3)")
+        cases = {
+            "replaced import": fixed.replace("from m import f", "from other import f"),
+            "removed import": fixed.replace("from m import f\n", ""),
+            "rebinding import": "from other import f\n" + fixed,
+            "rebinding helper": "from other import helper\n" + fixed,
+            "base class": fixed.replace("class T(unittest.TestCase)", "class T(LooseTestCase)").replace("import unittest\n", "import unittest\nfrom loose import LooseTestCase\n"),
+            "decorator": fixed.replace("    def test_a(self):", "    @unittest.skip('x')\n    def test_a(self):"),
+            "signature": fixed.replace("    def test_a(self):", "    def test_a(self, *args):"),
+            "helper body": fixed.replace("    return 1\n", "    return 2\n"),
+            "setUp": fixed.replace("self.k = 1", "self.k = 2"),
+            "class decorator": fixed.replace("class T(unittest.TestCase):", "@unittest.skip('all')\nclass T(unittest.TestCase):"),
+            "module statement": fixed + "\nX = 1\n",
+        }
+        for name, corrected in cases.items():
+            problems, _ = self._problems(corrected)
+            self.assertTrue(problems, name)
+            self.assertIn("<module>", methods_changed(self.ORIGINAL, corrected, "test_x"), name)
+        touched_other = fixed.replace("self.assertEqual(f(2), 3)", "self.assertEqual(f(2), 4)")
+        problems, changed = self._problems(touched_other)
+        self.assertTrue(any("not failing" in p for p in problems), problems)
+        self.assertEqual(changed, {"test_x.T.test_a", "test_x.T.test_b"})
+        dropped = fixed.replace("    def test_b(self):\n        self.assertEqual(f(2), 3)\n", "")
+        self.assertTrue(any("set of test methods" in p for p in self._problems(dropped)[0]))
+        self.assertTrue(any("identical" in p for p in self._problems(self.ORIGINAL)[0]))
+
+    def test_classification_ids_must_cover_exactly_the_failing_tests(self):
+        failing = {"test_x.T.test_a", "test_x.T.test_b"}
+        ok, by_id = classification_problems([{"test_id": "test_x.T.test_a", "classification": "test_defect"}, {"test_id": "test_b", "classification": "test_defect"}], failing)
+        self.assertEqual(ok, [])
+        self.assertEqual(set(by_id), failing)
+        unknown, _ = classification_problems([{"test_id": "unknown.T.test_c", "classification": "test_defect"}], failing)
+        self.assertTrue(any("unknown" in p for p in unknown) and any("without a classification" in p for p in unknown))
+        duplicate, _ = classification_problems([{"test_id": "test_x.T.test_a"}, {"test_id": "test_a"}, {"test_id": "test_x.T.test_b"}], failing)
+        self.assertTrue(any("duplicate" in p for p in duplicate))
+        omitted, _ = classification_problems([{"test_id": "test_x.T.test_a"}], failing)
+        self.assertTrue(any("without a classification" in p for p in omitted))
+
+    def test_scenarios_reject_bad_ids_rebinding_base_change_and_skip(self):
+        expectations = {"arb_bad_ids": "classification ids do not match", "arb_rebinds_import": "import statement(s) removed or rewritten",
+                        "arb_changes_base": "class metadata", "arb_adds_skip": "class metadata"}
+        for scenario, needle in expectations.items():
+            bundle = run_scenario(scenario)
+            module = bundle["arbitration"]["modules"][0]
+            self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", scenario)
+            self.assertFalse(module["validated"], scenario)
+            self.assertIn(needle, module["error"], (scenario, module["error"]))
+            self.assertIsNone(module["candidate_rerun"], f"{scenario}: a rejected correction is never executed")
+
+
+class Core06EvidenceProtocol(unittest.TestCase):
+    """CORE-06: a current bundle must carry the complete evidence for its verdict; historical bundles are checked for internal
+    consistency only and never fully verified; the former apply mode is confined to dated historical bundles."""
+
+    def test_current_verified_bundle_is_fully_verified_and_each_stripped_item_fails(self):
+        bundle, run_dir, tmp = kept_run("honest")
+        try:
+            self.assertEqual(bundle["evidence_protocol"]["version"], EVIDENCE_PROTOCOL_VERSION)
+            report = check_bundle(run_dir)
+            self.assertTrue(report["ok"], failed_checks(report))
+            self.assertTrue(report["fully_verified"] and report["evidence_complete"] and report["manifest_verified"], report)
+            self.assertFalse(report["historical"])
+            strips = {
+                "gate inventory": lambda b: b["gates"].pop("mutation"),
+                "skipped gate": lambda b: b["gates"]["drift_audit"].update({"skipped": True, "ok": False}),
+                "isolation not recorded": lambda b: b["verification"]["binding"]["checks"].update({"verifier_isolation_active": None}),
+                "no contract audit": lambda b: b.__setitem__("contract_audit", None),
+                "candidate facts": lambda b: b["candidate"].update({"scope_ok": None}),
+                "no ledger": lambda b: b.__setitem__("ledger", {}),
+                "no red run": lambda b: b.__setitem__("red_run", {}),
+                "no sealed record": lambda b: b["sealed_tests"].update({"expected_ids": []}),
+            }
+            for name, strip in strips.items():
+                copy = Path(tempfile.mkdtemp(prefix="attest-strip-")) / run_dir.name
+                shutil.copytree(run_dir, copy)
+                try:
+                    rewrite_bundle(copy, strip)
+                    stripped = check_bundle(copy)
+                    self.assertFalse(stripped["ok"], name)
+                    self.assertFalse(stripped["fully_verified"], name)
+                    self.assertTrue({"required_evidence", "sealed_binding_recomputed", "gates_match_stage_records", "verdict_derivation"} & set(failed_checks(stripped)), (name, failed_checks(stripped)))
+                finally:
+                    shutil.rmtree(copy.parent, ignore_errors=True)
+            for name, path in (("raw results", "verify_raw.json"), ("sealed module", "sealed/test_sealed.py"), ("adversarial module", "breaker_tests.py"), ("PROOF.md", "PROOF.md")):
+                copy = Path(tempfile.mkdtemp(prefix="attest-strip-")) / run_dir.name
+                shutil.copytree(run_dir, copy)
+                try:
+                    (copy / path).unlink()
+                    run_id = json.loads((copy / "proof_bundle.json").read_text())["run_id"]
+                    (copy / MANIFEST_FILE).write_text(json.dumps(build_manifest(copy, run_id)) + "\n")
+                    stripped = check_bundle(copy)
+                    self.assertFalse(stripped["ok"], name)
+                    self.assertFalse(stripped["fully_verified"], name)
+                finally:
+                    shutil.rmtree(copy.parent, ignore_errors=True)
+            # raw results of evaluated mutants are mandatory
+            rewrite_raw(run_dir, lambda r: r.__setitem__("mutants", {}))
+            stripped = check_bundle(run_dir)
+            self.assertFalse(stripped["ok"])
+            self.assertIn("required_evidence", failed_checks(stripped))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_current_infeasible_bundle_needs_its_executed_witness(self):
+        bundle, run_dir, tmp = kept_run("contract_conflict")
+        try:
+            report = check_bundle(run_dir)
+            self.assertTrue(report["ok"] and report["fully_verified"], failed_checks(report))
+            for name, strip in (("undemonstrated", lambda b: b["contract_audit"]["conflicts"][0].update({"demonstrated": False})),
+                                ("no operation", lambda b: b["contract_audit"]["conflicts"][0].update({"operation_uuid": None})),
+                                ("wrong exit", lambda b: b["contract_audit"]["conflicts"][0].update({"exit_code": 0})),
+                                ("no marker", lambda b: b["contract_audit"]["conflicts"][0].update({"stdout_tail": "nothing"})),
+                                ("no digest", lambda b: b["contract_audit"]["conflicts"][0].update({"witness_sha256": None})),
+                                ("no requirements", lambda b: b["contract_audit"]["conflicts"][0].update({"requirement_ids": []}))):
+                copy = Path(tempfile.mkdtemp(prefix="attest-inf-")) / run_dir.name
+                shutil.copytree(run_dir, copy)
+                try:
+                    rewrite_bundle(copy, strip)
+                    stripped = check_bundle(copy)
+                    self.assertFalse(stripped["ok"], name)
+                    self.assertFalse(stripped["fully_verified"], name)
+                finally:
+                    shutil.rmtree(copy.parent, ignore_errors=True)
+            (run_dir / "contract_audit" / "witness_1.py").unlink()
+            rewrite_bundle(run_dir, lambda b: None)
+            self.assertFalse(check_bundle(run_dir)["ok"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_legacy_clearing_is_confined_to_dated_historical_bundles(self):
+        bundle, run_dir, tmp = kept_run("breaker_fail")
+        try:
+            self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN")
+
+            def clear(b):
+                b["verdict"].update({"verdict": "VERIFIED", "reasons": [], "cleared_by_arbitration": True})
+                b["arbitration"].update({"applied": True, "cleared": True, "applied_to_gates": []})
+            rewrite_bundle(run_dir, clear)
+            current = check_bundle(run_dir)
+            self.assertFalse(current["ok"])
+            self.assertIn("verdict_derivation", failed_checks(current))
+            copy = json.loads((run_dir / "proof_bundle.json").read_text())
+            self.assertFalse(legacy_clearing_allowed(copy))
+            copy.pop("evidence_protocol")
+            copy["started_at_utc"] = "2026-10-18T12:00:00+00:00"
+            copy["provenance"]["attest_version"] = "0.3.0"
+            self.assertTrue(legacy_clearing_allowed(copy))
+            self.assertTrue(expected_verdict(copy)["consistent"], "a dated historical bundle keeps the former apply mode")
+            copy["started_at_utc"] = None
+            self.assertFalse(legacy_clearing_allowed(copy))
+            self.assertFalse(expected_verdict(copy)["consistent"], "an undated bundle gets no legacy clearing")
+            copy["started_at_utc"] = "2026-10-19T00:00:01+00:00"
+            self.assertFalse(legacy_clearing_allowed(copy))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_historical_bundle_is_partial_and_a_downgraded_claim_is_an_error(self):
+        bundle, run_dir, tmp = kept_run("honest")
+        try:
+            rewrite_bundle(run_dir, lambda b: (b.pop("evidence_protocol"), b["provenance"].update({"attest_version": "0.4.0"})))
+            historical = check_bundle(run_dir)
+            self.assertTrue(historical["ok"], failed_checks(historical))
+            self.assertTrue(historical["historical"])
+            self.assertFalse(historical["fully_verified"])
+            self.assertIsNone(historical["evidence_complete"])
+            rewrite_bundle(run_dir, lambda b: b["provenance"].update({"attest_version": "0.5.0"}))
+            downgraded = check_bundle(run_dir)
+            self.assertFalse(downgraded["ok"])
+            self.assertIn("evidence_protocol", failed_checks(downgraded))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_missing_isolation_field_is_not_isolation(self):
+        bundle, run_dir, tmp = kept_run("honest")
+        try:
+            raw = json.loads((run_dir / "verify_raw.json").read_text())
+            sealed = dict(raw["sealed"])
+            sealed.pop("privilege_separation")
+            binding = bind_verification(sealed, bundle["verification"]["expected_ids"], bundle["sealed_tests"]["sha256"], bundle["verification"]["sealed"]["nonce"])
+            self.assertFalse(binding["ok"])
+            self.assertFalse(binding["checks"]["verifier_isolation_active"])
+            rewrite_raw(run_dir, lambda r: r["sealed"].pop("privilege_separation"))
+            report = check_bundle(run_dir)
+            self.assertFalse(report["ok"])
+            self.assertIn("sealed_binding_recomputed", failed_checks(report))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class Core07ManifestCompleteness(unittest.TestCase):
+    """CORE-07: the integrity badge needs correct digests AND a complete, well-formed listing without links."""
+
+    def setUp(self):
+        self.bundle, self.run_dir, self.tmp = kept_run("honest")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _manifest(self):
+        return json.loads((self.run_dir / MANIFEST_FILE).read_text())
+
+    def _write(self, manifest):
+        (self.run_dir / MANIFEST_FILE).write_text(json.dumps(manifest) + "\n")
+
+    def test_complete_manifest_is_verified_and_each_defect_fails(self):
+        clean = check_bundle(self.run_dir)
+        self.assertTrue(clean["manifest_verified"] and clean["ok"], failed_checks(clean))
+        base = self._manifest()
+        self.assertEqual(base["version"], 2)
+        empty = dict(base, files=[], file_count=0, total_bytes=0)
+        self._write(empty)
+        report = check_bundle(self.run_dir)
+        self.assertFalse(report["ok"] or report["manifest_verified"])
+        self.assertIn("manifest_complete", failed_checks(report))
+        duplicate = dict(base, files=base["files"] + [base["files"][0]], file_count=len(base["files"]) + 1, total_bytes=base["total_bytes"] + base["files"][0]["bytes"])
+        self._write(duplicate)
+        report = check_bundle(self.run_dir)
+        self.assertIn("manifest_entries", failed_checks(report))
+        self.assertFalse(report["manifest_verified"])
+        wrong_count = dict(base, file_count=base["file_count"] + 1)
+        self._write(wrong_count)
+        self.assertIn("manifest_entries", failed_checks(check_bundle(self.run_dir)))
+        wrong_total = dict(base, total_bytes=base["total_bytes"] + 1)
+        self._write(wrong_total)
+        self.assertIn("manifest_entries", failed_checks(check_bundle(self.run_dir)))
+        exclusions = dict(base, excluded=[MANIFEST_FILE, "proof_bundle.json"], files=[f for f in base["files"] if f["path"] != "proof_bundle.json"])
+        exclusions.update(file_count=len(exclusions["files"]), total_bytes=sum(f["bytes"] for f in exclusions["files"]))
+        self._write(exclusions)
+        self.assertIn("manifest_entries", failed_checks(check_bundle(self.run_dir)))
+        escaping = dict(base, files=base["files"] + [{"path": "../outside.json", "bytes": 1, "sha256": "0" * 64, "purpose": "x"}])
+        escaping.update(file_count=len(escaping["files"]), total_bytes=sum(f["bytes"] for f in escaping["files"]))
+        self._write(escaping)
+        self.assertIn("manifest_entries", failed_checks(check_bundle(self.run_dir)))
+        self._write(base)
+        (self.run_dir / "extra.txt").write_text("unlisted\n")
+        report = check_bundle(self.run_dir)
+        self.assertIn("manifest_complete", failed_checks(report))
+        self.assertFalse(report["manifest_verified"])
+        (self.run_dir / "extra.txt").unlink()
+        (self.run_dir / "link.json").symlink_to(self.run_dir / "spec.json")
+        report = check_bundle(self.run_dir)
+        self.assertIn("no_symlinks", failed_checks(report))
+        self.assertFalse(report["manifest_verified"])
+        (self.run_dir / "link.json").unlink()
+        self.assertTrue(check_bundle(self.run_dir)["manifest_verified"])
+
+    def test_historical_version_one_manifest_with_unlisted_files_is_partial_not_verified(self):
+        rewrite_bundle(self.run_dir, lambda b: (b.pop("evidence_protocol"), b["provenance"].update({"attest_version": "0.4.0"})))
+        base = self._manifest()
+        self._write(dict(base, version=1))
+        (self.run_dir / "late.json").write_text("{}\n")
+        report = check_bundle(self.run_dir)
+        self.assertTrue(report["ok"], failed_checks(report))  # a warning for a historical bundle
+        self.assertFalse(report["manifest_verified"])
+        self.assertTrue(report["manifest_partial"])
+        self.assertTrue(any(c["name"] == "manifest_complete" and c["severity"] == "warning" for c in report["checks"]))
+
+    def test_verify_manifest_reports_links_and_listing_facts(self):
+        (self.run_dir / "link.json").symlink_to(self.run_dir / "spec.json")
+        result = verify_manifest(self.run_dir, self._manifest())
+        self.assertEqual(result["symlinks"], ["link.json"])
+        self.assertTrue(result["complete"] and result["entries_ok"] and result["ok"])
+        listed_link = dict(self._manifest())
+        listed_link["files"] = listed_link["files"] + [{"path": "link.json", "bytes": 1, "sha256": "0" * 64, "purpose": "x"}]
+        listed_link.update(file_count=len(listed_link["files"]), total_bytes=sum(f["bytes"] for f in listed_link["files"]))
+        result = verify_manifest(self.run_dir, listed_link)
+        self.assertFalse(result["ok"], "a listed entry that is a link is never opened")
+
+
+class Api08AtomicArtifacts(unittest.TestCase):
+    def test_bundle_and_artifacts_are_written_through_a_rename(self):
+        bundle, run_dir, tmp = kept_run("honest")
+        try:
+            self.assertEqual([p.name for p in run_dir.rglob("*.tmp")], [])
+            with mock.patch("os.replace", wraps=os.replace) as replace:
+                write_bundle(run_dir, bundle)
+            targets = [str(call.args[1]) for call in replace.call_args_list]
+            self.assertIn(str(run_dir / "proof_bundle.json"), targets)
+            self.assertIn(str(run_dir / "PROOF.md"), targets)
+            self.assertTrue(all(str(call.args[0]).endswith(".tmp") for call in replace.call_args_list))
+            self.assertEqual(json.loads((run_dir / "proof_bundle.json").read_text())["run_id"], bundle["run_id"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class WitnessValidation(unittest.TestCase):
+    def test_witness_must_name_existing_requirements_and_the_marker_must_name_a_claimed_one(self):
+        from types import SimpleNamespace
+        from tests.test_verification import WITNESS_DEMONSTRATES
+        from attest.sandbox.base import RunResult, StepResult
+
+        class WitnessExecutor(FakeExecutor):
+            stdout = "CONTRADICTION AC1,AC2: for input \"1h\" AC1 demands 3600 and AC2 demands 60\n"
+
+            def run_branch(self, image, files, steps, stage, deletes=None, timeout=120, networking=False):
+                step = steps[0]
+                return RunResult(stage=stage, operation_uuid="op-w", status="SUCCESS", exit_code=0, timed_out=False, signal=None, duration_s=0.1,
+                                 image_uuid=image, result_image_uuid=None, steps=[StepResult(step["name"], step["cmd"], 3, False, 0.1, self.stdout, "")])
+        tmp = Path(tempfile.mkdtemp(prefix="attest-witness-"))
+        try:
+            ledger = Ledger()
+            executor = WitnessExecutor(ledger, "honest")
+            pipeline = Pipeline(task=TaskSpec.load(TASK), provider=FakeProvider(ledger, "honest"), executor=executor, ledger=ledger,
+                                out_dir=tmp, max_turns=2, tavily=None, profile_label="t")
+            spec = {"acceptance_criteria": ["one", "two"], "restated_task": "r", "interface_contract": []}
+            answers = iter([
+                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["AC9"], "summary": "ghost", "witness": WITNESS_DEMONSTRATES}]},
+                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": [], "summary": "nothing", "witness": WITNESS_DEMONSTRATES}]},
+                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["AC2"], "summary": "real", "witness": WITNESS_DEMONSTRATES}]},
+                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["AC1"], "summary": "real", "witness": WITNESS_DEMONSTRATES}]},
+            ])
+            pipeline.ask = lambda *args: SimpleNamespace(json=next(answers), call=SimpleNamespace(requested_model="fake"))
+            with contextlib.redirect_stdout(io.StringIO()):
+                ghost = pipeline.contract_audit(spec, {}, "ckpt")
+                nothing = pipeline.contract_audit(spec, {}, "ckpt")
+                real = pipeline.contract_audit(spec, {}, "ckpt")
+                executor.stdout = "CONTRADICTION AC2: the marker names a requirement the conflict did not claim\n"
+                unnamed = pipeline.contract_audit(spec, {}, "ckpt")
+            self.assertFalse(ghost["conflicts"][0]["demonstrated"])
+            self.assertIn("unknown requirement", ghost["conflicts"][0]["status"])
+            self.assertIsNone(ghost["conflicts"][0]["operation_uuid"], "a witness for a nonexistent requirement is not executed")
+            self.assertIn("names no requirement", nothing["conflicts"][0]["status"])
+            self.assertTrue(real["conflicts"][0]["demonstrated"])
+            self.assertEqual(real["outcome"], "contradiction demonstrated")
+            self.assertFalse(unnamed["conflicts"][0]["demonstrated"])
+            self.assertIn("does not name", unnamed["conflicts"][0]["status"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class RecordedCorpusHistorical(unittest.TestCase):
+    def test_every_recorded_bundle_outside_the_known_defective_sets_still_checks_as_historical(self):
+        known_defective = ("attest-hardening-2026-10-16/semver-v2-codex-verified", "attest-hardening-2026-10-16/smoke-run-durationkit-codex",
+                           "attest-revision-2026-10-19/evaluation-codex/")
+        checked = 0
+        failures = []
+        for manifest in sorted(ROOT.glob("reports/*/**/proof_bundle.json")):
+            run_dir = manifest.parent
+            rel = run_dir.relative_to(ROOT / "reports").as_posix()
+            if "snapshot" in run_dir.parts or any(part.startswith("attest-audit-") for part in run_dir.parts) or any(rel.startswith(k) for k in known_defective):
+                continue
+            report = check_bundle(run_dir)
+            checked += 1
+            self.assertTrue(report["historical"], rel)
+            self.assertFalse(report["fully_verified"], rel)
+            if not report["ok"]:
+                failures.append((rel, list(failed_checks(report))))
+        self.assertGreater(checked, 100)
+        self.assertEqual(failures, [])
+
+
+if __name__ == "__main__":
+    unittest.main()

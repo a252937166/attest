@@ -1,0 +1,63 @@
+{
+  "scope": "offline, bounded synthetic sentinels only; companion of boundaries-repro.py run after the repairs",
+  "checks": {
+    "snapshot_reads_outside_symlink": {
+      "confirmed": false,
+      "snapshot_keys": [],
+      "skipped": [
+        {
+          "path": "linked.txt",
+          "reason": "symbolic link"
+        }
+      ]
+    },
+    "host_regex_exceeds_deadline": {
+      "confirmed": false,
+      "pattern": "(a+)+$",
+      "input_bytes": 29,
+      "literal_then_regex_output": [
+        "no match for '(a+)+$' in the workspace",
+        "search aborted: the regular expression exceeded 2 s; use a literal search"
+      ]
+    },
+    "tar_file_limit_after_read": {
+      "confirmed": false,
+      "refused": true,
+      "refusal": "1 file(s) exceed the per-file limit of 16 bytes, for example file.txt (64 bytes declared)",
+      "reads": [],
+      "no_extraction_written": true
+    },
+    "public_export_unscanned_env_and_zip": {
+      "confirmed": false,
+      "copied_files": 0,
+      "excluded": [
+        {
+          "path": "deploy/.env",
+          "reason": "environment or credential file (.env)"
+        },
+        {
+          "path": "deploy/evidence.zip",
+          "reason": "archive (.zip); archive policy 'exclude'"
+        }
+      ],
+      "scan_hits": [],
+      "actual_secret_used": false
+    },
+    "export_force_can_target_source_root": {
+      "confirmed": false,
+      "exit_code": 2,
+      "sentinel_survives": true,
+      "refusal": "refusing: /private/var/folders/1z/3g2cx2kj2j39z3g972d8fjgw0000gn/T/attest-boundaries-after-36mogy5m/disposable-root is the project root"
+    },
+    "guest_stream_cap_applied_after_capture": {
+      "confirmed": true,
+      "note": "the auditor's expression equates stdout_bytes with bytes held in memory; attest-guest/3 reports stdout_bytes as the bytes OBSERVED on the stream while holding at most stream_cap_bytes of them, so this expression stays true by construction; see test_a_noisy_child_is_drained_into_bounded_buffers_and_truncation_is_reported for the memory bound",
+      "runner": "attest-guest/3",
+      "configured_cap": 1024,
+      "stdout_bytes_observed": 8193,
+      "stdout_truncated": true,
+      "reported_text_chars": 1071,
+      "sandbox_api_called": false
+    }
+  }
+}

@@ -1,0 +1,18 @@
+#!/bin/bash
+# Rehearsal stand-in for the standalone interpreter (PYTHON_BIN). "-m venv DIR" creates a fake virtualenv whose bin/python is
+# the venv-python dispatcher; every other invocation runs on the real interpreter REHEARSAL_REAL_PYTHON (3.11+ compiles and
+# imports the attest package for real).
+. "$(dirname "$0")/_log.sh"
+real=${REHEARSAL_REAL_PYTHON:-python3}
+shim_log python3.12 "$*"
+if [ "${1:-}" = "-m" ] && [ "${2:-}" = "venv" ]; then
+  dir=${3:?venv directory}
+  mkdir -p "$dir/bin" "$dir/lib/site-packages"
+  printf 'home = %s\nrehearsal = true\n' "$(dirname "$real")" > "$dir/pyvenv.cfg"
+  printf '%s\n' "$real" > "$dir/real-python"
+  cp "$(dirname "$0")/venv-python" "$dir/bin/python"
+  chmod 755 "$dir/bin/python"
+  ln -sf python "$dir/bin/python3"
+  exit 0
+fi
+exec "$real" "$@"

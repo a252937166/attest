@@ -122,7 +122,7 @@ Bundle is in `runs/<task-id>-<timestamp>/`: `PROOF.md` first, then `proof_bundle
 patch, the breaker tests and every supervisor record.
 
 Verdicts: `VERIFIED` (every gate passed; a gate may have been re-run on a corrected generated test after the correction was
-validated by execution, which the bundle says), `NEEDS HUMAN` (a gate failed; the reasons name it; a sealed test that failed by assertion or by an exception raised in the code under test always holds, even when the arbiter calls it defective), `INFEASIBLE` (the contract auditor's witness program,
+validated by execution, which the bundle says), `NEEDS HUMAN` (a gate failed; the reasons name it; a sealed test that failed by assertion or by any exception always holds, even when the arbiter calls it defective; only a test the supervisor killed at its timeout can be corrected), `INFEASIBLE` (the contract auditor's witness program,
 executed on your unmodified repository, demonstrated that the requirements contradict each other; the program and its
 output are in `contract_audit/`), `NO CHANGE` (no patch was produced: the implementer finished without editing, or ran out
 of turns, which the bundle reports as unfinished), `ERROR` (infrastructure; nothing was retried).

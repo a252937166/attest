@@ -1,0 +1,44 @@
+=== scenario 7b: decommission-yes
+=== command: bash decommission.sh --yes
+=== expected exit code: 0
+=== state before:
+active: 9.0.1-rehearsal-ccf5e0966f75
+previous: 9.0.2-rehearsal-d1fc91722826
+service: active
+health: 9.0.1-rehearsal worker_alive=True
+releases: 9.0.1-rehearsal-ccf5e0966f75 9.0.2-rehearsal-d1fc91722826 
+vhost files: attest.axiqo.xyz.conf 
+unit files: attest.service 
+
+=== output:
+decommission.sh will:
+  1. /tmp/attest-rehearsal-20261019T075738Z/deploy/yungou/rehearsal/shims/systemctl disable --now attest.service        (stop and disable only this unit; the unit file /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/systemd/system/attest.service stays, disabled)
+  2. rm -f /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/nginx/conf.d/attest.axiqo.xyz.conf          (only the Attest vhost; every other vhost stays)
+  3. /tmp/attest-rehearsal-20261019T075738Z/deploy/yungou/rehearsal/shims/nginx-modern -t && /tmp/attest-rehearsal-20261019T075738Z/deploy/yungou/rehearsal/shims/systemctl reload nginx    (reload only after the remaining configuration passes the test)
+  keep: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest (releases, interpreter), /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/var/lib/attest (store, runs), /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/attest (secrets)
+  not a version rollback: bash rollback.sh re-selects the previous release instead
+executing
+  attest.service stopped and disabled
+  attest.service is now: inactive
+  vhost removed: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/nginx/conf.d/attest.axiqo.xyz.conf
+nginx: the configuration file syntax is ok (rehearsal shim)
+nginx: configuration file test is successful (rehearsal shim)
+  nginx reloaded
+decommissioned: attest.service stopped and disabled, vhost removed; kept /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest, /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/var/lib/attest, /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/attest
+
+=== exit code: 0 (expected 0)
+=== state after:
+active: 9.0.1-rehearsal-ccf5e0966f75
+previous: 9.0.2-rehearsal-d1fc91722826
+service: inactive
+health: unreachable
+releases: 9.0.1-rehearsal-ccf5e0966f75 9.0.2-rehearsal-d1fc91722826 
+vhost files: 
+unit files: attest.service 
+
+=== checks:
+  PASS  exit code: 0
+  PASS  service stopped: inactive
+  PASS  vhost removed: no
+  PASS  releases kept: yes
+=== verdict: PASS

@@ -3,9 +3,15 @@
 VERIFIED only when every recorded gate passes (a skipped gate never counts as a pass), the implementer finished and the
 scope policy held; otherwise NEEDS HUMAN. A gate may pass on a corrected generated-test module only when the correction
 was validated by execution and the gate was re-run (the gate record then carries `corrected: true`); the arbiter's
-classification alone never changes a gate. Bundles recorded before 19 Oct 2026 may instead carry `cleared_by_arbitration`
-(the former explicit apply mode), which this rule still honours when re-deriving them. Abort verdicts (INFEASIBLE, NO
-CHANGE, ERROR, BASELINE) are decided before any gate exists and are outside this rule.
+classification alone never changes a gate. Abort verdicts (INFEASIBLE, NO CHANGE, ERROR, BASELINE) are decided before any
+gate exists and are outside this rule.
+
+Evidence protocol (19 Oct 2026, audit finding CORE-06): a bundle written by this revision carries
+`evidence_protocol.version` = EVIDENCE_PROTOCOL_VERSION, and `attest check` then requires the complete evidence for its
+verdict. A bundle without that field is HISTORICAL: it is checked for internal consistency only and never receives the
+fully-verified badge. The former explicit apply mode (`cleared_by_arbitration`, bundles recorded before 19 Oct 2026) is
+honoured only when re-deriving a historical bundle dated before LEGACY_CLEARING_CUTOFF; a current bundle that carries such
+flags over a failed gate is inconsistent.
 """
 
 from __future__ import annotations
@@ -13,8 +19,28 @@ from __future__ import annotations
 RULE = ("VERIFIED only when every recorded gate passes (a skipped gate never counts as a pass), the implementer finished and the "
         "scope policy held; otherwise NEEDS HUMAN. A gate passes on a corrected generated-test module only when the correction was "
         "validated by execution (same test methods, only the failing ones changed, passes on the candidate, still discriminates on the "
-        "base or a mutant) and the gate was re-run; the arbiter's classification alone never changes a gate.")
+        "base or a mutant with authentic, structurally sound results) and the gate was re-run; the arbiter's classification alone never "
+        "changes a gate, and a sealed test that failed by assertion or exception is never overridden.")
 ABORT_VERDICTS = ("INFEASIBLE", "NO CHANGE", "ERROR", "BASELINE")
+EVIDENCE_PROTOCOL_VERSION = 2
+LEGACY_CLEARING_CUTOFF = "2026-10-19"  # bundles started before this UTC date may carry the former explicit apply mode
+
+
+def protocol_version(bundle: dict) -> int | None:
+    """The evidence protocol a bundle declares; None for a historical bundle (recorded before the protocol existed)."""
+    record = (bundle or {}).get("evidence_protocol")
+    try:
+        return int(record.get("version")) if isinstance(record, dict) and record.get("version") is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def legacy_clearing_allowed(bundle: dict) -> bool:
+    """Only a historical bundle with a recorded start before the cutoff may be re-derived with the former apply mode."""
+    if protocol_version(bundle) is not None:
+        return False
+    started = (bundle or {}).get("started_at_utc") or ""
+    return bool(started) and started[:10] < LEGACY_CLEARING_CUTOFF
 
 
 def derive(gates: dict, candidate: dict | None, binding_ok: bool | None = None, arbitration: dict | None = None,
@@ -49,7 +75,8 @@ def expected_verdict(bundle: dict) -> dict:
         return {"applicable": False, "recorded": recorded, "derived": None, "consistent": ok,
                 "detail": "no gates recorded; a verdict decided before verification cannot be VERIFIED" if not ok else "no gates recorded (decided before verification)"}
     arbitration = bundle.get("arbitration")
-    apply = bool((bundle.get("verdict") or {}).get("cleared_by_arbitration")) or bool((arbitration or {}).get("applied"))
+    # the former explicit apply mode is honoured only for a dated historical bundle; a current bundle's gates must carry their own re-run
+    apply = legacy_clearing_allowed(bundle) and (bool((bundle.get("verdict") or {}).get("cleared_by_arbitration")) or bool((arbitration or {}).get("applied")))
     derived = derive(gates, bundle.get("candidate"), ((bundle.get("verification") or {}).get("binding") or {}).get("ok"), arbitration, apply)
     if recorded in ABORT_VERDICTS:
         # gates exist but the run aborted afterwards (for example an error in a late stage): nothing to compare

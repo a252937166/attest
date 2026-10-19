@@ -231,3 +231,36 @@ gate was re-run. The guide's sentence for NO CHANGE and INFEASIBLE follows the n
 bundle-file list mention the contract audit, the validated corrections and the journal. Asset stamp `20261019a`; no
 Python change to the console itself beyond the health message (an idle service reports zero active reservations) and the
 artifact allowlist.
+
+### Revision 5 (19 Oct 2026): the audit repairs of the console (API-01 to API-11, AC-05, AC-06, publication contract)
+
+Evidence and acceptance tests: `reports/attest-audit-repairs-2026-10-19/console/README.md`, `tests/test_audit_console.py`,
+`tests/console_client_test.mjs`. Asset stamp `20261019b`.
+
+- Visitor identity (API-01): `ATTEST_TRUSTED_PROXIES` (default `127.0.0.1,::1`). When the peer is a trusted proxy, the
+  LAST `X-Forwarded-For` item is the visitor (validated as an IP literal); otherwise the peer address is used and the header
+  ignored. The nginx vhost now sets the header to `$remote_addr`, so a caller cannot rotate its identity.
+- Admission (API-02, API-07): the per-visitor hourly quota is checked and the row inserted under one store lock (`QuotaError`
+  → 429); a request is refused with 503 before any row or reservation when the worker thread is dead; the worker restarts
+  its loop after an unexpected exit (`ensure_alive`, at most every 5 s) and health reports `ready`, `busy`, `worker_restarts`.
+- Store (API-03): every query is materialised under the lock (`_rows`, `_row_one`, `_write`); no cursor leaves the lock.
+- Public response models (API-04, API-09): run rows and details carry no requester address, host path or raw error text;
+  failures are stored server-side (`error_code`, `error_ref`, `error_detail`) and shown as a neutral public message with a
+  reference; `/api/tasks` carries no file path; `/api/health` carries no data directory (startup counts only; `budget.policy`
+  names the UTC-day rule). Unhandled exceptions return `{"error": "internal_error", "correlation_id"}` with the traceback
+  logged server-side under that id.
+- Downloads (API-05 and containment): the zip is built from the manifest's listing (or the artifact allowlist when there is
+  no manifest); each file must be a regular, non-link file whose resolved path stays inside the run directory (otherwise
+  409 `manifest_mismatch` or 404); per-file and aggregate caps (32 MiB, 128 MiB) return 413 `export_too_large` instead of a
+  silently incomplete archive; the archive is spooled and streamed. The single-artifact route applies the same containment.
+- Retention (API-06): terminal error runs have their own budget (`ATTEST_RETENTION_KEEP_ERRORS`, default 10); housekeeping
+  runs after every job and on an idle timer, so an all-failure period still reclaims disk.
+- Client (API-08, API-10, API-11): the terminal detail is retried up to five times with a visible state and a Retry control;
+  an unreadable or half-written bundle answers 503 `bundle_incomplete` with `Retry-After`; "Copy patch" copies only a
+  successful response; the events endpoint exposes an authoritative `position` from the worker's ordered queue.
+- Accounting (AC-05, AC-06): imports preserve `cost_usd_committed` (recomputed from the call records or the journal for
+  legacy bundles); a run counts against every UTC day on which it was queued, started, ran or finished.
+- Publication contract: runs carry a `visibility` (`public` or `team`); team runs (the development profile, and imported
+  bundles of that provider) are hidden from every read route (list, detail, events, artifacts, zip, current-run and
+  estimate references) unless the caller presents the team token in `X-Attest-Token` (or `?token=` on downloads). The home
+  page says so. Anonymous queue counts include team runs without identifying them.

@@ -110,6 +110,7 @@ class LedgerJournal(unittest.TestCase):
         schema = {"type": "object", "additionalProperties": False, "properties": {"x": {"type": "integer"}}, "required": ["x"]}
         for status, settlement, cost in ((422, "known", 0.0), (429, "known", 0.0), (502, "unsettled", None)):
             ledger = Ledger()
+            ledger.attach_sink(self.tmp / f"refusal-{status}" / JOURNAL_FILE)  # a reservation needs a journal before any request (AC-03)
             client = NebiusTokenFactory("key", ledger, usd_cap=0.5)
 
             def refuse(method, url, headers, payload=None, timeout=60, max_bytes=0, status=status):
@@ -216,6 +217,11 @@ class HarnessLabels(unittest.TestCase):
         self.assertEqual(harness.classify(baseline_row), "no_patch")
         baseline_patch = {"status": "completed", "verdict": "BASELINE", "accepted": False, "held_out_correct": False, "system": "baseline", "finished": False, "changed_paths": 1}
         self.assertEqual(harness.classify(baseline_patch), "true_reject")  # an unfinished baseline that did write a wrong patch
+        # an INFEASIBLE verdict is a refusal, not a rejected patch: right for an unsatisfiable task, a false refusal for a satisfiable one
+        infeasible = {"status": "completed", "verdict": "INFEASIBLE", "accepted": False, "held_out_correct": False, "system": "attest", "finished": False, "changed_paths": 0}
+        self.assertEqual(harness.classify(dict(infeasible, ground_truth="unsatisfiable")), "true_reject")
+        self.assertEqual(harness.classify(dict(infeasible, ground_truth="held_out_suite")), "false_refusal")
+        self.assertEqual(harness.classify(infeasible), "false_refusal")
         rows = [dict(attest_row, confusion="no_patch", scheduled_index=0, task="t", attempt=1, cost_committed_usd=0.1, wall_s=10.0)]
         summary = harness.summarize(rows, ["attest"])
         self.assertEqual(summary["attest"]["no_patch"], 1)
@@ -245,8 +251,14 @@ class HarnessLabels(unittest.TestCase):
             self.assertEqual([f["run_id"] for f in found], ["task-attest-a2-y"])
             self.assertAlmostEqual(found[0]["cost_usd_committed"], 0.07)
             self.assertEqual(found[0]["open_reservations"], 1)
+            self.assertEqual((found[0]["kind"], found[0]["source"], found[0]["included_in_batch_total"]), ("interrupted", JOURNAL_FILE, True))
+            # a later process lists the same directory again with the same figure: it is part of every process's starting total
+            # (audit finding AC-01); the earlier entry only supplies the time it was first seen
             again = harness.interrupted_cells(runs, [{"out_dir": str(owned)}], found)
-            self.assertTrue(again[0]["counted_before"])
+            self.assertEqual([(a["run_id"], a["cost_usd_committed"], a["included_in_batch_total"]) for a in again], [("task-attest-a2-y", 0.07, True)])
+            self.assertTrue(again[0]["listed_by_earlier_resumption"])
+            self.assertEqual(again[0]["first_listed_at_utc"], found[0]["first_listed_at_utc"])
+            self.assertFalse(again[0]["counted_before"])  # never a reason to leave a cost out of the current process's total
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
@@ -260,11 +272,13 @@ class ImplementerNavigation(unittest.TestCase):
         hits = self.ws.search("_nat_cmp")
         self.assertIn("src/pkg/version.py:9:     def _nat_cmp(cls, a, b):", hits)
         self.assertIn("README.md:2:", hits)
-        only = self.ws.search(r"def _nat_cmp\(", "src/pkg/version.py")
+        only = self.ws.search(r"re:def _nat_cmp\(", "src/pkg/version.py")  # the re: prefix selects a regular expression (bounded child)
         self.assertIn("1 matching line(s)", only)
         self.assertNotIn("README.md", only)
         self.assertIn("no match", self.ws.search("does_not_exist"))
-        self.assertIn("no match", self.ws.search("[unbalanced", "src/pkg/version.py"))  # an invalid regex is searched literally
+        self.assertIn("no match", self.ws.search(r"def _nat_cmp\(", "src/pkg/version.py"))  # without the prefix the text is literal
+        self.assertIn("no match", self.ws.search("[unbalanced", "src/pkg/version.py"))  # a literal too, never a regex error
+        self.assertTrue(self.ws.search("re:[unbalanced", "src/pkg/version.py").startswith("INVALID ACTION: invalid regular expression"))
 
     def test_outline_and_truncated_reads_point_at_definitions(self):
         self.assertEqual(self.ws.outline("src/pkg/version.py"), ["4: class Version:", "5:     def __init__(self):", "9:     def _nat_cmp(cls, a, b):", "13: def helper():"])
@@ -349,7 +363,7 @@ class NewBundlesCheckAndRender(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
     def test_corrected_sealed_bundle_passes_check_and_renders(self):
-        bundle, run_dir, tmp = self._run("sealed_one_crash")
+        bundle, run_dir, tmp = self._run("sealed_one_timeout")  # the one sealed correction left after CORE-02: a supervisor-killed timeout
         try:
             self.assertEqual(bundle["verdict"]["verdict"], "VERIFIED")
             report = check_bundle(run_dir)
@@ -413,7 +427,8 @@ class NewBundlesCheckAndRender(unittest.TestCase):
             self.assertTrue(oracle_disagreement({"outcome": "FAIL"}))
             self.assertTrue(oracle_disagreement({"outcome": "ERROR", "failure_tail": 'File "/tmp/sealed/test_sealed.py", line 5, in test_a\n    f()\n  File "/tmp/w/pkg/m.py", line 9, in f\n    raise TypeError("bad")\nTypeError: bad'}))
             self.assertTrue(oracle_disagreement({"outcome": "ERROR", "failure_tail": 'File "/tmp/sealed/test_sealed.py", line 5, in test_a\n    m.new_function()\nAttributeError: no attribute'}))
-            self.assertFalse(oracle_disagreement({"outcome": "ERROR", "failure_tail": 'File "/tmp/sealed/test_sealed.py", line 5, in test_a\n    a, b = (1, 2, 3)\nValueError: too many values to unpack (expected 2)'}))
+            # CORE-02: an unpacking error in the test body can be the candidate's wrong return shape; it is a disagreement, never a test defect
+            self.assertTrue(oracle_disagreement({"outcome": "ERROR", "failure_tail": 'File "/tmp/sealed/test_sealed.py", line 5, in test_a\n    a, b = (1, 2, 3)\nValueError: too many values to unpack (expected 2)'}))
             self.assertFalse(oracle_disagreement({"outcome": "TIMEOUT", "timed_out": True}))
             self.assertEqual(decision["evidence"]["ref"], "E6")
             self.assertTrue(check_bundle(run_dir)["ok"], [c for c in check_bundle(run_dir)["checks"] if c["ok"] is False])
@@ -425,8 +440,8 @@ class NewBundlesCheckAndRender(unittest.TestCase):
         checked = failed = 0
         for manifest in sorted(ROOT.glob("reports/*/**/manifest.json"))[:40]:
             run_dir = manifest.parent
-            if not (run_dir / "proof_bundle.json").is_file():
-                continue
+            if not (run_dir / "proof_bundle.json").is_file() or any(part.startswith("attest-audit-") for part in run_dir.parts):
+                continue  # the audit's own synthetic bundles are deliberately defective and must fail
             report = check_bundle(run_dir)
             checked += 1
             if not report["ok"]:

@@ -1,0 +1,64 @@
+=== scenario 8b: legacy-rollback
+=== command: bash rollback.sh
+=== expected exit code: 0
+=== state before:
+active: 9.0.2-rehearsal-d1fc91722826
+previous: legacy-9.0.1-rehearsal-ccf5e0966f75
+service: active
+health: 9.0.2-rehearsal worker_alive=True
+releases: 9.0.2-rehearsal-d1fc91722826 legacy-9.0.0-rehearsal-e32762405a8b legacy-9.0.1-rehearsal-ccf5e0966f75 
+vhost files: attest.axiqo.xyz.conf 
+unit files: attest.service 
+
+=== output:
+== rollback.sh 20261019T075434Z: root <rehearsal-root>/fake-host-legacy/opt/attest, unit attest.service (nginx is never touched by this script)
+
+[01] current state
+     ok: release layout: <rehearsal-root>/fake-host-legacy/opt/attest/app -> <rehearsal-root>/fake-host-legacy/opt/attest/releases/9.0.2-rehearsal-d1fc91722826
+     ok: previous: <rehearsal-root>/fake-host-legacy/opt/attest/releases/legacy-9.0.1-rehearsal-ccf5e0966f75
+
+[02] verify the selected release
+     ok: selected: <rehearsal-root>/fake-host-legacy/opt/attest/releases/legacy-9.0.1-rehearsal-ccf5e0966f75 (interpreter <rehearsal-root>/fake-host-legacy/opt/attest/releases/legacy-9.0.1-rehearsal-ccf5e0966f75/venv/bin/python)
+     ok: recorded in INSTALLED.json: version 9.0.1-rehearsal, package digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8
+     ok: import attest, attest.core.provenance with <rehearsal-root>/fake-host-legacy/opt/attest/releases/legacy-9.0.1-rehearsal-ccf5e0966f75/venv/bin/python: version 9.0.1-rehearsal, attest_revision() digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8 (35 files) equal to the recorded values
+     ok: import fastapi uvicorn jsonschema certifi
+
+[03] store compatibility
+     database: <rehearsal-root>/fake-host-legacy/var/lib/attest/attest.db (not modified by the rollback; the service migrates forward only: CREATE TABLE/INDEX IF NOT EXISTS, ALTER TABLE ... ADD COLUMN)
+     an older release keeps working with a newer schema only if it tolerates extra columns: verified for 0.4.0 (attest/app/db.py uses sqlite3.Row, SELECT *, dict(row) and INSERTs by column name); re-check this assumption for 9.0.1-rehearsal against the schema of the release it replaces
+     no attest.db.bak-* backup found in <rehearsal-root>/fake-host-legacy/var/lib/attest
+
+[04] select legacy-9.0.1-rehearsal-ccf5e0966f75
+     ok: <rehearsal-root>/fake-host-legacy/opt/attest/app -> <rehearsal-root>/fake-host-legacy/opt/attest/releases/legacy-9.0.1-rehearsal-ccf5e0966f75 (atomic); <rehearsal-root>/fake-host-legacy/opt/attest/app.prev -> <rehearsal-root>/fake-host-legacy/opt/attest/releases/9.0.2-rehearsal-d1fc91722826
+
+[05] restart only attest.service
+     ok: restarted (nginx and every other service untouched)
+
+[06] health (strict: HTTP 200, JSON, version 9.0.1-rehearsal, worker alive; deadline 15s) at http://127.0.0.1:56963/api/health
+     health: HTTP 200, version 9.0.1-rehearsal, worker alive, queue 0, free 1000 MB
+
+[07] read back the active release through <rehearsal-root>/fake-host-legacy/opt/attest/app
+     ok: <rehearsal-root>/fake-host-legacy/opt/attest/app/venv/bin/python reports version 9.0.1-rehearsal, attest_revision() digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8 (35 files) equal to the recorded digest
+     no RELEASE.json in this release (legacy tree): entries not verifiable, digest only
+
+rollback complete: legacy-9.0.1-rehearsal-ccf5e0966f75 active at <rehearsal-root>/fake-host-legacy/opt/attest/app (version 9.0.1-rehearsal, package digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8); nginx untouched
+     previous is now: 9.0.2-rehearsal-d1fc91722826 (bash rollback.sh again rolls forward to it)
+
+=== exit code: 0 (expected 0)
+=== state after:
+active: legacy-9.0.1-rehearsal-ccf5e0966f75
+previous: 9.0.2-rehearsal-d1fc91722826
+service: active
+health: 9.0.1-rehearsal worker_alive=True
+releases: 9.0.2-rehearsal-d1fc91722826 legacy-9.0.0-rehearsal-e32762405a8b legacy-9.0.1-rehearsal-ccf5e0966f75 
+vhost files: attest.axiqo.xyz.conf 
+unit files: attest.service 
+
+=== checks:
+  PASS  exit code: 0
+  PASS  active release: legacy-9.0.1-rehearsal-ccf5e0966f75
+  PASS  served health: 9.0.1-rehearsal worker_alive=True
+  PASS  recorded digest from INSTALLED.json (log contains 'recorded in INSTALLED.json'): yes
+  PASS  digest readback (log contains 'attest_revision() digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8'): yes
+  PASS  no RELEASE.json note (log contains 'legacy tree'): yes
+=== verdict: PASS

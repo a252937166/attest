@@ -187,7 +187,7 @@ class SandboxTransport(unittest.TestCase):
             proc = subprocess.run([sys.executable, "-c", GUEST_RUNNER], input=base64.b64decode(encoded), capture_output=True, timeout=60)
             out = proc.stdout.decode()
             report = json.loads(out[out.index(MARK_BEGIN) + len(MARK_BEGIN):out.rindex(MARK_END)])
-            self.assertEqual(report["runner"], "attest-guest/2")
+            self.assertEqual(report["runner"], "attest-guest/3")
             self.assertEqual(report["steps"][0]["stdout"], "hello")
             # the uncompressed encodings still work: plain JSON (what the API delivered before 17 Oct) and base64 text
             for stdin in (json.dumps(job).encode(), base64.b64encode(json.dumps(job).encode()), encoded.encode()):

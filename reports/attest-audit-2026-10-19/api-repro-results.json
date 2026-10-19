@@ -1,0 +1,91 @@
+{
+  "scope": "offline synthetic data only",
+  "network": "blocked",
+  "checks": {
+    "public_team_enqueue_guard": {
+      "status": 403,
+      "passed": true
+    },
+    "input_validation_controls": {
+      "unknown_provider": 400,
+      "task_path_traversal": 404,
+      "non_string_task_id": 422,
+      "passed": true
+    },
+    "dead_worker_admission": {
+      "worker_alive": false,
+      "enqueue_status": 200,
+      "queued_row_created": true,
+      "confirmed": true,
+      "setup": "worker loop disabled, so no consumer or paid work exists"
+    },
+    "team_read_routes_without_token": {
+      "http_statuses": {
+        "/api/runs": 200,
+        "/api/runs/TEAM_RUN": 200,
+        "/api/runs/TEAM_RUN/events": 200,
+        "/api/runs/TEAM_RUN/artifacts/candidate.patch": 200,
+        "/api/runs/TEAM_RUN/bundle.zip": 200
+      },
+      "confirmed": true
+    },
+    "unnecessary_public_metadata": {
+      "requester": "198.51.100.10",
+      "out_dir_returned": true,
+      "task_path_returned": true,
+      "confirmed": true
+    },
+    "forwarded_for_rotation": {
+      "same_connection_original_header": 429,
+      "same_connection_rotated_first_item": 200,
+      "confirmed": true
+    },
+    "rate_check_insert_race": {
+      "configured_limit": 3,
+      "simultaneous_requests": 4,
+      "statuses": [
+        200,
+        200,
+        200,
+        200
+      ],
+      "admitted_rows": 4,
+      "scheduling_barrier": "enqueue entry, after count_recent; count_recent calls serialized only to isolate a separate runtime-specific shared-cursor defect",
+      "confirmed": true
+    },
+    "archive_and_symlink_boundary": {
+      "non_allowlisted_direct_status": 404,
+      "non_allowlisted_in_zip": true,
+      "symlink_target_outside_run_returned": true,
+      "precondition": "a local/imported run directory contains a non-public file or symlink; no remote file-creation primitive demonstrated",
+      "confirmed": true
+    },
+    "zip_silent_artifact_omission": {
+      "response_status": 200,
+      "source_manifest_ok": true,
+      "artifact_bytes": 5000000,
+      "downloaded_missing": [
+        "verify_raw.json"
+      ],
+      "confirmed": true
+    },
+    "raw_error_detail_public": {
+      "stored_traceback_returned_verbatim": true,
+      "unhandled_http_status": 500,
+      "raw_exception_detail_returned": true,
+      "confirmed": true
+    },
+    "partial_bundle_detail_failure": {
+      "response_status": 500,
+      "exception_type": "JSONDecodeError",
+      "confirmed": true,
+      "precondition": "partial or corrupt proof_bundle.json; normal writer uses write_text rather than atomic replace"
+    },
+    "error_directories_escape_retention": {
+      "keep": 0,
+      "pruned_finished": true,
+      "error_directory_still_present": true,
+      "confirmed": true
+    }
+  }
+}

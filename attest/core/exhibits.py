@@ -266,7 +266,8 @@ def exhibits(bundle: dict) -> list[dict]:
         reruns = [{"module": m.get("module"), "candidate": (m.get("candidate_rerun") or {}).get("summary_line"),
                    "base": (m.get("base_rerun") or {}).get("summary_line"), "cleared": m.get("cleared_module"), "validated": m.get("validated"),
                    "discrimination": (m.get("corrected") or {}).get("discrimination"), "changed_tests": (m.get("corrected") or {}).get("changed_tests"),
-                   "mutant_reruns": len(m.get("mutant_reruns") or []), "sealed_assertion_hold": m.get("sealed_assertion_hold"), "error": m.get("error")}
+                   "mutant_reruns": len(m.get("mutant_reruns") or []), "sealed_assertion_hold": m.get("sealed_assertion_hold"), "error": m.get("error"),
+                   "base_untrusted": (m.get("base_rerun") or {}).get("untrusted"), "classification_ids_ok": m.get("classification_ids_ok")}
                   for m in arbitration.get("modules") or []]
         applied = arbitration.get("applied_to_gates") or []
         items.append({"ref": "E6", "title": EXHIBIT_TITLE["E6"], "gate": None, "status": "informative", "shown": True,
@@ -479,7 +480,8 @@ def decision(bundle: dict) -> dict:
             module = next((m for m in arbitration.get("modules") or [] if m.get("module") == "sealed"), {})
             validated = bool(module.get("cleared_module"))
             explanation = (f"{n} of the {e1['detail']['count']} sealed acceptance tests fail on the candidate because the candidate's behaviour contradicts "
-                           "the test written before the patch (an assertion failed, or the code under test raised). The arbiter classified the failing test(s) as defective"
+                           "the test written before the patch (an assertion failed or an exception was raised; neither the exception's type nor its frame "
+                           "tells the test from the candidate). The arbiter classified the failing test(s) as defective"
                            + (" and its corrected tests pass on the candidate and still fail on the unmodified base" if validated else "")
                            + ". A sealed test is the pre-registered acceptance criterion, so Attest never overrides it on a model's judgement: the hold "
                            "stands and the arbiter's view, the original test and the corrected test are all recorded for you (E6).")

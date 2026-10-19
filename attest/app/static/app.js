@@ -65,10 +65,20 @@
   const restoreFocus = (id) => { if (!id) return; const el = document.querySelector(`[data-focus="${id}"]`); if (el && el !== document.activeElement) el.focus({ preventScroll: true }); };
   const scrollTo = (el, block) => { if (el) el.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: block || "start" }); };
 
-  async function api(path, opts) {
-    const res = await fetch(path, opts);
+  // The team token lives in memory only. Once it has been accepted it is sent on every read, because team runs are hidden
+  // from callers without it; downloads (plain links) carry it as a query parameter.
+  const authHeaders = () => (state.token && state.team ? { "X-Attest-Token": state.token } : {});
+  const tokenQuery = () => (state.token && state.team ? `?token=${encodeURIComponent(state.token)}` : "");
+  const artUrl = (runId, name) => `/api/runs/${encodeURIComponent(runId)}/artifacts/${name}${tokenQuery()}`;
+  const zipUrl = (runId) => `/api/runs/${encodeURIComponent(runId)}/bundle.zip${tokenQuery()}`;
+  async function api(path, opts = {}) {
+    const res = await fetch(path, Object.assign({}, opts, { headers: Object.assign({}, authHeaders(), opts.headers || {}) }));
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.detail || body.error || res.statusText);
+    if (!res.ok) {
+      const err = new Error(typeof body.detail === "string" ? body.detail : body.error || res.statusText);
+      err.status = res.status; err.code = body.error || null; err.retryAfter = body.retry_after_s || null;
+      throw err;
+    }
     return body;
   }
 
@@ -116,9 +126,9 @@
     const h = state.health;
     const dot = $("#chip-service-dot"), text = $("#chip-service-text");
     if (!h) { text.textContent = "Service unreachable"; dot.className = "dot idle"; $("#chip-budget-text").textContent = "unknown"; $("#chip-runs-text").textContent = "unknown"; return; }
-    const busy = !!h.current || h.queue > 0;
+    const busy = !!h.busy || !!h.current || h.queue > 0;  // `busy` covers a run the caller may not see
     dot.className = "dot " + (busy ? "live" : "idle");
-    text.textContent = busy ? `${h.current ? "Live run in progress" : "Live run queued"}${h.queue ? `, ${h.queue} queued` : ""}` : "Service idle, recorded evidence";
+    text.textContent = busy ? `${h.current || h.busy ? "Live run in progress" : "Live run queued"}${h.queue ? `, ${h.queue} queued` : ""}` : "Service idle, recorded evidence";
     $("#chip-service").title = busy && h.current ? `Running ${h.current}` : "";
     const b = h.budget || {};
     $("#chip-budget-text").textContent = b.remaining_usd != null ? `$${Number(b.remaining_usd).toFixed(2)} of $${Number(b.daily_cap_usd).toFixed(2)} left today` : "unknown";
@@ -292,7 +302,7 @@
     const count = (v) => done.filter((r) => rowVerdict(r) === v).length;
     const other = done.length - count("VERIFIED") - count("NEEDS HUMAN");
     const h = state.health;
-    const busy = !!(h && (h.current || h.queue > 0));
+    const busy = !!(h && (h.busy || h.current || h.queue > 0));
     const ticker = $("#ticker");
     const num = (n, cls) => `<strong class="${cls || ""}" data-n="${n}">${n}</strong>`;
     const stat = (inner) => `<span class="stat">${inner}</span>`;
@@ -352,17 +362,16 @@
   }
 
   function actionsHtml(run, detail) {
-    const id = encodeURIComponent(run.run_id);
-    const has = !!run.out_dir && !!(detail && detail.bundle);
-    const art = (name) => `/api/runs/${id}/artifacts/${name}`;
+    const has = !!run.has_artifacts && !!(detail && detail.bundle);
+    const art = (name) => artUrl(run.run_id, name);
     const verdict = detail?.bundle?.verdict?.verdict || (run.status === "error" ? "ERROR" : null);
     if (verdict === "ERROR") {
-      return `${has ? `<a class="btn" href="/api/runs/${id}/bundle.zip">Download run record</a>` : `<span class="btn" aria-disabled="true" title="No run record was written">Download run record</span>`}
+      return `${has ? `<a class="btn" href="${zipUrl(run.run_id)}">Download run record</a>` : `<span class="btn" aria-disabled="true" title="No run record was written">Download run record</span>`}
         ${has ? `<a class="btn secondary" href="${art("PROOF.md")}" target="_blank" rel="noopener">Open PROOF.md</a>` : ""}
         <button type="button" class="btn secondary" data-new-run="${esc(run.task_id)}" data-focus="act-new">Start a new run</button>`;
     }
-    return `<a class="btn primary" href="/api/runs/${id}/bundle.zip">Download Proof Bundle</a>
-      ${detail?.bundle?.candidate?.diff ? `<button type="button" class="btn secondary" data-copy-patch="${esc(run.run_id)}" data-focus="act-copy">Copy patch</button>` : ""}
+    return `<a class="btn primary" href="${zipUrl(run.run_id)}">Download Proof Bundle</a>
+      ${detail?.bundle?.candidate?.diff ? `<button type="button" class="btn secondary" data-copy-patch="${esc(run.run_id)}" data-patch-url="${esc(art("candidate.patch"))}" data-focus="act-copy">Copy patch</button>` : ""}
       <a class="btn secondary" href="${art("PROOF.md")}" target="_blank" rel="noopener">Open PROOF.md</a>`;
   }
 
@@ -453,7 +462,7 @@
       <dt>Digests</dt><dd>${Object.entries(cand.sha256 || {}).map(([p, h]) => `<span class="mono">${esc(p)} ${esc(h.slice(0, 12))}</span>`).join("; ") || "none"}</dd>
       <dt>Implementer</dt><dd>${(b.trajectory || {}).turns || 0} turn(s), ${cand.implementer_finished === false ? "did not declare finished" : "declared finished"}</dd></dl>
       <pre class="code diff" tabindex="0" aria-label="Unified diff" data-focus="diff">${diffHtml(cand.diff)}</pre>
-      <p class="note">The diff is reviewed as text here; the verdict never depends on reading it. <a href="/api/runs/${encodeURIComponent(d.run.run_id)}/artifacts/candidate.patch">Download candidate.patch</a> to apply it locally.</p></div>`;
+      <p class="note">The diff is reviewed as text here; the verdict never depends on reading it. <a href="${artUrl(d.run.run_id, "candidate.patch")}">Download candidate.patch</a> to apply it locally.</p></div>`;
   }
 
   function counterBlock(c) {
@@ -499,7 +508,7 @@
       ${advTests.length ? `<div class="tablewrap"><table><thead><tr><th>Test</th><th>Result</th></tr></thead><tbody>${advTests.map((t) => `<tr><td class="mono">${esc(short(t.id))}</td><td class="${t.outcome === "ok" ? "ok" : "fail"}">${t.outcome === "ok" ? "passes" : "fails (" + esc(t.outcome) + ")"}</td></tr>`).join("")}</tbody></table></div>` : ""}
       ${cx.filter((c) => c.exhibit === "E3").map((c) => `<h4>Counterexample: ${esc(c.name)}</h4>${counterBlock(c)}`).join("")}
       ${d3.notes ? `<p class="note">Breaker notes: ${esc(d3.notes)}</p>` : ""}
-      ${advTests.length ? `<p class="note"><a href="/api/runs/${encodeURIComponent(d.run.run_id)}/artifacts/breaker_tests.py">Source of the generated test module</a></p>` : ""}</section>`;
+      ${advTests.length ? `<p class="note"><a href="${artUrl(d.run.run_id, "breaker_tests.py")}">Source of the generated test module</a></p>` : ""}</section>`;
     const e4 = E.E4, d4 = e4.detail;
     html += `<section class="exhibit" aria-labelledby="e4-h"><header><span class="exref">E4</span><h3 id="e4-h">${esc(e4.title)}</h3><span class="sum">${mark(e4.status)} ${esc(e4.summary)}</span></header>
       <p class="why">${esc(e4.why)}${e4.status === "none" ? " This task has none; the controlled evaluation judged it with an independent suite outside the run." : ""}</p>
@@ -561,10 +570,9 @@
     const files = m.files || [];
     const mutants = files.filter((f) => /^mutants_/.test(f.path) || /^mutants\//.test(f.path));
     const rest = files.filter((f) => !mutants.includes(f));
-    const id = encodeURIComponent(d.run.run_id);
     return `<div class="block"><h3>Proof Bundle</h3>
       <p>Everything below is in the downloadable zip. ${m.recorded ? `A manifest written at the end of the run lists the sha256 of every file; <span class="mono">attest check</span> recomputes them offline. The digests are an integrity check of the files, not a signature and not proof that the sandbox operations happened; that evidence is in the operation ids and the nonce-bound test records.` : `This run predates the artifact manifest, so the digests below were computed when this page loaded, not recorded with the run.`}</p>
-      <p><a class="btn primary" href="/api/runs/${id}/bundle.zip">Download everything (zip)</a></p>
+      <p><a class="btn primary" href="${zipUrl(d.run.run_id)}">Download everything (zip)</a></p>
       <ul class="files">${rest.map((f) => `<li><span class="n">${esc(f.path)}</span><span class="p">${esc(f.purpose || "")}</span><span class="s">${kb(f.bytes)}</span><span class="d">sha256 ${esc(f.sha256 || "")}</span></li>`).join("")}
       ${mutants.length ? `<li><span class="n">mutants (${mutants.length} files)</span><span class="p">Source of each mutant used in E2</span><span class="s">${kb(mutants.reduce((a, f) => a + (f.bytes || 0), 0))}</span></li>` : ""}</ul>
       <h3 style="margin-top:24px">What this bundle proves, and what it does not</h3>
@@ -579,7 +587,7 @@
     window.attestDebug.renders++;
     const f = focusId();
     if (!b) {  // a run that errored before any bundle was written (queue full, budget, disk, interrupted)
-      const reason = run.error || "no record was written";
+      const reason = run.error_public || "no record was written";
       main().innerHTML = caseBar(run) + decisionHeader("ERROR", "This run did not complete.", `${reason}. Nothing was certified and no Proof Bundle exists for this run.`,
         { ref: "E7", text: `Failed at stage ${run.stage || "unknown"}; not retried.` }, provenanceLine(run, d), actionsHtml(run, d))
         + tabsHtml({ patch: "No patch exists", tests: "No verification ran", files: "No bundle was written" })
@@ -608,7 +616,7 @@
       panel.innerHTML = livePanelHtml(d);
     } else if (!d.bundle) {
       panel.innerHTML = state.tab === "activity" ? `<div class="block"><h3>Timeline</h3>${stepperHtml(reachedIndex(null, d.events), false)}<ul class="log" aria-label="Event log">${(d.events || []).map(logRow).join("") || `<li class="empty-row">No events were recorded.</li>`}</ul></div>`
-        : `<div class="block"><h3>What happened</h3><p>${esc(d.run.error || "The run ended without a record.")}</p><p class="note">Component failures are recorded as ERROR; the task itself was not judged.</p></div>`;
+        : `<div class="block"><h3>What happened</h3><p>${esc(d.run.error_public || "The run ended without a record.")}</p><p class="note">Component failures are recorded as ERROR; the task itself was not judged. The reference identifies the server-side record.</p></div>`;
     } else {
       panel.innerHTML = (PANELS[state.tab] || overviewPanel)(d);
     }
@@ -622,7 +630,7 @@
     const prov = (run.summary || {}).provenance;
     if (status === "queued") {
       const ahead = state.live.queueAhead;
-      return { seal: "QUEUED", statement: ahead ? `Queued behind ${ahead} run${ahead === 1 ? "" : "s"}.` : "Queued, starting next.",
+      return { seal: "QUEUED", statement: ahead == null ? "Queued." : ahead ? `Queued behind ${ahead} run${ahead === 1 ? "" : "s"}.` : "Queued, starting next.",
         explanation: `Attest runs one task at a time so that every run gets the full sandbox budget. This run starts when the current one finishes. Task: ${title}.`,
         evidence: { ref: "Hold", text: `${run.provider === "nebius" ? `${usd(((state.health || {}).budget || {}).per_run_cap_usd)} reserved against today's cap while queued; released or replaced by the real cost when the run ends.` : "Team allowance; no Nebius charge is reserved."}` } };
     }
@@ -667,8 +675,9 @@
     const run = state.detail.run;
     (body.events || []).forEach((e) => { if (e.seq > state.live.lastSeq) { state.live.events.push(e); state.live.lastSeq = e.seq; } });
     state.live.meters = body.meters || state.live.meters;
-    // runs ahead of a queued run: the others waiting in the worker queue plus the one being executed
-    state.live.queueAhead = Math.max(0, (body.queue || 0) - 1) + (body.current && body.current !== run.run_id ? 1 : 0);
+    // runs ahead of this run as reported by the worker's ordered queue (0 while it executes); never inferred from the queue size,
+    // which would count the runs queued after it
+    state.live.queueAhead = Number.isInteger(body.position) ? body.position : null;
     const statusChanged = body.status !== state.live.status;
     state.live.status = body.status;
     state.live.stage = body.stage;
@@ -701,14 +710,46 @@
       stopLive();
       state.live.status = null;
       await loadRuns();
-      const detail = await api(`/api/runs/${encodeURIComponent(id)}`).catch(() => null);
-      if (detail && state.runId === id) { state.detail = detail; renderFinished(detail); }
+      await finishLive(id);
       loadHealth();
       return;
     }
     applyLiveUpdate(body);
     const row = state.runs.find((r) => r.run_id === id);
     if (row && (row.status !== body.status || row.stage !== body.stage)) loadRuns();
+  }
+  // The terminal event has arrived but the record may not be readable yet (the bundle is still being written, or one
+  // request failed). The final detail fetch is retried a bounded number of times with a visible "finishing" state; updates
+  // stop only once the terminal view is on screen or the viewer has been shown an explicit error with a Retry control.
+  const FINAL_ATTEMPTS = 5;
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  function finishingState(attempt, error) {
+    const seal = $("[data-k=seal]"), statement = $("[data-k=statement]"), explain = $("[data-k=explain]");
+    if (seal) { seal.textContent = "FINISHING"; seal.className = "seal big RUNNING"; }
+    if (statement) statement.textContent = `Finishing: loading the record, attempt ${attempt} of ${FINAL_ATTEMPTS}.`;
+    if (explain) explain.textContent = error && error.code === "bundle_incomplete" ? "The Proof Bundle is still being written; the page retries by itself." : "The record is not available yet; the page retries by itself.";
+  }
+  function finishFailed(id, error) {
+    const row = (state.runs || []).find((r) => r.run_id === id);
+    main().innerHTML = caseBar(row) + `<div class="empty"><h2>The run finished, but its record could not be loaded.</h2><p>${esc(error && error.message ? error.message : "The service did not answer.")}</p>
+      <p><button type="button" class="btn primary" data-retry-final="${esc(id)}" data-focus="act-retry">Retry</button> <a class="btn secondary" href="/" data-home>Back to the home page</a></p></div>`;
+  }
+  async function finishLive(id) {
+    for (let attempt = 1; attempt <= FINAL_ATTEMPTS; attempt++) {
+      if (state.runId !== id) return false;
+      let detail;
+      try { detail = await api(`/api/runs/${encodeURIComponent(id)}`); }
+      catch (e) {
+        finishingState(attempt, e);
+        if (attempt < FINAL_ATTEMPTS) { await sleep(Math.min(4000, e.retryAfter ? e.retryAfter * 1000 : 500 * Math.pow(2, attempt - 1))); continue; }
+        if (state.runId === id) finishFailed(id, e);
+        return false;
+      }
+      if (state.runId !== id) return false;
+      state.detail = detail; renderFinished(detail);
+      return true;
+    }
+    return false;
   }
 
   function loadingView(run) {
@@ -840,25 +881,31 @@
     try {
       const res = await api("/api/runs", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task_id: t.task_id, provider: state.profile || (state.profiles[0] || {}).id, admin_token: state.token || null }) });
-      note.textContent = `Queued as ${res.run_id} (position ${res.position}).`;
+      note.textContent = `Queued as ${res.run_id} (${res.position ? `${res.position} run${res.position === 1 ? "" : "s"} ahead` : "starting next"}).`;
       await loadRuns(); await openRun(res.run_id, false); loadHealth();
     } catch (e) { note.className = "note err"; note.textContent = "Could not start: " + e.message; }
     finally { go.disabled = false; renderEstimate(); }
   }
   async function signIn() {
     const token = $("#admin").value.trim(); const note = $("#signin-note");
+    const wasTeam = state.team;
     state.token = token;
     await loadProfiles(token || null);
-    note.textContent = state.team ? "Signed in: the team profile is available in the Inference profile list when you choose to run live." : (token ? "That token was not accepted; the public profile stays selected." : "Enter the team token to see the team profile.");
+    note.textContent = state.team ? "Signed in: the team profile is available in the Inference profile list when you choose to run live, and team runs are listed." : (token ? "That token was not accepted; the public profile stays selected." : "Enter the team token to see the team profile.");
     note.className = state.team || !token ? "note" : "note err";
+    if (state.team !== wasTeam) { await loadRuns(); loadTasks(); loadHealth(); }  // the history changes with what the caller may see
   }
-  async function copyPatch(btn, runId) {
-    try {
-      const res = await fetch(`/api/runs/${encodeURIComponent(runId)}/artifacts/candidate.patch`);
-      const text = await res.text();
-      await navigator.clipboard.writeText(text);
-      const old = btn.textContent; btn.textContent = "Copied"; setTimeout(() => { btn.textContent = old; }, 2000);
-    } catch (e) { location.href = `/api/runs/${encodeURIComponent(runId)}/artifacts/candidate.patch`; }
+  async function copyPatch(btn, runId, url) {
+    // the clipboard changes only after a successful response: an error document is never pasted as a patch
+    const patchUrl = url || `/api/runs/${encodeURIComponent(runId)}/artifacts/candidate.patch`;
+    const old = btn.textContent;
+    const show = (text, ms) => { btn.textContent = text; setTimeout(() => { btn.textContent = old; }, ms); };
+    let res;
+    try { res = await fetch(patchUrl); } catch (e) { show("Copy failed: no response", 3000); return; }
+    if (!res.ok) { show(`Copy failed (${res.status})`, 3000); return; }
+    const text = await res.text();
+    try { await navigator.clipboard.writeText(text); show("Copied", 2000); }
+    catch (e) { location.href = patchUrl; }
   }
   async function copyLink(btn) {
     try { await navigator.clipboard.writeText(location.href); const old = btn.textContent; btn.textContent = "Link copied"; setTimeout(() => { btn.textContent = old; }, 2000); }
@@ -877,7 +924,7 @@
   }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-run],[data-tab],[data-tab-link],[data-filter],[data-copy-patch],[data-copy-link],[data-new-run],[data-home],[data-section],[data-start],[data-guide-open],[data-open-verified]");
+    const t = e.target.closest("[data-run],[data-tab],[data-tab-link],[data-filter],[data-copy-patch],[data-copy-link],[data-new-run],[data-home],[data-section],[data-start],[data-guide-open],[data-open-verified],[data-retry-final]");
     if (!t) return;
     if (t.dataset.run) { openRun(t.dataset.run, false); }
     else if (t.hasAttribute("data-open-verified")) {  // the newest recorded VERIFIED run, else the newest finished run
@@ -887,7 +934,8 @@
     else if (t.dataset.tab) { if (t.disabled) return; state.tab = t.dataset.tab; setRoute(state.runId, true); renderPanel(); }
     else if (t.dataset.tabLink) { e.preventDefault(); state.tab = t.dataset.tabLink; setRoute(state.runId, true); renderPanel(); $(`#tab-${state.tab}`)?.focus(); }
     else if (t.dataset.filter) { state.filter = t.dataset.filter; renderFilters(); renderHistory(); $(`[data-focus="filter-${state.filter}"]`)?.focus(); }
-    else if (t.dataset.copyPatch) copyPatch(t, t.dataset.copyPatch);
+    else if (t.dataset.copyPatch) copyPatch(t, t.dataset.copyPatch, t.dataset.patchUrl);
+    else if (t.dataset.retryFinal) finishLive(t.dataset.retryFinal);
     else if (t.hasAttribute("data-copy-link")) copyLink(t);
     else if (t.dataset.newRun !== undefined) { state.mode = "live"; $("input[name=mode][value=live]").checked = true; if (state.tasks.some((x) => x.task_id === t.dataset.newRun)) { state.task = t.dataset.newRun; $("#task").value = state.task; } renderEstimate(); $("#rail-details").open = true; $("#go").focus(); }
     else if (t.hasAttribute("data-home")) { e.preventDefault(); showHome({}); }

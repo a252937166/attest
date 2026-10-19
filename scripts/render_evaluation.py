@@ -34,17 +34,24 @@ def render(report: dict) -> str:
         lines.append(f"| {r['scheduled_index']} | {r['task']} | {r['system']} | {r.get('attempt')} | {r.get('status')} | {r.get('verdict') or '-'} | {judge} | {r.get('confusion', '-')} | "
                      f"{r.get('model_calls') if r.get('model_calls') is not None else '-'} | {r.get('cost_committed_usd') if r.get('cost_committed_usd') is not None else '-'} | "
                      f"{str(r.get('wall_s')) + ' s' if r.get('wall_s') is not None else '-'} | {(r.get('revision_digest') or '-')[:8]} |")
-    lines += ["", "## Summary per system", "", "| System | Scheduled | Completed | True accept | False accept (shipped broken) | False reject (held correct) | True reject | No patch (unfinished) | Infra error | Not run | Needs human | USD committed | Mean wall |",
-              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    lines += ["", "## Summary per system", "", "| System | Scheduled | Completed | True accept | False accept (shipped broken) | False reject (held correct) | True reject | False refusal (INFEASIBLE on a satisfiable task) | No patch (unfinished) | Infra error | Not run | Needs human | USD committed | Mean wall |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for system, s in (report.get("summary") or {}).items():
         c = s["confusion"]
-        lines.append(f"| {system} | {s['scheduled']} | {s['completed']} | {c['true_accept']} | {c['false_accept']} | {c['false_reject']} | {c['true_reject']} | {c.get('no_patch', 0)} | {c['infra_error']} | {c['not_run']} | "
+        lines.append(f"| {system} | {s['scheduled']} | {s['completed']} | {c['true_accept']} | {c['false_accept']} | {c['false_reject']} | {c['true_reject']} | {c.get('false_refusal', 0)} | {c.get('no_patch', 0)} | {c['infra_error']} | {c['not_run']} | "
                      f"{s['needs_human']} | {s['total_cost_committed_usd']} | {s['mean_wall_s']} s |")
+    starting = report.get("starting_total") or {}
+    if starting:
+        lines += [f"Starting committed total of this process: ${starting.get('committed_usd')} = ${starting.get('completed_rows_usd')} from "
+                  f"{starting.get('completed_rows')} completed row(s) + ${starting.get('unowned_run_directories_usd')} from {starting.get('unowned_run_directories')} "
+                  f"run director(ies) no row owns (rebuilt from disk at {starting.get('rebuilt_at_utc')}).", ""]
     if report.get("interrupted"):
-        lines += ["", "## Interrupted run directories (ledger journals read back; the cell ran again)", "",
-                  "| Run directory | Calls | USD committed | Open reservations |", "| --- | --- | --- | --- |"]
+        lines += ["", "## Run directories no persisted row owns (each counted once in the batch total; the cell ran again)", "",
+                  "| Run directory | Kind | Record read | Calls | USD committed | Open reservations | In batch total |",
+                  "| --- | --- | --- | --- | --- | --- | --- |"]
         for item in report["interrupted"]:
-            lines.append(f"| {item.get('run_id')} | {item.get('model_calls')} | {item.get('cost_usd_committed')} | {item.get('open_reservations')} |")
+            lines.append(f"| {item.get('run_id')} | {item.get('kind') or 'interrupted'} | {item.get('source') or '-'} | {item.get('model_calls')} | "
+                         f"{item.get('cost_usd_committed')} | {item.get('open_reservations')} | {'yes' if item.get('included_in_batch_total', True) else 'no'} |")
     reasons = [(r["scheduled_index"], r["task"], r["system"], r.get("reasons") or []) for r in rows if r.get("status") == "completed" and r.get("verdict") not in ("VERIFIED", "BASELINE")]
     if reasons:
         lines += ["", "## Reasons recorded for every non-accepted cell", ""]
@@ -54,7 +61,8 @@ def render(report: dict) -> str:
     if pacing:
         lines += ["", f"Pacing: {pacing.get('policy_source')}; rejections {pacing.get('rejections_seen')}; waits {len(pacing.get('waits') or [])}."]
     lines += ["", "Ground truth: the independent held-out suite of each task (for a task marked `unsatisfiable`, no patch counts as correct and a hold is the right outcome). "
-              "`no_patch` marks a cell that produced no patch at all (an unfinished task, neither a rejection nor an acceptance). "
+              "`no_patch` marks a cell that produced no patch at all (an unfinished task, neither a rejection nor an acceptance); `false_refusal` marks an "
+              "INFEASIBLE verdict on a task whose held-out suite is satisfiable (a wrong refusal). "
               "Infrastructure errors and not-run cells stay in the table; nothing was merged or selected."]
     return "\n".join(lines) + "\n"
 

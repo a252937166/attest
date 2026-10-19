@@ -103,12 +103,80 @@ python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-
     --out reports/attest-evaluation-2026-10-XX-nebius-r4
 ```
 
+This revision-4 pin was superseded the same day by revision 5 (next section) before any paid run; it is kept as history,
+including the inconsistency the audit noted (its command said 20 calls per run while its proposal said 22).
+
+# Repaired version (revision 5, 19 Oct 2026): the version proposed for the next paid validation
+
+Revision 5 repairs the 35 findings of the independent audit of revision 4 (`reports/attest-audit-2026-10-19/README.md`;
+repairs and acceptance evidence in `reports/attest-audit-repairs-2026-10-19/README.md`). The M5 pin at the top of this file is
+history and stays as it is; the revision-4 pin above was never run on Nemotron. No paid Nebius call runs before the owner
+approves the proposal at the end of this file.
+
+## What changed in the method (revision 4 to revision 5)
+
+| Stage | Revision 4 | Revision 5 |
+| --- | --- | --- |
+| Evidence protocol | none; `attest check` ran whatever checks the records allowed | every bundle declares `evidence_protocol.version 2`; a current bundle must carry the complete evidence for its verdict (every gate with raw results, every evaluated mutant's raw result, base and mutant evidence of corrections, the executed witness of INFEASIBLE, isolation recorded active, complete manifest) or the check fails; older bundles are historical and never `EVIDENCE COMPLETE` |
+| Mutation | a mutant was killed by any non-ok outcome, including an incomplete or forged run | killed only by an authentic child failure (exit 1, FAIL/ERROR report bound to the nonce) under a structurally sound run; incomplete, non-isolated, forged, crashed or timed-out runs are unknown; policy recorded; `attest check` reclassifies every mutant |
+| Correction discrimination | any non-ok outcome on the base or a mutant counted, a lost result counted as red | only authentic red results under structurally sound base and mutant re-runs count; lost or forged evidence leaves the correction unvalidated; untrusted original failures are never arbitrated; raw results kept and recomputed offline |
+| Sealed oracle | a sealed ERROR whose innermost frame was in the test file, of an allowlisted exception type, could be corrected | a sealed test that failed by assertion or by any exception is never overridden; only a test the supervisor killed at its timeout may be corrected |
+| Correction scope | only the failing methods' AST compared; imports ignored; classification ids unchecked | whole-module AST compared with the failing bodies placeholdered (class bases, decorators, signatures, helpers, setUp, module code must be identical); additive non-colliding imports only; exactly one classification per failing test id |
+| Supervisor | v6: the direct child was killed at the timeout; pipe draining unbounded | v7: one session and process group per test child; the group is killed, cleanup bounded (5 s grace), escaped descendants swept through `/proc`, cleanup recorded; `supervisor_cleanup_complete` is a binding check |
+| Manifest | v1: unlisted files a warning; the badge followed the digests | v2: complete listing, unique contained paths, correct count and total, no symbolic links; `manifest_verified` needs digests and completeness |
+| Contract audit | marker line plus exit code 3 | plus: the conflict must name existing acceptance criteria (otherwise the witness is not executed) and the marker line must name a claimed one |
+| Accounting | journal best effort; a 200 without usage settled as known $0; resume could drop a recovered reservation or change the provider | reservation durably journaled before dispatch (failure stops dispatch); missing usage keeps the reservation and halts paid calls; resume restores the registered configuration and recovers every interrupted or unreported run's spend once; the console preserves committed cost on import and counts a run against every UTC day it touched |
+| Console | see the audit | trusted-proxy identity, atomic admission, materialised reads, public response models, complete or refused downloads with containment, bounded retention of failed runs, no admission without a worker, sanitized errors, authoritative queue positions, team runs private |
+| Host and release | see the audit | literal search with a bounded `re:` mode, snapshots never follow links, streaming archive limits, bounded guest output, strict export allowlist with fail-closed scan, no overlapping export destination, real version rollback, transactional installer, release manifest |
+
+Per-run call cap: the revision-4 proposal said 22 while its command said 20; revision 5 uses **22** everywhere (the harness
+default for the Nebius provider, the schedule, the command below and the proposal), because the contract audit adds one call
+and the escalated breaker attempt may add another.
+
+## The pin (revision 5)
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `REVISION5_COMMIT` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 35 files) | `1e12d46217fb6b8a27a08b4463f42f361e7309257b211103c08777c91cb10ce5` |
+| Harness `scripts/run_evaluation.py` sha256 | `2aa28413a1ccfe425c400a085a18e3e3625aa11f7170b3f655de7bab53e8816c` (the two development-gateway batches below ran `6e77617bcc8a66cc…`, which differs only in the confusion labels: it had no `false_refusal` label for an INFEASIBLE verdict on a satisfiable task; execution, budget and resume logic are identical) |
+| `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` in the working tree and the exported tree (the python-semver `docs/make.bat` keeps CRLF line endings there; a clean git clone normalises it and computes `e95a28aa363366160062107128950e9ff4c1888d52dccfdf578299e14e341b78`, the M5 value; no task, repository source or held-out suite differs) |
+| Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
+| Method `METHOD.md` sha256 | `ec415afcf1649040a219968d49a469553058d8299a1dfd3ad557bafe71c138dc` (unchanged: the frozen M5 method; its 20-call cap is historical, the revision-5 schedule uses 22) |
+| Guest programs | supervisor `attest-sealed-supervisor/7` `97d3d47d1d5b4fed…`; per-test child `e4e7b0b294a2004c…` (unchanged); canary `9cdc57c1348fae5c…` (unchanged); sandbox runner `attest-guest/3` `db8e2a76834b83ac…` |
+| Evidence protocol | version 2 (`attest.core.verdict.EVIDENCE_PROTOCOL_VERSION`); manifest version 2 |
+| Models and sampling (Nebius Token Factory) | unchanged from the M5 pin (spec, audit, arbitrate: Nemotron 3 Ultra; seal, implement, break: Nemotron 3 Super; summary: Nemotron 3.5 Lightning; temperature 0.2, max_tokens 16000, `reasoning_effort` low for seal, break and summary, medium for implement, model default for the Ultra roles; one low-effort retry of a length runaway) |
+| Limits | M5 limits plus revision 4's (`max_corrected_tests 3`, `max_mutants_for_discrimination 3`, `max_breaker_attempts 3`, `max_witnesses 3`, `witness_timeout_s 60`); supervisor cleanup grace 5 s; per-run call cap **22**; a successful answer without usage halts the run's paid calls; a reservation that cannot be journaled is never dispatched |
+| Offline suite | 314 tests (`reports/attest-audit-repairs-2026-10-19/offline-suite.log`) |
+
+Development-gateway reliability batches of this revision (Attest only, one attempt per task, no paid call):
+`reports/attest-audit-repairs-2026-10-19/evaluation-codex/` (5 cells; package digest `722cd6dd1a217c6d…`, which differs from
+the pinned digest only in the human-readable result line of `attest check`: `format_report` now reads `OK, EVIDENCE COMPLETE
+for verdict ...` instead of `FULLY VERIFIED`, so that an ERROR bundle with complete evidence is not misread) and
+`evaluation-codex-2/` (2 cells; the pinned digest). Outcomes: `durationkit-units-001` VERIFIED, `semver-long-prerelease-pr488`
+VERIFIED (held-out 450 passed), `balanced-brackets` VERIFIED (after a gateway capacity error in the first batch),
+`rle-encode` INFEASIBLE on an executed witness (the unsatisfiable task), `kvparse-refactor-001` INFEASIBLE on an executed
+witness after a gateway capacity error in the first batch: a wrong refusal of a satisfiable task, the specification's own
+restatement being contradictory (`evaluation-codex-2/CORRECTIONS.md`). All seven bundles pass `attest check` with complete
+evidence under protocol 2; the mutation runs recorded no unknown mutant; no arbitration correction was needed in these runs,
+so the correction path is covered by the offline acceptance tests only.
+
+## The exact command (revision 5)
+
+```bash
+git clone <repository> attest-eval && cd attest-eval && git checkout <revision-5 commit from the pin above>
+export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
+python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
+    --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r5-final \
+    --out reports/attest-evaluation-2026-10-XX-nebius-r5
+```
+
 ## Proposed paid work (awaiting the owner's approval; nothing runs before it)
 
 | Budget line | Purpose | Models | Expected | Maximum | Calls | Stop rules |
 | --- | --- | --- | --- | --- | --- | --- |
-| Smoke test | one Nemotron run of `durationkit-units-001` and one of `rle-encode` through the CLI from the pinned checkout, to see the contract audit and the arbitration path on Nemotron output before a batch | Ultra (spec, contract audit, drift, arbitrate), Super (seal, implement, break), Lightning (summary) | about $0.15 | $1.00 | at most 22 per run (the audit adds one) | the run's own cap |
-| Revised evaluation (32 cells, same suite, same method otherwise) | measure the revision against the M5 result: false accepts on rle-encode, false holds, the external task | as above | $3.00 to $4.00 (M5 cost $1.09 for 32 cells; the audit adds one Ultra call and up to three sandbox branches per Attest cell, the arbitration re-runs add branches on holds) | $9.00 (`--approve-usd`) | at most 22 per run | batch cap; 3 consecutive infrastructure errors; any transport-uncertain operation (never replayed) |
+| Smoke test | one Nemotron run of `durationkit-units-001` and one of `rle-encode` through the CLI from the revision-5 pinned checkout, to see the contract audit and the arbitration path on Nemotron output before a batch | Ultra (spec, contract audit, drift, arbitrate), Super (seal, implement, break), Lightning (summary) | about $0.15 | $1.00 | at most 22 per run | the run's own cap; a missing usage record halts the run's paid calls |
+| Revised evaluation (32 cells, same suite, same method otherwise) | measure revision 5 against the M5 result: false accepts on rle-encode, false holds, the external task | as above; concurrency 2 | $3.00 to $4.00 (M5 cost $1.09 for 32 cells; the audit adds one Ultra call and up to three sandbox branches per Attest cell, the arbitration re-runs add branches on holds) | $9.00 (`--approve-usd`) | at most 22 per run | batch cap; 3 consecutive infrastructure errors; any transport-uncertain operation (never replayed); a reservation that cannot be journaled stops dispatch |
 | Total | | | about $3.50 | **$10.00** | | |
 
 Credit: the last verified reading of the Token Factory billing page is $25.00 at 16:55 UTC on 17 Oct 2026; committed spend

@@ -42,6 +42,19 @@ pipe only after the child had exited, so a child whose report exceeded the pipe 
 roughly 1,000 subtests) blocked on its final write until the per-test timeout killed it, and a correct test was recorded
 as TIMEOUT. The 17 Oct dry run's `balanced-brackets` hold (`test_exhaustive_short_bracket_streams`, 9,331 subtests) was
 this defect, not an excessive workload: the same module runs in well under a second under v6.
+
+Supervisor v7 (19 Oct 2026, audit finding CORE-04): every test child starts in its own session and process group and
+carries a unique environment mark. On a timeout the supervisor kills the whole group, drains the child's pipes for a
+bounded grace period only (a descendant that inherited stdout/stderr can no longer stall the supervisor), closes them,
+reaps the child, kills any marked process that escaped the group (via /proc, where available) and records the cleanup in
+the per-test record; `cleanup_incomplete` at the top level counts the tests whose cleanup could not be completed, and the
+host binding refuses VERIFIED when it is nonzero.
+
+Evidence classes (CORE-01/03): `structural_problems` names the binding checks whose failure means the EVIDENCE cannot
+be trusted (lost or forged results, a changed module, a crash, lost isolation, an incomplete supervisor), as opposed to a
+test that merely failed; `outcome_class` labels every per-test record as green (exit 0 with an `ok` report), red (exit 1
+with a FAIL or ERROR report bound to the nonce), timeout (killed by the supervisor itself) or untrusted (anything else).
+Only an authentic red counts as a kill or as a corrected test's discrimination; untrusted and timeout records never do.
 """
 
 from __future__ import annotations
@@ -61,7 +74,8 @@ CANARY_FILE = "_attest_canary.py"
 CANARY_MODULE = "_attest_canary"
 CANARY_PASS_ID = f"{CANARY_MODULE}.Canary.test_must_pass"
 CANARY_FAIL_ID = f"{CANARY_MODULE}.Canary.test_must_fail"
-SUPERVISOR_VERSION = "attest-sealed-supervisor/6"  # v5: per-test failure_tail; v6: result pipe drained concurrently, bounded event log
+SUPERVISOR_VERSION = "attest-sealed-supervisor/7"  # v5: per-test failure_tail; v6: result pipe drained concurrently; v7: process-group kill, bounded cleanup
+CLEANUP_GRACE_S = 5.0  # seconds a killed test child's pipes may stay open before the supervisor closes them itself
 BAD_OUTCOMES = {"FAIL", "ERROR", "unexpected success", "TIMEOUT", "CRASH", "MISSING_RESULT", "FORGED", "INCOMPLETE", "MISMATCH"}
 
 CANARY_SRC = '''import unittest
@@ -152,10 +166,12 @@ sys.exit(0 if report["outcome"] == "ok" else 1)
 '''
 
 SUPERVISOR_SRC = r'''
-import ast, hashlib, json, os, subprocess, sys, threading, time
+import ast, hashlib, json, os, signal, subprocess, sys, threading, time
 result_path, nonce, job_path, per_test_timeout = sys.argv[1:5]
 per_test_timeout = float(per_test_timeout)
+CLEANUP_GRACE = __CLEANUP_GRACE__
 TEST_UID, TEST_GID = 65534, 65534
+MARK_VAR = "ATTEST_TEST_MARK"
 CANARY_PASS, CANARY_FAIL = "__CANARY_PASS__", "__CANARY_FAIL__"
 with open(job_path, "rb") as handle:
     job = json.loads(handle.read().decode("utf-8"))
@@ -230,7 +246,8 @@ report = {"supervisor": "__SUPERVISOR_VERSION__", "nonce": nonce, "completed": F
           "privilege_separation": separation, "operation_uid": os.getuid(), "test_uid": TEST_UID if separation else os.getuid(),
           "modules": [], "expected_ids": [], "sealed_sha256_before": None, "sealed_sha256_after": None, "discovery_error": None,
           "tests": [], "canaries": [], "canary_ok": None, "ran": 0, "python": sys.version.split()[0],
-          "startup_hooks_before": hooks_before, "startup_hooks_after": None, "import_path": import_roots}
+          "startup_hooks_before": hooks_before, "startup_hooks_after": None, "import_path": import_roots,
+          "cleanup_incomplete": 0, "procfs": os.path.isdir("/proc")}
 for m in modules:
     entry = {"name": m["name"], "path": m["path"], "sha256_before": digest(m["path"]), "sha256_after": None,
              "expected_ids": [], "discovery_error": None}
@@ -246,13 +263,38 @@ report["discovery_error"] = next((m["discovery_error"] for m in report["modules"
 env = dict(os.environ)
 env["PYTHONDONTWRITEBYTECODE"] = "1"
 child_kw = {"user": TEST_UID, "group": TEST_GID, "extra_groups": []} if separation else {}
-def run_child(test_id, import_module):
+def marked_processes(mark, kill):
+    # Processes still carrying this test's environment mark after the group kill: descendants that left the group
+    # (setsid) and so survived killpg. Only readable where /proc exists (the Linux guest); killed when asked.
+    found = 0
+    if not os.path.isdir("/proc"):
+        return 0
+    needle = ("%s=%s" % (MARK_VAR, mark)).encode()
+    for name in os.listdir("/proc"):
+        if not name.isdigit() or int(name) == os.getpid():
+            continue
+        try:
+            with open("/proc/%s/environ" % name, "rb") as handle:
+                environ = handle.read()
+        except OSError:
+            continue
+        if needle in environ.split(b"\0"):
+            found += 1
+            if kill:
+                try:
+                    os.kill(int(name), signal.SIGKILL)
+                except OSError:
+                    pass
+    return found
+def run_child(test_id, import_module, mark):
     record = {"id": test_id, "exit_code": None, "signal": None, "timed_out": False, "duration_s": None,
-              "child_outcome": None, "nonce_ok": False, "outcome": "MISSING_RESULT", "stderr_tail": ""}
+              "child_outcome": None, "nonce_ok": False, "outcome": "MISSING_RESULT", "stderr_tail": "", "cleanup": None}
     read_fd, write_fd = os.pipe()  # child delivers its result here; no shared file the candidate could write
     started = time.monotonic()
     child = None
     chunks = []
+    child_env = dict(env)
+    child_env[MARK_VAR] = mark  # unique per test child: lets the supervisor find descendants that escaped the process group
     def drain():
         # Read the result concurrently with the child's execution. Supervisor v5 read the pipe only after the child had
         # exited, so a report larger than the pipe buffer (64 KiB on Linux; about 1,000 subtest events) blocked the child
@@ -269,9 +311,11 @@ def run_child(test_id, import_module):
         except OSError:
             pass
     try:
+        # start_new_session: the child is the leader of its own session and process group, so a timeout kills the whole
+        # tree the test spawned (killpg) instead of the direct child only; the supervisor's own group is never signalled
         proc = subprocess.Popen([sys.executable, "-c", child_src, test_id, str(write_fd), import_module] + sys_path,
-                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=env,
-                                pass_fds=(write_fd,), **child_kw)
+                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=child_env,
+                                pass_fds=(write_fd,), start_new_session=True, **child_kw)
         os.close(write_fd)  # parent keeps only the read end; child's copy closes on exit -> clean EOF
         write_fd = None
         reader = threading.Thread(target=drain, daemon=True)
@@ -279,9 +323,41 @@ def run_child(test_id, import_module):
         try:
             out, err = proc.communicate(input=(nonce + "\n").encode(), timeout=per_test_timeout)
         except subprocess.TimeoutExpired:
-            proc.kill()
-            out, err = proc.communicate()
             record["timed_out"] = True
+            cleanup = {"group_killed": False, "grace_exceeded": False, "escaped_killed": 0, "escaped_remaining": None, "complete": False}
+            record["cleanup"] = cleanup
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+                cleanup["group_killed"] = True
+            except OSError:
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+            try:
+                # bounded: a descendant that inherited the pipes and left the group would otherwise hold communicate() open forever
+                out, err = proc.communicate(timeout=CLEANUP_GRACE)
+            except subprocess.TimeoutExpired:
+                cleanup["grace_exceeded"] = True
+                out, err = b"", b""
+                for stream in (proc.stdout, proc.stderr, proc.stdin):
+                    try:
+                        if stream is not None:
+                            stream.close()
+                    except Exception:
+                        pass
+                try:
+                    proc.wait(timeout=CLEANUP_GRACE)  # the group leader itself is dead; reap it
+                except Exception:
+                    pass
+            cleanup["escaped_killed"] = marked_processes(mark, kill=True)
+            remaining = marked_processes(mark, kill=False) if os.path.isdir("/proc") else None
+            cleanup["escaped_remaining"] = remaining
+            # complete when the pipes closed within the grace period (nothing outlived the group kill) or, where /proc lets
+            # us look, when no marked process remains after the escape sweep
+            cleanup["complete"] = (not cleanup["grace_exceeded"]) or remaining == 0
+            if not cleanup["complete"]:
+                report["cleanup_incomplete"] += 1
         reader.join(timeout=10)
         raw = b"".join(chunks)
         record["result_bytes"] = len(raw)
@@ -330,12 +406,15 @@ def run_child(test_id, import_module):
     else:
         record["outcome"] = child.get("outcome") if child.get("outcome") in ("FAIL", "ERROR", "skipped", "expected failure", "unexpected success") else "ERROR"
     return record
+mark_seq = 0
 for m in report["modules"]:
     for test_id in m["expected_ids"]:
-        report["tests"].append(run_child(test_id, m["name"]))
+        mark_seq += 1
+        report["tests"].append(run_child(test_id, m["name"], "%s-%d" % (nonce[:12], mark_seq)))
 if canary and canary_import:
     for canary_id in (CANARY_PASS, CANARY_FAIL):
-        report["canaries"].append(run_child(canary_id, canary_import))
+        mark_seq += 1
+        report["canaries"].append(run_child(canary_id, canary_import, "%s-%d" % (nonce[:12], mark_seq)))
     by_id = {c["id"]: c for c in report["canaries"]}
     must_pass, must_fail = by_id.get(CANARY_PASS), by_id.get(CANARY_FAIL)
     report["canary_ok"] = bool(must_pass and must_fail and must_pass["outcome"] == "ok"
@@ -354,7 +433,7 @@ os.replace(tmp, result_path)
 print("SEALED-RESULT-WRITTEN")
 ok = bool(report["tests"]) and all(t["outcome"] == "ok" for t in report["tests"]) and report["canary_ok"] is not False
 sys.exit(0 if ok else 1)
-'''.replace("__CANARY_PASS__", CANARY_PASS_ID).replace("__CANARY_FAIL__", CANARY_FAIL_ID).replace("__SUPERVISOR_VERSION__", SUPERVISOR_VERSION)
+'''.replace("__CANARY_PASS__", CANARY_PASS_ID).replace("__CANARY_FAIL__", CANARY_FAIL_ID).replace("__SUPERVISOR_VERSION__", SUPERVISOR_VERSION).replace("__CLEANUP_GRACE__", repr(CLEANUP_GRACE_S))
 
 PRINT_RESULT_SRC = "import sys; sys.stdout.write(open(sys.argv[1], encoding='utf-8').read())"
 
@@ -599,13 +678,54 @@ def summarize(result: dict | None) -> dict:
             "all_passed": ok, "canary_ok": result.get("canary_ok"), "summary_line": line}
 
 
+# Binding checks whose failure is a test outcome the supervisor itself recorded (a test failed, so its child exited 1, or it
+# was killed at the per-test timeout), not a reason to distrust the record. Every other failing check is structural.
+STRUCTURAL_EXCUSED = ("all_expected_pass", "no_nonzero_exit", "no_timeout")
+
+
+def structural_problems(binding: dict | None, result: dict | None) -> list[str]:
+    """Names of the binding checks whose failure means the execution evidence cannot be trusted: lost, forged, mismatched or
+    incomplete results, a changed module, a crash, lost isolation, an unfinished cleanup, a start-up hook, a flipped canary.
+    Plain test failures and supervisor-observed timeouts are excused (they are the evidence, not a defect of it); a signal is
+    excused only when every signalled test is one the supervisor killed at its timeout."""
+    if not binding or not result:
+        return ["result_file_present"]
+    checks = binding.get("checks") or {}
+    problems = [name for name, ok in checks.items() if not ok and name not in STRUCTURAL_EXCUSED]
+    tests = list(result.get("tests") or []) + list(result.get("canaries") or [])
+    if "no_signal" in problems and all(t.get("timed_out") for t in tests if t.get("signal") is not None):
+        problems.remove("no_signal")
+    return problems
+
+
+def outcome_class(test: dict) -> str:
+    """green: exit 0 with an `ok` report bound to the nonce; red: exit 1 with a FAIL or ERROR report bound to the nonce (the
+    child ran the test and reported a failure consistent with its exit); timeout: killed by the supervisor at the per-test
+    budget; untrusted: everything else (missing, forged, mismatched or incomplete report, crash, skipped)."""
+    if test.get("timed_out") or test.get("outcome") == "TIMEOUT":
+        return "timeout"
+    if test.get("signal") is not None or test.get("nonce_ok") is False:
+        return "untrusted"
+    if test.get("exit_code") == 0 and test.get("outcome") == "ok":
+        return "green"
+    if test.get("exit_code") == 1 and test.get("outcome") in ("FAIL", "ERROR"):
+        return "red"
+    return "untrusted"
+
+
+def outcome_classes(result: dict | None) -> dict[str, str]:
+    return {t.get("id"): outcome_class(t) for t in ((result or {}).get("tests") or [])}
+
+
 def _bind_tests(result: dict, expected_ids: list[str], nonce: str, canary: bool, checks: dict, reasons: list[str]) -> None:
     """Checks shared by every supervisor run: completion, isolation, nonce, id sets, per-test facts and canaries."""
     tests = result.get("tests") or []
     observed = [t.get("id") for t in tests]
     expected = set(expected_ids)
     checks["supervisor_completed"] = result.get("completed") is True
-    checks["verifier_isolation_active"] = result.get("privilege_separation") is not False
+    # isolation must be recorded as active in so many words: a result without the field is not evidence of isolation (CORE-06)
+    checks["verifier_isolation_active"] = result.get("privilege_separation") is True
+    checks["supervisor_cleanup_complete"] = not result.get("cleanup_incomplete")
     checks["nonce_matches"] = result.get("nonce") == nonce
     checks["no_discovery_error"] = not result.get("discovery_error")
     checks["expected_test_ids_present"] = set(observed) >= expected
@@ -625,8 +745,11 @@ def _bind_tests(result: dict, expected_ids: list[str], nonce: str, canary: bool,
     if not checks["supervisor_completed"]:
         reasons.append("sealed supervisor did not record completion")
     if not checks["verifier_isolation_active"]:
-        reasons.append("verifier privilege separation was not active: the sandbox operation did not run as root, so the "
-                       "sealed tests could not be protected from the candidate process; re-run on a root-capable sandbox")
+        reasons.append("verifier privilege separation was not recorded as active: the sandbox operation did not run as root (or the result does not say), "
+                       "so the sealed tests could not be protected from the candidate process; re-run on a root-capable sandbox")
+    if not checks["supervisor_cleanup_complete"]:
+        reasons.append(f"the supervisor could not complete the cleanup of {result.get('cleanup_incomplete')} timed-out test child(ren) "
+                       "(descendants kept running after the process group was killed); the result is not trusted")
     if not checks["nonce_matches"]:
         reasons.append("sealed result nonce does not match this run (stale or forged result file)")
     if not checks["no_discovery_error"]:

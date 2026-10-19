@@ -1,0 +1,65 @@
+=== scenario 3: pip-failure
+=== command: env REHEARSAL_PIP_FAIL=1 bash install.sh /tmp/attest-rehearsal-20261019T075738Z/run/work/c.tar.gz
+=== expected exit code: 1
+=== state before:
+active: 9.0.2-rehearsal-d1fc91722826
+previous: 9.0.1-rehearsal-ccf5e0966f75
+service: active
+health: 9.0.2-rehearsal worker_alive=True
+releases: 9.0.1-rehearsal-ccf5e0966f75 9.0.2-rehearsal-d1fc91722826 
+vhost files: attest.axiqo.xyz.conf 
+unit files: attest.service 
+
+=== output:
+== install.sh 20261019T080422Z: bundle /tmp/attest-rehearsal-20261019T075738Z/run/work/c.tar.gz, root /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest, MemoryMax 200M
+
+[01] preflight
+     ok: interpreter: /tmp/attest-rehearsal-20261019T075738Z/deploy/yungou/rehearsal/shims/python3.12 (Python 3.11.13)
+     ok: bundle sha256 5504a1c3bcb66d7c836167e69e37ef03e4a10cadb625a548821bb86d8ecaad79
+useradd shim: would create attest
+     ok: user attest created
+     ok: secrets: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/attest/attest.env installed from the staged attest.env (root:attest 0640)
+     ok: current layout: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app -> /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.2-rehearsal-d1fc91722826; previous: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.1-rehearsal-ccf5e0966f75
+
+[02] extract the bundle into a staging directory
+     ok: extracted into /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/.staging-20261019T080422Z
+
+[03] verify RELEASE.json against the extracted tree
+     ok: version 9.0.3-rehearsal, package digest 970c1318a428c92259c07558ff95c6ac2d9b4d7ee26494d5a6c136ee6da4f923 (35 sources), 3125 files verified (sha256 and size), no unlisted file, no env file
+     ok: release label 9.0.3-rehearsal-970c1318a428
+
+[04] release directory
+     ok: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.3-rehearsal-970c1318a428 (not active until the switch)
+
+[05] per-release virtualenv and pinned dependencies
+ERROR: rehearsal-injected dependency installation failure
+     FAILED: dependency installation failed (/tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.3-rehearsal-970c1318a428/deploy/yungou/requirements.txt)
+
+INSTALL FAILED (exit 1) during step "per-release virtualenv and pinned dependencies"
+-- restoring the previous state (only attest.service, its unit file, its vhost and the /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app link are touched)
+     health: HTTP 200, version 9.0.2-rehearsal, worker alive, queue 0, free 1000 MB
+   active release 9.0.2-rehearsal-d1fc91722826 is healthy (version 9.0.2-rehearsal)
+   failed release directory removed: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.3-rehearsal-970c1318a428 (KEEP_FAILED_RELEASE=1 keeps it)
+install NOT complete; see the messages above
+
+=== exit code: 1 (expected 1)
+=== state after:
+active: 9.0.2-rehearsal-d1fc91722826
+previous: 9.0.1-rehearsal-ccf5e0966f75
+service: active
+health: 9.0.2-rehearsal worker_alive=True
+releases: 9.0.1-rehearsal-ccf5e0966f75 9.0.2-rehearsal-d1fc91722826 
+vhost files: attest.axiqo.xyz.conf 
+unit files: attest.service 
+
+=== checks:
+  PASS  exit code: 1
+  PASS  active release unchanged: 9.0.2-rehearsal-d1fc91722826
+  PASS  previous release unchanged: 9.0.1-rehearsal-ccf5e0966f75
+  PASS  served health: 9.0.2-rehearsal worker_alive=True
+  PASS  failed release directory removed: absent
+  PASS  failure reported (log contains 'INSTALL FAILED'): yes
+  PASS  cause reported (log contains 'dependency installation failed'): yes
+  PASS  no completion line (log free of 'install complete'): yes
+  PASS  active release confirmed healthy (log contains 'is healthy'): yes
+=== verdict: PASS

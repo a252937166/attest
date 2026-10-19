@@ -27,9 +27,15 @@ Nebius. `--resume DIR` continues an interrupted batch from the same snapshot, ru
 
 Codex-first policy: the default provider is the self-hosted Codex gateway (allowance, no USD). `--provider nebius` is
 refused unless a batch approval is given explicitly: `--approve-usd TOTAL` (hard cap on the committed USD of the whole
-batch, reserved per run before it starts) and `--max-calls N` (per-run call cap). A per-run USD cap alone does not
-control a batch. Stop conditions: batch cap reached; three consecutive infrastructure errors; any transport-uncertain
-operation (never replayed). Remaining cells are reported as not run.
+batch, reserved per run before it starts) and `--max-calls N` (per-run call cap; default 22 for nebius, recorded in the
+schedule). A per-run USD cap alone does not control a batch. Stop conditions: batch cap reached; three consecutive
+infrastructure errors; any transport-uncertain operation (never replayed). Remaining cells are reported as not run.
+
+Accounting repairs (audit of 19 Oct 2026): a resumed batch restores provider, caps, workers, attempts, systems and the approved
+total from schedule.json and refuses a conflicting command line (AC-07); every row records the profile it executed and a task
+whose cells ran different profiles is an invalid comparison. On every process start the batch's starting committed total is
+rebuilt from disk: every completed row once plus every run directory no row owns once, whether interrupted mid-run (journal)
+or finished without a persisted row (ledger totals) (AC-01, AC-02).
 
 Usage:
   run_evaluation.py [--provider codex|nebius] [--tasks id,id] [--systems baseline,attest] [--attempts 1] [--workers 2]
@@ -142,8 +148,24 @@ def revision_of(bundle: dict | None) -> str | None:
     return (((bundle or {}).get("provenance") or {}).get("attest_revision") or {}).get("digest")
 
 
-def comparison_validity(rows: list[dict], registered: str | None, snapshot_intact: bool) -> dict:
-    """Per task: valid only when every completed cell carries the registered revision and the snapshot was intact."""
+def _same_setting(given, registered) -> bool:
+    """Equality for registered settings: numbers compare with a tolerance (floats re-parsed from a command line), the rest exactly."""
+    numbers = (int, float)
+    if isinstance(given, numbers) and not isinstance(given, bool) and isinstance(registered, numbers) and not isinstance(registered, bool):
+        return abs(float(given) - float(registered)) <= 1e-9
+    return given == registered
+
+
+# row field -> (schedule key, label): the execution profile every completed row records (audit finding AC-07, 19 Oct 2026), so a
+# cell that ran another provider or other limits than the registered ones invalidates its task's comparison
+EXECUTION_PROFILE = {"executed_provider": ("provider", "provider"), "usd_cap": ("per_run_usd_cap", "per-run USD cap"),
+                     "max_calls": ("max_calls_per_run", "per-run call cap"), "max_turns": ("max_turns", "turn cap")}
+
+
+def comparison_validity(rows: list[dict], registered: str | None, snapshot_intact: bool, schedule: dict | None = None) -> dict:
+    """Per task: valid only when every completed cell carries the registered revision, ran the registered provider and limits (when
+    `schedule` is given; rows written before 19 Oct 2026 recorded no execution profile and are not judged on it) and the snapshot
+    was intact."""
     by_task: dict[str, dict] = {}
     for row in rows:
         entry = by_task.setdefault(row["task"], {"valid": True, "reasons": []})
@@ -156,6 +178,12 @@ def comparison_validity(rows: list[dict], registered: str | None, snapshot_intac
         elif registered and rev != registered:
             entry["valid"] = False
             entry["reasons"].append(f"{row['system']} a{row['attempt']}: revision {rev[:12]} differs from the registered {registered[:12]}")
+        for field, (key, label) in EXECUTION_PROFILE.items():
+            if not schedule or field not in row or key not in schedule:
+                continue
+            if not _same_setting(row[field], schedule[key]):
+                entry["valid"] = False
+                entry["reasons"].append(f"{row['system']} a{row['attempt']}: {label} {row[field]!r} differs from the registered {schedule[key]!r}")
     if not snapshot_intact:
         for entry in by_task.values():
             entry["valid"] = False
@@ -324,33 +352,99 @@ def run_cell(cell, budget: Budget, provider_name, usd_cap, max_calls, out_dir, m
                "uncertain": "uncertain" in message.lower(), "reasons": [message], "arbitration": None, "revision_digest": None}
     row["paced_wait_before_start_s"] = round(paced, 1)
     row["started_at_utc"] = row.get("started_at_utc") or utcnow()
+    # the execution profile of this attempt, compared with the registered schedule by comparison_validity (AC-07)
+    row["executed_provider"] = provider_name if row.get("status") == "completed" else None
+    row["usd_cap"], row["max_calls"], row["max_turns"] = usd_cap, max_calls, max_turns
     budget.settle(row)
     return row
 
 
-def interrupted_cells(runs_dir: Path, rows: list[dict], already: list[dict]) -> list[dict]:
-    """Run directories under `runs_dir` that no completed row owns: read their ledger journals (reservations written before
-    each request, call records after) so an interrupted cell's spend is never erased. Entries already listed by an earlier
-    resumption are kept as they were (and not counted twice)."""
+# ----------------------------------------------------------------------------- run directories no persisted row owns
+SPEND_FIELDS = ("cost_usd", "cost_usd_committed", "model_calls", "open_reservations", "open_reserved_usd", "uncertain_unpriced_calls")
+
+
+def run_identity(path) -> str:
+    """One spelling for a run directory, so a row and a directory listing agree whatever path form each used."""
+    return str(Path(path).resolve())
+
+
+def _totals_in(path: Path, *keys: str) -> dict:
+    """The ledger totals object stored in a JSON file (`ledger.json` holds it under "totals", a bundle under "ledger"/"totals")."""
+    try:
+        node = json.loads(path.read_text(encoding="utf-8"))
+        for key in keys:
+            node = (node or {}).get(key)
+        return node if isinstance(node, dict) else {}
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return {}
+
+
+def recover_spend(run_dir: Path) -> dict | None:
+    """The spend recorded in a run directory nobody reported, from the most complete record it holds: `ledger.json` (the totals
+    Pipeline.finish wrote), else the journal `ledger.jsonl` (reservations before each request, call records after), else the
+    bundle's own ledger totals. When both the totals and the journal are readable the higher committed figure is kept, so a
+    difference between them can only raise the bound. None when the directory holds no record at all."""
     from attest.ledger import JOURNAL_FILE, read_journal
-    owned = {r.get("out_dir") for r in rows if r.get("out_dir")}
-    known = {i["out_dir"]: dict(i, counted_before=True) for i in already}
-    found = []
+    candidates = []
+    totals = _totals_in(run_dir / "ledger.json", "totals")
+    if totals.get("cost_usd_committed") is not None:
+        candidates.append(("ledger.json", totals))
+    journal = read_journal(run_dir / JOURNAL_FILE)
+    if journal is not None and journal.get("cost_usd_committed") is not None:
+        candidates.append((JOURNAL_FILE, journal))
+    if not candidates:
+        totals = _totals_in(run_dir / "proof_bundle.json", "ledger", "totals")
+        if totals.get("cost_usd_committed") is not None:
+            candidates.append(("proof_bundle.json", totals))
+    if not candidates:
+        return None
+    source, record = max(candidates, key=lambda item: float(item[1].get("cost_usd_committed") or 0.0))
+    return {"source": source, **{key: record.get(key) for key in SPEND_FIELDS}}
+
+
+def interrupted_cells(runs_dir: Path, rows: list[dict], already: list[dict], per_run_cap: float | None = None) -> list[dict]:
+    """Every run directory under `runs_dir` that no persisted row owns (by run id or by normalised path), each listed once with the
+    committed USD recovered from its own records. A directory without a bundle was interrupted mid-run and its journal is read
+    back; a directory WITH a bundle that no row owns is finished but unreported (the process died between Pipeline.finish and the
+    report write, or a later future finished while the main thread still waited on an earlier one) and its ledger totals are read
+    back. The caller adds every entry to the batch's starting total on EVERY process start (audit findings AC-01 and AC-02);
+    `already` (the entries an earlier resumption listed) only supplies the time an entry was first seen, never a reason to leave
+    its cost out. A finished bundle with no readable record counts at `per_run_cap` when one is given (the console's policy for
+    an unreadable run), otherwise it is listed with no figure and marked as not included."""
+    owned_ids = {r.get("run_id") for r in rows if r.get("run_id")}
+    owned_paths = {run_identity(r["out_dir"]) for r in rows if r.get("out_dir")}
+    seen_before: dict[str, dict] = {}
+    for item in already or []:
+        for key in (item.get("run_id"), run_identity(item["out_dir"]) if item.get("out_dir") else None):
+            if key:
+                seen_before[key] = item
+    found, listed = [], set()
     for run_dir in sorted(p for p in Path(runs_dir).iterdir() if p.is_dir()) if Path(runs_dir).is_dir() else []:
-        if str(run_dir) in owned or (run_dir / "proof_bundle.json").is_file() and str(run_dir) in owned:
+        identity = run_identity(run_dir)
+        if run_dir.name in owned_ids or identity in owned_paths or identity in listed:
             continue
-        if str(run_dir) in known:
-            found.append(known[str(run_dir)])
-            continue
-        if (run_dir / "proof_bundle.json").is_file():
-            continue  # a finished run some row owns under another path spelling; never double count a reported bundle
-        journal = read_journal(run_dir / JOURNAL_FILE)
-        if journal is None:
-            continue
-        found.append({"out_dir": str(run_dir), "run_id": run_dir.name, "cost_usd": journal.get("cost_usd"),
-                      "cost_usd_committed": journal.get("cost_usd_committed"), "model_calls": journal.get("model_calls"),
-                      "open_reservations": journal.get("open_reservations"), "open_reserved_usd": journal.get("open_reserved_usd"),
-                      "uncertain_unpriced_calls": journal.get("uncertain_unpriced_calls"), "counted_before": False})
+        finished = (run_dir / "proof_bundle.json").is_file()
+        record = recover_spend(run_dir)
+        if record is None and not finished:
+            continue  # neither journal nor bundle: the process died before the first reservation, nothing was spent here
+        earlier = seen_before.get(run_dir.name) or seen_before.get(identity) or {}
+        if record is not None:
+            committed, source = record["cost_usd_committed"], record["source"]
+        elif per_run_cap is not None:
+            committed, source = per_run_cap, "per_run_cap (no ledger record readable; the cap is the conservative bound)"
+        else:
+            committed, source = None, None
+        entry = {"out_dir": str(run_dir), "run_id": run_dir.name, "kind": "finished_unreported" if finished else "interrupted",
+                 "source": source, "cost_usd_committed": committed, "included_in_batch_total": committed is not None,
+                 **{key: (record or {}).get(key) for key in SPEND_FIELDS if key != "cost_usd_committed"},
+                 "first_listed_at_utc": earlier.get("first_listed_at_utc") or utcnow(), "listed_by_earlier_resumption": bool(earlier),
+                 # kept for readers of earlier reports: it meant "left out of this process's total because an earlier process counted
+                 # it", which no longer happens (every process rebuilds the total from disk), so it is always False
+                 "counted_before": False}
+        if earlier.get("cost_usd_committed") is not None and committed is not None and abs(float(earlier["cost_usd_committed"]) - float(committed)) > 1e-9:
+            entry["previously_reported_usd"] = earlier["cost_usd_committed"]
+        listed.add(identity)
+        found.append(entry)
     return found
 
 
@@ -364,6 +458,10 @@ def classify(row):
         return "infra_error"
     if row.get("verdict") == "NO CHANGE" or (row.get("system") == "baseline" and not row.get("finished") and row.get("changed_paths") == 0):
         return "no_patch"
+    if row.get("verdict") == "INFEASIBLE":
+        # no patch exists, so the judge's result describes the unmodified repository, not a rejection: the refusal is right only
+        # when the task itself is unsatisfiable; refusing a task whose held-out suite can be satisfied is a wrong refusal
+        return "true_reject" if row.get("ground_truth") == "unsatisfiable" else "false_refusal"
     if correct is None:
         return "unknown"
     if row["accepted"] and correct:
@@ -382,7 +480,7 @@ def summarize(rows, systems, validity: dict | None = None):
         srows = [r for r in rows if r["system"] == system]
         done = [r for r in srows if r.get("status") == "completed"]
         conf = {k: sum(1 for r in srows if r["confusion"] == k)
-                for k in ("true_accept", "false_accept", "false_reject", "true_reject", "no_patch", "infra_error", "unknown", "not_run")}
+                for k in ("true_accept", "false_accept", "false_reject", "true_reject", "false_refusal", "no_patch", "infra_error", "unknown", "not_run")}
         costs = [r.get("cost_committed_usd") if r.get("cost_committed_usd") is not None else r.get("cost_usd") for r in done]
         costs = [c for c in costs if c is not None]
         walls = [r["wall_s"] for r in done if r.get("wall_s") is not None]
@@ -397,17 +495,28 @@ def summarize(rows, systems, validity: dict | None = None):
 
 
 # ----------------------------------------------------------------------------- launcher (working tree) and batch (snapshot)
+# The parser leaves the registered settings unset (None) so that "not given" is distinguishable from "given": a resumed batch
+# restores them from its schedule.json and refuses a conflicting command-line value (audit finding AC-07, 19 Oct 2026); the
+# harness's own defaults are applied afterwards by apply_defaults.
+DEFAULTS = {"provider": "codex", "workers": 2, "usd_cap": 0.5, "max_turns": 14, "attempts": 1, "systems": "baseline,attest"}
+NEBIUS_DEFAULT_MAX_CALLS = 22  # per-run call cap of the Nebius profile when --max-calls is not given (recorded in schedule.json)
+# command-line flag, argparse attribute, schedule.json key of every setting a batch is registered with
+REGISTERED = (("--provider", "provider", "provider"), ("--usd-cap", "usd_cap", "per_run_usd_cap"), ("--approve-usd", "approve_usd", "approve_usd"),
+              ("--max-calls", "max_calls", "max_calls_per_run"), ("--max-turns", "max_turns", "max_turns"), ("--workers", "workers", "workers"),
+              ("--attempts", "attempts", "attempts_per_cell"), ("--systems", "systems", "systems"))
+
+
 def parse_args(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--provider", default="codex", choices=["codex", "nebius"])
+    ap.add_argument("--provider", default=None, choices=["codex", "nebius"], help="default codex; a resumed batch restores its registered provider")
     ap.add_argument("--tasks", default="", help="comma-separated task ids (default: all in the suite)")
-    ap.add_argument("--systems", default="baseline,attest")
-    ap.add_argument("--attempts", type=int, default=1, help="scheduled attempts per (task, system) cell; every one is reported")
-    ap.add_argument("--workers", type=int, default=2)
-    ap.add_argument("--usd-cap", type=float, default=0.5, help="per-run USD cap (Nebius profile)")
+    ap.add_argument("--systems", default=None, help="default baseline,attest")
+    ap.add_argument("--attempts", type=int, default=None, help="scheduled attempts per (task, system) cell (default 1); every one is reported")
+    ap.add_argument("--workers", type=int, default=None, help="default 2")
+    ap.add_argument("--usd-cap", type=float, default=None, help="per-run USD cap (Nebius profile; default 0.5)")
     ap.add_argument("--approve-usd", type=float, default=None, help="REQUIRED for nebius: hard cap on the whole batch's committed USD")
-    ap.add_argument("--max-calls", type=int, default=None, help="per-run model-call cap (required for nebius; default 20 there)")
-    ap.add_argument("--max-turns", type=int, default=14)
+    ap.add_argument("--max-calls", type=int, default=None, help=f"per-run model-call cap (nebius: default {NEBIUS_DEFAULT_MAX_CALLS}, recorded in the schedule)")
+    ap.add_argument("--max-turns", type=int, default=None, help="default 14")
     ap.add_argument("--out", default="", help="report directory (default: reports/attest-evaluation-<date>-<provider>[-label])")
     ap.add_argument("--label", default="", help="short label for the report directory and schedule")
     ap.add_argument("--suite", default="examples/eval/SUITE.json", help="suite file, relative to the project root")
@@ -416,6 +525,73 @@ def parse_args(argv=None):
     ap.add_argument("--snapshot-root", default="", help=argparse.SUPPRESS)  # set by the launcher when re-executing from the snapshot
     ap.add_argument("--source-root", default="", help=argparse.SUPPRESS)
     return ap.parse_args(argv)
+
+
+def _systems_text(value) -> str:
+    items = value if isinstance(value, list) else str(value).split(",")
+    return ",".join(s.strip() for s in items if s and s.strip())
+
+
+def restore_registered(args, schedule: dict) -> list[str]:
+    """Fill every registered setting the command line left unset from the schedule, and return the conflicts: settings the command
+    line gave explicitly with a value that differs from the registration. A resumed batch runs exactly the configuration it
+    registered or not at all; a different configuration is a new evaluation, registered under its own schedule."""
+    conflicts = []
+    for flag, attr, key in REGISTERED:
+        if key not in schedule:
+            continue  # a schedule written before this setting was recorded: the command line (or the default) applies
+        registered = schedule[key]
+        given = getattr(args, attr, None)
+        if attr == "systems":
+            registered = _systems_text(registered)
+            given = _systems_text(given) if given is not None else None
+        if given is None:
+            setattr(args, attr, registered)
+        elif not _same_setting(given, registered):
+            conflicts.append(f"{flag} {given} (registered: {registered})")
+    return conflicts
+
+
+def conflict_refusal(out_root: Path, conflicts: list[str]) -> str:
+    return (f"refusing: the batch in {out_root} is registered with a different configuration than the command line gives: " + "; ".join(conflicts) +
+            ". A resumed batch runs the registered provider, caps, workers, attempts and systems; omit these flags to resume it, or register a new "
+            "evaluation. Nothing was constructed or run.")
+
+
+def apply_defaults(args):
+    """The harness's own defaults, applied only after a resumed batch had its chance to restore the registered values."""
+    for attr, value in DEFAULTS.items():
+        if getattr(args, attr, None) is None:
+            setattr(args, attr, value)
+    if args.provider == "nebius" and getattr(args, "max_calls", None) is None:
+        args.max_calls = NEBIUS_DEFAULT_MAX_CALLS
+    return args
+
+
+def registered_argv(args) -> list[str]:
+    """The registered configuration as explicit command-line flags. The launcher forwards them to the snapshot process on resume so
+    that the frozen harness copy (which may predate the restore logic) runs the registered provider and limits, never its parser
+    defaults."""
+    out: list[str] = []
+    for flag, attr, _ in REGISTERED:
+        value = getattr(args, attr, None)
+        if value is not None:
+            out += [flag, _systems_text(value) if attr == "systems" else str(value)]
+    return out
+
+
+def strip_flags(argv: list[str], flags: set[str]) -> list[str]:
+    """argv without the given value-taking flags, in both the `--flag value` and the `--flag=value` spelling."""
+    kept, skip_value = [], False
+    for token in argv:
+        if skip_value:
+            skip_value = False
+            continue
+        if token.split("=", 1)[0] in flags:
+            skip_value = "=" not in token
+            continue
+        kept.append(token)
+    return kept
 
 
 def launch(args, argv: list[str]) -> int:
@@ -449,11 +625,13 @@ def launch(args, argv: list[str]) -> int:
         record = make_snapshot(ROOT, snapshot_root)
         log(f"snapshot {snapshot_root}: attest revision {record['attest_revision']['digest'][:12]} ({record['attest_revision']['files']} sources), "
             f"eval script {record['eval_script_sha256'][:12]}, examples {record['examples']['digest'][:12]} ({record['examples']['files']} files)")
-    forwarded = [a for a in argv if a not in ("--resume",) and not a.startswith("--resume=")]
-    # drop the value of a separated --resume
-    if "--resume" in argv:
-        index = argv.index("--resume")
-        forwarded = argv[:index] + argv[index + 2:]
+    if args.resume:
+        # the snapshot process receives the REGISTERED configuration explicitly (main() restored it from schedule.json and refused
+        # any conflicting flag): the frozen harness copy in the snapshot may predate the restore logic, and must never fall back to
+        # its parser defaults (the audit's AC-07: a Nebius batch resumed as Codex)
+        forwarded = strip_flags(argv, {"--resume", *(flag for flag, _, _ in REGISTERED)}) + registered_argv(args)
+    else:
+        forwarded = strip_flags(argv, {"--resume"})
     cmd = [sys.executable, str(snapshot_root / "scripts" / "run_evaluation.py"), *forwarded, "--out", str(out_root),
            "--snapshot-root", str(snapshot_root), "--source-root", str(ROOT)]
     if args.resume:
@@ -465,39 +643,43 @@ def launch(args, argv: list[str]) -> int:
 
 
 def run_batch(args) -> int:
+    out_root = Path(args.out or args.resume).resolve()
+    schedule: dict | None = None
+    if args.resume:
+        # the registered configuration is restored and conflicts are refused BEFORE anything is constructed (AC-07); main() did the
+        # same in the launcher, and a direct caller of run_batch gets the same guarantee
+        if not (out_root / "schedule.json").is_file():
+            print(f"refusing: {out_root} has no schedule.json to resume from", file=sys.stderr)
+            return 2
+        schedule = json.loads((out_root / "schedule.json").read_text(encoding="utf-8"))
+        conflicts = restore_registered(args, schedule)
+        if conflicts:
+            print(conflict_refusal(out_root, conflicts), file=sys.stderr)
+            return 2
+    apply_defaults(args)
     snapshot_root = Path(args.snapshot_root).resolve()
     source_root = Path(args.source_root).resolve() if args.source_root else None
     provenance = runtime_provenance(snapshot_root, source_root)
-    out_root = Path(args.out).resolve()
-    if args.provider == "nebius" and args.max_calls is None:
-        args.max_calls = 20
     systems = [s.strip() for s in args.systems.split(",") if s.strip()]
     runs_dir = out_root / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
     governor = codex_governor() if args.provider == "codex" else None
     resumed_at = None
     previous_rows: list[dict] = []
+    existing: dict = {"rows": []}
 
     if args.resume:
-        schedule = json.loads((out_root / "schedule.json").read_text(encoding="utf-8"))
         existing = json.loads((out_root / "evaluation.json").read_text(encoding="utf-8")) if (out_root / "evaluation.json").is_file() else {"rows": []}
         previous_rows = [r for r in existing.get("rows", []) if r.get("status") == "completed"]
         done_indices = {r["scheduled_index"] for r in previous_rows}
         cells = [c for c in schedule["cells"] if c["scheduled_index"] not in done_indices]
         resumed_at = utcnow()
         schedule.setdefault("resumptions", []).append({"at_utc": resumed_at, "cells": [c["scheduled_index"] for c in cells],
-                                                       "provenance_check": "snapshot digests verified by the launcher"})
+                                                       "provenance_check": "snapshot digests verified by the launcher",
+                                                       "configuration": "restored from this schedule (provider, per-run USD cap, call cap, turn cap, workers, "
+                                                                        "attempts, systems, approved total); a conflicting command line is refused"})
         (out_root / "schedule.json").write_text(json.dumps(schedule, indent=2) + "\n", encoding="utf-8")
-        committed = sum(float(r.get("cost_committed_usd") or r.get("cost_usd") or 0.0) for r in previous_rows)
-        # cells that were in flight when the previous process died left a run directory with a ledger journal but no row:
-        # their known costs and open reservations are kept and counted, and the cell runs again as a fresh attempt
-        interrupted = interrupted_cells(runs_dir, previous_rows, existing.get("interrupted") or [])
-        committed += sum(float(i.get("cost_usd_committed") or 0.0) for i in interrupted if not i.get("counted_before"))
-        log(f"resuming: {len(previous_rows)} completed cells kept, {len(cells)} cells to run, {len(interrupted)} interrupted run director(ies) "
-            f"with ${sum(float(i.get('cost_usd_committed') or 0.0) for i in interrupted):.4f} committed from their ledger journals")
     else:
-        committed = 0.0
-        interrupted = []
         suite = json.loads((snapshot_root / args.suite).read_text(encoding="utf-8"))["tasks"]
         if args.tasks:
             wanted = set(args.tasks.split(","))
@@ -538,8 +720,15 @@ def run_batch(args) -> int:
                                     "infra_error": "verdict ERROR or a harness exception", "not_run": "scheduled but never executed; reason recorded",
                                     "no_patch": "no patch was produced (Attest NO CHANGE, or a baseline that neither finished nor edited): an unfinished "
                                                 "task, counted neither as a rejection nor as an acceptance",
-                                    "true_reject": "a patch was produced and not accepted, and the judge found it not correct",
-                                    "comparison_invalid": "a task whose cells did not all run the registered revision, or whose snapshot changed during the batch"},
+                                    "true_reject": "a patch was produced and not accepted, and the judge found it not correct; or the task is marked "
+                                                   "unsatisfiable and Attest refused it (INFEASIBLE)",
+                                    "false_refusal": "Attest ended INFEASIBLE (refused the task on an executed witness) although the task's ground truth is a "
+                                                     "satisfiable held-out suite: a wrong refusal, counted neither as a rejection of a patch nor as an unfinished task",
+                                    "comparison_invalid": "a task whose cells did not all run the registered revision, provider and limits, or whose snapshot "
+                                                          "changed during the batch"},
+                    "resume_policy": "a resumed batch restores provider, per-run USD cap, call cap, turn cap, workers, attempts, systems and the approved "
+                                     "total from this file and refuses a conflicting command line; its starting committed total is rebuilt on every "
+                                     "process start from every completed row and every run directory no row owns, each counted once",
                     "cells": cells}
         schedule["register_only"] = bool(getattr(args, "register_only", False))
         (out_root / "schedule.json").write_text(json.dumps(schedule, indent=2) + "\n", encoding="utf-8")
@@ -554,6 +743,22 @@ def run_batch(args) -> int:
         print(f"refusing: this process runs revision {provenance['attest_revision']['digest'][:12]} but the schedule registered {registered_revision[:12]}", file=sys.stderr)
         return 2
 
+    # The batch's starting committed total is rebuilt from disk on EVERY process start (audit findings AC-01 and AC-02): every
+    # distinct completed row once, plus every distinct run directory no row owns once, whether it was interrupted mid-run (journal)
+    # or finished without a persisted row (ledger totals). No figure from an earlier process's report is trusted or suppressed.
+    interrupted = interrupted_cells(runs_dir, previous_rows, existing.get("interrupted") or [], per_run_cap=args.usd_cap)
+    rows_usd = sum(float(r.get("cost_committed_usd") or r.get("cost_usd") or 0.0) for r in previous_rows)
+    unowned_usd = sum(float(i.get("cost_usd_committed") or 0.0) for i in interrupted)
+    committed = rows_usd + unowned_usd
+    starting_total = {"rebuilt_at_utc": utcnow(), "completed_rows": len(previous_rows), "completed_rows_usd": round(rows_usd, 6),
+                      "unowned_run_directories": len(interrupted), "unowned_run_directories_usd": round(unowned_usd, 6),
+                      "committed_usd": round(committed, 6),
+                      "rule": "every completed row once plus every run directory no row owns once (interrupted: journal; finished but unreported: "
+                              "ledger totals), recomputed from disk at every process start"}
+    if args.resume:
+        log(f"resuming: {len(previous_rows)} completed cells kept (${rows_usd:.4f}), {len(cells)} cells to run, {len(interrupted)} run director(ies) no row "
+            f"owns (${unowned_usd:.4f} from their ledger records); starting committed total ${committed:.4f}")
+
     budget = Budget(args.approve_usd if args.provider == "nebius" else None, args.usd_cap, committed=committed)
     rows: list[dict] = list(previous_rows)
 
@@ -563,8 +768,8 @@ def run_batch(args) -> int:
             snapshot_now["eval_script_sha256"] == provenance["eval_script_sha256"] and snapshot_now["examples"]["digest"] == provenance["examples_digest"]["digest"]
         working_tree = attest_revision(source_root / "attest")["digest"] if source_root and (source_root / "attest").is_dir() else None
         ordered = sorted(rows, key=lambda r: r["scheduled_index"])
-        validity = comparison_validity(ordered, registered_revision, snapshot_intact)
-        report = {"schedule": schedule, "finished_at_utc": finished, "complete": complete, "budget": budget.snapshot(),
+        validity = comparison_validity(ordered, registered_revision, snapshot_intact, schedule)
+        report = {"schedule": schedule, "finished_at_utc": finished, "complete": complete, "budget": budget.snapshot(), "starting_total": starting_total,
                   "note": "every scheduled cell is reported once; there is no merge or best-of selection",
                   "provenance_check": {"registered_revision": registered_revision, "snapshot_intact_at_end": snapshot_intact,
                                        "working_tree_revision_now": working_tree,
@@ -572,8 +777,10 @@ def run_batch(args) -> int:
                                        "comparisons": validity, "invalid_tasks": sorted(t for t, v in validity.items() if not v["valid"])},
                   "pacing": governor.snapshot() if governor else None, "resumed_at_utc": resumed_at,
                   "interrupted": interrupted,
-                  "interrupted_note": ("run directories whose cell never reported a row (the process died mid-run); their ledger journals are "
-                                       "read back and their committed USD is part of the batch total; the cell itself ran again"),
+                  "interrupted_note": ("run directories that no persisted row owns, each listed once: kind 'interrupted' (the process died mid-run; the "
+                                       "ledger journal is read back) or 'finished_unreported' (the pipeline finished but its row was never persisted; the "
+                                       "ledger totals are read back). Every entry with included_in_batch_total is part of this batch's committed total, "
+                                       "rebuilt from disk at every process start; the cell itself ran again as a fresh attempt"),
                   "rows": ordered, "summary": summarize(ordered, systems, validity)}
         (out_root / "evaluation.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         return report
@@ -605,6 +812,17 @@ def run_batch(args) -> int:
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     args = parse_args(argv)
+    if args.resume:
+        # before anything is constructed: the registered configuration is restored from the schedule and a conflicting flag refused
+        out_root = Path(args.resume).resolve()
+        if not (out_root / "schedule.json").is_file():
+            print(f"refusing: {out_root} has no schedule.json or no snapshot to resume from", file=sys.stderr)
+            return 2
+        conflicts = restore_registered(args, json.loads((out_root / "schedule.json").read_text(encoding="utf-8")))
+        if conflicts:
+            print(conflict_refusal(out_root, conflicts), file=sys.stderr)
+            return 2
+    apply_defaults(args)
     if args.provider == "nebius" and args.approve_usd is None and not args.snapshot_root and not args.register_only:
         print("refusing: --provider nebius needs an explicit batch approval: --approve-usd TOTAL (hard cap for the whole batch) and --max-calls N. "
               "Nothing was run.", file=sys.stderr)

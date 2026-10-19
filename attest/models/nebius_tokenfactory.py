@@ -13,8 +13,8 @@ import re
 import time
 
 from ..http import HttpError, TransportError, request_json
-from ..ledger import Ledger, ModelCall, utcnow
-from .base import ModelError, ModelResult, extract_usage, validate_json
+from ..ledger import Ledger, LedgerError, ModelCall, utcnow
+from .base import ModelError, ModelResult, extract_usage, usage_problem, validate_json
 
 # USD per 1M tokens (input, output), read from tokenfactory.nebius.com/api/public/models_info on 2026-10-14.
 PRICES = {
@@ -76,9 +76,17 @@ class NebiusTokenFactory:
         # well under the cap and it benefits from reasoning)
         self.reasoning_effort = reasoning_effort if reasoning_effort is not None else {
             "seal": "low", "implement": default_effort, "break": "low", "summary": "low"}
+        # Audit findings AC-03 and AC-04 (19 Oct 2026): once this instance could not journal a reservation, or settled a generated
+        # answer without usable metering, it refuses every further paid request (the reason is kept here). Nothing is dispatched
+        # blind, and the per-run cap never binds on a guess; a human reconciles the run against the provider's billing.
+        self.halted: str | None = None
 
     def _headers(self) -> dict:
         return {"Authorization": "Bearer " + self._key}
+
+    def _refuse_if_halted(self) -> None:
+        if self.halted:
+            raise ModelError(f"refusing the request: {self.halted}")
 
     def describe(self) -> dict:
         return {"provider": self.name, "base_url": self.base, "roles": dict(self.roles), "usd_cap": self.usd_cap, "max_calls": self.max_calls, "reasoning_effort": dict(self.reasoning_effort),
@@ -86,6 +94,11 @@ class NebiusTokenFactory:
                 "thinking_roles": list(self.thinking_roles) if self.send_thinking_flag else [],
                 "send_thinking_flag": self.send_thinking_flag, "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
                 "schema_in_prompt": True, "auto_retry": False, "pre_request_reservation": True,
+                "reservation_policy": "the USD reservation is journaled durably (fsync) before dispatch; if it cannot be, the request is not sent and the "
+                                      "run stops paid calls",
+                "metering_policy": "an HTTP 200 whose usage cannot price the generation (missing, empty, partial or malformed counters) keeps its "
+                                   "reservation unsettled and stops further paid calls of the run pending reconciliation; explicit zero counters settle as 0",
+                "halted": self.halted,
                 "max_prompt_chars": self.MAX_PROMPT_CHARS, "max_tokens": self.max_tokens}
 
     CHARS_PER_TOKEN = 3.0  # conservative for English plus code; real ratio is usually higher
@@ -109,6 +122,7 @@ class NebiusTokenFactory:
         return est_in / 1e6 * price_in + self.max_tokens / 1e6 * price_out
 
     def structured(self, role: str, prompt: str, schema: dict, stage: str) -> ModelResult:
+        self._refuse_if_halted()
         model = self.roles.get(role) or self.roles["implement"]
         if model not in PRICES:
             raise ModelError(f"no price entry for {model!r}; refusing to spend without accounting")
@@ -147,7 +161,15 @@ class NebiusTokenFactory:
         """One request; a `finish_reason=length` answer with no visible content (the model spent its whole completion budget on
         reasoning) is a definite failure and is retried once at low reasoning effort, both attempts recorded. The reservation
         is journaled before the request leaves and closed by the call record, so an interrupted process leaves the bound behind."""
-        reservation_id = self.ledger.reserve(self.name, role, stage if attempt == 1 else f"{stage}-lowretry", model, reservation)
+        self._refuse_if_halted()
+        try:
+            reservation_id = self.ledger.reserve(self.name, role, stage if attempt == 1 else f"{stage}-lowretry", model, reservation)
+        except LedgerError as error:
+            # a definite refusal (nothing left the process): without a durable reservation the request is not sent, and this
+            # instance sends nothing further, so no call of the run can ever be billed without a record that survives the process
+            self.halted = (f"the USD reservation for {stage} could not be journaled ({error}); the request was not sent, and this provider "
+                           f"instance accepts no further paid requests because nothing may be dispatched without a durable reservation")
+            raise ModelError(self.halted) from None
         started = utcnow()
         t0 = time.monotonic()
         flags = payload.get("chat_template_kwargs") or {}
@@ -180,10 +202,22 @@ class NebiusTokenFactory:
         call.elapsed_ms = int((time.monotonic() - t0) * 1000)
         body = body or {}
         call.returned_model = body.get("model")
-        call.usage_raw = body.get("usage") or {}
-        call.tokens_in, call.tokens_out, call.tokens_cached = extract_usage(call.usage_raw)
-        price_in, price_out = PRICES[model]
-        call.cost_usd = round((call.tokens_in or 0) / 1e6 * price_in + (call.tokens_out or 0) / 1e6 * price_out, 6)
+        usage = body.get("usage")
+        call.usage_raw = usage if isinstance(usage, dict) else ({} if usage is None else {"malformed_usage": repr(usage)[:200]})
+        call.tokens_in, call.tokens_out, call.tokens_cached = extract_usage(usage)
+        metering = usage_problem(usage, call.tokens_in, call.tokens_out)
+        if metering is None:
+            price_in, price_out = PRICES[model]
+            call.cost_usd = round(call.tokens_in / 1e6 * price_in + call.tokens_out / 1e6 * price_out, 6)
+        else:
+            # the provider generated an answer, so the call was not free; without usable counters its price is unknown and the
+            # reservation stays committed (unsettled). No further paid call of this run: the per-run cap must not bind on guesses.
+            # The answer itself is still returned below (it was generated and is validated like any other).
+            call.cost_usd = None
+            call.settlement = "unsettled"
+            call.cost_note = (f"metering failed: {metering}; the reservation (${reservation:.6f}) stays committed pending reconciliation "
+                              f"against the provider's billing")
+            self.halted = f"metering failed on {call.stage} ({metering}); paid calls of this run stop pending reconciliation"
         choices = body.get("choices") or []
         message = (choices[0].get("message") or {}) if choices else {}
         text = message.get("content") or ""
@@ -205,9 +239,9 @@ class NebiusTokenFactory:
             finish = (choices[0].get("finish_reason") if choices else None)
             call.error = f"schema violation: {problem}; finish_reason={finish}; content head: {head!r}"
             self.ledger.add_call(call, reservation_id)
-            if finish == "length" and not (head or "").strip() and attempt == 1:
+            if finish == "length" and not (head or "").strip() and attempt == 1 and not self.halted:
                 # the model spent the whole completion budget on reasoning: a definite failure (nothing to replay), retried once at
-                # low effort if the per-run cap still allows the reservation
+                # low effort if the per-run cap still allows the reservation (and the run is not halted on a metering failure)
                 if self.spent_usd() + reservation <= self.usd_cap and (self.max_calls is None or self.calls_made() < self.max_calls):
                     low = dict(payload, reasoning_effort="low")
                     return self._send(role, prompt, schema, stage, model, low, reservation, attempt=2)

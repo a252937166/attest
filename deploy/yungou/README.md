@@ -1,17 +1,98 @@
 # Deploying the Attest console to `yungou` (DogYun, 206.237.18.80)
 
-Files: `attest.service` (systemd, placeholder `__MEMORY_MAX__`), `attest.axiqo.xyz.conf` (nginx), `attest.env.example`,
-`snapshot.sh` (read-only before/after host snapshot), `install.sh` (idempotent), `rollback.sh` (scoped).
+Files: `build_bundle.sh` (release archive with `RELEASE.json`), `install.sh` (transactional installer), `rollback.sh` (scoped
+version rollback), `decommission.sh` (stop the service and remove its vhost; needs `--yes`), `snapshot.sh` (read-only
+before/after host snapshot), `attest.service` (systemd, placeholder `__MEMORY_MAX__`), `attest.axiqo.xyz.conf` (nginx),
+`requirements.txt` (the dependency pins, installed per release), `attest.env.example`, and `rehearsal/` (shims and the driver
+that rehearse the scripts on a throwaway root). The 19 Oct 2026 audit findings OPS-01, OPS-02 and OPS-03 are repaired here;
+the record of the repairs and of the rehearsal is `reports/attest-audit-repairs-2026-10-19/ops/README.md`.
 
-Sequence (each step is recorded in `reports/attest-deployment-2026-10-15/`):
-1. Local: measure the console's resident memory idle and during a run; choose `MEMORY_MAX` from the measurement.
-2. Local: build `app.tar.gz` (package, examples, deploy files, evidence bundles to show; no `runs/`, `.venv`, secrets).
-3. Local: verify the CPython tarball checksum against the release `SHA256SUMS`.
-4. Server: `snapshot.sh before`; copy the three files and the unit/vhost/scripts to `/var/tmp/attest-deploy/`.
-5. Server: create `/var/tmp/attest-deploy/attest.env` from the private vault values (never through chat or git).
-6. Server: `MEMORY_MAX=... ./install.sh`; health check on 127.0.0.1:4070; `certbot certonly --webroot -w /var/www/letsencrypt -d attest.axiqo.xyz`; install the https vhost; `nginx -t && systemctl reload nginx`.
-7. Server: one judge-style sample run through the public URL; `snapshot.sh after`; compare with `before`.
-8. Rollback test: `rollback.sh`, verify other vhosts still answer, then reinstall.
+## Release layout on the server (since the OPS-02 repair)
+
+```
+/opt/attest/python/                      standalone CPython 3.12 (unchanged)
+/opt/attest/releases/<version>-<digest12>/   one directory per release: the extracted bundle, RELEASE.json, INSTALLED.json,
+                                         DEPENDENCIES.txt and its own venv/ with the pins of requirements.txt
+/opt/attest/releases/legacy-0.4.0-<digest12>/  the pre-audit real directory /opt/attest/app, moved here by the first install.sh
+                                         run; its venv/ is a symlink to the shared /opt/attest/venv it always ran with
+/opt/attest/app      -> releases/<active>      symlink; the unit's WorkingDirectory and ExecStart (/opt/attest/app/venv/bin/python)
+/opt/attest/app.prev -> releases/<previous>    symlink; what rollback.sh re-selects
+/var/lib/attest, /etc/attest/attest.env  store and secrets, never touched by install or rollback
+```
+
+`<digest12>` is the first twelve hex digits of the package digest (`sha256` over `attest/**/*.py`, the value
+`attest.core.provenance.attest_revision()` reports and every Proof Bundle records). Code and interpreter are selected together
+by the one symlink, so a rollback is one atomic re-point plus a restart of `attest.service`.
+
+## Deployment procedure (orchestrator)
+
+Local, from the project root:
+
+1. `python3 scripts/export_public.py --out dist/public --force` (redacted public tree; the export's own checks must pass).
+2. `(cd dist/public && deploy/yungou/build_bundle.sh /tmp/attest-app.tar.gz)`. The build fails if any required path is
+   missing (README.md, LICENSE, pyproject.toml, FREEZE.md, TESTING.md, PILOT.md, PILOT_FEEDBACK.md, METHOD.md,
+   attest-console.md, attest/, examples/, deploy/, tests/, reports/, plus the installer's files inside deploy/yungou/) and
+   prints the archive's sha256, the version, the package digest and the release label. `RELEASE.json` at the archive root
+   lists every member with sha256 and size, the exclusion rules and the pins; the post-build check compares the archive
+   listing with that list and refuses env files, zips, screenshots, snapshots and AppleDouble files.
+3. Upload to `/var/tmp/attest-deploy/` on the server: the archive as `app.tar.gz`, and from `dist/public/deploy/yungou/`:
+   `install.sh`, `rollback.sh`, `decommission.sh`, `snapshot.sh`, `attest.service`, `attest.axiqo.xyz.conf`
+   (`requirements.txt` travels inside the bundle). Check `sha256sum app.tar.gz` against the build output.
+
+On the server, as root in `/var/tmp/attest-deploy`:
+
+4. `bash snapshot.sh before-<label>`; store backup with the SQLite backup API from the service interpreter
+   (`/opt/attest/venv/bin/python` before the first symlink-layout install, `/opt/attest/app/venv/bin/python` afterwards).
+5. `MEMORY_MAX=200M bash install.sh app.tar.gz 2>&1 | tee install-<label>.log` (check `${PIPESTATUS[0]}`, not `tee`'s status).
+   The installer prints each step and its result: preflight (interpreter, user, secrets, data ownership); extraction into
+   `releases/.staging-<stamp>`; verification of every `RELEASE.json` entry (sha256, size, nothing missing, nothing unlisted, no
+   env file, version and package digest of the tree); the release directory `releases/<label>`; a per-release venv with the
+   pins; `compileall`, `import fastapi, uvicorn, jsonschema, certifi` and `import attest, attest.core.provenance` with the
+   release interpreter (version and digest must equal `RELEASE.json`); unit and vhost rendering (https when the certificate
+   exists, http-only otherwise); `nginx -t` with the new vhost swapped in on disk (skipped when the vhost is unchanged; the
+   running nginx keeps its configuration until the reload); the switch (first run: the real `/opt/attest/app` becomes
+   `releases/legacy-0.4.0-<digest12>` with `venv -> /opt/attest/venv`, a real `/opt/attest/app.prev` is migrated the same way);
+   unit, `daemon-reload`, `enable`, `restart`; strict health (HTTP 200, JSON, version, worker alive, 60 s deadline); readback
+   of every `RELEASE.json` entry and of `attest_revision()` through `/opt/attest/app`; nginx reload only when the vhost
+   changed; pruning to `KEEP_RELEASES` (3) never touching the active or previous release. The last line is
+   `install complete: <label> ...` and nothing else ends in it: any failure exits non-zero, re-selects the previous release
+   (symlink, unit, vhost), restarts it and reports its health.
+6. Verify: the readback lines of the log; `curl -s http://127.0.0.1:4070/api/health` (version, `worker_alive`);
+   `readlink /opt/attest/app /opt/attest/app.prev`; `cat /opt/attest/app/INSTALLED.json`; the public checks of the previous
+   records (`https://attest.axiqo.xyz/`, `/api/health`, `/api/profiles`, served assets); `bash snapshot.sh after-<label>` and
+   its diff against `before-<label>` (the timestamp, memory, disk and load lines, plus the new `app -> releases/...` lines on
+   the first symlink-layout install, are the only expected differences).
+7. Record the deployment under `reports/attest-deployment-<date>/` with the archive sha256, the label, the readback and the
+   two snapshots. The rollback paragraph of that record must describe `rollback.sh` as below, not a directory swap.
+
+## Rollback (version) and decommissioning (service removal) are different commands
+
+`bash rollback.sh` re-selects the release `/opt/attest/app.prev` points at (`--to <label>` selects any installed release,
+`--list` shows them). Before switching it verifies that the release exists, carries `attest/__init__.py`, imports with its own
+interpreter and reproduces the recorded package digest (`RELEASE.json`, or `INSTALLED.json` for migrated legacy releases),
+and that its dependencies import. It prints the store path and the schema-compatibility note (the schema only grows: an
+older release keeps working with the newer database only if it tolerates extra columns, verified for 0.4.0, to be re-checked
+per release), re-points `/opt/attest/app` atomically, restarts only `attest.service`, waits for strict health with the
+selected release's version, reads the package digest back through `/opt/attest/app` and verifies the `RELEASE.json` entries
+in place. nginx, the other services, the store and the secrets are not touched. If anything fails after the switch, the
+release that was serving is re-selected and restarted, the script exits non-zero and says which release serves. On a host still
+in the old layout (real directories) it swaps `app` and `app.prev` by renaming (not atomic) with the shared venv.
+
+`bash decommission.sh --yes` is the old "rollback": it stops and disables `attest.service`, removes only the Attest vhost,
+runs `nginx -t` and reloads nginx; it keeps `/opt/attest`, `/var/lib/attest`, `/etc/attest` and the (disabled) unit file.
+Without `--yes` it prints the plan and exits 2.
+
+## Rehearsing the scripts without a server
+
+`deploy/yungou/rehearsal/rehearse.sh --source dist/public [--python /usr/bin/python3.11] [--logs-out DIR] [--keep]` runs
+install, rollback and decommission against a throwaway root with shims for `systemctl` (starts a fake health server that
+answers with the version of the tree the `app` link points at), `nginx-modern` (`-t` can be made to fail), `useradd`,
+`chown`, `install`, and the interpreter (a fake venv whose `pip install` writes stub packages or fails on request; compile,
+import and digest checks run on the real interpreter). Every host path and command of the scripts is an environment variable
+with the production default (`ATTEST_ROOT`, `SYSTEMD_UNIT_DIR`, `NGINX_CONF_DIR`, `NGINX_BIN`, `SYSTEMCTL`, `HEALTH_URL`,
+`PYTHON_BIN`, `ATTEST_ENV_DIR`, `ATTEST_DATA_DIR`, `USERADD`, `CHOWN`, `INSTALL`, ...), so the scripts under test are the ones
+deployed. `tests/test_audit_ops.py` runs the same scenarios with a small tree in the offline suite. The shims rehearse the
+scripts' control flow, not systemd, nginx or pip themselves.
 
 ## Static files and browser caches (18 Oct 2026)
 
@@ -23,26 +104,15 @@ stylesheet and script (seen on 18 Oct 2026, `reports/attest-deployment-2026-10-1
 
 macOS `tar` also stores extended attributes as `LIBARCHIVE.xattr.com.apple.provenance` headers; GNU tar on the host
 prints "Ignoring unknown extended header keyword" for each and extracts the files unchanged (seen on the 18 Oct 15:03 UTC
-deployment). Harmless; `COPYFILE_DISABLE=1` in `build_bundle.sh` is what keeps AppleDouble `._*` files out.
+deployment; `install.sh` now counts and hides these warnings). Harmless; `COPYFILE_DISABLE=1` in `build_bundle.sh` is what
+keeps AppleDouble `._*` files out.
 
-## 19 Oct 2026 (revision 4): same procedure, one scripting note
+## History of the procedure
 
-Revision 4 (version 0.4.0, package digest `b27a1c07…`) was deployed at 05:42 UTC with the 18 Oct procedure (export, bundle
-from `dist/public`, upload, digest check, SQLite backup API from the service venv, `snapshot.sh` before, `install.sh` with
-`MEMORY_MAX=200M`, health, `snapshot.sh` after, diff, checks): `reports/attest-deployment-2026-10-19/README.md`. When the
-checks are scripted, remember that `grep -c` exits 1 on a zero count, which ends a `set -e -o pipefail` script before the
-remaining checks run; use `grep -c ... || true`.
-
-## 17 Oct 2026 procedure (reliability round, M3 console, M4 import)
-
-1. Local: `python3 scripts/export_public.py --out dist/public --force` (allowlisted copy, gateway host and key shapes
-   redacted, secret scan must pass), then `deploy/yungou/build_bundle.sh /tmp/attest-app.tar.gz` run from `dist/public`
-   so the server receives exactly the public tree plus the redacted evidence reports; screenshots, snapshots, zips, run
-   data and env files are excluded by the script and the listing check fails if any slips through.
-2. Server: `snapshot.sh before-20261017`; copy `app.tar.gz`, `attest.service`, `attest.axiqo.xyz.conf`, `install.sh`,
-   `rollback.sh` to `/var/tmp/attest-deploy/`; append `ATTEST_CODEX_BASE_URL=<private gateway URL>` to
-   `/etc/attest/attest.env` (the public code carries only a placeholder default); `MEMORY_MAX=200M ./install.sh`.
-3. Server: `curl 127.0.0.1:4070/api/health`, `/api/runs` (imported evidence is Nemotron-only, `ATTEST_IMPORT_PROVIDERS=nebius`),
-   public `https://attest.axiqo.xyz/` and `/api/profiles` (no development profile without the token), `snapshot.sh
-   after-20261017`, compare with before. Rollback: `rollback.sh` (scoped) or `mv /opt/attest/app.prev /opt/attest/app`
-   and `systemctl restart attest.service`.
+The deployments of 15 to 19 Oct 2026 (`reports/attest-deployment-2026-10-1*/README.md`) used the previous scripts: an
+installer that replaced `/opt/attest/app` before validating, one shared venv, and a `rollback.sh` that actually stopped the
+service and removed its vhost while the records described a swap of `app` and `app.prev` (audit finding OPS-01). Those
+records are historical and were not rewritten; from the next deployment on, the procedure above applies and the first
+`install.sh` run migrates the real directories into the release layout. The 19 Oct record's scripting note still holds:
+`grep -c` exits 1 on a zero count, which ends a `set -e -o pipefail` script before the remaining checks run; use
+`grep -c ... || true`.

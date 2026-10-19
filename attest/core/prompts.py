@@ -354,7 +354,7 @@ REPOSITORY TREE (current workspace), with a def/class outline of the files you m
 ACTIONS (set unused fields to null):
 - list_files: show the tree.
 - read_file: path (+ optional start_line/end_line) -> file content with line numbers of the range. Large files are truncated; read ranges.
-- search: find (a symbol name, a literal snippet or a regular expression) + optional path (null = the whole tree) -> every matching line with its file and line number. USE THIS TO LOCATE A FUNCTION OR CLASS; it costs one turn and replaces paging through a file.
+- search: find (a symbol name or a literal snippet, matched exactly; prefix it with `re:` for a regular expression, which runs under a 2-second limit) + optional path (null = the whole tree) -> every matching line with its file and line number. USE THIS TO LOCATE A FUNCTION OR CLASS; it costs one turn and replaces paging through a file.
 - replace_in_file: path + find + replace. PREFERRED WAY TO EDIT. `find` must be an exact, unique snippet of the current file (copy it verbatim, including indentation); it is replaced once by `replace`.
 - write_file: path + content for NEW files or complete rewrites of small files (content must be the COMPLETE file).
 - run_tests: runs the repository's existing test suite in a throwaway sandbox branch with your current changes.
@@ -462,10 +462,15 @@ test module (importable as `import {module_name}`, unittest.TestCase classes, Py
 the tests that were already fine unchanged). If any test is an implementation_bug or a contract_dispute, set
 `corrected_module` to null — do not try to make a buggy candidate pass. Never change a test's expected values just to match
 the candidate's output; a corrected test must still follow from the contract and must still fail on an unimplemented version.
-The correction is checked mechanically before it counts: it must keep every test method (same class and method names, none
-added or removed), change only the methods that failed (imports may be added), and the corrected tests must pass on the
-candidate and still discriminate (fail on the unmodified base, or be caught by a mutant of the patch). A correction that
-touches a passing test or drops a test is rejected whole.
+Return exactly one classification per failing test, using the test ids exactly as given above (no other tests, no duplicates);
+an answer whose classifications do not cover exactly the failing tests is rejected. The correction is checked mechanically
+before it counts: it must keep every test method (same class and method names, none added or removed), change only the
+BODIES of the methods that failed (new import statements may be added, but no existing import, class base, decorator, method
+signature, helper or module-level statement may change), and the corrected tests must pass on the candidate and still
+discriminate (fail on the unmodified base, or be caught by a mutant of the patch). A correction that touches a passing test,
+drops a test or changes anything outside the failing bodies is rejected whole. For the SEALED module, a test that failed by
+assertion or by an exception is never overridden by your classification: your correction is recorded for the human and the
+hold stands; only a sealed test the supervisor killed at its timeout can be corrected and re-run.
 
 ORIGINAL TASK STATEMENT:
 {task.statement}

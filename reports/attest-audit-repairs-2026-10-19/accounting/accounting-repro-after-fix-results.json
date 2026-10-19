@@ -1,0 +1,87 @@
+{
+  "scope": "offline fake responses and temporary data; no evidence of actual billed loss; AC-05 and AC-06 are another change set",
+  "python": "3.12.0",
+  "source_sha256": {
+    "attest/ledger.py": "46b1bbcd3eb27c0466a8d34537e802c0e5103fee70b1cb413d93273d944fab70",
+    "attest/models/base.py": "930181317e5e794f08898c4c409cd97aeab5fdfa9c5f53a692757b46d1d762af",
+    "attest/models/nebius_tokenfactory.py": "a7b2b39bdfa7cd4e186ade1f261e6d73af2bf6c325f9ee49bdce1cc2b21e3e31",
+    "scripts/run_evaluation.py": "6e77617bcc8a66cc9636abd8c6531cf99ba7dd048bb828b10ca9bdd69bffae53",
+    "scripts/render_evaluation.py": "78baf9f54d50417b1abcaded4338078a747d58d28aa4261ad1a29778faaf4baa"
+  },
+  "findings": {
+    "AC-01": {
+      "counted_usd_on_three_process_starts": [
+        0.25,
+        0.25,
+        0.25
+      ],
+      "entries_each_time": [
+        1,
+        1,
+        1
+      ],
+      "interrupted_cost_reported_usd": 0.25,
+      "first_listed_at_utc_preserved": true,
+      "reproduced": false
+    },
+    "AC-02": {
+      "journal_committed_usd": 0.25,
+      "persisted_rows": 0,
+      "recovered_items": 1,
+      "recovered": [
+        {
+          "run_id": "orphan",
+          "kind": "finished_unreported",
+          "source": "ledger.jsonl",
+          "cost_usd_committed": 0.25,
+          "included_in_batch_total": true
+        }
+      ],
+      "reproduced": false
+    },
+    "AC-03": {
+      "reserve_outcome": "LedgerError: the ledger journal /var/folders/1z/3g2cx2kj2j39z3g972d8fjgw0000gn/T/attest-accounting-repair-5mqctpkx/failed-write/ledger.jsonl did not take",
+      "in_memory_committed_usd": 0,
+      "journal_recovered_usd": 0,
+      "provider_outcome": "ModelError(uncertain=False): the USD reservation for seal could not be journaled (the ledger journal /var/folders/1z/3g2cx2kj2j39z3g972d8fjgw0000gn/T/attest-accounting-r",
+      "stub_requests_after_failed_reservation": 0,
+      "provider_halted": true,
+      "reproduced": false
+    },
+    "AC-04": {
+      "stub_requests": 1,
+      "answers_accepted": 1,
+      "refusals": [
+        "refusing the request: metering failed on seal (the response carries no usage object); paid calls of this run stop pending reconciliation",
+        "refusing the request: metering failed on seal (the response carries no usage object); paid calls of this run stop pending reconciliation"
+      ],
+      "run_cap_usd": 0.02,
+      "reservation_each_usd": 0.014701,
+      "committed_usd": 0.014701,
+      "settlements": [
+        "unsettled"
+      ],
+      "cost_notes": [
+        "metering failed: the response carries no usage object; the reservation ($0.014701) stays committed pending reconciliatio"
+      ],
+      "reproduced": false
+    },
+    "AC-07": {
+      "schedule_provider": "nebius",
+      "schedule_max_calls_per_run": 22,
+      "conflicting_resume_exit_code": 2,
+      "runtime_constructed_during_conflicting_resume": [],
+      "bare_resume_exit_code": 0,
+      "providers_executed": [
+        "nebius",
+        "nebius",
+        "nebius"
+      ],
+      "resumed_cell_provider": "nebius",
+      "resumed_budget_approval_usd": 1.0,
+      "invalid_tasks": [],
+      "reproduced": false
+    }
+  },
+  "any_reproduced": false
+}

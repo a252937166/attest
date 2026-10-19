@@ -16,7 +16,8 @@ import re
 from pathlib import Path
 
 MANIFEST_FILE = "manifest.json"
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2  # v2 (19 Oct 2026, CORE-07): a complete listing is required; symlinks are never listed and are reported
+SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9._\-]+$")
 
 PURPOSES: tuple[tuple[str, str], ...] = (
     (r"^PROOF\.md$", "Human-readable rendering of the Proof Bundle"),
@@ -66,8 +67,21 @@ def sha256_file(path: Path) -> str:
 
 
 def list_files(run_dir: Path, exclude: tuple[str, ...] = (MANIFEST_FILE,)) -> list[Path]:
+    """Regular files of the run directory (symlinks are never part of a bundle: they are reported by `list_symlinks`)."""
     run_dir = Path(run_dir)
-    return sorted(p for p in run_dir.rglob("*") if p.is_file() and p.relative_to(run_dir).as_posix() not in exclude)
+    return sorted(p for p in run_dir.rglob("*") if not p.is_symlink() and p.is_file() and p.relative_to(run_dir).as_posix() not in exclude)
+
+
+def list_symlinks(run_dir: Path) -> list[str]:
+    run_dir = Path(run_dir)
+    return sorted(p.relative_to(run_dir).as_posix() for p in run_dir.rglob("*") if p.is_symlink())
+
+
+def unsafe_path(rel: str) -> bool:
+    """A listed path must be relative, contained and made of plain segments (no `..`, no absolute path, no backslash)."""
+    parts = rel.split("/")
+    return (not rel or rel.startswith("/") or "\\" in rel or any(part in ("", ".", "..") for part in parts)
+            or not all(SAFE_SEGMENT.match(part) for part in parts))
 
 
 def build_manifest(run_dir: Path, run_id: str | None = None, exclude: tuple[str, ...] = (MANIFEST_FILE,)) -> dict:
@@ -82,12 +96,30 @@ def build_manifest(run_dir: Path, run_id: str | None = None, exclude: tuple[str,
 
 
 def verify_manifest(run_dir: Path, manifest: dict) -> dict:
-    """Recompute every listed digest. Reports mismatched and missing entries and files present but unlisted."""
+    """Recompute every listed digest and check the listing itself. `ok` covers the digests (mismatched or missing entries);
+    `complete` says every regular file of the run directory is listed; `entries_ok` says the listing is well formed (no
+    duplicate or unsafe path, correct count and total, sha256, only the manifest itself excluded); `symlinks` names links in
+    the run directory, which a bundle must not contain. `attest check` decides which of these are errors for the bundle's
+    evidence protocol; a fully verified manifest needs all three."""
     run_dir = Path(run_dir)
-    listed = {f["path"]: f for f in manifest.get("files") or []}
-    mismatched, missing = [], []
+    entries = list(manifest.get("files") or [])
+    listed: dict[str, dict] = {}
+    duplicates, unsafe = [], []
+    for entry in entries:
+        rel = str(entry.get("path") or "")
+        if rel in listed:
+            duplicates.append(rel)
+        listed[rel] = entry
+        if unsafe_path(rel):
+            unsafe.append(rel)
+    mismatched, missing, symlinked = [], [], []
     for rel, entry in listed.items():
         path = run_dir / rel
+        if rel in unsafe:
+            continue
+        if path.is_symlink():
+            symlinked.append(rel)  # a listed entry must be a regular file; a link is never opened
+            continue
         if not path.is_file():
             missing.append(rel)
             continue
@@ -95,6 +127,28 @@ def verify_manifest(run_dir: Path, manifest: dict) -> dict:
         if actual != entry.get("sha256") or path.stat().st_size != entry.get("bytes"):
             mismatched.append({"path": rel, "expected": entry.get("sha256"), "actual": actual,
                                "expected_bytes": entry.get("bytes"), "actual_bytes": path.stat().st_size})
-    present = {p.relative_to(run_dir).as_posix() for p in list_files(run_dir, tuple(manifest.get("excluded") or (MANIFEST_FILE,)))}
+    excluded = list(manifest.get("excluded") or (MANIFEST_FILE,))
+    present = {p.relative_to(run_dir).as_posix() for p in list_files(run_dir, tuple(excluded))}
     unlisted = sorted(present - set(listed))
-    return {"ok": not mismatched and not missing, "checked": len(listed), "mismatched": mismatched, "missing": missing, "unlisted": unlisted}
+    symlinks = sorted(set(list_symlinks(run_dir)) | set(symlinked))
+    count_ok = manifest.get("file_count") == len(entries)
+    total_ok = manifest.get("total_bytes") == sum(int(e.get("bytes") or 0) for e in entries)
+    excluded_ok = excluded == [MANIFEST_FILE]
+    algorithm_ok = manifest.get("algorithm") == "sha256"
+    entry_problems = []
+    if duplicates:
+        entry_problems.append("duplicate path(s): " + ", ".join(duplicates)[:200])
+    if unsafe:
+        entry_problems.append("unsafe path(s): " + ", ".join(unsafe)[:200])
+    if not count_ok:
+        entry_problems.append(f"file_count {manifest.get('file_count')} vs {len(entries)} entries")
+    if not total_ok:
+        entry_problems.append(f"total_bytes {manifest.get('total_bytes')} vs the sum of the entries")
+    if not excluded_ok:
+        entry_problems.append(f"exclusions {excluded} (only {MANIFEST_FILE} may be excluded)")
+    if not algorithm_ok:
+        entry_problems.append(f"algorithm {manifest.get('algorithm')!r} (sha256 required)")
+    return {"ok": not mismatched and not missing and not symlinked, "checked": len(listed), "mismatched": mismatched, "missing": missing,
+            "unlisted": unlisted, "complete": not unlisted, "duplicates": duplicates, "unsafe": unsafe, "symlinks": symlinks,
+            "count_ok": count_ok, "total_ok": total_ok, "excluded_ok": excluded_ok, "algorithm_ok": algorithm_ok,
+            "entries_ok": not entry_problems, "entry_problems": entry_problems, "version": manifest.get("version")}

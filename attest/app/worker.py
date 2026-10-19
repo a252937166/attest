@@ -1,38 +1,104 @@
-"""Single background worker: runs one task at a time, streams progress into the store, enforces caps."""
+"""Single background worker: runs one task at a time, streams progress into the store, enforces caps.
+
+Supervision (API-07): the loop survives any failure of a run (any BaseException other than SystemExit/KeyboardInterrupt
+is recorded on the row and the loop continues). If the thread does die, `ensure_alive()` restarts it, at most once per
+RESTART_BACKOFF_S so a loop that dies on start cannot spin; `stop()` is a deliberate stop that is never undone by a
+restart. Admission (`enqueue`) refuses work when no live thread exists, before any row or reservation is created.
+
+Queue order (API-11): `_queued` mirrors the order of run ids in the queue under `_state_lock`, so `position(run_id)` is the
+authoritative number of runs ahead of a run (0 while it executes).
+
+Retention (API-06): `housekeeping()` applies the bounded retention after every job, successful or not, and whenever the
+queue has been idle for `housekeeping_s`, so a period of failures still reclaims disk.
+"""
 
 from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 import queue
 import shutil
 import threading
+import time
 import traceback
 from pathlib import Path
 
 from ..ledger import Ledger, utcnow
 from ..secrets import SecretError, load_secret, project_id
-from .db import BudgetError, Store
+from .db import Store, visibility_for
+
+LOG = logging.getLogger("attest.app")
+RESTART_BACKOFF_S = 5.0
+
+
+class WorkerUnavailable(RuntimeError):
+    """Raised by `enqueue` when no live worker thread exists; nothing was written."""
 
 
 class Worker:
     def __init__(self, store: Store, data_dir: Path, examples_dir: Path, max_queue: int = 5, per_run_usd_cap: float = 0.5,
                  daily_usd_cap: float = 2.0, max_turns: int = 14, max_mutants: int = 12, retention_keep: int = 40,
-                 min_free_frac: float = 0.07, min_free_mb: int = 500):
+                 min_free_frac: float = 0.07, min_free_mb: int = 500, retention_keep_errors: int = 10, housekeeping_s: float = 300.0):
         self.store = store
         self.data_dir = Path(data_dir)
         self.examples_dir = Path(examples_dir)
         self.queue: queue.Queue = queue.Queue(maxsize=max_queue)
+        self.max_queue = max_queue
         self.per_run_usd_cap = per_run_usd_cap
         self.daily_usd_cap = daily_usd_cap
         self.max_turns = max_turns
         self.max_mutants = max_mutants
         self.retention_keep = retention_keep
+        self.retention_keep_errors = retention_keep_errors
+        self.housekeeping_s = housekeeping_s
         self.min_free_frac = min_free_frac
         self.min_free_bytes = min_free_mb * 1024 * 1024
         self.current: str | None = None
-        self.thread = threading.Thread(target=self._loop, name="attest-worker", daemon=True)
-        self.thread.start()
+        self._queued: list[str] = []            # run ids in queue order (API-11), under _state_lock
+        self._state_lock = threading.Lock()     # current, _queued, thread, restart bookkeeping
+        self._admit_lock = threading.Lock()     # one admission at a time: capacity check, row, queue slot
+        self._stop = threading.Event()
+        self.restarts = 0
+        self._last_restart: float | None = None
+        self.thread = self._spawn()
+
+    # ------------------------------------------------------------ supervision (API-07)
+    def _spawn(self) -> threading.Thread:
+        thread = threading.Thread(target=self._loop, name="attest-worker", daemon=True)
+        thread.start()
+        return thread
+
+    def alive(self) -> bool:
+        return self.thread.is_alive()
+
+    def ensure_alive(self) -> bool:
+        """True when the loop thread is running. A thread that died unexpectedly is restarted, at most once per
+        RESTART_BACKOFF_S; a deliberate `stop()` is respected until `start()`."""
+        with self._state_lock:
+            if self.thread.is_alive():
+                return True
+            if self._stop.is_set():
+                return False
+            now = time.monotonic()
+            if self._last_restart is not None and now - self._last_restart < RESTART_BACKOFF_S:
+                return False
+            self._last_restart = now
+            self.restarts += 1
+            LOG.error("worker thread is dead; restarting it (restart %d)", self.restarts)
+            self.thread = self._spawn()
+            self.thread.join(timeout=0.05)  # a loop that dies on start is reported dead, not alive for an instant
+            return self.thread.is_alive()
+
+    def stop(self) -> None:
+        """Stop the loop deliberately (shutdown, tests): `ensure_alive()` will not restart it until `start()`."""
+        self._stop.set()
+
+    def start(self) -> bool:
+        self._stop.clear()
+        with self._state_lock:
+            self._last_restart = None
+        return self.ensure_alive()
 
     # ------------------------------------------------------------ disk
     def disk(self) -> dict:
@@ -53,6 +119,7 @@ class Worker:
 
     # ------------------------------------------------------------ tasks
     def tasks(self) -> list[dict]:
+        """Configured sample tasks. `path` is the task file on the host and stays internal (the API drops it)."""
         items = []
         for path in sorted(self.examples_dir.glob("*/task.json")):
             try:
@@ -71,39 +138,108 @@ class Worker:
         return None
 
     # ------------------------------------------------------------ queueing
-    def enqueue(self, task_id: str, provider: str, requester: str, profile_label: str) -> dict:
+    def position(self, run_id: str) -> int | None:
+        """Runs ahead of `run_id`: 0 while it executes, N when N runs precede it (the one executing plus the queued runs
+        before it); None when it is neither executing nor queued."""
+        with self._state_lock:
+            if self.current == run_id:
+                return 0
+            if run_id in self._queued:
+                return self._queued.index(run_id) + (1 if self.current else 0)
+        return None
+
+    def enqueue(self, task_id: str, provider: str, requester: str, profile_label: str, quota: tuple[str, str, int] | None = None) -> dict:
+        """Admit a run. Raises ValueError for an unknown task, WorkerUnavailable when no live worker exists, QuotaError when the
+        visitor's hourly allowance is used up, BudgetError when the daily budget has no room, RuntimeError when the disk is
+        low or the queue is full. Nothing is written unless the run is admitted."""
         path = self.task_path(task_id)
         if path is None:
             raise ValueError(f"unknown task {task_id}")
+        if not self.ensure_alive():
+            raise WorkerUnavailable("the run worker is not available; nothing was queued")
         self._disk_guard()
-        run_id = f"{task_id}-{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}"
         title = json.loads(path.read_text(encoding="utf-8"))["title"]
-        today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT00:00:00")
-        try:
-            self.store.create_run_reserving(self.per_run_usd_cap, self.daily_usd_cap, today, run_id=run_id, task_id=task_id,
+        visibility = visibility_for(provider)
+        with self._admit_lock:
+            if self.queue.full():
+                raise RuntimeError("the run queue is full; try again in a few minutes")
+            run_id = f"{task_id}-{dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}"
+            today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT00:00:00")
+            self.store.create_run_reserving(self.per_run_usd_cap, self.daily_usd_cap, today, quota=quota, run_id=run_id, task_id=task_id,
                                             task_title=title, provider=provider, profile_label=profile_label, status="queued",
-                                            stage="queued", created_at=utcnow(), requester=requester)
-        except BudgetError as error:
-            raise RuntimeError(str(error)) from None
-        try:
-            self.queue.put_nowait((run_id, path, provider, profile_label))
-        except queue.Full:
-            self.store.update_run(run_id, status="error", error="queue full", finished_at=utcnow())
-            raise RuntimeError("the run queue is full; try again in a few minutes") from None
-        return {"run_id": run_id, "status": "queued", "position": self.queue.qsize()}
+                                            stage="queued", created_at=utcnow(), requester=requester, visibility=visibility)
+            with self._state_lock:
+                self._queued.append(run_id)
+            try:
+                self.queue.put_nowait((run_id, path, provider, profile_label))
+            except queue.Full:
+                with self._state_lock:
+                    self._queued.remove(run_id)
+                self.store.record_failure(run_id, "queue_full", "queue full")
+                raise RuntimeError("the run queue is full; try again in a few minutes") from None
+        return {"run_id": run_id, "status": "queued", "position": self.position(run_id), "visibility": visibility}
 
     # ------------------------------------------------------------ execution
     def _loop(self) -> None:
-        while True:
-            run_id, path, provider, profile_label = self.queue.get()
-            self.current = run_id
+        while not self._stop.is_set():
             try:
-                self._execute(run_id, path, provider, profile_label)
-            except Exception:  # noqa: BLE001
-                self.store.update_run(run_id, status="error", error=traceback.format_exc()[-1500:], finished_at=utcnow())
-            finally:
+                item = self.queue.get(timeout=self.housekeeping_s)
+            except queue.Empty:
+                if not self._stop.is_set():
+                    self.housekeeping()
+                continue
+            self._run_one(item)
+
+    def _begin(self, run_id: str) -> None:
+        with self._state_lock:
+            self.current = run_id
+            if run_id in self._queued:
+                self._queued.remove(run_id)
+
+    def _run_one(self, item: tuple) -> None:
+        """One queue item, start to finish. Any failure of the run is recorded on its row and the loop goes on; only a
+        SystemExit/KeyboardInterrupt ends the thread, and even then the row is settled first."""
+        run_id, path, provider, profile_label = item
+        self._begin(run_id)
+        try:
+            self._execute(run_id, path, provider, profile_label)
+        except (SystemExit, KeyboardInterrupt):
+            self._settle(run_id, traceback.format_exc(), interrupted=True)
+            raise
+        except BaseException:  # noqa: BLE001 - the loop survives anything else (API-07)
+            self._settle(run_id, traceback.format_exc(), interrupted=False)
+        finally:
+            with self._state_lock:
                 self.current = None
-                self.queue.task_done()
+            self.queue.task_done()
+            self.housekeeping(run_id)
+
+    def _settle(self, run_id: str, detail: str, interrupted: bool) -> None:
+        """Record a failure that escaped `_execute` on the row, unless `_execute` already finalized it."""
+        try:
+            row = self.store.get_run(run_id)
+            if row is None or row["status"] not in ("queued", "running"):
+                return
+            if interrupted:
+                self.store.finalize_interrupted(run_id, self.per_run_usd_cap, detail=detail)
+            else:
+                self.store.record_failure(run_id, "worker_error", "the worker failed before completion", detail=detail, stage="error")
+        except Exception:  # noqa: BLE001 - a failing store must not take the loop down with it
+            LOG.exception("could not record the failure of run %s", run_id)
+
+    def housekeeping(self, run_id: str | None = None) -> list[str]:
+        """Bounded retention, independent of any run finishing (API-06). Returns the ids whose directories were reclaimed."""
+        try:
+            pruned = self.store.prune_runs(self.data_dir / "runs", keep=self.retention_keep, keep_errors=self.retention_keep_errors)
+        except Exception:  # noqa: BLE001 - retention must never fail a run or the loop
+            LOG.exception("housekeeping failed")
+            return []
+        if pruned and run_id:
+            try:
+                self.store.add_event(run_id, utcnow(), "retention", f"pruned {len(pruned)} old run director(ies) to reclaim disk")
+            except Exception:  # noqa: BLE001
+                pass
+        return pruned
 
     def build_runtime(self, run_id: str, provider_name: str, ledger: Ledger):
         """The provider, executor and grounding client for one run (separated so tests can substitute fakes)."""
@@ -134,12 +270,12 @@ class Worker:
             today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT00:00:00")
             ok, detail = self.store.nebius_budget_ok(self.per_run_usd_cap, self.daily_usd_cap, today)
             if not ok:
-                self.store.update_run(run_id, status="error", error=detail, finished_at=utcnow(), stage="budget")
+                self.store.record_failure(run_id, "budget_exhausted", detail, stage="budget")
                 return
         try:
             self._disk_guard()
         except RuntimeError as error:
-            self.store.update_run(run_id, status="error", error=str(error), finished_at=utcnow(), stage="disk")
+            self.store.record_failure(run_id, "disk_low", str(error), stage="disk")
             return
         def meters(live: dict) -> None:
             # every reservation and every call record updates the row at once, so a process that dies mid-run leaves the
@@ -175,10 +311,10 @@ class Worker:
             bundle = pipeline.run()
         except Exception as error:  # noqa: BLE001 - the paid calls made before the crash stay on the row and in the daily budget
             totals = ledger.totals()
-            self.store.update_run(run_id, status="error", error=f"{type(error).__name__}: {str(error)[:300]}"[-1500:], finished_at=utcnow(),
-                                  stage="error", out_dir=str(pipeline.out_dir), cost_usd=totals.get("cost_usd"),
-                                  cost_committed_usd=totals.get("cost_usd_committed"), tokens_in=totals.get("tokens_in"),
-                                  tokens_out=totals.get("tokens_out"), sandbox_ops=totals.get("sandbox_operations"), model_calls=totals.get("model_calls"))
+            self.store.record_failure(run_id, "pipeline_error", f"{type(error).__name__}: {str(error)[:300]}", detail=traceback.format_exc(),
+                                      stage="error", out_dir=str(pipeline.out_dir), cost_usd=totals.get("cost_usd"),
+                                      cost_committed_usd=totals.get("cost_usd_committed"), tokens_in=totals.get("tokens_in"),
+                                      tokens_out=totals.get("tokens_out"), sandbox_ops=totals.get("sandbox_operations"), model_calls=totals.get("model_calls"))
             return
         totals = bundle["ledger"]["totals"]
         self.store.update_run(run_id, status="finished", verdict=bundle["verdict"]["verdict"], finished_at=utcnow(),
@@ -187,9 +323,3 @@ class Worker:
                               tokens_out=totals.get("tokens_out"), sandbox_ops=totals.get("sandbox_operations"), stage="finished",
                               model_calls=totals.get("model_calls"),
                               reasons=json.dumps(bundle["verdict"]["reasons"]), warnings=json.dumps(bundle["verdict"].get("warnings", [])))
-        try:
-            pruned = self.store.prune_runs(self.data_dir / "runs", keep=self.retention_keep)
-            if pruned:
-                self.store.add_event(run_id, utcnow(), "retention", f"pruned {len(pruned)} old run director(ies) to reclaim disk")
-        except Exception:  # noqa: BLE001 - retention must never fail a finished run
-            pass

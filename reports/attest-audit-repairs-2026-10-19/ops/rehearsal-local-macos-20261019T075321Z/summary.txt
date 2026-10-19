@@ -1,0 +1,11 @@
+PASS  scenario 1  clean-install                    exit 0  install of 9.0.1-rehearsal-ccf5e0966f75 on an empty root
+PASS  scenario 2  second-install                   exit 0  install of 9.0.2-rehearsal-d1fc91722826 keeps 9.0.1-rehearsal-ccf5e0966f75 as previous
+PASS  scenario 3  pip-failure                      exit 1  pip exits 1: refused before the switch, 9.0.2-rehearsal-d1fc91722826 keeps serving
+PASS  scenario 4  health-failure                   exit 1  service answers 9.9.9-misreported: switched back to 9.0.2-rehearsal-d1fc91722826
+PASS  scenario 5  nginx-test-failure               exit 1  nginx -t exits 1: vhost restored, 9.0.2-rehearsal-d1fc91722826 keeps serving
+PASS  scenario 6  rollback                         exit 0  rollback.sh re-selects 9.0.1-rehearsal-ccf5e0966f75, digest read back, nginx untouched
+PASS  scenario 9  tampered-manifest                exit 1  README.md changed after build: RELEASE.json verification refuses the release
+PASS  scenario 7  decommission-refused             exit 2  decommission.sh without --yes prints the plan and changes nothing
+PASS  scenario 7b  decommission-yes                 exit 0  decommission.sh --yes stops the unit and removes only the vhost
+PASS  scenario 8  legacy-migration                 exit 0  real /opt/attest/app migrated to legacy-9.0.1-rehearsal-ccf5e0966f75, 9.0.2-rehearsal-d1fc91722826 active
+PASS  scenario 8b  legacy-rollback                  exit 0  rollback.sh re-selects the legacy release through the shared venv

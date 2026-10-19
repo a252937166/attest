@@ -14,6 +14,11 @@ compressed and capped at MAX_REQUEST_BYTES; a checkpoint whose files do not fit 
 request is built as a chain of retained images (files first, the install and baseline
 steps in the final operation). Disposable branches carry only changed files and test
 modules and must fit in one request.
+
+Guest output (BOUND-04, audit of 19 Oct 2026): the runner drains each step's stdout and stderr concurrently into bounded
+head-and-tail buffers while the step runs, counts every byte, starts each step in its own session and kills the whole
+process group on the step's deadline or when a stream passes the output limit, bounds every wait, and records a truthful
+failure (`timed_out`, `output_exhausted`, `cleanup`) in the step report. The report format read here is unchanged.
 """
 
 from __future__ import annotations
@@ -36,12 +41,128 @@ GUEST_ENV = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/tmp", "LANG": "C.
              "PYTHONDONTWRITEBYTECODE": "1", "PYTHONHASHSEED": "0"}
 
 GUEST_RUNNER = r'''
-import base64, gzip, json, os, subprocess, sys, time
-def clip(data, cap):
-    text = data.decode("utf-8", "replace")
-    if len(text) <= cap:
-        return text
-    return text[: cap // 2] + "\n...[truncated]...\n" + text[-(cap // 2):]
+import base64, gzip, json, os, signal, subprocess, sys, threading, time
+GRACE_S = 2.0  # bounded wait for a killed group to be reaped and for its pipes to close (at most three such waits per step)
+
+class Drain(threading.Thread):
+    # Reads one pipe to EOF while the step runs. Keeps only the first and the last cap//2 bytes, counts every byte and sets
+    # `exhausted` once the stream passes the output limit, so a noisy step never grows the runner's memory.
+    def __init__(self, fd, cap, limit, exhausted):
+        threading.Thread.__init__(self, daemon=True)
+        self.fd, self.cap, self.limit, self.exhausted = fd, cap, limit, exhausted
+        self.half = max(1, cap // 2)
+        self.head, self.tail, self.total = bytearray(), bytearray(), 0
+    def run(self):
+        try:
+            while True:
+                try:
+                    chunk = os.read(self.fd, 65536)
+                except OSError:
+                    break
+                if not chunk:
+                    break
+                self.total += len(chunk)
+                if len(self.head) < self.half:
+                    self.head += chunk[: self.half - len(self.head)]
+                self.tail += chunk
+                if len(self.tail) > self.cap + self.half:
+                    del self.tail[: len(self.tail) - self.half]
+                if self.total > self.limit:
+                    self.exhausted.set()
+        finally:
+            try:
+                os.close(self.fd)
+            except OSError:
+                pass
+    def text(self):
+        if self.total <= self.cap:
+            return bytes(self.tail).decode("utf-8", "replace")
+        omitted = self.total - len(self.head) - self.half
+        return (bytes(self.head).decode("utf-8", "replace") + "\n...[truncated: %d of %d bytes omitted]...\n" % (omitted, self.total)
+                + bytes(self.tail[-self.half:]).decode("utf-8", "replace"))
+
+def kill_group(pgid):
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+        return True
+    except OSError:
+        return False
+
+def sweep_session(sid):
+    # Linux: SIGKILL whatever is left in the step's session (read from /proc), so a descendant that moved to its own process
+    # group does not outlive the step. Without /proc nothing is swept and 0 is reported.
+    killed = 0
+    if not os.path.isdir("/proc"):
+        return killed
+    for name in os.listdir("/proc"):
+        if not name.isdigit() or int(name) == os.getpid():
+            continue
+        try:
+            with open("/proc/" + name + "/stat", "rb") as handle:
+                fields = handle.read().rsplit(b")", 1)[1].split()
+            if int(fields[3]) == sid:
+                os.kill(int(name), signal.SIGKILL)
+                killed += 1
+        except (OSError, ValueError, IndexError):
+            continue
+    return killed
+
+def join_all(threads, seconds):
+    until = time.monotonic() + seconds
+    for thread in threads:
+        thread.join(max(0.0, until - time.monotonic()))
+    return not any(thread.is_alive() for thread in threads)
+
+def run_step(step, cap, output_limit):
+    started = time.monotonic()
+    timeout = float(step.get("timeout", 60))
+    record = {"name": step.get("name"), "cmd": step["cmd"], "cwd": step.get("cwd")}
+    env = dict(os.environ)
+    env.update(step.get("env") or {})
+    exhausted = threading.Event()
+    out_r, out_w = os.pipe()
+    err_r, err_w = os.pipe()
+    try:
+        proc = subprocess.Popen(step["cmd"], cwd=step.get("cwd"), env=env, stdin=subprocess.DEVNULL,
+                                stdout=out_w, stderr=err_w, start_new_session=True)
+    except Exception as error:
+        for fd in (out_r, out_w, err_r, err_w):
+            os.close(fd)
+        record.update(exit_code=None, timed_out=False, output_exhausted=False, stdout="", stderr="", stdout_bytes=0, stderr_bytes=0,
+                      stdout_truncated=False, stderr_truncated=False, error=type(error).__name__ + ": " + str(error)[:300],
+                      duration_s=round(time.monotonic() - started, 3))
+        return record
+    os.close(out_w)
+    os.close(err_w)
+    drains = [Drain(out_r, cap, output_limit, exhausted), Drain(err_r, cap, output_limit, exhausted)]
+    for drain in drains:
+        drain.start()
+    deadline = started + timeout
+    while proc.poll() is None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or exhausted.is_set():
+            break
+        exhausted.wait(min(0.05, remaining))
+    running = proc.poll() is None
+    timed_out = running and time.monotonic() >= deadline
+    cleanup = {"killed_group": False, "reaped": True, "pipes_closed": True, "descendants_killed": 0}
+    if running:  # deadline or output exhaustion: the whole session goes, then one bounded wait for the leader
+        cleanup["killed_group"] = kill_group(proc.pid)
+        try:
+            proc.wait(timeout=GRACE_S)
+        except subprocess.TimeoutExpired:
+            cleanup["reaped"] = False
+    if not join_all(drains, GRACE_S):
+        # the step exited but a descendant still holds its pipes: kill the group it left behind, then wait once more
+        cleanup["killed_group"] = kill_group(proc.pid) or cleanup["killed_group"]
+        cleanup["pipes_closed"] = join_all(drains, GRACE_S)
+    cleanup["descendants_killed"] = sweep_session(proc.pid)
+    record.update(exit_code=(None if running or not cleanup["reaped"] else proc.returncode), timed_out=timed_out,
+                  output_exhausted=exhausted.is_set(), stdout=drains[0].text(), stderr=drains[1].text(),
+                  stdout_bytes=drains[0].total, stderr_bytes=drains[1].total, stdout_truncated=drains[0].total > cap,
+                  stderr_truncated=drains[1].total > cap, cleanup=cleanup, duration_s=round(time.monotonic() - started, 3))
+    return record
+
 raw = sys.stdin.buffer.read()
 # The API decodes the request's base64 stdin before it reaches this process, so the bytes here are the gzip stream
 # itself; the other branches keep plain JSON and still-base64 text working.
@@ -54,7 +175,7 @@ except Exception:
     if decoded[:2] == b"\x1f\x8b":
         decoded = gzip.decompress(decoded)
     job = json.loads(decoded.decode("utf-8"))
-report = {"runner": "attest-guest/2", "python": sys.version.split()[0], "uid": os.getuid(),
+report = {"runner": "attest-guest/3", "python": sys.version.split()[0], "uid": os.getuid(),
           "writes": [], "deletes": [], "steps": []}
 for path, encoded in (job.get("write") or {}).items():
     data = base64.b64decode(encoded)
@@ -68,23 +189,15 @@ for path in job.get("delete") or []:
         report["deletes"].append({"path": path, "removed": True})
     except FileNotFoundError:
         report["deletes"].append({"path": path, "removed": False})
-cap = int(job.get("stream_cap_bytes") or 65536)
+cap = int(job.get("stream_cap_bytes") or 65536)                 # bytes of each stream kept for the report (head and tail)
+output_limit = int(job.get("output_limit_bytes") or 64000000)   # bytes a stream may produce before the step is killed
 for step in job.get("steps") or []:
-    started = time.monotonic()
-    record = {"name": step.get("name"), "cmd": step["cmd"], "cwd": step.get("cwd")}
     try:
-        env = dict(os.environ)
-        env.update(step.get("env") or {})
-        proc = subprocess.run(step["cmd"], cwd=step.get("cwd"), env=env, capture_output=True,
-                              timeout=step.get("timeout", 60))
-        record.update(exit_code=proc.returncode, timed_out=False, stdout=clip(proc.stdout, cap),
-                      stderr=clip(proc.stderr, cap), stdout_bytes=len(proc.stdout), stderr_bytes=len(proc.stderr))
-    except subprocess.TimeoutExpired as error:
-        record.update(exit_code=None, timed_out=True, stdout=clip(error.stdout or b"", cap),
-                      stderr=clip(error.stderr or b"", cap))
+        record = run_step(step, cap, output_limit)
     except Exception as error:
-        record.update(exit_code=None, timed_out=False, error=type(error).__name__ + ": " + str(error)[:300])
-    record["duration_s"] = round(time.monotonic() - started, 3)
+        record = {"name": step.get("name"), "cmd": step.get("cmd"), "cwd": step.get("cwd"), "exit_code": None, "timed_out": False,
+                  "output_exhausted": False, "stdout": "", "stderr": "", "error": type(error).__name__ + ": " + str(error)[:300],
+                  "duration_s": 0.0}
     report["steps"].append(record)
     if step.get("stop_on_failure") and record.get("exit_code") != 0:
         report["stopped_early"] = True
@@ -266,16 +379,20 @@ class TokenFactorySandboxes:
             run.runner_error = f"guest report unparsable: {error}"
             return run
         for record in report.get("steps", []):
+            error = record.get("error")
+            if record.get("output_exhausted") and not error:
+                error = (f"output exhausted: the step wrote more than the guest's output limit (stdout {record.get('stdout_bytes')} bytes, "
+                         f"stderr {record.get('stderr_bytes')} bytes) and its process group was killed")
             run.steps.append(StepResult(name=record.get("name") or "", cmd=record.get("cmd") or [],
                                         exit_code=record.get("exit_code"), timed_out=bool(record.get("timed_out")),
                                         duration_s=record.get("duration_s"), stdout=record.get("stdout") or "",
-                                        stderr=record.get("stderr") or "", error=record.get("error")))
+                                        stderr=record.get("stderr") or "", error=error))
         return run
 
     @staticmethod
     def _job(files: dict[str, bytes], steps: list[dict], deletes: list[str] | None = None) -> dict:
         return {"write": {path: base64.b64encode(data).decode("ascii") for path, data in files.items()},
-                "delete": list(deletes or []), "steps": steps, "stream_cap_bytes": 65536}
+                "delete": list(deletes or []), "steps": steps, "stream_cap_bytes": 65536, "output_limit_bytes": 64_000_000}
 
     def plan_chunks(self, files: dict[str, bytes]) -> list[dict[str, bytes]]:
         """Split the files into groups whose encoded job fits one request (halving by sorted path until it fits)."""

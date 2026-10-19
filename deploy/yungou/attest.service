@@ -4,6 +4,8 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+# /opt/attest/app is a symlink to the active release (/opt/attest/releases/<version>-<digest12>) since the 19 Oct 2026
+# audit repairs (OPS-02): code and interpreter (app/venv) flip together, so rollback.sh only re-points the link and restarts this unit.
 Type=simple
 User=attest
 Group=attest
@@ -14,8 +16,8 @@ Environment=ATTEST_DATA_DIR=/var/lib/attest
 Environment=ATTEST_EXAMPLES_DIR=/opt/attest/app/examples
 Environment=ATTEST_IMPORT_DIRS=/var/lib/attest/runs:/opt/attest/app/reports/attest-verification-2026-10-15/evidence-runs:/opt/attest/app/reports/attest-first-slice-2026-10-15:/opt/attest/app/reports/attest-evaluation-2026-10-16/runs
 Environment=ATTEST_IMPORT_PROVIDERS=nebius
-Environment=SSL_CERT_FILE=/opt/attest/venv/lib/python3.12/site-packages/certifi/cacert.pem
-ExecStart=/opt/attest/venv/bin/python -m uvicorn attest.app.server:app --host 127.0.0.1 --port 4070 --workers 1 --log-level info --no-access-log
+Environment=SSL_CERT_FILE=/opt/attest/app/venv/lib/python3.12/site-packages/certifi/cacert.pem
+ExecStart=/opt/attest/app/venv/bin/python -m uvicorn attest.app.server:app --host 127.0.0.1 --port 4070 --workers 1 --log-level info --no-access-log
 Restart=on-failure
 RestartSec=5
 MemoryMax=__MEMORY_MAX__

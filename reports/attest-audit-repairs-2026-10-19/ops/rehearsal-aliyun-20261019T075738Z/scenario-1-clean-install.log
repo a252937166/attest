@@ -1,0 +1,98 @@
+=== scenario 1: clean-install
+=== command: bash install.sh /tmp/attest-rehearsal-20261019T075738Z/run/work/a.tar.gz
+=== expected exit code: 0
+=== state before:
+active: none
+previous: none
+service: inactive
+health: unreachable
+releases: 
+vhost files: 
+unit files: 
+
+=== output:
+== install.sh 20261019T080417Z: bundle /tmp/attest-rehearsal-20261019T075738Z/run/work/a.tar.gz, root /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest, MemoryMax 200M
+
+[01] preflight
+     ok: interpreter: /tmp/attest-rehearsal-20261019T075738Z/deploy/yungou/rehearsal/shims/python3.12 (Python 3.11.13)
+     ok: bundle sha256 583534ef6283bdaea8a60e87941c5d9a9da03ab20f9ba191b056bc0ae8bee308
+useradd shim: would create attest
+     ok: user attest created
+     ok: secrets: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/attest/attest.env installed from the staged attest.env (root:attest 0640)
+     ok: current layout: no application installed yet
+
+[02] extract the bundle into a staging directory
+     ok: extracted into /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/.staging-20261019T080417Z
+
+[03] verify RELEASE.json against the extracted tree
+     ok: version 9.0.1-rehearsal, package digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8 (35 sources), 3125 files verified (sha256 and size), no unlisted file, no env file
+     ok: release label 9.0.1-rehearsal-ccf5e0966f75
+
+[04] release directory
+     ok: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.1-rehearsal-ccf5e0966f75 (not active until the switch)
+
+[05] per-release virtualenv and pinned dependencies
+     ok: pins from deploy/yungou/requirements.txt installed into /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.1-rehearsal-ccf5e0966f75/venv
+
+[06] validate the release with its own interpreter (before switching)
+     ok: compileall attest/
+     ok: import fastapi uvicorn jsonschema certifi
+     ok: import attest, attest.core.provenance: version 9.0.1-rehearsal, attest_revision() digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8 over 35 files (equal to RELEASE.json)
+
+[07] render the unit and the vhost
+     ok: unit from /tmp/attest-rehearsal-20261019T075738Z/run/deploy/attest.service (MemoryMax=200M; ExecStart uses the active release's interpreter through the app link)
+     ok: vhost from /tmp/attest-rehearsal-20261019T075738Z/run/deploy/attest.axiqo.xyz.conf: http-only vhost (no certificate at /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/letsencrypt/live/attest.axiqo.xyz yet)
+
+[08] nginx configuration test with the new vhost in place (nginx is not reloaded yet)
+     nginx: the configuration file syntax is ok (rehearsal shim)
+     nginx: configuration file test is successful (rehearsal shim)
+     ok: nginx -t passed with the new vhost; the running nginx still uses the old one until the reload after the health check
+
+[09] switch /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app to 9.0.1-rehearsal-ccf5e0966f75
+     ok: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app -> /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.1-rehearsal-ccf5e0966f75; /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app.prev -> (none)
+
+[10] systemd unit
+     ok: unit written to /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/systemd/system/attest.service
+     ok: daemon-reload, enabled
+
+[11] restart attest.service
+     ok: restarted
+
+[12] health (strict: HTTP 200, JSON, version 9.0.1-rehearsal, worker alive; deadline 15s) at http://127.0.0.1:49095/api/health
+     health: HTTP 200, version 9.0.1-rehearsal, worker alive, queue 0, free 1000 MB
+
+[13] read back the installed release through /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app
+     ok: 3125 RELEASE.json entries verified in place (version 9.0.1-rehearsal, digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8)
+     ok: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app/venv/bin/python reports version 9.0.1-rehearsal, attest_revision() digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8 (35 files)
+
+[14] nginx reload
+     ok: nginx reloaded with the new vhost
+
+[15] prune old releases (keeping 3, never the active or previous one)
+     ok: releases now: 9.0.1-rehearsal-ccf5e0966f75 
+
+install complete: 9.0.1-rehearsal-ccf5e0966f75 active at /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app (version 9.0.1-rehearsal, package digest ccf5e0966f75be17b1201a5d623257105ab70aeb04779480d5e0f02fada145b8)
+     previous release: 
+     rollback: bash rollback.sh (re-selects the previous release and restarts only attest.service); list: bash rollback.sh --list
+     store: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/var/lib/attest/attest.db is not modified by the installer; the service migrates its schema forward at start
+
+=== exit code: 0 (expected 0)
+=== state after:
+active: 9.0.1-rehearsal-ccf5e0966f75
+previous: none
+service: active
+health: 9.0.1-rehearsal worker_alive=True
+releases: 9.0.1-rehearsal-ccf5e0966f75 
+vhost files: attest.axiqo.xyz.conf 
+unit files: attest.service 
+
+=== checks:
+  PASS  exit code: 0
+  PASS  active release: 9.0.1-rehearsal-ccf5e0966f75
+  PASS  previous release: none
+  PASS  served health: 9.0.1-rehearsal worker_alive=True
+  PASS  completion line (log contains 'install complete'): yes
+  PASS  unit starts the release interpreter: 1
+  PASS  http-only vhost rendered: 1
+  PASS  INSTALLED.json written: yes
+=== verdict: PASS

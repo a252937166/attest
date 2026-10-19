@@ -42,13 +42,35 @@ program, written by a contract auditor and executed on the unmodified repository
 bare claim of infeasibility is a hold); the sealer returns a coverage map that is checked for completeness; a failing
 generated test corrected by the arbiter counts only after mechanical validation (same test methods, only the failing ones
 changed, passes on the candidate, still fails on the base or is caught by a mutant) and then re-runs its gate, while a
-sealed test that failed by assertion or by an exception raised in the code under test is never overridden; breaker syntax errors escalate to the arbiter's model; the
+sealed test that failed by assertion is never overridden; breaker syntax errors escalate to the arbiter's model; the
 implementer has `search`, a def/class outline and a navigation warning, and an exhausted turn budget is reported as an
 unfinished task (`NO CHANGE`, harness label `no_patch`), never as a correct refusal (`reports/attest-evaluation-2026-10-17-nebius-m5/CORRECTIONS.md`);
 every run keeps an append-only ledger journal with reservations written before each request, the console reconciles an
 interrupted run from it, and an idle service no longer reports a phantom reservation. The frozen M5 results are unchanged.
-Revision 4 is deployed at https://attest.axiqo.xyz since 19 Oct 05:42 UTC (`reports/attest-deployment-2026-10-19/README.md`); its
-validation on Nemotron is a proposal awaiting the owner's approval (FREEZE.md, revised version).
+Revision 4 was deployed at https://attest.axiqo.xyz on 19 Oct 05:42 UTC (`reports/attest-deployment-2026-10-19/README.md`).
+
+Revision 5 (19 Oct 2026, version 0.5.0, `reports/attest-audit-repairs-2026-10-19/README.md`) repairs the 35 findings of the
+same day's audit (`reports/attest-audit-2026-10-19/README.md`) before any further paid work. Evidence: every bundle declares an
+evidence protocol (version 2) and `attest check` requires the complete evidence for its verdict (every gate with its raw
+supervisor result, every evaluated mutant's raw result, the base and mutant evidence of any correction, the executed witness
+of an INFEASIBLE verdict, isolation recorded as active, a complete manifest); bundles without the field are historical and
+are never reported as fully verified. Verification: a mutant is killed only by an authentic child failure under a structurally
+sound supervisor run (lost, forged, incomplete, non-isolated, crashed or timed-out runs are unknown); a correction discriminates
+only through authentic results on the base or a validly killed mutant, lost or forged evidence never does, and untrusted
+original failures are never arbitrated; a sealed test that failed by assertion or by any exception is never overridden (only a
+test the supervisor killed at its timeout may be corrected); a correction may change only the failing tests' bodies and must be
+classified for exactly the failing tests; the supervisor (v7) kills a timed-out test's whole process group, bounds its cleanup
+and records it. Accounting: a paid request is dispatched only after its reservation is durably journaled, a successful answer
+without usage keeps its reservation and stops further paid calls, resumed batches restore their registered configuration and
+recover every interrupted or unreported run's spend once, the console preserves committed cost on import and counts a run
+against every UTC day it touched. Console: trusted-proxy visitor identity, atomic quota admission, materialised store reads,
+public response models without requester addresses or paths, complete or explicitly refused bundle downloads with containment
+checks, bounded retention of failed runs, admission refused without a live worker, sanitized errors with correlation ids,
+authoritative queue positions, and team runs visible to the team only. Host: literal search with a bounded regular-expression
+mode, snapshots that never follow links, streaming archive limits, bounded guest output. Release: a strict export allowlist
+with a fail-closed scan, refusal of overlapping export destinations, a real version rollback, a transactional installer and a
+release manifest. The repaired revision is validated offline and on the development gateway; its validation on Nemotron
+remains a proposal awaiting the owner's approval (FREEZE.md).
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
@@ -80,20 +102,22 @@ attest/
   core/workspace.py       implementer workspace with a write-scope policy and unified diff
   core/prompts.py         stage prompts and strict JSON schemas (spec, seal, action)
   core/testparse.py       unittest (subtest-aware) and pytest output parsers for the repository's own suite
-  core/sealed.py          sealed-suite supervisor and child (nonce, digests, uid 65534 children, canaries, start-up-hook check),
-                          static discovery of repository suites, and the host-side binding
+  core/sealed.py          sealed-suite supervisor (v7: one process group per test child, bounded cleanup) and child (nonce, digests,
+                          uid 65534 children, canaries, start-up-hook check), static discovery of repository suites, the host-side
+                          binding and the evidence classes (structural problems, authentic green/red/timeout/untrusted records)
   core/tamper.py          static tamper scan of the candidate's added lines (warnings, never a gate)
   core/mutate.py          AST mutants of the candidate's changed lines for the breaker pass
   core/pipeline.py        freeze -> checkpoint -> spec -> ground -> seal -> red -> implement -> verify (bound, privilege-separated) -> held-out -> break -> drift -> arbitrate -> attest
   core/verdict.py         the one gate-to-verdict rule (used by the pipeline and re-derived by `attest check`)
   core/exhibits.py        exhibits E1 to E7, decision copy per verdict and reason class, counterexamples, "what this bundle proves"
   core/provenance.py      Attest revision digest, supervisor/child/canary/runner digests, sampling parameters, limits, upstream
-  core/manifest.py        manifest.json: sha256, size and purpose of every artifact (written last)
-  core/check.py           `attest check`: offline recomputation of digests, bindings, ledger totals, verdict rule and PROOF.md
+  core/manifest.py        manifest.json (v2): sha256, size and purpose of every artifact, complete listing required, no links (written last)
+  core/check.py           `attest check`: offline recomputation of digests, bindings, mutants, corrections, ledger totals, verdict rule and
+                          PROOF.md; strict for current bundles (evidence protocol), historical mode for older ones
   core/proof.py           Proof Bundle (proof_bundle.json + PROOF.md, exhibits and provenance sections)
   app/                    FastAPI console + API, single worker, SQLite store, static UI (decision header, exhibits E1 to E7,
                           counterexamples, keyed updates, recorded evidence first; development profile only after a team token)
-  cli.py                  `python -m attest preflight|run|check` (run: --arbitration-apply, --no-arbitration, ...)
+  cli.py                  `python -m attest preflight|run|check|import` (run: --arbitration-advisory, --no-arbitration, ...)
 examples/eval/            frozen evaluation suite (SUITE.json) with independent held-out tests
 scripts/run_evaluation.py plain agent vs Attest harness: pre-registered attempts, held-out stripped from the system under test,
                           Codex by default, Nebius only with --approve-usd and --max-calls
@@ -121,7 +145,7 @@ python3 -m attest run --task examples/durationkit-task/task.json --out runs --pr
 python3 -m attest run --task examples/durationkit-task/task.json --out runs --provider nebius --usd-cap 0.5
 python3 -m attest run --task examples/semver-is-compatible/task.json --out runs --provider codex --max-mutants 12
 python3 scripts/run_evaluation.py --provider codex --attempts 1 --label dryrun        # exploratory evaluation (allowance)
-python3 scripts/run_evaluation.py --provider nebius --attempts 2 --approve-usd 6 --max-calls 20 --label final  # after approval only
+python3 scripts/run_evaluation.py --provider nebius --attempts 2 --approve-usd 9 --max-calls 22 --label final  # after approval only
 python3 scripts/usage_report.py --store data/attest.db                               # unique runs and committed USD
 python3 -m attest check runs/<run-id>            # offline: manifest digests, bindings, ledger totals, verdict rule, PROOF.md
 python3 -m attest check downloaded-bundle.zip --json
@@ -129,7 +153,7 @@ python3 -m attest import --github https://github.com/<owner>/<repo> --commit <40
     --runner pytest --write-glob 'src/<pkg>/**' --python-path src --pin pytest==8.3.3 --pin pluggy==1.5.0 \
     --pin iniconfig==2.0.0 --pin packaging==24.1 --statement-file statement.txt --criteria-file criteria.txt   # bounded external import (M4)
 python3 scripts/replay_holds.py --run <run-dir> --task <task.json> --module original=<tests.py> --out replay.json [--sandbox]  # re-run breaker tests on candidate and base
-python3 scripts/run_evaluation.py --resume reports/<batch-dir>     # continue an interrupted batch from its own snapshot (cells never executed only)
+python3 scripts/run_evaluation.py --resume reports/<batch-dir>     # continue an interrupted batch from its own snapshot and registered configuration (cells never executed only; conflicting flags are refused)
 python3 scripts/export_public.py --out dist/public                 # allowlisted, redacted copy for the public repository, with a secret scan
 python3 -m attest run --task examples/eval/rle-encode/task.json --out runs --provider codex --arbitration-advisory   # record corrections, never re-run a gate on them
 ```
@@ -183,10 +207,26 @@ branch of the unmodified checkpoint and records the program, its digest, exit co
 demonstrated only by exit code 3 and a `CONTRADICTION` line; INFEASIBLE rests on a demonstrated witness and on nothing else.
 The sealer's coverage map (which test checks which criterion) is checked for completeness and its gaps are recorded.
 
-Arbitration (revision 4): a corrected generated-test module counts only when it keeps every test method, changes only the
-failing ones, passes on the candidate under the supervisor and still discriminates (every corrected sealed test fails on
-the base; a corrected adversarial module fails on the base or is caught by a mutant). The affected gate is then re-run and
-the verdict re-derived; `verdict.before_corrections` keeps the first derivation. A sealed test that failed by assertion or by an exception raised in the code under test is never overridden. The third breaker attempt, after two modules that do not compile, escalates to the arbiter's model.
+Arbitration (revisions 4 and 5): a corrected generated-test module counts only when it keeps every test method, changes only
+the bodies of the failing ones (new imports may be added, nothing existing may be rebound), is classified for exactly the
+failing tests, passes on the candidate under the supervisor and still discriminates with authentic, structurally sound results
+(every corrected sealed test fails on the unmodified base with an exit-1 FAIL or ERROR report bound to the nonce; a corrected
+adversarial module fails on the base or is caught by a validly killed mutant). A lost, forged or crashed result is never
+"red", and an original failure whose own evidence is untrusted is never arbitrated. The affected gate is then re-run and the
+verdict re-derived; `verdict.before_corrections` keeps the first derivation, and the raw results of the base and mutant re-runs
+are kept for `attest check`. A sealed test that failed by assertion or by any exception, whatever its origin, is never
+overridden: only a test the supervisor killed at its timeout may be corrected. The third breaker attempt, after two modules
+that do not compile, escalates to the arbiter's model.
+
+Mutation evidence (revision 5): every mutant run is bound like a verification run; a mutant counts as killed only when at
+least one sealed test failed with an authentic child result under a structurally sound run, as survived only when every test
+passed authentically, and otherwise as unknown (excluded from the score). The policy is recorded in the bundle and `attest
+check` reclassifies every mutant from its raw result.
+
+Evidence protocol (revision 5): every bundle declares `evidence_protocol.version` (2). `attest check` requires the complete
+evidence for a current bundle's verdict and reports `EVIDENCE COMPLETE` only when the digests, the complete manifest and that
+evidence all check; a bundle without the field is historical (internal consistency only, never fully verified), and the former
+explicit apply mode (`cleared_by_arbitration`) is honoured only for historical bundles started before 19 Oct 2026.
 
 Ledger journal (revision 4): `ledger.jsonl` in every run directory records a reservation before each Nebius request and the
 call record as soon as it is known; `attest.ledger.read_journal` sums known costs and open reservations, which the console's

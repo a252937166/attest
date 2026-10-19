@@ -53,7 +53,8 @@ class ConsoleApi(unittest.TestCase):
         cls.tmp = Path(cls.tmpdir.name)
         cls.server = _make_app(cls.tmp)
         cls.client = TestClient(cls.server.app)
-        cls.runs = cls.client.get("/api/runs").json()["runs"]
+        cls.team = {"X-Attest-Token": "test-token"}  # the fixtures include a development-gateway run, which only the team may read
+        cls.runs = cls.client.get("/api/runs", headers=cls.team).json()["runs"]
         cls.by_task = {}
         for row in cls.runs:
             cls.by_task.setdefault(row["task_id"], []).append(row)
@@ -135,16 +136,46 @@ class ConsoleApi(unittest.TestCase):
         self.assertEqual(body["meters"]["model_calls"], 17)
 
     def test_artifact_allowlist_is_a_closed_set_without_traversal(self):
-        row = self._run("balanced-brackets", "NEEDS HUMAN")
+        row = self._run("balanced-brackets", "NEEDS HUMAN")  # a development-gateway run: readable with the team token only
         base = f"/api/runs/{row['run_id']}/artifacts/"
-        self.assertEqual(self.client.get(base + "tamper_scan.json").status_code, 200)
-        self.assertEqual(self.client.get(base + "mutants_m01-17781654c1.py").status_code, 200)
-        self.assertEqual(self.client.get(base + "sealed/test_sealed.attempt1.py").status_code, 200)
-        self.assertEqual(self.client.get(base + "arbitration/adversarial_corrected.py").status_code, 200)
-        self.assertEqual(self.client.get(base + "manifest.json").status_code, 404)  # none written before M2
-        self.assertEqual(self.client.get(base + "../proof_bundle.json").status_code, 404)
-        self.assertEqual(self.client.get(base + "mutants_..%2F..%2Fetc.py").status_code, 404)
-        self.assertEqual(self.client.get(base + "trajectory.jsonl").status_code, 200)
+        get = lambda name: self.client.get(base + name, headers=self.team).status_code  # noqa: E731
+        self.assertEqual(get("tamper_scan.json"), 200)
+        self.assertEqual(get("mutants_m01-17781654c1.py"), 200)
+        self.assertEqual(get("sealed/test_sealed.attempt1.py"), 200)
+        self.assertEqual(get("arbitration/adversarial_corrected.py"), 200)
+        self.assertEqual(get("manifest.json"), 404)  # none written before M2
+        self.assertEqual(get("../proof_bundle.json"), 404)
+        self.assertEqual(get("mutants_..%2F..%2Fetc.py"), 404)
+        self.assertEqual(get("trajectory.jsonl"), 200)
+
+    def test_team_rows_are_hidden_from_anonymous_readers_and_shown_with_the_token(self):
+        team_row = self._run("balanced-brackets", "NEEDS HUMAN")
+        self.assertEqual(team_row["visibility"], "team")
+        self.assertEqual(team_row["provider"], "codex")
+        public_ids = [r["run_id"] for r in self.client.get("/api/runs").json()["runs"]]
+        self.assertNotIn(team_row["run_id"], public_ids)
+        self.assertTrue(public_ids, "the Nemotron fixtures stay public")
+        self.assertTrue(all(r["visibility"] == "public" for r in self.client.get("/api/runs").json()["runs"]))
+        for path in (f"/api/runs/{team_row['run_id']}", f"/api/runs/{team_row['run_id']}/events",
+                     f"/api/runs/{team_row['run_id']}/artifacts/tamper_scan.json", f"/api/runs/{team_row['run_id']}/bundle.zip"):
+            self.assertEqual(self.client.get(path).status_code, 404, path)
+            self.assertEqual(self.client.get(path, headers=self.team).status_code, 200, path)
+        self.assertEqual(self.client.get(f"/api/runs/{team_row['run_id']}/bundle.zip?token=test-token").status_code, 200)
+        self.assertNotIn("codex", self.client.get("/api/runs").text.lower())
+        judge = self._run("durationkit-units-001", "VERIFIED")
+        self.assertEqual(self.client.get(f"/api/runs/{judge['run_id']}").status_code, 200)  # public rows need no token
+
+    def test_public_rows_carry_no_requester_or_host_paths(self):
+        for row in self.client.get("/api/runs", headers=self.team).json()["runs"]:
+            for hidden in ("requester", "out_dir", "error", "error_detail", "error_ref"):
+                self.assertNotIn(hidden, row)
+            self.assertIn("has_artifacts", row)
+            self.assertIn("error_public", row)
+        self.assertNotIn(str(ROOT), self.client.get("/api/runs", headers=self.team).text)
+        health = self.client.get("/api/health").json()
+        self.assertNotIn("data_dir", health)
+        self.assertEqual(set(health["startup"]), {"reconciled", "deduplicated"})
+        self.assertTrue(all("path" not in t for t in self.client.get("/api/tasks").json()["tasks"]))
 
     def test_profiles_hide_the_team_profile_without_the_token(self):
         public = self.client.get("/api/profiles").json()
@@ -158,7 +189,7 @@ class ConsoleApi(unittest.TestCase):
         self.assertEqual(len(team["profiles"]), 2)
 
     def test_public_page_and_unauthenticated_responses_name_no_gateway(self):
-        for path in ("/", "/static/app.js", "/static/styles.css", "/api/health", "/api/tasks", "/api/profiles"):
+        for path in ("/", "/static/app.js", "/static/styles.css", "/api/health", "/api/tasks", "/api/profiles", "/api/runs", "/api/openapi.json"):
             body = self.client.get(path).text.lower()
             self.assertNotIn("codex", body, path)
             self.assertNotIn("axiqo", body, path)

@@ -1,0 +1,74 @@
+[08:21:03] snapshot /work/attest/reports/attest-audit-repairs-2026-10-19/evaluation-codex-2/snapshot: attest revision 1e12d46217fb (35 sources), eval script 6e77617bcc8a, examples 6db7a2e937d6 (196 files)
+[08:21:03] fresh process from the snapshot: /work/attest/reports/attest-audit-repairs-2026-10-19/evaluation-codex-2/snapshot/scripts/run_evaluation.py --provider ...
+[08:21:12] codex pacing policy: gateway status: hourly request counting not enforced
+[08:21:12] pre-registered 2 cells (2 tasks x ['attest'] x 1 attempt(s)) on provider=codex; per-run cap $0.5, batch approval None, max calls None; schedule -> /work/attest/reports/attest-audit-repairs-2026-10-19/evaluation-codex-2/schedule.json
+[08:21:12] frozen task balanced-brackets with 4 files, spec sha256 84a644df7111
+[08:21:12] frozen task kvparse-refactor-001 with 4 files, spec sha256 4c9587b9205c
+[08:21:18] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[08:21:18] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[08:21:25] checkpoint 5178fdb4-682f-40f6-b335-6f93ec9546d8 ready; baseline OK (4 tests)
+[08:21:25] suite binding: bound (4 statically discovered test ids in 1 module(s) match the baseline run)
+[08:21:25] specification
+[08:21:25] checkpoint ea443985-e5d3-41e9-9db8-2ec4a18179cf ready; baseline OK (2 tests)
+[08:21:25] suite binding: bound (2 statically discovered test ids in 1 module(s) match the baseline run)
+[08:21:25] specification
+[08:22:15] spec: feasible=True, 13 criteria, 2 contract entries, 0 external references
+[08:22:15] contract audit
+[08:23:17] spec: feasible=True, 18 criteria, 3 contract entries, 0 external references
+[08:23:17] contract audit
+[08:25:13] contract audit: consistent (0 demonstrated, 0 claimed only)
+[08:25:13] sealing acceptance tests (attempt 1)
+[08:26:07] contract audit: conflict 1 (AC1, AC2, AC16): demonstrated
+[08:26:07] contract audit: contradiction demonstrated (1 demonstrated, 0 claimed only)
+[08:26:07] ABORT INFEASIBLE: contract contradiction demonstrated by an executed witness (requirements AC1, AC2, AC16): The universal string-input preservation requirement includes str subclasses. A subclass containing 'a=b' but overriding __len__ to return zero makes the original parse_line raise ValueError, whereas t; witness output: CONTRADICTION AC1 AC2 AC16: For ZeroLengthString('a=b') with __len__ returning 0, the original outcome is ('exception', 'ValueError') while the required partition-and-strip outcome is ('return', ('a',
+[08:26:07] verdict INFEASIBLE -> /work/attest/reports/attest-audit-repairs-2026-10-19/evaluation-codex-2/runs/kvparse-refactor-001-attest-a1-20261019T082112441408Z
+[08:28:31] sealed 17 test methods (sha256 c0179e20a928); red check: 14 of 17 failing on base, 3 passing
+[08:28:31] implementation
+[08:28:59] turn 1: read_file brackets/core.py -> [lines 1-14 of 14]
+[08:29:28] turn 2: replace_in_file brackets/core.py -> replaced one occurrence in brackets/core.py; the file is now 598 bytes
+[08:29:57] turn 3: run_tests  -> existing test suite: OK (ran 2, passed 2, exit 0)
+[08:30:17] turn 4: finish  -> finished: Implemented is_balanced with string validation and properly nested bracket matching; exist
+[08:30:17] verification
+[08:30:25] verify: sealed OK (17 of 17 methods, each in its own process); binding ok
+[08:30:41] existing suite (bound): OK (2 of 2 methods, each in its own process) (2/2)
+[08:30:41] breaker pass
+[08:30:41] breaker: 9 mutants of changed lines; running in parallel branches (workers=8)
+[08:31:00] breaker: killed 9, survived 0, unknown 0, mutation score 1.0
+[08:32:44] breaker tests: OK (9 of 9 methods, each in its own process); binding ok
+[08:32:44] drift audit
+[08:33:06] drift audit: score 0.0 (aligned)
+[08:33:06] verdict VERIFIED -> /work/attest/reports/attest-audit-repairs-2026-10-19/evaluation-codex-2/runs/balanced-brackets-attest-a1-20261019T082112441317Z
+  [ 0] balanced-brackets            attest    a1 completed verdict=VERIFIED     correct=True  -> true_accept  $0.0 714.1s rev=1e12d462 paced=0.0s
+  [ 1] kvparse-refactor-001         attest    a1 completed verdict=INFEASIBLE   correct=False -> true_reject  $0.0 295.0s rev=1e12d462 paced=0.0s
+
+=== SUMMARY (all scheduled cells) ===
+{
+  "attest": {
+    "scheduled": 2,
+    "completed": 2,
+    "not_run": 0,
+    "confusion": {
+      "true_accept": 1,
+      "false_accept": 0,
+      "false_reject": 0,
+      "true_reject": 1,
+      "no_patch": 0,
+      "infra_error": 0,
+      "unknown": 0,
+      "not_run": 0
+    },
+    "shipped_broken_code": 0,
+    "needs_human": 1,
+    "no_patch": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_s": 0.0,
+    "cells_in_invalid_comparisons": 0,
+    "total_cost_committed_usd": 0.0,
+    "mean_wall_s": 504.6
+  }
+}
+budget: {"approve_usd": null, "per_run_cap_usd": 0.5, "committed_usd": 0, "peak_projected_usd": 0, "stopped": null}
+provenance: {"registered_revision": "1e12d46217fb6b8a27a08b4463f42f361e7309257b211103c08777c91cb10ce5", "snapshot_intact_at_end": true, "working_tree_revision_now": "1e12d46217fb6b8a27a08b4463f42f361e7309257b211103c08777c91cb10ce5", "working_tree_changed_since_launch": false, "invalid_tasks": []}
+pacing: {"model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only", "policy_source": "gateway status: hourly request counting not enforced", "policy_checked_at_epoch": 1792398072.431564, "hourly_limit_assumed": null, "budget": null, "max_concurrency": 2, "max_wait_s": 3900.0, "used_in_window": 44, "blocked_until_epoch": null, "rejections_seen": 0, "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json", "state_shared_across_processes": true, "state_error": null} waits=0
+
+wrote /work/attest/reports/attest-audit-repairs-2026-10-19/evaluation-codex-2/evaluation.json

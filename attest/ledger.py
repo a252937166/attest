@@ -4,12 +4,21 @@ Persistence (19 Oct 2026): a ledger can carry a journal sink (`ledger.jsonl` in 
 appended BEFORE the request is sent and every call record is appended as soon as it is known, so a process that dies
 mid-run leaves a journal from which the known costs and the still-open reservations can be read back (`read_journal`).
 `ledger.json` (the totals) is still written at the end of a run; the journal is what survives an interruption.
+
+Durability (audit finding AC-03, 19 Oct 2026): a USD reservation is money the batch has committed to, so `reserve` succeeds only
+once its journal line has been written, flushed and fsynced. With no sink attached, or when the append fails at any step (open,
+write, flush, fsync, close), it raises `LedgerError` and records nothing: no request may be sent without a durable reservation.
+Settlement records (`add_call`, `add_op`) are appended best-effort: when their append fails the in-memory record is kept, the
+journal still holds the open reservation (which `read_journal` then counts at its bound, the conservative reading) and the
+failure is counted in `journal_failures`. Durability here means "survives the death of this process"; the fsync additionally
+asks the operating system to put the line on the device, which covers a host crash as far as the device honours fsync.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -17,6 +26,30 @@ from pathlib import Path
 
 def utcnow() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat()
+
+
+class LedgerError(RuntimeError):
+    """The journal could not take a record that must be durable before money is committed: no sink is attached, or the append
+    failed at open, write, flush, fsync or close. `reserve` raises it and records nothing; the caller must not send the request."""
+
+
+def _open_journal(path: Path):
+    """One append handle on the journal. A module-level seam so tests can inject failures at the handle level; it goes through
+    `Path.open` so a failure injected there (the audit's reproduction patches `Path.open`) reaches the real write path."""
+    return Path(path).open("a", encoding="utf-8")
+
+
+def _write_durably(path: Path, lines: list[str]) -> None:
+    """Append `lines` and make them durable: write, flush, fsync, close. Every failure propagates (OSError, or ValueError from a
+    handle that was closed under us) so the caller can decide whether the record was one that must not be lost."""
+    handle = _open_journal(path)
+    try:
+        for line in lines:
+            handle.write(line)
+        handle.flush()
+        os.fsync(handle.fileno())
+    finally:
+        handle.close()
 
 
 @dataclass
@@ -81,26 +114,31 @@ class Ledger:
     open_reservations: list[dict] = field(default_factory=list)
     sink: Path | None = field(default=None, repr=False, compare=False)
     on_change: object = field(default=None, repr=False, compare=False)  # callable(totals) after every change
+    # settlement records the journal did not take (the run went on; the in-memory record and the reservation already in the
+    # journal keep the accounting conservative); reported in totals so a bundle shows that its journal is incomplete
+    journal_failures: list[dict] = field(default_factory=list, repr=False, compare=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
     _reservation_seq: int = field(default=0, repr=False, compare=False)
 
     # ------------------------------------------------------------------ journal
     def attach_sink(self, path: Path) -> None:
-        """Start journaling into `path`; anything already recorded is written first so the journal is complete."""
+        """Start journaling into `path`; anything already recorded is written first so the journal is complete. Raises LedgerError
+        when the journal cannot be created: a run whose journal does not exist must not start paid work."""
         with self._lock:
-            self.sink = Path(path)
-            self.sink.parent.mkdir(parents=True, exist_ok=True)
-            with self.sink.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps({"event": "ledger", "at_utc": utcnow(), "version": 1,
-                                         "note": "append-only journal: reservations are written before a request is sent, call records as soon as "
-                                                 "they are known; an open reservation without a call record is a request whose outcome was lost "
-                                                 "with the process and stays committed at its bound"}) + "\n")
-                for call in self.model_calls:
-                    handle.write(json.dumps({"event": "call", **asdict(call)}, ensure_ascii=False) + "\n")
-                for op in self.sandbox_ops:
-                    handle.write(json.dumps({"event": "sandbox_op", **asdict(op)}, ensure_ascii=False) + "\n")
-                for reservation in self.open_reservations:
-                    handle.write(json.dumps({"event": "reserve", **reservation}) + "\n")
+            sink = Path(path)
+            lines = [json.dumps({"event": "ledger", "at_utc": utcnow(), "version": 1,
+                                 "note": "append-only journal: reservations are written (and fsynced) before a request is sent, call records as soon as "
+                                         "they are known; an open reservation without a call record is a request whose outcome was lost "
+                                         "with the process and stays committed at its bound"}) + "\n"]
+            lines += [json.dumps({"event": "call", **asdict(call)}, ensure_ascii=False) + "\n" for call in self.model_calls]
+            lines += [json.dumps({"event": "sandbox_op", **asdict(op)}, ensure_ascii=False) + "\n" for op in self.sandbox_ops]
+            lines += [json.dumps({"event": "reserve", **reservation}) + "\n" for reservation in self.open_reservations]
+            try:
+                sink.parent.mkdir(parents=True, exist_ok=True)
+                _write_durably(sink, lines)
+            except (OSError, ValueError) as error:
+                raise LedgerError(f"cannot create the ledger journal {sink}: {type(error).__name__}: {error}") from error
+            self.sink = sink
 
     def detach_sink(self) -> None:
         """Stop journaling: called when the run directory is sealed by its manifest, so operations recorded afterwards by the
@@ -109,14 +147,21 @@ class Ledger:
         with self._lock:
             self.sink = None
 
-    def _append(self, record: dict) -> None:
+    def _append(self, record: dict, must_persist: bool = False) -> None:
+        """Append one journal line (write, flush, fsync, close). `must_persist` is set for reservations: any failure, including a
+        missing sink, becomes LedgerError and nothing is recorded. A settlement record that fails is counted and the run goes on,
+        because the in-memory record and the reservation already in the journal keep the accounting conservative."""
         if self.sink is None:
+            if must_persist:
+                raise LedgerError("no journal sink is attached: a USD reservation must be journaled before its request is sent")
             return
         try:
-            with self.sink.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-        except OSError:
-            pass  # the journal is a safety net; a failing disk must not stop the run itself (the totals are still written at the end)
+            _write_durably(self.sink, [json.dumps(record, ensure_ascii=False) + "\n"])
+        except (OSError, ValueError) as error:
+            self.journal_failures.append({"event": record.get("event"), "at_utc": utcnow(), "error": f"{type(error).__name__}: {error}"[:300]})
+            if must_persist:
+                raise LedgerError(f"the ledger journal {self.sink} did not take the reservation ({type(error).__name__}: {error}); "
+                                  f"nothing was recorded and the request must not be sent") from error
 
     def _changed(self) -> None:
         if self.on_change is not None:
@@ -127,13 +172,15 @@ class Ledger:
 
     # ------------------------------------------------------------------ records
     def reserve(self, provider: str, role: str, stage: str, model: str, reserved_usd: float) -> str:
-        """Record a USD reservation before a request is sent. Returns its id; `add_call` closes it."""
+        """Record a USD reservation before a request is sent and return its id (`add_call` closes it). The reservation exists only
+        once its journal line is durable: with no sink or a failed append LedgerError is raised and nothing is recorded in memory
+        either (no request will be sent, so nothing is owed); the caller must not dispatch."""
         with self._lock:
             self._reservation_seq += 1
             reservation = {"id": f"r{self._reservation_seq}", "provider": provider, "role": role, "stage": stage, "model": model,
                            "reserved_usd": round(float(reserved_usd), 6), "at_utc": utcnow()}
+            self._append({"event": "reserve", **reservation}, must_persist=True)
             self.open_reservations.append(reservation)
-            self._append({"event": "reserve", **reservation})
         self._changed()
         return reservation["id"]
 
@@ -191,6 +238,7 @@ class Ledger:
             "uncertain_unpriced_calls": uncertain,
             "open_reservations": len(self.open_reservations),
             "open_reserved_usd": round(open_reserved, 6),
+            "journal_failures": len(self.journal_failures),
             "rate_limited_calls": sum(1 for c in self.model_calls if not c.ok and "HTTP 429" in (c.error or "")),
             "pacing_wait_ms": sum(c.pacing_wait_ms or 0 for c in self.model_calls),
             "by_model": by_model,
@@ -204,6 +252,7 @@ class Ledger:
         return {"model_calls": [asdict(c) for c in self.model_calls],
                 "sandbox_ops": [asdict(o) for o in self.sandbox_ops],
                 "open_reservations": list(self.open_reservations),
+                "journal_failures": list(self.journal_failures),
                 "totals": self.totals()}
 
 

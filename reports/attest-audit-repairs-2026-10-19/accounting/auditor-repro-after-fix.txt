@@ -1,0 +1,38 @@
+# .venv/bin/python -B reports/attest-audit-2026-10-19/accounting-repro.py  (the auditor's script, unchanged; run 2026-10-19T07:40:38Z against the repaired tree)
+# The script asserts the faulty behaviour; against the repaired code it stops at its AC-03 block with LedgerError (see README.md).
+
+Traceback (most recent call last):
+  File "/work/attest/attest/ledger.py", line 159, in _append
+    _write_durably(self.sink, [json.dumps(record, ensure_ascii=False) + "\n"])
+  File "/work/attest/attest/ledger.py", line 45, in _write_durably
+    handle = _open_journal(path)
+             ^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/ledger.py", line 39, in _open_journal
+    return Path(path).open("a", encoding="utf-8")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/mock.py", line 1134, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/mock.py", line 1138, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/unittest/mock.py", line 1193, in _execute_mock_call
+    raise effect
+OSError: offline fake disk full
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/work/attest/reports/attest-audit-2026-10-19/accounting-repro.py", line 212, in <module>
+    print(json.dumps(observe(), indent=2))
+                     ^^^^^^^^^
+  File "/work/attest/reports/attest-audit-2026-10-19/accounting-repro.py", line 83, in observe
+    reservation_id = ledger.reserve("nebius_tokenfactory", "seal", "seal", "m", 0.25)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/attest/attest/ledger.py", line 182, in reserve
+    self._append({"event": "reserve", **reservation}, must_persist=True)
+  File "/work/attest/attest/ledger.py", line 163, in _append
+    raise LedgerError(f"the ledger journal {self.sink} did not take the reservation ({type(error).__name__}: {error}); "
+attest.ledger.LedgerError: the ledger journal /var/folders/1z/3g2cx2kj2j39z3g972d8fjgw0000gn/T/attest-accounting-audit-3hsfr_jm/failed-write/ledger.jsonl did not take the reservation (OSError: offline fake disk full); nothing was recorded and the request must not be sent
+
+# exit code: 1

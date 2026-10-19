@@ -1,0 +1,87 @@
+{
+  "rehearsal": "20261019T075321Z",
+  "host": "<macos-workstation>",
+  "root": "<rehearsal-root>",
+  "scenarios": [
+    {
+      "scenario": "1",
+      "slug": "clean-install",
+      "verdict": "PASS",
+      "exit_code": 0,
+      "title": "install of 9.0.1-rehearsal-ccf5e0966f75 on an empty root"
+    },
+    {
+      "scenario": "2",
+      "slug": "second-install",
+      "verdict": "PASS",
+      "exit_code": 0,
+      "title": "install of 9.0.2-rehearsal-d1fc91722826 keeps 9.0.1-rehearsal-ccf5e0966f75 as previous"
+    },
+    {
+      "scenario": "3",
+      "slug": "pip-failure",
+      "verdict": "PASS",
+      "exit_code": 1,
+      "title": "pip exits 1: refused before the switch, 9.0.2-rehearsal-d1fc91722826 keeps serving"
+    },
+    {
+      "scenario": "4",
+      "slug": "health-failure",
+      "verdict": "PASS",
+      "exit_code": 1,
+      "title": "service answers 9.9.9-misreported: switched back to 9.0.2-rehearsal-d1fc91722826"
+    },
+    {
+      "scenario": "5",
+      "slug": "nginx-test-failure",
+      "verdict": "PASS",
+      "exit_code": 1,
+      "title": "nginx -t exits 1: vhost restored, 9.0.2-rehearsal-d1fc91722826 keeps serving"
+    },
+    {
+      "scenario": "6",
+      "slug": "rollback",
+      "verdict": "PASS",
+      "exit_code": 0,
+      "title": "rollback.sh re-selects 9.0.1-rehearsal-ccf5e0966f75, digest read back, nginx untouched"
+    },
+    {
+      "scenario": "9",
+      "slug": "tampered-manifest",
+      "verdict": "PASS",
+      "exit_code": 1,
+      "title": "README.md changed after build: RELEASE.json verification refuses the release"
+    },
+    {
+      "scenario": "7",
+      "slug": "decommission-refused",
+      "verdict": "PASS",
+      "exit_code": 2,
+      "title": "decommission.sh without --yes prints the plan and changes nothing"
+    },
+    {
+      "scenario": "7b",
+      "slug": "decommission-yes",
+      "verdict": "PASS",
+      "exit_code": 0,
+      "title": "decommission.sh --yes stops the unit and removes only the vhost"
+    },
+    {
+      "scenario": "8",
+      "slug": "legacy-migration",
+      "verdict": "PASS",
+      "exit_code": 0,
+      "title": "real /opt/attest/app migrated to legacy-9.0.1-rehearsal-ccf5e0966f75, 9.0.2-rehearsal-d1fc91722826 active"
+    },
+    {
+      "scenario": "8b",
+      "slug": "legacy-rollback",
+      "verdict": "PASS",
+      "exit_code": 0,
+      "title": "rollback.sh re-selects the legacy release through the shared venv"
+    }
+  ],
+  "passed": 11,
+  "failed": 0,
+  "note": "shims rehearse the control flow of install.sh, rollback.sh and decommission.sh; systemd, nginx, pip and the real service were not involved"
+}

@@ -5,10 +5,14 @@ Verdict rule: VERIFIED only when every gate holds; any failed gate yields NEEDS 
 failures yield ERROR. Held-out failures, surviving mutants beyond the threshold, failing model-written adversarial tests and
 high drift all block VERIFIED. INFEASIBLE requires an executed witness program that demonstrates the contract's contradiction
 on the unmodified repository; a claim of infeasibility without a demonstration is a hold. A failing generated test may be
-corrected by the arbiter only under mechanical validation (same test set, only the failing tests changed, passes on the
-candidate, still discriminates on the base or a mutant); the corrected gate is then re-run and the verdict re-derived. A
-sealed test that failed by assertion or by an exception raised in the code under test is never overridden. NO CHANGE distinguishes "finished without editing" from "turn
-budget exhausted without a patch" (an unfinished task, never a successful repair).
+corrected by the arbiter only under mechanical validation (same test set, only the failing tests' bodies changed, passes
+on the candidate, still discriminates on the base or a mutant with authentic, structurally sound results); the corrected
+gate is then re-run and the verdict re-derived. A sealed test that failed by assertion or by an exception, whatever its
+origin, is never overridden (audit finding CORE-02: an exception's type or frame does not establish that the test, rather
+than the candidate, is at fault); only a test the supervisor killed at its timeout may be corrected. Lost, forged,
+incomplete or non-isolated execution results are never evidence of anything (CORE-01/03): they leave a mutant unknown and a
+correction unvalidated. NO CHANGE distinguishes "finished without editing" from "turn budget exhausted without a patch"
+(an unfinished task, never a successful repair).
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from __future__ import annotations
 import ast
 import datetime as dt
 import json
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -32,12 +37,12 @@ from .manifest import MANIFEST_FILE, build_manifest
 from .proof import write_bundle
 from .provenance import build_provenance
 from .sealed import (BAD_OUTCOMES, SEALED_FILE, SUPERVISOR_VERSION, bind_modules, bind_verification, guest_files_for, is_supervisor_step,
-                     module_name_for, new_nonce, read_sealed_result, repair_escapes, repo_suite_files, sealed_steps, sha256_text,
-                     static_repo_tests, static_test_ids, summarize)
+                     module_name_for, new_nonce, outcome_classes, read_sealed_result, repair_escapes, repo_suite_files, sealed_steps,
+                     sha256_text, static_repo_tests, static_test_ids, structural_problems, summarize)
 from .tamper import scan_diff
 from .task import GUEST_PYTHON, GUEST_REPO, GUEST_SEALED_DIR, TaskSpec
 from .testparse import parse_test_output
-from .verdict import derive
+from .verdict import EVIDENCE_PROTOCOL_VERSION, derive
 from .workspace import PolicyViolation, Workspace, snapshot_repo
 
 GUEST_BREAKER_DIR = "/tmp/breaker"
@@ -70,15 +75,18 @@ def _tail(text: str, limit: int = 3500) -> str:
     return text if len(text) <= limit else "...[earlier output omitted]...\n" + text[-limit:]
 
 
-# Exception types that, raised in the last frame of the test module itself, mean the test body is broken rather than the
-# behaviour missing (an unimplemented API raises inside the repository, or AttributeError/NotImplementedError, which are not here).
+# Exception types that, raised in the last frame of the test module itself ON THE UNMODIFIED BASE, suggest the test body is
+# broken rather than the behaviour missing. Used only as feedback to the sealer before the suite is sealed (the red check);
+# never as grounds to weaken an executed oracle (CORE-02: a bad candidate's return value can raise exactly these in correct
+# test code, so neither the exception type nor the frame establishes which side is at fault).
 TEST_INTERNAL_EXCEPTIONS = ("ValueError: too many values to unpack", "ValueError: not enough values to unpack", "NameError:",
                             "UnboundLocalError:", "ZeroDivisionError:", "IndentationError:", "SyntaxError:")
 
 
 def test_internal_errors(tests: list[dict], module_file: str = f"/{SEALED_FILE}") -> list[str]:
-    """Sealed tests whose red failure is an error raised by the test module's own code (traceback's last frame in the test
-    file and an exception that cannot come from calling an unimplemented API). Returned as `name: exception` strings."""
+    """Sealed tests whose red failure on the base is an error raised by the test module's own code (traceback's last frame in
+    the test file and an exception that cannot come from calling an unimplemented API). Returned as `name: exception` strings
+    and fed back to the sealer; a heuristic for re-sealing, not evidence about a candidate."""
     found = []
     for test in tests or []:
         if test.get("outcome") != "ERROR":
@@ -94,47 +102,132 @@ def test_internal_errors(tests: list[dict], module_file: str = f"/{SEALED_FILE}"
 
 
 def oracle_disagreement(test: dict) -> bool:
-    """True when a failing sealed test contradicts the candidate's behaviour: an assertion failed, or the code under test
-    raised (an exception whose innermost frame is outside the sealed module, or of a kind that an unimplemented API raises).
-    False only when the test could not run for a reason of its own: a crash inside the test body of the kinds the red
-    check recognises as test-internal, or a timeout. Only the latter may be corrected by arbitration; the former is the
-    pre-registered oracle disagreeing with the candidate, which a model's judgement never overrides."""
+    """True when a failing sealed test contradicts the candidate: an assertion failed or an exception was raised, whatever
+    its type and wherever its innermost frame lies (a candidate that returns the wrong shape makes correct test code raise,
+    so neither tells the test from the candidate; CORE-02). False only for a test the supervisor itself killed at the
+    per-test timeout, which is a workload fact, not a disagreement about behaviour. Only the latter may be corrected by
+    arbitration; the former is the pre-registered oracle disagreeing with the candidate, which a model's judgement never
+    overrides."""
     if test.get("outcome") == "TIMEOUT" or test.get("timed_out"):
-        return False
-    if test.get("outcome") == "ERROR" and test_internal_errors([test]):
         return False
     return True
 
 
-def _method_dumps(source: str, module_name: str) -> tuple[dict[str, str], str]:
-    """AST dumps (no positions) of every test method keyed by its id, plus a dump of the module body without the test classes
-    and without import statements (imports may change in a correction; anything else at module level may not)."""
+def _is_testcase(node: ast.ClassDef) -> bool:
+    return any(str(getattr(b, "attr", getattr(b, "id", ""))).endswith("TestCase") for b in node.bases)
+
+
+def _module_shape(source: str, module_name: str) -> dict:
+    """The parts of a test module a correction may and may not touch (CORE-05). `methods` maps every test id to the dump
+    of its body; `skeleton` is the dump of the whole module with every test method's body replaced by `pass` and the import
+    statements removed, so that class bases, decorators, keywords, method signatures, helpers, setUp and module-level code are
+    all compared verbatim; `imports` are the import statements' dumps and `bound` the names the module binds at top level."""
     tree = ast.parse(source)
     methods: dict[str, str] = {}
-    rest = []
+    skeleton: list[str] = []
+    imports: list[str] = []
+    import_statements: list[tuple[str, set[str]]] = []
+    import_names: set[str] = set()
+    bound: set[str] = set()
     for node in tree.body:
-        if isinstance(node, ast.ClassDef) and any(str(getattr(b, "attr", getattr(b, "id", ""))).endswith("TestCase") for b in node.bases):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            names = {(alias.asname or alias.name).split(".")[0] for alias in node.names}
+            imports.append(ast.dump(node, include_attributes=False))
+            import_statements.append((imports[-1], names))
+            import_names |= names
+            continue
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            bound.add(node.name)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            for target in (node.targets if isinstance(node, ast.Assign) else [node.target]):
+                for name in ast.walk(target):
+                    if isinstance(name, ast.Name):
+                        bound.add(name.id)
+        if isinstance(node, ast.ClassDef) and _is_testcase(node):
+            new_body = []
             for item in node.body:
                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test"):
-                    methods[f"{module_name}.{node.name}.{item.name}"] = ast.dump(item, include_attributes=False)
+                    methods[f"{module_name}.{node.name}.{item.name}"] = ast.dump(ast.Module(body=item.body, type_ignores=[]), include_attributes=False)
+                    placeholder = type(item)(name=item.name, args=item.args, body=[ast.Pass()], decorator_list=item.decorator_list,
+                                             returns=item.returns, type_comment=None, type_params=getattr(item, "type_params", []))
+                    new_body.append(placeholder)
                 else:
-                    rest.append(ast.dump(item, include_attributes=False))
-        elif isinstance(node, (ast.Import, ast.ImportFrom)):
-            continue
-        else:
-            rest.append(ast.dump(node, include_attributes=False))
-    return methods, "\n".join(rest)
+                    new_body.append(item)
+            node = ast.ClassDef(name=node.name, bases=node.bases, keywords=node.keywords, body=new_body, decorator_list=node.decorator_list,
+                                type_params=getattr(node, "type_params", []))
+        skeleton.append(ast.dump(node, include_attributes=False))
+    return {"methods": methods, "skeleton": skeleton, "imports": imports, "import_statements": import_statements, "import_names": import_names,
+            "bound": bound | import_names}
+
+
+def correction_problems(original: str, corrected: str, module_name: str, failing_ids: set[str] | None = None,
+                        max_tests: int | None = None) -> tuple[list[str], set[str]]:
+    """Mechanical scope rule for a corrected test module (CORE-05). Returns (problems, changed test ids). A correction may
+    change only the bodies of the failing test methods and may ADD import statements that bind new names; it may not remove
+    or rewrite an existing import, rebind a name the module already binds, or change anything else (class bases, decorators,
+    keywords, method signatures, helpers, setUp/tearDown, module-level code). Raises SyntaxError when a module does not parse."""
+    before = _module_shape(original, module_name)
+    after = _module_shape(corrected, module_name)
+    problems: list[str] = []
+    if set(static_test_ids(original, module_name)) != set(static_test_ids(corrected, module_name)):
+        problems.append("the set of test methods changed")
+    if before["skeleton"] != after["skeleton"]:
+        problems.append("module-level code, class metadata (bases, decorators, keywords), helpers or a method signature changed")
+    removed = [imp for imp in before["imports"] if imp not in after["imports"]]
+    if removed:
+        problems.append(f"{len(removed)} existing import statement(s) removed or rewritten")
+    # every import statement that is new binds names; none of them may already be bound by the original module (a second
+    # `from other import f` next to the original `from m import f` rebinds f for the unchanged tests)
+    new_names: set[str] = set()
+    for dump, names in after["import_statements"]:
+        if dump not in before["imports"]:
+            new_names |= names
+    collisions = sorted(new_names & before["bound"])
+    if collisions:
+        problems.append("new import(s) rebind name(s) the module already binds: " + ", ".join(collisions)[:120])
+    changed = {tid for tid in set(before["methods"]) | set(after["methods"]) if before["methods"].get(tid) != after["methods"].get(tid)}
+    if failing_ids is not None:
+        extra = changed - set(failing_ids)
+        if extra:
+            problems.append("tests that were not failing were altered: " + ", ".join(sorted(extra))[:200])
+        if not changed and not problems:
+            problems.append("the correction is identical to the original module")
+    if max_tests is not None and len(changed) > max_tests:
+        problems.append(f"{len(changed)} tests would be corrected, more than the limit of {max_tests}")
+    return problems, changed
 
 
 def methods_changed(original: str, corrected: str, module_name: str) -> set[str]:
-    """Test methods whose body differs between two versions of a module (plus "<module>" when module-level code other than
-    imports differs). Used to accept a correction that touches only the failing tests."""
-    before, rest_before = _method_dumps(original, module_name)
-    after, rest_after = _method_dumps(corrected, module_name)
-    changed = {tid for tid in set(before) | set(after) if before.get(tid) != after.get(tid)}
-    if rest_before != rest_after:
-        changed.add("<module>")
+    """Test methods whose body differs between two versions of a module, plus "<module>" when anything outside those bodies
+    differs other than an additive, non-colliding import (CORE-05). Kept for `attest check` and older callers."""
+    problems, changed = correction_problems(original, corrected, module_name)
+    if any(not p.startswith("the set of test methods") for p in problems):
+        changed = set(changed) | {"<module>"}
     return changed
+
+
+def classification_problems(classifications: list[dict], failing_ids: set[str]) -> tuple[list[str], dict[str, dict]]:
+    """Exactly one classification per failing test id (CORE-05): no unknown, duplicate or missing ids. A short method name is
+    accepted only when it names exactly one failing test. Returns (problems, classification by full id)."""
+    by_id: dict[str, dict] = {}
+    problems: list[str] = []
+    short = {}
+    for fid in failing_ids:
+        short.setdefault(fid.split(".")[-1], []).append(fid)
+    for entry in classifications or []:
+        cid = str(entry.get("test_id") or "")
+        full = cid if cid in failing_ids else (short[cid][0] if len(short.get(cid, [])) == 1 else None)
+        if full is None:
+            problems.append(f"unknown test id {cid!r}")
+            continue
+        if full in by_id:
+            problems.append(f"duplicate classification for {full}")
+            continue
+        by_id[full] = entry
+    missing = sorted(set(failing_ids) - set(by_id))
+    if missing:
+        problems.append("failing test(s) without a classification: " + ", ".join(missing)[:200])
+    return problems, by_id
 
 
 def coverage_gaps(coverage, criteria: list[str], test_ids: list[str]) -> list[str]:
@@ -153,6 +246,79 @@ def coverage_gaps(coverage, criteria: list[str], test_ids: list[str]) -> list[st
         if tests:
             covered.add(index)
     return [f"AC{i}" for i in range(1, len(criteria) + 1) if i not in covered]
+
+
+ARBITRATION_RULE = ("a correction counts only when it keeps every test method, changes only the bodies of the failing ones (imports may be "
+                    "added, nothing existing may be rebound), is classified for exactly the failing tests, passes on the candidate under the "
+                    "supervisor and still discriminates with authentic, structurally sound results (every corrected sealed test fails on the "
+                    "unmodified base; a corrected adversarial test fails on the base or catches a validly killed mutant of the patch); a sealed "
+                    "test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor "
+                    "killed at its timeout may be corrected); a validated correction re-runs its gate and the verdict is derived from the gates")
+MUTANT_POLICY = ("a mutant is killed only when at least one expected sealed test failed with an authentic child result (exit code 1 and a FAIL "
+                 "or ERROR report bound to the nonce) under a structurally sound supervisor run (completed, isolated, nonce and digests intact, "
+                 "the expected test ids and nothing else, no lost, forged or mismatched result, no crash, no start-up hook); it survived only when "
+                 "every expected test passed authentically; a run with any structural problem, untrusted record or timed-out test is unknown and "
+                 "excluded from the score")
+
+
+def base_discrimination(result: dict | None, summary: dict, expected_ids: list[str], module_sha: str, nonce: str, changed_tests: list[str],
+                        label: str) -> dict:
+    """The base re-run of a corrected module as discrimination evidence (CORE-01): the record carries the recomputable binding,
+    the structural problems, every corrected test's outcome class and the resulting discrimination (or why there is none).
+    Shared with `attest check`."""
+    binding = bind_verification(result, expected_ids, module_sha, nonce)
+    problems = structural_problems(binding, result)
+    classes = outcome_classes(result)
+    outcomes = {t: classes.get(t, "missing") for t in changed_tests}
+    red = sorted(t for t in changed_tests if outcomes[t] == "red")
+    untrusted = sorted(t for t in changed_tests if outcomes[t] in ("untrusted", "missing"))
+    entry = {"summary_line": summary.get("summary_line"), "failing": summary.get("failing"), "nonce": nonce, "expected_ids": list(expected_ids),
+             "binding": binding, "structural_problems": problems, "outcomes": outcomes, "corrected_tests_failing_on_base": red,
+             "discrimination": None, "untrusted": None}
+    if problems:
+        entry["untrusted"] = "structural problems in the base run: " + ", ".join(problems)[:200]
+    elif untrusted:
+        entry["untrusted"] = "corrected test(s) without an authentic result on the base: " + ", ".join(f"{t.split('.')[-1]} {outcomes[t]}" for t in untrusted)[:200]
+    elif label == "sealed":
+        if set(red) == set(changed_tests) and changed_tests:
+            entry["discrimination"] = "every corrected sealed test fails on the unmodified base with an authentic result (red check preserved)"
+    elif red:
+        entry["discrimination"] = f"{len(red)} of {len(changed_tests)} corrected test(s) fail on the unmodified base with an authentic result"
+    return entry
+
+
+def mutant_rerun_discrimination(result: dict | None, summary: dict, expected_ids: list[str], module_sha: str, nonce: str, changed_tests: list[str]) -> dict:
+    """One corrected adversarial module run against one validly killed mutant (CORE-01): corrected tests count as catching the
+    mutant only with an authentic red result under a structurally sound run. Shared with `attest check`."""
+    binding = bind_verification(result, expected_ids, module_sha, nonce, canary=False)
+    problems = structural_problems(binding, result)
+    classes = outcome_classes(result)
+    caught = sorted(t for t in changed_tests if classes.get(t) == "red") if not problems else []
+    return {"summary_line": summary.get("summary_line"), "nonce": nonce, "expected_ids": list(expected_ids), "binding": binding,
+            "structural_problems": problems, "outcomes": {t: classes.get(t, "missing") for t in changed_tests}, "corrected_tests_failing": caught,
+            "untrusted": ("structural problems in the mutant run: " + ", ".join(problems)[:200]) if problems else None}
+
+
+def classify_mutant_run(result: dict | None, binding: dict, expected_ids: list[str]) -> tuple[str, str, list[str]]:
+    """killed / survived / unknown for one mutant run, from the raw supervisor result and its binding (CORE-03). Shared with
+    `attest check`, which recomputes every mutant's status from the raw results."""
+    if result is None:
+        return "unknown", "no trusted supervisor result", []
+    problems = structural_problems(binding, result)
+    if problems:
+        return "unknown", "untrusted execution: " + ", ".join(problems)[:200], []
+    classes = outcome_classes(result)
+    expected = list(expected_ids)
+    untrusted = [i for i in expected if classes.get(i, "untrusted") == "untrusted"]
+    if untrusted:
+        return "unknown", "untrusted per-test record(s): " + ", ".join(i.split(".")[-1] for i in untrusted)[:200], []
+    timed_out = [i for i in expected if classes.get(i) == "timeout"]
+    if timed_out:
+        return "unknown", "a test timed out under this mutant; a timeout is not counted as a kill: " + ", ".join(i.split(".")[-1] for i in timed_out)[:200], []
+    red = [i for i in expected if classes.get(i) == "red"]
+    if red:
+        return "killed", f"{len(red)} sealed test(s) failed with an authentic child result", red
+    return "survived", "every sealed test passed with an authentic child result", []
 
 
 class Pipeline:
@@ -211,7 +377,13 @@ class Pipeline:
             "trajectory": {"turns": 0, "actions": [], "path": "trajectory.jsonl", "finished": False},
             "candidate": {"changed_paths": [], "deleted_paths": [], "scope_ok": None, "violations": [], "diff": "", "sha256": {}},
             "contract_audit": None, "verification": None, "breaker": None, "drift": None, "arbitration": None, "gates": {},
-            "verdict": {"verdict": "ERROR", "reasons": [], "warnings": []}, "ledger": None, "limitations": [], "stage": "created"}
+            "verdict": {"verdict": "ERROR", "reasons": [], "warnings": []}, "ledger": None, "limitations": [], "stage": "created",
+            # the evidence protocol this bundle follows: `attest check` requires the complete evidence for its verdict (CORE-06)
+            "evidence_protocol": {"version": EVIDENCE_PROTOCOL_VERSION, "supervisor": SUPERVISOR_VERSION,
+                                  "note": ("a VERIFIED bundle of this protocol carries every gate with its raw supervisor result, every evaluated mutant's raw "
+                                           "result, the base and mutant evidence of any validated correction, the contract audit and the ledger; an INFEASIBLE "
+                                           "bundle carries the executed witness, its digest, output and operation; a bundle without this field is historical "
+                                           "and is checked for internal consistency only")}}
         self.bundle["provenance"] = build_provenance(provider.describe(), self.limits(), task.upstream)
 
     def limits(self) -> dict:
@@ -237,14 +409,18 @@ class Pipeline:
                 pass
 
     def save(self, name: str, data) -> None:
+        """Write an artifact atomically (temporary file, then rename) so a reader never sees a half-written JSON (API-08)."""
         path = self.out_dir / name
         path.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(data, (dict, list)):
-            path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            payload = (json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
         elif isinstance(data, bytes):
-            path.write_bytes(data)
+            payload = data
         else:
-            path.write_text(str(data), encoding="utf-8")
+            payload = str(data).encode("utf-8")
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_bytes(payload)
+        os.replace(tmp, path)
 
     def existing_step(self, name: str = "existing") -> dict:
         return {"name": name, "cmd": self.task.test_command, "cwd": GUEST_REPO, "timeout": self.task.test_timeout,
@@ -495,10 +671,14 @@ class Pipeline:
             "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
             "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter classifies each "
             "failure (implementation bug, test defect or contract dispute) and, for pure test defects, offers a corrected module. The "
-            "correction counts only after mechanical validation (same test methods, only the failing ones changed, passes on the candidate, "
-            "still fails on the unmodified base or is caught by a mutant); the corrected gate is then re-run and the verdict re-derived from "
-            "the gates. A sealed test that failed by assertion or by an exception raised in the code under test is never overridden (only a "
-            "test-internal crash or a timeout may be corrected). The classification itself remains a model judgement.",
+            "correction counts only after mechanical validation (same test methods, only the failing tests' bodies changed, passes on the "
+            "candidate, still fails on the unmodified base or is caught by a mutant, with every result structurally sound and bound to its "
+            "nonce); the corrected gate is then re-run and the verdict re-derived from the gates. A sealed test that failed by assertion or by "
+            "an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected). The "
+            "classification itself remains a model judgement.",
+            "A mutant counts as killed only when a sealed test failed with an authentic child result under a structurally sound supervisor run; "
+            "lost, forged, incomplete, non-isolated, crashed or timed-out runs are unknown and excluded from the mutation score, and `attest check` "
+            "recomputes the classification from the raw results.",
             "INFEASIBLE is recorded only when a witness program written by the contract auditor demonstrated the contradiction by running on "
             "the unmodified repository (exit code and output recorded); the witness's logic is the model's, its execution is not.",
             "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
@@ -996,9 +1176,11 @@ class Pipeline:
         conflict counts as demonstrated only when its witness exits with WITNESS_EXIT_CODE and prints the marker line; the
         program, its output and the operation id are recorded so a reader can judge the demonstration."""
         record = {"model": None, "consistent": None, "notes": "", "conflicts": [], "outcome": "not run", "error": None,
-                  "rule": (f"a conflict is demonstrated only when its witness program, run on the unmodified repository in a disposable "
-                           f"sandbox branch, prints a line starting with {WITNESS_MARKER!r} and exits with code {WITNESS_EXIT_CODE}; any other "
-                           "outcome records the conflict as claimed only, which never ends a run")}
+                  "rule": (f"a conflict is demonstrated only when it names existing acceptance criteria and its witness program, run on the "
+                           f"unmodified repository in a disposable sandbox branch, prints a line starting with {WITNESS_MARKER!r} that names at "
+                           f"least one of them and exits with code {WITNESS_EXIT_CODE}; any other outcome records the conflict as claimed only, "
+                           "which never ends a run; the witness's reasoning is the model's and its execution is recorded, which is not a formal "
+                           "proof of impossibility")}
         try:
             answer = self.ask("audit", contract_audit_prompt(self.task, spec, snapshot), CONTRACT_AUDIT_SCHEMA, "contract-audit")
         except ModelError as error:
@@ -1010,11 +1192,22 @@ class Pipeline:
         record["consistent"] = bool(answer.json.get("consistent"))
         record["notes"] = answer.json.get("notes") or ""
         conflicts = list(answer.json.get("conflicts") or [])[:MAX_WITNESSES]
+        valid_ids = {f"AC{i}" for i in range(1, len(spec.get("acceptance_criteria") or []) + 1)}
+        record["requirement_ids_known"] = sorted(valid_ids, key=lambda s: int(s[2:]))
         for index, conflict in enumerate(conflicts, 1):
             witness, _ = repair_escapes(conflict.get("witness") or "")
-            entry = {"requirement_ids": [str(i) for i in (conflict.get("requirement_ids") or [])], "summary": (conflict.get("summary") or "")[:500],
+            ids = [str(i).strip() for i in (conflict.get("requirement_ids") or []) if str(i).strip()]
+            entry = {"requirement_ids": ids, "summary": (conflict.get("summary") or "")[:500],
                      "witness_path": None, "witness_sha256": None, "exit_code": None, "timed_out": None, "stdout_tail": "", "stderr_tail": "",
                      "operation_uuid": None, "demonstrated": False, "status": "no witness"}
+            unknown_ids = [i for i in ids if i not in valid_ids]
+            if not ids or unknown_ids:
+                # a conflict must name real acceptance criteria; a witness for requirements that do not exist is a claim about nothing
+                entry["status"] = ("the conflict names no requirement" if not ids else "the conflict names unknown requirement id(s): " + ", ".join(unknown_ids)[:120]) \
+                    + "; recorded as claimed only, the witness was not executed"
+                record["conflicts"].append(entry)
+                self.log(f"contract audit: conflict {index}: {entry['status']}")
+                continue
             if witness.strip():
                 try:
                     compile(witness, f"witness_{index}.py", "exec")
@@ -1042,12 +1235,18 @@ class Pipeline:
                 else:
                     entry.update({"exit_code": step.exit_code, "timed_out": step.timed_out, "stdout_tail": _tail(step.stdout, 1500),
                                   "stderr_tail": _tail(step.stderr, 1000)})
-                    marker = any(line.startswith(WITNESS_MARKER) for line in step.stdout.splitlines())
+                    marker_lines = [line for line in step.stdout.splitlines() if line.startswith(WITNESS_MARKER)]
+                    marker = bool(marker_lines)
+                    # the marker line must name at least one of the requirements the conflict claims, so the printed observation is
+                    # tied to the claim it is said to demonstrate (a bare marker with an unrelated or empty line is not a demonstration)
+                    names_claim = any(any(re.search(rf"(?<![A-Za-z0-9]){re.escape(i)}(?![0-9])", line) for i in ids) for line in marker_lines)
                     if step.timed_out:
                         entry["status"] = "witness timed out"
-                    elif step.exit_code == WITNESS_EXIT_CODE and marker:
+                    elif step.exit_code == WITNESS_EXIT_CODE and marker and names_claim:
                         entry["demonstrated"] = True
                         entry["status"] = "demonstrated"
+                    elif step.exit_code == WITNESS_EXIT_CODE and marker:
+                        entry["status"] = "marker line does not name any of the claimed requirements; recorded as claimed only"
                     elif step.exit_code == 0:
                         entry["status"] = "not demonstrated (the witness reported it could not show the conflict)"
                     else:
@@ -1070,34 +1269,33 @@ class Pipeline:
         mutants = generate_mutants(snapshot, changed, max_mutants=self.max_mutants)
         self.log(f"breaker: {len(mutants)} mutants of changed lines; running in parallel branches (workers={self.mutant_workers})")
 
+        raw_mutants: dict = {}
+
         def run_mutant(mutant):
             files = {f"{GUEST_REPO}/{rel}": data for rel, data in changed.items()}
             files[f"{GUEST_REPO}/{mutant.path}"] = mutant.source.encode("utf-8")
             files.update(self.sealed_files(GUEST_SEALED_DIR, "test_sealed", sealed_src, canary=False))
             nonce = new_nonce()
+            base = {"id": mutant.id, "path": mutant.path, "lineno": mutant.lineno, "operator": mutant.operator, "description": mutant.description,
+                    "nonce": nonce}
             try:
                 run = self.executor.run_branch(checkpoint_uuid, files, self.suite_steps(nonce), stage=f"mutant-{mutant.id}",
                                                deletes=deletes, timeout=self.task.test_timeout + 60)
             except Exception as error:  # noqa: BLE001 - an uncertain or failed spawn makes this mutant unknown, never replayed
-                return {"id": mutant.id, "path": mutant.path, "lineno": mutant.lineno, "operator": mutant.operator,
-                        "description": mutant.description, "status": "unknown", "operation_uuid": None, "failing_methods": 0,
-                        "killed_by": [], "error": f"{type(error).__name__}: {str(error)[:200]}"}
+                return {**base, "status": "unknown", "operation_uuid": None, "failing_methods": 0, "killed_by": [],
+                        "evidence": "no execution", "error": f"{type(error).__name__}: {str(error)[:200]}"}
             result, summary = self.suite_outcome(run, nonce)
+            raw_mutants[mutant.id] = result
             binding = bind_verification(result, expected_ids, sealed_sha, nonce, canary=False)
-            if result is None or not binding["checks"].get("nonce_matches") or not binding["checks"].get("sealed_file_unchanged_after"):
-                status = "unknown"
-            elif summary["failing"] > 0 or not binding["checks"].get("static_ids_match_red"):
-                status = "killed"
-            else:
-                status = "survived"
-            return {"id": mutant.id, "path": mutant.path, "lineno": mutant.lineno, "operator": mutant.operator,
-                    "description": mutant.description, "status": status, "operation_uuid": run.operation_uuid,
-                    "failing_methods": summary["failing"], "killed_by": [t["id"] for t in summary["tests"] if t["outcome"] != "ok"][:5]}
+            status, evidence, killed_by = classify_mutant_run(result, binding, expected_ids)
+            return {**base, "status": status, "operation_uuid": run.operation_uuid, "failing_methods": len(killed_by), "killed_by": killed_by[:5],
+                    "evidence": evidence, "binding_ok": binding["ok"], "structural_problems": structural_problems(binding, result)}
 
         results = []
         if mutants:
             with ThreadPoolExecutor(max_workers=max(1, min(self.mutant_workers, len(mutants)))) as pool:
                 results = list(pool.map(run_mutant, mutants))
+        self.raw_results["mutants"] = raw_mutants  # every evaluated mutant's raw supervisor result, so `attest check` can reclassify it
         killed = sum(1 for r in results if r["status"] == "killed")
         survived = sum(1 for r in results if r["status"] == "survived")
         unknown = sum(1 for r in results if r["status"] == "unknown")
@@ -1107,7 +1305,7 @@ class Pipeline:
         for mutant in mutants:
             self.save(f"mutants_{mutant.id}.py", mutant.source)
         mutation = {"generated": len(mutants), "evaluated": evaluated, "killed": killed, "survived": survived, "unknown": unknown,
-                    "score": score, "threshold": self.mutation_threshold, "mutants": results}
+                    "score": score, "threshold": self.mutation_threshold, "mutants": results, "policy": MUTANT_POLICY}
 
         # Model-written adversarial tests, run through the same supervisor in their own directory (one feedback retry).
         adversarial: dict = {}
@@ -1180,22 +1378,33 @@ class Pipeline:
         failed = {name for name, g in gates.items() if not g.get("ok") and not g.get("skipped")}
         if not finished or not scope_ok or not failed or (failed - {"sealed_binding", "adversarial_tests"}):
             return None
-        if "sealed_binding" in failed:
-            # A plain test failure legitimately makes the child exit 1, so a nonzero exit alongside a FAIL/ERROR outcome is
-            # NOT tampering. Only the integrity signals (nonce, digest, isolation, signal, timeout, missing/forged, discovery,
-            # id set) block arbitration; those are still caught by no_signal, no_timeout, no_missing_or_forged_result, etc.
-            benign = {"all_expected_pass", "no_nonzero_exit"}
-            structural = [k for k, v in binding.get("checks", {}).items() if not v and k not in benign]
-            if structural:  # tamper, forgery, crash, timeout or lost isolation is never a "test defect"
-                return None
         modules = []
+        skipped: list[str] = []
+
+        def eligible(label: str, module_binding: dict, raw: dict | None, tests: list[dict]) -> list[dict] | None:
+            # The same structural filter for both generated modules (CORE-01): a plain test failure legitimately makes the child
+            # exit 1 and a supervisor-observed timeout is a recorded fact, so neither is tampering; every other failing binding
+            # check (nonce, digest, isolation, crash, missing/forged/mismatched result, discovery, id set, canary, start-up
+            # hook, cleanup) means the evidence cannot be trusted, and untrusted evidence is never turned into a "test defect".
+            problems = structural_problems(module_binding, raw)
+            if problems:
+                skipped.append(f"{label}: untrusted execution evidence ({', '.join(problems)[:160]}) is never arbitrated")
+                return None
+            classes = outcome_classes(raw)
+            untrusted = [t["id"] for t in tests if t["outcome"] != "ok" and classes.get(t["id"], "untrusted") == "untrusted"]
+            if untrusted:
+                skipped.append(f"{label}: untrusted per-test record(s) ({', '.join(i.split('.')[-1] for i in untrusted)[:160]}) are never arbitrated")
+                return None
+            return [t for t in tests if classes.get(t["id"]) in ("red", "timeout")]
+
         if "sealed_binding" in failed:
-            sealed_fail = [t for t in sealed_summary.get("tests", []) if t["outcome"] in ("FAIL", "ERROR", "TIMEOUT")]
+            sealed_fail = eligible("sealed", binding, self.raw_results.get("sealed"), sealed_summary.get("tests", []))
             if sealed_fail:
                 modules.append(("sealed", "test_sealed", GUEST_SEALED_DIR, sealed_src, sealed_fail))
         adversarial = (self.bundle.get("breaker") or {}).get("adversarial") or {}
         if "adversarial_tests" in failed and not adversarial.get("unusable"):
-            adv_fail = [t for t in (adversarial.get("summary") or {}).get("tests", []) if t["outcome"] != "ok"]
+            adv_fail = eligible("adversarial", adversarial.get("binding") or {}, self.raw_results.get("adversarial"),
+                                (adversarial.get("summary") or {}).get("tests", []))
             adv_src = None
             adv_path = self.out_dir / "breaker_tests.py"
             if adv_path.is_file():
@@ -1203,6 +1412,12 @@ class Pipeline:
             if adv_fail and adv_src:
                 modules.append(("adversarial", "test_breaker", GUEST_BREAKER_DIR, adv_src, adv_fail))
         if not modules:
+            if skipped:
+                counts = {k: 0 for k in ("implementation_bug", "test_defect", "contract_dispute")}
+                self.log("arbitration not attempted: " + "; ".join(skipped), "arbitrate")
+                return {"applied": self.arbitration_apply, "validated_modules": [], "cleared": False, "all_corrected": False, "counts": counts,
+                        "headline": "not attempted: " + "; ".join(skipped), "modules": [], "skipped": skipped, "rule": ARBITRATION_RULE,
+                        "note": "lost, forged, mismatched, crashed or non-isolated execution evidence is never classified as a test defect; the hold stands"}
             return None
         self.log("arbitration: classifying model-generated test failures", "arbitrate")
         results = []
@@ -1220,7 +1435,7 @@ class Pipeline:
                         "on the corrected modules")
         elif any(r.get("sealed_assertion_hold") for r in results):
             headline = (f"{counts['test_defect']} failing sealed test(s) classified as test defects and the correction was validated by execution, "
-                        "but a sealed test that failed by assertion or by an exception raised in the code under test is never overridden: the "
+                        "but a sealed test that failed by assertion or by an exception, whatever its origin, is never overridden: the "
                         "hold stands for a human (the arbiter's view and the corrected tests are recorded)")
         elif all_corrected:
             headline = (f"all {counts['test_defect']} failing generated test(s) classified as test defects and the corrected tests pass on the "
@@ -1233,11 +1448,7 @@ class Pipeline:
         else:
             headline = "generated-test failures could not be cleared by arbitration; human review required"
         return {"applied": self.arbitration_apply, "validated_modules": validated, "cleared": bool(validated) and self.arbitration_apply,
-                "all_corrected": all_corrected, "counts": counts, "headline": headline, "modules": results,
-                "rule": ("a correction counts only when it keeps every test method, changes only the failing ones, passes on the candidate "
-                         "and still discriminates (fails on the unmodified base, or is caught by a mutant of the patch); a sealed test that "
-                         "failed by assertion or by an exception raised in the code under test is never overridden (only a test-internal crash "
-                         "or a timeout may be corrected); a validated correction re-runs its gate and the verdict is derived from the gates"),
+                "all_corrected": all_corrected, "counts": counts, "headline": headline, "modules": results, "rule": ARBITRATION_RULE,
                 "note": "original tests, results and reasons are preserved unchanged; the arbiter's classification alone never changes a gate"}
 
     def arbitrate_module(self, label, module_name, guest_dir, module_src, failing, spec, diff, checkpoint_uuid,
@@ -1253,42 +1464,35 @@ class Pipeline:
             return record
         record["classifications"] = answer.get("classifications") or []
         record["corrected_notes"] = answer.get("corrected_notes", "")
-        all_defect = bool(record["classifications"]) and all(c["classification"] == "test_defect" for c in record["classifications"])
+        failing_ids = {f["id"] for f in failing}
+        # Exactly one classification per failing test (CORE-05): an answer about other tests says nothing about these.
+        id_problems, by_id = classification_problems(record["classifications"], failing_ids)
+        record["classification_ids_ok"] = not id_problems
+        if id_problems:
+            record["error"] = "classification ids do not match the failing tests: " + "; ".join(id_problems)[:300]
+            return record
+        all_defect = all(c.get("classification") == "test_defect" for c in by_id.values())
         corrected, _ = repair_escapes(answer.get("corrected_module") or "")
         if not (all_defect and corrected.strip()):
             return record  # a real bug or a dispute, or no correction offered: nothing to re-verify
         try:
             compile(corrected, f"{module_name}.py", "exec")
             corrected_ids = static_test_ids(corrected, module_name)
+            # Mechanical constraints on the correction, independent of the arbiter's opinion (CORE-05): same test set, only
+            # the failing tests' bodies changed, additive non-colliding imports only, class metadata and helpers untouched.
+            problems, changed_tests = correction_problems(module_src, corrected, module_name, failing_ids, MAX_CORRECTED_TESTS)
         except SyntaxError as error:
             record["error"] = f"corrected module has a syntax error: {error}"
             return record
-        # Mechanical constraints on the correction, independent of the arbiter's opinion.
-        original_ids = static_test_ids(module_src, module_name)
-        failing_ids = {f["id"] for f in failing}
-        if set(corrected_ids) != set(original_ids):
-            record["error"] = ("correction changed the set of test methods (removed: "
-                               + ", ".join(sorted(set(original_ids) - set(corrected_ids)))[:200] + "; added: "
-                               + ", ".join(sorted(set(corrected_ids) - set(original_ids)))[:200] + "); rejected whole")
-            return record
-        changed_tests = methods_changed(module_src, corrected, module_name)
-        if "<module>" in changed_tests:
-            record["error"] = "correction changed module-level code other than imports; rejected whole"
-            return record
-        if changed_tests - failing_ids:
-            record["error"] = "correction altered tests that were not failing: " + ", ".join(sorted(changed_tests - failing_ids))[:200] + "; rejected whole"
-            return record
-        if not changed_tests:
-            record["error"] = "correction is identical to the original module"
-            return record
-        if len(changed_tests) > MAX_CORRECTED_TESTS:
-            record["error"] = f"{len(changed_tests)} tests would be corrected, more than the limit of {MAX_CORRECTED_TESTS}; a human reviews a suite that defective"
+        record["scope_problems"] = problems
+        if problems:
+            record["error"] = "correction rejected whole: " + "; ".join(problems)[:400]
             return record
         disagreeing = sorted(f["id"] for f in failing if oracle_disagreement(f))
         if label == "sealed" and disagreeing:
-            # the pre-registered oracle disagreed with the candidate (an assertion failed, or the code under test raised); whether
-            # the oracle or the candidate is wrong is a judgement, and execution cannot settle it (each side passes its own test),
-            # so it stays with the human; only a test-internal crash or a timeout leaves the oracle undisputed
+            # the pre-registered oracle disagreed with the candidate (an assertion failed or an exception was raised, whatever its
+            # origin); whether the oracle or the candidate is wrong is a judgement, and execution cannot settle it (each side passes
+            # its own test), so it stays with the human; only a test the supervisor killed at its timeout leaves the oracle undisputed
             record["sealed_assertion_hold"] = True
             record["sealed_disagreeing_tests"] = disagreeing
         record["corrected_module"] = f"arbitration/{label}_corrected.py"
@@ -1312,31 +1516,31 @@ class Pipeline:
             return record
         # The corrected tests must still DISCRIMINATE: fail on the unmodified base (every corrected sealed test must, since the
         # red check is the sealed suite's defining property), or, for a module that legitimately passes on the base (a refactor
-        # that preserves behaviour), be caught by at least one mutant of the patch.
+        # that preserves behaviour), be caught by at least one mutant of the patch. Only AUTHENTIC red results count (CORE-01):
+        # the base run must be structurally sound and every corrected test must have an exit-1 FAIL/ERROR report bound to the
+        # nonce; a lost, forged, crashed or timed-out record is never "red".
         discrimination = None
         nonce_b = new_nonce()
         try:
             run_b = self.executor.run_branch(checkpoint_uuid, self.sealed_files(guest_dir, module_name, corrected),
                                              self.suite_steps(nonce_b, module_name, guest_dir, "arbbase"),
                                              stage=f"arbitrate-{label}-base", timeout=self.task.test_timeout + 60)
-            _, summary_b = self.suite_outcome(run_b, nonce_b, "arbbase")
-            base_outcomes = {t["id"]: t["outcome"] for t in summary_b.get("tests", [])}
-            corrected_failing_on_base = sorted(t for t in changed_tests if base_outcomes.get(t, "MISSING_RESULT") != "ok")
-            record["base_rerun"] = {"summary_line": summary_b["summary_line"], "failing": summary_b["failing"],
-                                    "corrected_tests_failing_on_base": corrected_failing_on_base, "operation_uuid": run_b.operation_uuid}
-            if label == "sealed":
-                if set(corrected_failing_on_base) == set(changed_tests):
-                    discrimination = "every corrected sealed test fails on the unmodified base (red check preserved)"
-            elif corrected_failing_on_base:
-                discrimination = f"{len(corrected_failing_on_base)} of {len(changed_tests)} corrected test(s) fail on the unmodified base"
+            result_b, summary_b = self.suite_outcome(run_b, nonce_b, "arbbase")
         except Exception as error:  # noqa: BLE001
             record["error"] = f"base re-run failed: {type(error).__name__}: {str(error)[:160]}"
             return record
-        if discrimination is None and label == "adversarial":
-            discrimination = self.mutant_discrimination(record, module_name, guest_dir, corrected, changed, deletes, checkpoint_uuid, changed_tests)
+        self.raw_results[f"{label}_corrected_base"] = result_b
+        record["base_rerun"] = base_discrimination(result_b, summary_b, corrected_ids, corrected_sha, nonce_b, sorted(changed_tests), label)
+        record["base_rerun"]["operation_uuid"] = run_b.operation_uuid
+        discrimination = record["base_rerun"].get("discrimination")
+        if record["base_rerun"].get("untrusted"):
+            record["error"] = "base re-run evidence untrusted: " + record["base_rerun"]["untrusted"]
+        elif discrimination is None and label == "adversarial":
+            discrimination = self.mutant_discrimination(record, module_name, guest_dir, corrected, corrected_ids, corrected_sha, changed, deletes,
+                                                        checkpoint_uuid, changed_tests)
         if discrimination is None and not record.get("error"):
             record["error"] = ("corrected tests do not discriminate: they pass on the unmodified base"
-                               + (" and no mutant of the patch is caught by them" if label == "adversarial" else "; a sealed test must fail on the base"))
+                               + (" and no validly killed mutant of the patch is caught by them" if label == "adversarial" else "; a sealed test must fail on the base"))
         record["cleared_module"] = bool(candidate_ok and discrimination)
         record["validated"] = bool(candidate_ok and discrimination and not record["sealed_assertion_hold"])
         if record["validated"] or record["cleared_module"]:
@@ -1348,10 +1552,13 @@ class Pipeline:
                                    "original_sha256": sha256_text(module_src), "original_failing": sorted(failing_ids)}
         return record
 
-    def mutant_discrimination(self, record, module_name, guest_dir, corrected, changed, deletes, checkpoint_uuid, changed_tests) -> str | None:
+    def mutant_discrimination(self, record, module_name, guest_dir, corrected, corrected_ids, corrected_sha, changed, deletes, checkpoint_uuid,
+                              changed_tests) -> str | None:
         """For a corrected adversarial module that passes on the base: run it against up to MAX_MUTANTS_FOR_DISCRIMINATION mutants
-        that the sealed suite caught; it discriminates when at least one mutant makes a corrected test fail."""
+        that the sealed suite validly killed; it discriminates when at least one mutant makes a corrected test fail with an
+        authentic result under a structurally sound run (CORE-01). Every re-run's raw result is kept for `attest check`."""
         mutants = [m for m in ((self.bundle.get("breaker") or {}).get("mutation") or {}).get("mutants") or [] if m.get("status") == "killed"]
+        raw = self.raw_results.setdefault("adversarial_corrected_mutants", {})
         for mutant in mutants[:MAX_MUTANTS_FOR_DISCRIMINATION]:
             source_path = self.out_dir / f"mutants_{mutant['id']}.py"
             if not source_path.is_file():
@@ -1363,15 +1570,17 @@ class Pipeline:
             try:
                 run = self.executor.run_branch(checkpoint_uuid, files, self.suite_steps(nonce, module_name, guest_dir, "arbmut"),
                                                stage=f"arbitrate-adversarial-{mutant['id']}", deletes=deletes, timeout=self.task.test_timeout + 60)
-                _, summary = self.suite_outcome(run, nonce, "arbmut")
+                result_m, summary = self.suite_outcome(run, nonce, "arbmut")
             except Exception as error:  # noqa: BLE001 - an uncertain spawn makes this mutant unknown, never replayed
                 record["mutant_reruns"].append({"mutant": mutant["id"], "error": f"{type(error).__name__}: {str(error)[:120]}"})
                 continue
-            caught = sorted(t["id"] for t in summary.get("tests", []) if t["id"] in changed_tests and t["outcome"] != "ok")
-            record["mutant_reruns"].append({"mutant": mutant["id"], "description": mutant.get("description"), "summary_line": summary["summary_line"],
-                                            "corrected_tests_failing": caught, "operation_uuid": run.operation_uuid})
-            if caught:
-                return f"corrected test(s) {', '.join(t.split('.')[-1] for t in caught)} catch mutant {mutant['id']} ({mutant.get('description')})"
+            raw[mutant["id"]] = result_m
+            entry = mutant_rerun_discrimination(result_m, summary, corrected_ids, corrected_sha, nonce, sorted(changed_tests))
+            entry.update({"mutant": mutant["id"], "description": mutant.get("description"), "operation_uuid": run.operation_uuid})
+            record["mutant_reruns"].append(entry)
+            if entry["corrected_tests_failing"]:
+                return (f"corrected test(s) {', '.join(t.split('.')[-1] for t in entry['corrected_tests_failing'])} catch mutant {mutant['id']} "
+                        f"({mutant.get('description')}) with authentic results")
         return None
 
     # ----------------------------------------------------------------- actions
@@ -1398,7 +1607,7 @@ class Pipeline:
                 return workspace.read(action["path"], start_line=action.get("start_line"), end_line=action.get("end_line"))
             if kind == "search":
                 if not action.get("find"):
-                    return "INVALID ACTION: search needs find (a symbol, snippet or regular expression); path is optional"
+                    return "INVALID ACTION: search needs find (a symbol or literal snippet, or re:<regular expression>); path is optional"
                 return workspace.search(action["find"], action.get("path"))
             if kind == "replace_in_file":
                 if not action.get("path") or action.get("find") is None or action.get("replace") is None:

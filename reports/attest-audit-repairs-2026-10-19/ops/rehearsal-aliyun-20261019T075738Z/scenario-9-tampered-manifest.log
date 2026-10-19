@@ -1,0 +1,54 @@
+=== scenario 9: tampered-manifest
+=== command: bash install.sh /tmp/attest-rehearsal-20261019T075738Z/run/work/c-tampered.tar.gz
+=== expected exit code: 1
+=== state before:
+active: 9.0.1-rehearsal-ccf5e0966f75
+previous: 9.0.2-rehearsal-d1fc91722826
+service: active
+health: 9.0.1-rehearsal worker_alive=True
+releases: 9.0.1-rehearsal-ccf5e0966f75 9.0.2-rehearsal-d1fc91722826 
+vhost files: attest.axiqo.xyz.conf 
+unit files: attest.service 
+
+=== output:
+== install.sh 20261019T080431Z: bundle /tmp/attest-rehearsal-20261019T075738Z/run/work/c-tampered.tar.gz, root /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest, MemoryMax 200M
+
+[01] preflight
+     ok: interpreter: /tmp/attest-rehearsal-20261019T075738Z/deploy/yungou/rehearsal/shims/python3.12 (Python 3.11.13)
+     ok: bundle sha256 36472a354ddefb4af65e9f5ec693fb1a7fb8891f8d3cd3e1ffb0534cfac87bef
+useradd shim: would create attest
+     ok: user attest created
+     ok: secrets: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/etc/attest/attest.env installed from the staged attest.env (root:attest 0640)
+     ok: current layout: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app -> /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.1-rehearsal-ccf5e0966f75; previous: /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/9.0.2-rehearsal-d1fc91722826
+
+[02] extract the bundle into a staging directory
+     ok: extracted into /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/releases/.staging-20261019T080431Z
+
+[03] verify RELEASE.json against the extracted tree
+     size mismatch: README.md (22711 bytes, RELEASE.json says 22652)
+     FAILED: RELEASE.json verification failed; the release is refused
+
+INSTALL FAILED (exit 1) during step "verify RELEASE.json against the extracted tree"
+-- restoring the previous state (only attest.service, its unit file, its vhost and the /tmp/attest-rehearsal-20261019T075738Z/run/fake-host/opt/attest/app link are touched)
+     health: HTTP 200, version 9.0.1-rehearsal, worker alive, queue 0, free 1000 MB
+   active release 9.0.1-rehearsal-ccf5e0966f75 is healthy (version 9.0.1-rehearsal)
+install NOT complete; see the messages above
+
+=== exit code: 1 (expected 1)
+=== state after:
+active: 9.0.1-rehearsal-ccf5e0966f75
+previous: 9.0.2-rehearsal-d1fc91722826
+service: active
+health: 9.0.1-rehearsal worker_alive=True
+releases: 9.0.1-rehearsal-ccf5e0966f75 9.0.2-rehearsal-d1fc91722826 
+vhost files: attest.axiqo.xyz.conf 
+unit files: attest.service 
+
+=== checks:
+  PASS  exit code: 1
+  PASS  active release unchanged: 9.0.1-rehearsal-ccf5e0966f75
+  PASS  served health: 9.0.1-rehearsal worker_alive=True
+  PASS  mismatch reported (log contains 'mismatch: README.md'): yes
+  PASS  release refused (log contains 'the release is refused'): yes
+  PASS  no completion line (log free of 'install complete'): yes
+=== verdict: PASS

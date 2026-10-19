@@ -288,7 +288,8 @@ def render_markdown(bundle: dict) -> str:
                  f"base {((m.get('base_rerun') or {}).get('summary_line') or 'n/a')}"
                  + (f"; mutant re-runs {len(m.get('mutant_reruns') or [])}" if m.get("mutant_reruns") else "")
                  + f"; validated={m.get('validated', m.get('cleared_module'))}"
-                 + ("; sealed assertion failure: never overridden, the hold stands" if m.get("sealed_assertion_hold") else "")
+                 + ("; sealed assertion or exception failure: never overridden, the hold stands" if m.get("sealed_assertion_hold") else "")
+                 + (f"; base evidence: {(m.get('base_rerun') or {}).get('untrusted')}" if (m.get("base_rerun") or {}).get("untrusted") else "")
                  + (f"; not applied: {m['error']}" if m.get('error') else "")
                  for m in (arbitration or {}).get("modules", [])) if arbitration else "",
         "",
@@ -348,6 +349,14 @@ def render_markdown(bundle: dict) -> str:
     return "\n".join(p for p in parts if p is not None)
 
 
+def _write_atomic(path: Path, text: str) -> None:
+    """Temporary file plus rename: a concurrent reader (the console's detail endpoint) never sees a half-written artifact (API-08)."""
+    import os
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def write_bundle(out_dir: Path, bundle: dict) -> None:
-    (out_dir / "proof_bundle.json").write_text(json.dumps(bundle, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    (out_dir / "PROOF.md").write_text(render_markdown(bundle), encoding="utf-8")
+    _write_atomic(out_dir / "proof_bundle.json", json.dumps(bundle, indent=2, ensure_ascii=False) + "\n")
+    _write_atomic(out_dir / "PROOF.md", render_markdown(bundle))

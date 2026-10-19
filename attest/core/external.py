@@ -19,7 +19,6 @@ import hashlib
 import io
 import json
 import re
-import shutil
 import tarfile
 import tempfile
 import urllib.request
@@ -37,6 +36,8 @@ LIMITS = {
     "max_checkpoint_timeout_s": 600,
     "max_turns": 12,
     "max_tarball_bytes": 80_000_000,    # compressed download cap
+    "max_tar_members": 20_000,          # headers of any kind read from a tarball before it is refused (BOUND-03)
+    "max_link_entries": 500,            # symbolic and hard link entries recorded from a tarball before it is refused
 }
 ALLOWED_RUNNERS = ("unittest", "pytest")
 PROTECTED_DEFAULT = ["tests/**", "test/**", "setup.py", "setup.cfg", "pyproject.toml", "requirements*.txt", "requirements/**",
@@ -65,7 +66,9 @@ def require_commit(commit: str) -> str:
 
 
 def _safe_member(member: tarfile.TarInfo, top: str) -> str | None:
-    """Relative path inside the repository for a regular file member, or None to skip (dirs, links, unsafe names)."""
+    """Relative path inside the repository for a member of any type, or None to skip (outside the top directory, or the top
+    directory itself). Unsafe names (absolute, `..`, empty parts) refuse the whole import; links are validated too, because a
+    link entry may later be materialized as a file at that path."""
     name = member.name
     if not name.startswith(top + "/"):
         return None
@@ -75,8 +78,6 @@ def _safe_member(member: tarfile.TarInfo, top: str) -> str | None:
     pure = PurePosixPath(rel)
     if pure.is_absolute() or any(part in ("..", "") for part in pure.parts):
         raise ImportRefused(f"tarball member with an unsafe path: {name!r}")
-    if not member.isfile():
-        return None
     return pure.as_posix()
 
 
@@ -121,31 +122,57 @@ def fetch_github(url: str, commit: str, dest: Path, max_file_bytes: int = LIMITS
 
 def extract_tarball(data: bytes, dest: Path, max_file_bytes: int = LIMITS["max_file_bytes"]) -> dict:
     """Extract the regular files of a GitHub-style tarball (single top-level directory) into `dest/repo` under the bounds.
-    Links, caches and VCS directories are skipped and listed; unsafe member names and any exceeded bound refuse the import
-    before anything is written."""
+
+    The archive is streamed header by header (BOUND-03, audit of 19 Oct 2026): the number of headers, files and link entries
+    is bounded, each file's declared size is checked against the per-file limit and the running total against the repository
+    limit BEFORE its bytes are read, every read is capped at the declared size plus one byte, duplicate and unsafe paths
+    refuse the import, and nothing is written until the whole archive has passed. Links, caches and VCS directories are
+    skipped and listed; a link to a regular file inside the repository is materialized as a copy."""
     record = {"skipped": [], "limits": {k: LIMITS[k] for k in ("max_files", "max_total_bytes")} | {"max_file_bytes": max_file_bytes}}
     files: dict[str, bytes] = {}
     links: list[tuple[str, str]] = []
-    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
-        members = archive.getmembers()
-        if not members:
-            raise ImportRefused("the tarball is empty")
-        top = members[0].name.split("/")[0]
-        for member in members:
-            if member.issym() or member.islnk():
-                name = member.name[len(top) + 1:] if member.name.startswith(top + "/") else member.name
-                links.append((name, member.linkname))
-                continue
-            rel = _safe_member(member, top)
-            if rel is None:
-                continue
-            if any(part in SKIP_DIRS for part in PurePosixPath(rel).parts):
-                record["skipped"].append({"path": rel, "reason": "cache or VCS directory"})
-                continue
-            if len(files) >= LIMITS["max_files"]:
-                raise ImportRefused(f"more than {LIMITS['max_files']} files in the repository; the limit is {LIMITS['max_files']} files")
-            handle = archive.extractfile(member)
-            files[rel] = handle.read() if handle else b""
+    total = 0
+    headers = 0
+    top: str | None = None
+    try:
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as archive:
+            for member in archive:   # lazily reads one header at a time; no getmembers() over the whole archive
+                headers += 1
+                if headers > LIMITS["max_tar_members"]:
+                    raise ImportRefused(f"more than {LIMITS['max_tar_members']} entries in the tarball; the limit is {LIMITS['max_tar_members']} entries")
+                if top is None:
+                    top = member.name.split("/")[0]
+                rel = _safe_member(member, top)
+                if rel is None:
+                    continue
+                if member.issym() or member.islnk():
+                    if len(links) >= LIMITS["max_link_entries"]:
+                        raise ImportRefused(f"more than {LIMITS['max_link_entries']} link entries in the tarball; the limit is {LIMITS['max_link_entries']} links")
+                    links.append((rel, member.linkname))
+                    continue
+                if not member.isfile():
+                    continue
+                if any(part in SKIP_DIRS for part in PurePosixPath(rel).parts):
+                    record["skipped"].append({"path": rel, "reason": "cache or VCS directory"})
+                    continue
+                if rel in files:
+                    raise ImportRefused(f"duplicate member path in the tarball: {rel!r}")
+                if len(files) >= LIMITS["max_files"]:
+                    raise ImportRefused(f"more than {LIMITS['max_files']} files in the repository; the limit is {LIMITS['max_files']} files")
+                if member.size > max_file_bytes:
+                    raise ImportRefused(f"1 file(s) exceed the per-file limit of {max_file_bytes} bytes, for example {rel} ({member.size} bytes declared)")
+                if total + member.size > LIMITS["max_total_bytes"]:
+                    raise ImportRefused(f"{total + member.size} bytes exceed the limit of {LIMITS['max_total_bytes']} bytes (25 MB)")
+                handle = archive.extractfile(member)
+                content = handle.read(member.size + 1) if handle else b""
+                if len(content) != member.size:
+                    raise ImportRefused(f"tarball member {rel!r} delivered {len(content)} bytes for a declared size of {member.size} bytes")
+                total += len(content)
+                files[rel] = content
+    except tarfile.TarError as error:
+        raise ImportRefused(f"the tarball could not be read: {error}") from None
+    if top is None:
+        raise ImportRefused("the tarball is empty")
     # Links are never extracted as links. A symbolic link whose target is a regular file inside the repository becomes a
     # copy of that file (python-semver's tests import two modules this way); anything else is skipped and listed.
     record["materialized_links"] = []
@@ -184,37 +211,31 @@ def extract_tarball(data: bytes, dest: Path, max_file_bytes: int = LIMITS["max_f
 
 
 def import_local(source: Path, dest: Path, max_file_bytes: int = LIMITS["max_file_bytes"]) -> dict:
-    """Copy a local directory (regular files only, caches and VCS metadata skipped) under the same bounds."""
+    """Copy a local directory under the same bounds. The walk is `snapshot_repo`'s (regular files only; symbolic links and
+    special files are skipped and listed, caches and VCS metadata left out), so the import and a direct run of the same
+    directory see exactly the same files and nothing outside it is ever read."""
     source = Path(source).resolve()
     if not source.is_dir():
         raise ImportRefused(f"{source} is not a directory")
-    files: dict[str, int] = {}
-    skipped = []
-    for path in sorted(source.rglob("*")):
-        rel = path.relative_to(source).as_posix()
-        if any(part in SKIP_DIRS for part in path.relative_to(source).parts):
-            continue
-        if path.is_symlink():
-            skipped.append({"path": rel, "reason": "symbolic link"})
-            continue
-        if path.is_file():
-            files[rel] = path.stat().st_size
-            if len(files) > LIMITS["max_files"]:
-                raise ImportRefused(f"more than {LIMITS['max_files']} files under {source}; the limit is {LIMITS['max_files']} files")
-    problems = _check_tree(files, max_file_bytes)
+    skipped: list[dict] = []
+    try:
+        snapshot = snapshot_repo(source, max_file_bytes=max_file_bytes, skipped=skipped,
+                                 max_files=LIMITS["max_files"], max_total_bytes=LIMITS["max_total_bytes"])
+    except ValueError as error:
+        raise ImportRefused(str(error)) from None
+    problems = _check_tree({rel: len(data) for rel, data in snapshot.items()}, max_file_bytes)
     if problems:
         raise ImportRefused("; ".join(problems))
     repo_dir = dest / "repo"
     if repo_dir.exists():
         raise ImportRefused(f"{repo_dir} already exists; refusing to overwrite an imported repository")
-    for rel in files:
+    for rel, data in snapshot.items():
         target = repo_dir / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source / rel, target)
-    snapshot = snapshot_repo(repo_dir)
+        target.write_bytes(data)
     return {"url": None, "local_source": str(source), "commit": None, "fetched_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
-            "files": len(files), "total_bytes": sum(files.values()), "tree_sha256": tree_sha256(snapshot), "skipped": skipped,
-            "limits": {k: LIMITS[k] for k in ("max_files", "max_total_bytes")} | {"max_file_bytes": max_file_bytes}}
+            "files": len(snapshot), "total_bytes": sum(len(d) for d in snapshot.values()), "tree_sha256": tree_sha256(snapshot),
+            "skipped": skipped, "limits": {k: LIMITS[k] for k in ("max_files", "max_total_bytes")} | {"max_file_bytes": max_file_bytes}}
 
 
 def tree_sha256(files: dict[str, bytes]) -> str:

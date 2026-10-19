@@ -96,7 +96,7 @@ class HarnessRowAccounting(unittest.TestCase):
         budget = harness.Budget(approve_usd=2.0, per_run_cap=0.5)
         with mock.patch.object(harness, "build_provider", lambda name, ledger, cap, calls, notify=None: PaidFakeProvider(ledger, provider_scenario)), \
              mock.patch.object(harness, "executor_for", lambda ledger: CrashingExecutor(ledger, crash_stage) if crash_stage else FakeExecutor(ledger)):
-            row = quiet(harness.run_cell, self.cell, budget, "nebius", 0.5, 20, self.tmp, 4, ROOT)
+            row = quiet(harness.run_cell, self.cell, budget, "nebius", 0.5, 22, self.tmp, 4, ROOT)
         return row, budget
 
     def test_crash_after_paid_calls_keeps_the_cost_in_the_row_and_the_batch(self):
@@ -135,11 +135,13 @@ class HarnessRowAccounting(unittest.TestCase):
 
 class InterruptedBatch(unittest.TestCase):
     """A batch interrupted after its first cell resumes from its own report: completed rows are kept verbatim, only the
-    never-executed cell runs, and the committed USD of both rows is counted."""
+    never-executed cell runs, and the committed USD of both rows is counted. The interruption is simulated by dropping the second
+    row from the report while its finished run directory stays on disk, which is exactly a finished-but-unreported run (audit
+    finding AC-02): its spend must be in the resumed batch's total as well, once."""
 
     def args(self, out: Path, resume: bool = False):
         return argparse.Namespace(provider="nebius", tasks="durationkit-units-001", systems="baseline,attest", attempts=1, workers=1,
-                                  usd_cap=0.5, approve_usd=5.0, max_calls=20, max_turns=4, out=str(out), label="t", suite="examples/eval/SUITE.json",
+                                  usd_cap=0.5, approve_usd=5.0, max_calls=22, max_turns=4, out=str(out), label="t", suite="examples/eval/SUITE.json",
                                   resume=str(out) if resume else "", snapshot_root=str(ROOT), source_root=str(ROOT))
 
     def test_resume_runs_only_the_missing_cell_and_keeps_costs(self):
@@ -158,11 +160,13 @@ class InterruptedBatch(unittest.TestCase):
                 report = json.loads((tmp / "evaluation.json").read_text())
                 self.assertTrue(report["complete"])
                 self.assertEqual(len(report["rows"]), 2)
-                first = report["rows"][0]
+                first, dropped = report["rows"]
                 full_committed = report["budget"]["committed_usd"]
                 self.assertAlmostEqual(full_committed, sum(r["cost_committed_usd"] for r in report["rows"]), places=4)
                 self.assertEqual(report["provenance_check"]["invalid_tasks"], [])
-                # interruption: the report holds the first row only
+                self.assertEqual(report["schedule"]["max_calls_per_run"], 22)
+                self.assertTrue(all(r["executed_provider"] == "nebius" and r["max_calls"] == 22 for r in report["rows"]))
+                # interruption: the report holds the first row only; the second cell's finished run directory stays on disk
                 report["rows"] = report["rows"][:1]
                 report["complete"] = False
                 (tmp / "evaluation.json").write_text(json.dumps(report, indent=2))
@@ -172,7 +176,13 @@ class InterruptedBatch(unittest.TestCase):
             self.assertEqual(len(resumed["rows"]), 2)
             self.assertEqual(resumed["rows"][0]["run_id"], first["run_id"])  # kept verbatim, not re-run
             self.assertNotEqual(resumed["rows"][1]["run_id"], report["rows"][0]["run_id"])
-            self.assertAlmostEqual(resumed["budget"]["committed_usd"], sum(r["cost_committed_usd"] for r in resumed["rows"]), places=4)
+            # the dropped row's directory is finished but unreported: counted once, from its ledger totals, next to the two rows
+            self.assertEqual([(i["run_id"], i["kind"], i["source"], i["included_in_batch_total"]) for i in resumed["interrupted"]],
+                             [(dropped["run_id"], "finished_unreported", "ledger.json", True)])
+            self.assertAlmostEqual(resumed["interrupted"][0]["cost_usd_committed"], dropped["cost_committed_usd"], places=6)
+            self.assertAlmostEqual(resumed["budget"]["committed_usd"],
+                                   sum(r["cost_committed_usd"] for r in resumed["rows"]) + dropped["cost_committed_usd"], places=4)
+            self.assertAlmostEqual(resumed["starting_total"]["committed_usd"], first["cost_committed_usd"] + dropped["cost_committed_usd"], places=6)
             schedule = json.loads((tmp / "schedule.json").read_text())
             self.assertEqual(schedule["resumptions"][0]["cells"], [1])
             self.assertEqual(len([d for d in (tmp / "runs").iterdir()]), 3)  # two from the first batch, one from the resumption
@@ -234,7 +244,7 @@ class RegisterOnly(unittest.TestCase):
             provenance = {"fresh_process": False, "attest_revision": digests["attest_revision"], "eval_script_sha256": digests["eval_script_sha256"],
                           "examples_digest": digests["examples"], "guest_programs": {}, "python": "test", "platform": "test", "note": "test stub"}
             args = argparse.Namespace(provider="nebius", tasks="", systems="baseline,attest", attempts=2, workers=2, usd_cap=0.5, approve_usd=9.0,
-                                      max_calls=20, max_turns=14, out=str(tmp), label="m5-final", suite="examples/eval/SUITE-M5.json", resume="",
+                                      max_calls=22, max_turns=14, out=str(tmp), label="m5-final", suite="examples/eval/SUITE-M5.json", resume="",
                                       snapshot_root=str(ROOT), source_root=str(ROOT), register_only=True)
             started = []
             with mock.patch.object(harness, "runtime_provenance", lambda a, b: provenance), \

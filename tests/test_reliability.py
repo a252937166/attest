@@ -86,7 +86,7 @@ class SupervisorPipeDrain(unittest.TestCase):
         self.assertEqual(sum(map(len, chunks)), 600000)
 
     def test_v6_runs_a_test_with_many_subtests_within_the_budget(self):
-        self.assertEqual(SUPERVISOR_VERSION, "attest-sealed-supervisor/6")
+        self.assertEqual(SUPERVISOR_VERSION, "attest-sealed-supervisor/7")
         tmp = Path(tempfile.mkdtemp(prefix="attest-rel-repo-"))
         try:
             (tmp / "pkg").mkdir()
@@ -587,9 +587,17 @@ class NebiusReasoningRunaway(unittest.TestCase):
     """A Nemotron answer that spent its whole completion budget on reasoning (finish_reason=length, no content) is retried once at
     low reasoning effort; both attempts are in the ledger; a second runaway fails visibly."""
 
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="attest-runaway-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
     def _client(self, responses):
+        from attest.ledger import JOURNAL_FILE
         from attest.models.nebius_tokenfactory import NebiusTokenFactory
         ledger = Ledger()
+        ledger.attach_sink(self.tmp / JOURNAL_FILE)  # a reservation needs a journal before any request is sent (audit finding AC-03)
         client = NebiusTokenFactory("key", ledger, usd_cap=0.5)
         sent = []
 

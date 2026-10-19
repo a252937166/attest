@@ -1,0 +1,17 @@
+#!/bin/bash
+# Rehearsal shim for install(1): copies SOURCE to DEST and applies -m MODE; -o/-g owners are recorded, not applied.
+. "$(dirname "$0")/_log.sh"
+shim_log install "$*"
+mode=""; src=""; dst=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o|-g) shift 2 ;;
+    -m) mode=$2; shift 2 ;;
+    -*) shift ;;
+    *) if [ -z "$src" ]; then src=$1; else dst=$1; fi; shift ;;
+  esac
+done
+[ -n "$src" ] && [ -n "$dst" ] || { echo "install shim: expected SOURCE DEST" >&2; exit 1; }
+cp "$src" "$dst" || exit 1
+[ -z "$mode" ] || chmod "$mode" "$dst"
+exit 0
