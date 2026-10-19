@@ -329,8 +329,13 @@ class Store:
             elif per_run_cap is not None and (row["cost_committed_usd"] is None or row["cost_committed_usd"] < per_run_cap):
                 fields["cost_committed_usd"] = per_run_cap  # conservative: the actual spend is unknown, the cap is its bound
                 message += f"; committed cost set to the per-run cap ${per_run_cap:.2f} because the actual spend is unknown (no ledger journal)"
+        unread = list((journal or {}).get("operations_unread") or [])
+        if unread:  # revision 8: accepted sandbox operations whose outcome the run never read; the ids stay for reconciliation
+            message += (f"; {len(unread)} sandbox operation(s) were accepted but their outcome was never read ({', '.join(unread[:5])}); "
+                        "reconcile with GET /operations/<id>; nothing is replayed")
         self.record_failure(run_id, "interrupted" if detail is None else "worker_interrupted", message, detail=detail, **fields)
-        return {"run_id": run_id, "action": "interrupted", "cost_committed_usd": fields.get("cost_committed_usd"), "journal": bool(journal)}
+        return {"run_id": run_id, "action": "interrupted", "cost_committed_usd": fields.get("cost_committed_usd"), "journal": bool(journal),
+                "operations_unread": unread}
 
     def reconcile_interrupted(self, per_run_cap: float | None = None) -> list[dict]:
         """After a restart, no worker is running the rows left 'queued'/'running': settle each one (`finalize_interrupted`).

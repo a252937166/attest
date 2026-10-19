@@ -7,6 +7,11 @@ all roles and all worker threads share one hourly budget and at most a couple of
 rejection (HTTP 429, nothing executed) is recorded as a failed call, blocks the key, and the request is retried after a
 bounded wait; a transport-uncertain failure is never retried. When the bounded wait is exceeded the call fails visibly with
 ModelError(rate_limited=True); nothing here ever selects another provider.
+
+Transport (revision 8, 19 Oct 2026): a request whose connection, proxy tunnel or TLS handshake failed before any byte of it was
+written never reached the gateway, so it is sent again, at most NOT_SENT_RETRIES times after a short wait; each attempt is its own
+failed call record (`request_sent` false). Reads (status, catalog) have no side effect and are retried on any transport failure.
+A request whose bytes were written stays uncertain and is never sent again: the run stops for reconciliation.
 """
 
 from __future__ import annotations
@@ -16,7 +21,7 @@ import json
 import os
 import time
 
-from ..http import HttpError, TransportError, request_json
+from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, TransportError, backoff, request_json
 from ..ledger import Ledger, ModelCall, utcnow
 from ..secrets import config_value
 from .base import ModelError, ModelResult, extract_usage, validate_json
@@ -81,13 +86,27 @@ class CodexGateway:
     def _headers(self) -> dict:
         return {"Authorization": "Bearer " + self._key}
 
+    def _sleep(self, seconds: float) -> None:
+        self.governor._sleep(seconds)  # the governor's clock, so a test's fake clock covers the transport waits too
+
+    def _read(self, path: str) -> dict:
+        """A GET (status, catalog): it has no side effect, so any transport failure is retried, bounded; the last one is raised."""
+        for retry in range(READ_RETRIES + 1):
+            try:
+                _, body, _ = request_json("GET", self.base + path, self._headers(), timeout=30)
+                return body or {}
+            except TransportError:
+                if retry == READ_RETRIES:
+                    raise
+                self._sleep(backoff(READ_BACKOFF_S, retry))
+        return {}
+
     def status(self) -> dict:
-        _, body, _ = request_json("GET", self.base + "/status", self._headers(), timeout=30)
-        return body or {}
+        return self._read("/status")
 
     def catalog(self) -> dict:
         if self._catalog is None:
-            _, body, _ = request_json("GET", self.base + "/models", self._headers(), timeout=30)
+            body = self._read("/models")
             self._catalog = {item.get("id"): item.get("supported_reasoning_efforts") or []
                              for item in (body or {}).get("data", [])}
         return self._catalog
@@ -112,7 +131,10 @@ class CodexGateway:
         return {"provider": self.name, "base_url": None, "base_url_sha256": hashlib.sha256(self.base.encode("utf-8")).hexdigest()[:16],
                 "roles": {k: list(v) for k, v in self.roles.items()},
                 "structured_endpoint": "/run", "native_tools": False, "streaming": False, "auto_retry": False,
-                "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+                "retry_policy": (f"HTTP 429 (definite rejection) retried after a bounded wait; a request that was never sent (its connection, "
+                                 f"proxy tunnel or TLS handshake failed before any byte of it was written) sent again at most {NOT_SENT_RETRIES} "
+                                 f"times after {'/'.join(f'{w:g}' for w in NOT_SENT_BACKOFF_S)} s, each attempt recorded; transport-uncertain "
+                                 "failures (the request was written) never retried"),
                 "pacing": {k: pacing[k] for k in ("model", "policy_source", "hourly_limit_assumed", "budget", "max_concurrency", "max_wait_s",
                                                    "state_shared_across_processes")}}
 
@@ -135,7 +157,12 @@ class CodexGateway:
         if effort:
             payload["effort"] = effort
         self.adopt_gateway_policy()
-        for attempt in range(1, MAX_429_RETRIES + 2):
+        attempt, rejections, unsent, wait_s = 0, 0, 0, 0.0
+        while True:
+            attempt += 1
+            if wait_s:
+                self._sleep(wait_s)  # before a resend of a request that was never sent; no permit is held while waiting
+                wait_s = 0.0
             try:
                 slot = self.governor.acquire(self.notify)
             except PacingError as error:
@@ -153,21 +180,36 @@ class CodexGateway:
                                           timeout=self.deadline_s + 90)
             except TransportError as error:
                 call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+                call.request_sent, call.transport_phase = error.request_sent, error.phase
                 call.error = self.ledger.public_error(f"{stage}-transport", error)
                 self.ledger.add_call(call)
+                if not error.request_sent:
+                    # nothing reached the gateway (the failure came before any byte of the request was written), so sending it
+                    # again cannot run anything twice; bounded, and every attempt keeps its own record
+                    if unsent < NOT_SENT_RETRIES:
+                        wait_s = backoff(NOT_SENT_BACKOFF_S, unsent)
+                        unsent += 1
+                        if self.notify:
+                            self.notify(f"transport: the request was never sent ({error.phase} failed); sending it again in {wait_s:.0f} s "
+                                        f"(attempt {attempt + 1})")
+                        continue
+                    raise ModelError(self._public(f"the development gateway could not be reached: {attempt} attempts, none got as far as "
+                                                  f"sending the request ({error})"), unreachable=True) from None
                 raise ModelError(self._public(f"inference outcome uncertain ({error}); not retried"), uncertain=True) from None
             except HttpError as error:
                 call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+                call.request_sent = True
                 call.error = self.ledger.public_error(f"{stage}-http", error)
                 self.ledger.add_call(call)
                 if error.status == 429:
                     # a definite rejection: nothing executed and no allowance was consumed upstream, so the same request may
                     # be sent again once the key's budget reopens; the rejected attempt stays in the ledger
+                    rejections += 1
                     until = self.governor.record_rejection(self._retry_after(error))
                     if self.notify:
                         self.notify(self._public(f"pacing: the gateway rejected the request ({str(error)[:120]}); blocked for about "
-                                                 f"{max(0, until - time.time()):.0f} s, attempt {attempt} of {MAX_429_RETRIES + 1}"))
-                    if attempt <= MAX_429_RETRIES:
+                                                 f"{max(0, until - time.time()):.0f} s, rejection {rejections} of {MAX_429_RETRIES + 1}"))
+                    if rejections <= MAX_429_RETRIES:
                         continue
                     raise ModelError(self._public(f"{error} (after {attempt} attempts; bounded wait exhausted)"), rate_limited=True) from None
                 raise ModelError(self._public(str(error))) from None
@@ -175,6 +217,7 @@ class CodexGateway:
                 self.governor.release()
             break
         call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+        call.request_sent = True
         body = body or {}
         call.returned_model = body.get("model")
         call.returned_effort = body.get("effort")

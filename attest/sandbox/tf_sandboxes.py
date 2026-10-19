@@ -6,7 +6,7 @@ retained checkpoints, disposable branches, networking.enabled=false.
 Transport of inputs: a JSON job is gzip-compressed and sent as base64 stdin to a
 small guest runner (Python, stdlib only) that writes files, runs steps with
 subprocess, and prints a marker-delimited JSON report. Accepted operation UUIDs
-are recorded before polling and a POST is never replayed.
+are recorded before polling and a POST that may have reached the service is never replayed.
 
 Request size (measured 17 Oct 2026): the API accepted a 534 KB request body, answered
 HTTP 413 at about 860 KB and stalled the write at about 1 MB. Jobs are therefore
@@ -19,6 +19,14 @@ Guest output (BOUND-04, audit of 19 Oct 2026): the runner drains each step's std
 head-and-tail buffers while the step runs, counts every byte, starts each step in its own session and kills the whole
 process group on the step's deadline or when a stream passes the output limit, bounds every wait, and records a truthful
 failure (`timed_out`, `output_exhausted`, `cleanup`) in the step report. The report format read here is unchanged.
+
+Transport (revision 8, 19 Oct 2026): GET (image lookup, operation polls) and DELETE (cancel) are retried on any transport failure,
+bounded. A spawn (POST /instances) is sent again only when the previous attempt failed before any byte of it was written (its
+connection, proxy tunnel or TLS handshake failed), at most NOT_SENT_RETRIES times; the attempts are recorded on the operation. A
+spawn whose bytes were written and whose answer was lost is UNCERTAIN and never sent again. The operation id the service accepts is
+journaled before polling starts; when the outcome of an accepted operation cannot be read, the operation is ACCEPTED_UNREAD and the
+id is kept for reconciliation (GET /operations/{id}). The spawn request carries no client-chosen id (the API has none), so an
+uncertain spawn is reconciled by listing the account's operations around its time and source image (GET /operations).
 """
 
 from __future__ import annotations
@@ -28,7 +36,7 @@ import gzip
 import json
 import time
 
-from ..http import HttpError, TransportError, request_json
+from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, TransportError, backoff, request_json
 from ..ledger import Ledger, SandboxOp, utcnow
 from .base import RunResult, StepResult
 
@@ -208,7 +216,13 @@ sys.stdout.flush()
 
 
 class SandboxError(RuntimeError):
-    pass
+    def __init__(self, message: str, uncertain: bool = False, unreachable: bool = False, accepted_unread: bool = False,
+                 operation_uuid: str | None = None):
+        super().__init__(message)
+        self.uncertain = uncertain or accepted_unread  # the operation may exist or may have run: never replayed
+        self.unreachable = unreachable  # every attempt failed before any byte of the request was sent: nothing exists
+        self.accepted_unread = accepted_unread  # accepted (operation_uuid known), outcome not read
+        self.operation_uuid = operation_uuid
 
 
 def _decode_stream(stream: dict | None) -> tuple[str, bool]:
@@ -234,36 +248,46 @@ class TokenFactorySandboxes:
         self.truncate_output_at = truncate_output_at
         self.poll_interval = poll_interval
         self.requests_log: list[dict] = []
+        self._sleep = time.sleep  # transport waits (tests replace it)
 
     def _headers(self) -> dict:
         return {"Authorization": "Bearer " + self._key, "Project": self.project_id}
 
-    def _request(self, method: str, path: str, payload=None, timeout: float = 30):
+    def _request(self, method: str, path: str, payload=None, timeout: float = 30, op: SandboxOp | None = None):
+        """One API request with the bounded retries its method allows. GET and DELETE are idempotent here (a read, a cancel), so any
+        transport failure is retried. A POST (a spawn creates an operation) is sent again only after an attempt that failed before
+        any byte of it was written; once its bytes were written the outcome is uncertain and the error is raised (no replay)."""
         record = {"at_utc": utcnow(), "method": method, "path": path.split("?")[0]}
         self.requests_log.append(record)
-        # Idempotent GETs (image lookup, operation polling) may be retried on a transient transport failure; a POST that
-        # creates a sandbox instance is NEVER retried (the no-replay rule), so an uncertain spawn stays uncertain.
-        attempts = 3 if method == "GET" else 1
-        last: TransportError | None = None
-        for attempt in range(attempts):
+        idempotent = method in ("GET", "DELETE")
+        retries = READ_RETRIES if idempotent else NOT_SENT_RETRIES
+        for attempt in range(retries + 1):
             try:
                 status, body, headers = request_json(method, self.base + path, self._headers(), payload, timeout=timeout)
             except HttpError as error:
                 record["http_status"] = error.status
                 raise SandboxError(str(error)) from None
             except TransportError as error:
-                last = error
                 record["transport_error"] = str(error)
-                if method != "GET" or attempt == attempts - 1:
+                record.setdefault("transport_failures", []).append({"phase": error.phase, "request_sent": error.request_sent})
+                if op is not None:  # a spawn attempt: its public text says whether it was never sent or is uncertain
+                    public = self.ledger.public_error(f"{op.stage}-transport", error if not error.request_sent
+                                                      else SandboxError(str(error), uncertain=True))
+                    op.transport_failures.append({"at_utc": utcnow(), "phase": error.phase, "request_sent": error.request_sent,
+                                                  "error": public})
+                retryable = idempotent or not error.request_sent
+                if not retryable or attempt == retries:
                     raise
-                time.sleep(1.0 * (attempt + 1))
+                self._sleep(backoff(READ_BACKOFF_S if idempotent else NOT_SENT_BACKOFF_S, attempt))
+                if op is not None:
+                    op.attempts += 1
                 continue
             record["http_status"] = status
             record["retry_after"] = headers.get("retry-after")
             if attempt:
-                record["get_retries"] = attempt
+                record["retries"] = attempt
             return body, headers
-        raise last  # unreachable: GET either returned or re-raised on the last attempt
+        raise SandboxError("unreachable: the retry loop always returns or raises")
 
     def describe(self) -> dict:
         return {"executor": self.name, "base_url": self.base, "project_id": self.project_id,
@@ -272,7 +296,10 @@ class TokenFactorySandboxes:
                 "privilege_separation": self.uid == 0,
                 "max_layer_bytes": self.max_layer_bytes,
                 "networking_enabled": False, "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
-                "post_replay": False}
+                "post_replay": False,
+                "retry_policy": (f"GET and DELETE retried on any transport failure (at most {READ_RETRIES} times); a spawn sent again only when "
+                                 f"the attempt failed before any byte of it was written (at most {NOT_SENT_RETRIES} times); an uncertain spawn is "
+                                 "never sent again; accepted operation ids are journaled before polling")}
 
     def whoami(self) -> dict:
         body, _ = self._request("GET", "/whoami")
@@ -291,7 +318,7 @@ class TokenFactorySandboxes:
 
     def cancel(self, operation_uuid: str) -> None:
         try:
-            self._request("DELETE", "/operations/" + operation_uuid)
+            self._request("DELETE", "/operations/" + operation_uuid)  # idempotent: a repeated cancel changes nothing
         except (SandboxError, TransportError):
             pass
 
@@ -341,15 +368,31 @@ class TokenFactorySandboxes:
                        started_at_utc=utcnow())
         self.ledger.add_op(op)
         try:
-            accepted, _ = self._request("POST", "/instances", payload, timeout=60)
+            accepted, _ = self._request("POST", "/instances", payload, timeout=60, op=op)
         except TransportError as error:
+            if not error.request_sent:
+                op.status = "NOT_SENT"  # no attempt wrote a byte of the request: no operation can exist
+                self.ledger.update_op(op)
+                raise SandboxError(f"the sandbox service could not be reached: {op.attempts} attempt(s), none got as far as sending the "
+                                   f"spawn ({error})", unreachable=True) from None
             op.status = "UNCERTAIN"
-            raise SandboxError(f"spawn outcome uncertain ({error}); inspect account operations, do not replay") from None
+            self.ledger.update_op(op)
+            raise SandboxError(f"spawn outcome uncertain ({error}); inspect account operations, do not replay", uncertain=True) from None
         op.operation_uuid = (accepted or {}).get("uuid")
         if not op.operation_uuid:
             op.status = "REJECTED"
+            self.ledger.update_op(op)
             raise SandboxError("spawn response had no operation uuid")
-        result = self._wait(op.operation_uuid, deadline_s=timeout + 90)
+        op.status = "ACCEPTED"
+        self.ledger.update_op(op)  # the accepted id is in the journal before polling starts, so no interruption can lose it
+        try:
+            result = self._wait(op.operation_uuid, deadline_s=timeout + 90)
+        except TransportError as error:
+            # the polls failed even after their retries: the operation exists and may still run; it is never spawned again
+            op.status = "ACCEPTED_UNREAD"
+            self.ledger.update_op(op)
+            raise SandboxError(f"operation {op.operation_uuid} was accepted but its outcome could not be read ({error}); reconcile with "
+                               f"GET /operations/{op.operation_uuid}; not replayed", accepted_unread=True, operation_uuid=op.operation_uuid) from None
         execution = (result.get("metadata") or {}).get("result") or {}
         state = execution.get("state") or {}
         stdout, stdout_truncated = _decode_stream(execution.get("stdout"))
@@ -362,6 +405,7 @@ class TokenFactorySandboxes:
         op.result_image_uuid = result.get("result_image_uuid") or ((result.get("result") or {}).get("image"))
         op.raw_cost_diag = (execution.get("resources") or {}).get("cost")
         op.stdout_truncated = stdout_truncated
+        self.ledger.update_op(op)
         run = RunResult(stage=stage, operation_uuid=op.operation_uuid, status=op.status, exit_code=op.exit_code,
                         timed_out=op.timed_out, signal=op.signal, duration_s=op.duration_s, image_uuid=image,
                         result_image_uuid=op.result_image_uuid, stdout_truncated=stdout_truncated,

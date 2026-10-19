@@ -161,6 +161,11 @@ class ModelCall:
     # unknown, so the reservation stays committed until a human reconciles it against the provider's billing), or
     # "none" (no USD reservation, for example the development gateway's allowance).
     settlement: str = "none"
+    # Transport (revision 8): whether any byte of the request was written (False only when the connection, the proxy tunnel or
+    # the TLS handshake failed first, so the provider cannot have received it; such an attempt costs nothing and may be sent
+    # again), and the phase a failed request reached ("connect", "send", "response"). None on records made before revision 8.
+    request_sent: bool | None = None
+    transport_phase: str | None = None
 
 
 @dataclass
@@ -180,6 +185,10 @@ class SandboxOp:
     stdout_truncated: bool | None
     started_at_utc: str
     note: str = "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+    # Transport (revision 8): spawn attempts (an attempt that failed before any byte of the request was written is sent again,
+    # bounded) and the public text of each failed attempt with the phase it reached
+    attempts: int = 1
+    transport_failures: list = field(default_factory=list)
 
 
 @dataclass
@@ -309,6 +318,12 @@ class Ledger:
             self.sandbox_ops.append(op)
             self._append({"event": "sandbox_op", **asdict(op)})
 
+    def update_op(self, op: SandboxOp) -> None:
+        """Journal the current state of an operation already added: the operation id the service accepted (written before polling
+        starts, so an interruption never loses it), then its final or uncertain status. The in-memory record is the same object."""
+        with self._lock:
+            self._append({"event": "sandbox_op_update", **asdict(op)})
+
     # ------------------------------------------------------------------ totals
     def totals(self) -> dict:
         tokens_in = sum(c.tokens_in or 0 for c in self.model_calls)
@@ -354,7 +369,10 @@ class Ledger:
             "rate_limited_calls": sum(1 for c in self.model_calls if not c.ok and "HTTP 429" in (c.error or "")),
             "pacing_wait_ms": sum(c.pacing_wait_ms or 0 for c in self.model_calls),
             "by_model": by_model,
+            "calls_not_sent": sum(1 for c in self.model_calls if c.request_sent is False),
             "sandbox_operations": len(self.sandbox_ops),
+            "sandbox_spawn_retries": sum(max(0, (o.attempts or 1) - 1) for o in self.sandbox_ops),
+            "sandbox_uncertain": sum(1 for o in self.sandbox_ops if o.status in ("UNCERTAIN", "ACCEPTED_UNREAD")),
             "sandbox_duration_s": round(sum(o.duration_s or 0 for o in self.sandbox_ops), 3),
             "sandbox_retained_images": [o.result_image_uuid for o in self.sandbox_ops if o.result_image_uuid],
             "sandbox_raw_cost_diag_sum": round(sum(o.raw_cost_diag or 0 for o in self.sandbox_ops), 8),
@@ -382,6 +400,7 @@ def read_journal(path: Path) -> dict | None:
     if not path.is_file():
         return None
     calls, reservations, closed, ops, bad, repairs = [], {}, set(), 0, 0, 0
+    accepted: dict[str, dict] = {}  # operation id -> its latest journaled state (revision 8: written before polling)
     header = False
     with path.open("rb") as handle:
         handle.seek(0, os.SEEK_END)
@@ -410,6 +429,9 @@ def read_journal(path: Path) -> dict | None:
                     closed.add(record["reservation_id"])
             elif kind == "sandbox_op":
                 ops += 1
+            elif kind == "sandbox_op_update":
+                if record.get("operation_uuid"):
+                    accepted[record["operation_uuid"]] = {"stage": record.get("stage"), "status": record.get("status")}
             elif kind == "journal_repair":
                 repairs += 1
     if not header and not calls and not reservations:
@@ -422,4 +444,6 @@ def read_journal(path: Path) -> dict | None:
             "uncertain_unpriced_calls": sum(1 for c in calls if c.get("cost_usd") is None and (c.get("reserved_usd") or 0.0) > 0),
             "open_reservations": len(open_reservations), "open_reserved_usd": round(sum(r.get("reserved_usd") or 0.0 for r in open_reservations), 6),
             "sandbox_operations": ops, "unparsable_lines": bad, "journal_repairs": repairs, "tail_framed": tail_framed,
+            # accepted operations whose final status was never journaled (the process stopped while polling): reconcile them
+            "operations_unread": sorted(uuid for uuid, state in accepted.items() if state.get("status") not in ("SUCCESS", "FAILED", "CANCELLED")),
             "tokens_in": sum(c.get("tokens_in") or 0 for c in calls), "tokens_out": sum(c.get("tokens_out") or 0 for c in calls)}

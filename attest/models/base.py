@@ -10,10 +10,11 @@ from ..ledger import ModelCall
 
 
 class ModelError(RuntimeError):
-    def __init__(self, message: str, uncertain: bool = False, rate_limited: bool = False):
+    def __init__(self, message: str, uncertain: bool = False, rate_limited: bool = False, unreachable: bool = False):
         super().__init__(message)
         self.uncertain = uncertain  # transport outcome unknown: never replay
         self.rate_limited = rate_limited  # the provider's quota refused the request (definite, nothing executed)
+        self.unreachable = unreachable  # every attempt failed before any byte of the request was sent (definite, nothing executed)
 
 
 @dataclass

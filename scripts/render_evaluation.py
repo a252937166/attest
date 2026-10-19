@@ -41,6 +41,15 @@ def render(report: dict) -> str:
              f"snapshot intact at end: {(report.get('provenance_check') or {}).get('snapshot_intact_at_end')}; invalid comparisons: "
              f"{(report.get('provenance_check') or {}).get('invalid_tasks') or 'none'}; provider profile: {profile_summary(schedule.get('provider_profile'))}.",
              f"Budget: committed ${(report.get('budget') or {}).get('committed_usd')} of an approved {(report.get('budget') or {}).get('approve_usd')} (per-run cap ${(report.get('budget') or {}).get('per_run_cap_usd')}).", ""]
+    services = report.get("services")
+    if services:  # revision 8: per service, never one total
+        inf, box, search = services["inference"], services["sandboxes"], services["search"]
+        lines[-1:-1] = [f"Services, kept apart: inference on the {inf['provider']}: {inf['model_calls']} model call records ({inf['calls_not_sent']} never sent), "
+                        f"committed {'USD ' + str(inf['committed_usd']) if inf['committed_usd'] is not None else 'no USD (allowance)'}; "
+                        f"{box['service']}: {box['operations_in_run_ledgers']} operations in the run ledgers and {box['judge_operations']} judge operations, "
+                        f"{box['duration_s']} s, {box['spawn_retries']} spawn resend(s), billing {box['billing']}; {search['service']}: {search['calls']} calls "
+                        f"({search['note']}); {services['reconciliation_items']} item(s) to reconcile. Harness peak resident memory "
+                        f"{report.get('harness_peak_rss_mb')} MiB."]
     lines += ["## Every scheduled cell", "", "| # | Task | System | Attempt | Status | Verdict | Judge | Label | Calls | USD committed | Wall | Revision |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for r in sorted(rows, key=lambda x: x["scheduled_index"]):
         judge = {True: "correct", False: "not correct", None: "not judged"}.get(r.get("held_out_correct"), "?")

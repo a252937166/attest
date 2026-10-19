@@ -12,7 +12,7 @@ import os
 import re
 import time
 
-from ..http import HttpError, TransportError, request_json
+from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, HttpError, TransportError, backoff, request_json
 from ..ledger import Ledger, LedgerError, ModelCall, utcnow
 from .base import ModelError, ModelResult, extract_usage, usage_problem, validate_json
 
@@ -85,6 +85,7 @@ class NebiusTokenFactory:
         # finding R5-01: a reservation is journaled only after the ledger repaired any cut journal tail and read the new line back
         # (attest/ledger.py); when that fails the LedgerError below halts this instance the same way.
         self.halted: str | None = None
+        self._sleep = time.sleep  # waits before resending a request that was never sent (tests replace it)
 
     def _headers(self) -> dict:
         return {"Authorization": "Bearer " + self._key}
@@ -102,6 +103,10 @@ class NebiusTokenFactory:
                 "thinking_roles": list(self.thinking_roles) if self.send_thinking_flag else [],
                 "send_thinking_flag": self.send_thinking_flag, "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
                 "schema_in_prompt": True, "auto_retry": False, "pre_request_reservation": True,
+                "transport_retry_policy": (f"a request that was never sent (its connection, proxy tunnel or TLS handshake failed before any byte of it "
+                                           f"was written) closes its reservation at a known $0 and is sent again at most {NOT_SENT_RETRIES} times after "
+                                           f"{'/'.join(f'{w:g}' for w in NOT_SENT_BACKOFF_S)} s, each attempt under a new reservation, each recorded and "
+                                           "counted against the call cap; a request whose bytes were written is never sent again (its reservation stays committed)"),
                 "reservation_policy": "the USD reservation is journaled durably (fsync) and read back before dispatch, after any cut journal tail has been "
                                       "terminated with a journal_repair record; if it cannot be, the request is not sent and the run stops paid calls",
                 "metering_policy": "an HTTP 200 whose usage cannot price the generation (missing, empty, partial or malformed counters) keeps its "
@@ -171,7 +176,7 @@ class NebiusTokenFactory:
             payload["reasoning_effort"] = effort
         return self._send(role, prompt, schema, stage, model, payload, reservation, attempt=1)
 
-    def _send(self, role, prompt, schema, stage, model, payload, reservation, attempt: int) -> ModelResult:
+    def _send(self, role, prompt, schema, stage, model, payload, reservation, attempt: int, unsent: int = 0) -> ModelResult:
         """One request; a `finish_reason=length` answer with no visible content (the model spent its whole completion budget on
         reasoning) is a definite failure and is retried once at low reasoning effort, both attempts recorded. The reservation
         is journaled before the request leaves and closed by the call record, so an interrupted process leaves the bound behind."""
@@ -193,18 +198,34 @@ class NebiusTokenFactory:
                          returned_effort=None, started_at_utc=started, elapsed_ms=0, gateway_duration_ms=None,
                          prompt_chars=len(prompt), tokens_in=None, tokens_out=None, tokens_cached=None,
                          usage_raw={}, cost_usd=None, cost_note="USD from public Token Factory price table", ok=False,
-                         reserved_usd=round(reservation, 6))
+                         reserved_usd=round(reservation, 6), attempt=unsent + 1)
         try:
             _, body, _ = request_json("POST", self.base + "/chat/completions", self._headers(), payload,
                                       timeout=self.timeout)
         except TransportError as error:
             call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+            call.request_sent, call.transport_phase = error.request_sent, error.phase
             call.error = self.ledger.public_error(f"{stage}-transport", error)
+            if not error.request_sent:
+                # no byte of the request was written (the connection, the proxy tunnel or the TLS handshake failed first), so the
+                # provider cannot have received it: nothing was generated or billed, the reservation closes at a known zero, and the
+                # request may be sent again under a new reservation while the per-run caps allow it
+                call.cost_usd = 0.0
+                call.settlement = "known"
+                call.cost_note = "not sent: the connection failed before any byte of the request was written; nothing was billed"
+                self.ledger.add_call(call, reservation_id)
+                if (unsent < NOT_SENT_RETRIES and self.spent_usd() + reservation <= self.usd_cap
+                        and (self.max_calls is None or self.calls_made() < self.max_calls)):
+                    self._sleep(backoff(NOT_SENT_BACKOFF_S, unsent))
+                    return self._send(role, prompt, schema, stage, model, payload, reservation, attempt, unsent=unsent + 1)
+                raise ModelError(f"the model provider could not be reached: {unsent + 1} attempt(s), none got as far as sending the request "
+                                 f"({error})", unreachable=True) from None
             call.settlement = "unsettled"  # the request may have been billed: the reservation stays committed until reconciled
             self.ledger.add_call(call, reservation_id)
             raise ModelError(f"inference outcome uncertain ({error}); not retried", uncertain=True) from None
         except HttpError as error:
             call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+            call.request_sent = True
             call.error = self.ledger.public_error(f"{stage}-http", error)
             if 400 <= error.status < 500:
                 call.cost_usd = 0.0  # the provider refused the request (quota, schema, auth): nothing was generated, nothing is billed
@@ -214,6 +235,7 @@ class NebiusTokenFactory:
             self.ledger.add_call(call, reservation_id)
             raise ModelError(str(error)) from None
         call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+        call.request_sent = True
         body = body or {}
         call.returned_model = body.get("model")
         usage = body.get("usage")

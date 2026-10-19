@@ -31,6 +31,12 @@ PUBLIC = {
     "provider_error": "the model provider call failed",
     "sandbox_error": "a sandbox operation failed",
     "sandbox_uncertain": "a sandbox operation's outcome is uncertain; it was not replayed",
+    # revision 8: failures that are known to have happened before any byte of the request was written, and an accepted operation
+    # whose outcome could not be read
+    "transport_not_sent": "the request was never sent (the connection could not be set up), so sending it again was safe",
+    "provider_unreachable": "the model provider could not be reached: no attempt got as far as sending the request, so nothing was executed or billed",
+    "sandbox_unreachable": "the sandbox service could not be reached: no attempt got as far as sending the request, so nothing was executed",
+    "sandbox_accepted_unread": "a sandbox operation was accepted but its outcome could not be read; it was not replayed, and its operation id is recorded for reconciliation",
     "internal_error": "an internal error occurred ({type})",
 }
 
@@ -49,7 +55,13 @@ def classify_error(error: BaseException | str) -> tuple[str, str]:
             return "provider_rate_limited", PUBLIC["provider_rate_limited"]
         return "provider_http", PUBLIC["provider_http"].format(status=status)
     if name == "TransportError":
+        if getattr(error, "request_sent", True) is False:
+            return "transport_not_sent", PUBLIC["transport_not_sent"]
         return "provider_transport_uncertain", PUBLIC["provider_transport_uncertain"]
+    if getattr(error, "unreachable", False):
+        return ("sandbox_unreachable", PUBLIC["sandbox_unreachable"]) if name == "SandboxError" else ("provider_unreachable", PUBLIC["provider_unreachable"])
+    if name == "SandboxError" and getattr(error, "accepted_unread", False):
+        return "sandbox_accepted_unread", PUBLIC["sandbox_accepted_unread"]
     if name == "ModelError" or name == "text" and any(k in lower for k in ("model provider", "schema", "http ", "transport", "cap")):
         if uncertain:
             return "provider_transport_uncertain", PUBLIC["provider_transport_uncertain"]

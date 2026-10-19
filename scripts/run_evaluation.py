@@ -324,12 +324,65 @@ class Budget:
             else:
                 self.consecutive_infra = 0
             if row.get("uncertain") and not self.stopped:
-                self.stopped = "a transport-uncertain operation occurred; the batch stopped without replaying anything"
+                self.stopped = ("a transport-uncertain operation occurred; the batch stopped for reconciliation without replaying anything "
+                                "(the cell's reconciliation list names what to check)")
 
     def snapshot(self) -> dict:
         with self.lock:
             return {"approve_usd": self.approve_usd, "per_run_cap_usd": self.per_run_cap, "committed_usd": round(self.committed, 4),
                     "peak_projected_usd": round(self.peak_projected, 4), "stopped": self.stopped}
+
+
+# ----------------------------------------------------------------------------- services, kept apart (revision 8)
+def peak_rss_mb() -> float | None:
+    """Peak resident memory of this harness process (every cell's pipeline ran in it), for sizing the console's memory limit."""
+    try:
+        import resource
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return round(peak / (1 << 20) if sys.platform == "darwin" else peak / 1024, 1)  # bytes on macOS, KiB on Linux
+    except (ImportError, OSError):
+        return None
+
+
+def services_summary(rows: list[dict], provider_name: str) -> dict:
+    """What the batch used, per service. They are separate services with separate billing and are never added into one figure: a
+    batch whose inference ledger shows $0 has still used Sandboxes, whose billing this harness cannot see."""
+    done = [r for r in rows if r.get("status") == "completed"]
+    total = lambda key: sum(r.get(key) or 0 for r in done)  # noqa: E731
+    gateway = provider_name == "codex"
+    return {
+        "inference": {"provider": "development gateway (team allowance, not USD)" if gateway else "Nebius Token Factory (USD, public price table)",
+                      "model_calls": total("model_calls"), "calls_not_sent": total("calls_not_sent"),
+                      "committed_usd": None if gateway else round(sum(float(r.get("cost_committed_usd") or 0.0) for r in done), 6)},
+        "sandboxes": {"service": "Nebius Token Factory Sandboxes (beta)", "operations_in_run_ledgers": total("sandbox_ops"),
+                      "judge_operations": sum(1 for r in done if r.get("judge_operation_uuid")), "duration_s": round(total("sandbox_duration_s"), 3),
+                      "spawn_retries": total("sandbox_spawn_retries"),
+                      "billing": "not visible to this harness: the Sandboxes console wording says beta runs are free; no invoice-level reconciliation has been done"},
+        "search": {"service": "Tavily", "calls": 0, "note": "the harness runs the pipeline without Tavily (tavily=None)"},
+        "reconciliation_items": sum(len(r.get("reconciliation") or []) for r in rows),
+    }
+
+
+# ----------------------------------------------------------------------------- reconciliation (revision 8)
+def reconciliation_items(ledger: Ledger) -> list[dict]:
+    """Every operation of a cell whose outcome is unknown, with what is needed to settle it by hand: a model call whose request was
+    written but never answered, a spawn that may or may not have created an operation, an accepted operation whose outcome was
+    not read. Nothing here is ever sent again; the batch stops when the list is not empty."""
+    items = []
+    for c in ledger.model_calls:
+        if not c.ok and c.request_sent is not False and "uncertain" in (c.error or ""):
+            items.append({"kind": "model_call", "provider": c.provider, "stage": c.stage, "started_at_utc": c.started_at_utc,
+                          "elapsed_ms": c.elapsed_ms, "phase": c.transport_phase, "error": c.error, "reserved_usd": c.reserved_usd,
+                          "how": "look for a request received in [started_at, started_at + elapsed] in the provider's ingress log or billing; "
+                                 "it was never sent again"})
+    for o in ledger.sandbox_ops:
+        if o.status in ("UNCERTAIN", "ACCEPTED_UNREAD"):
+            how = (f"GET /operations/{o.operation_uuid} for its final status" if o.operation_uuid else
+                   "GET /operations?kind=instance with since/until around started_at, matching image_uuid (the spawn request carries no client id)")
+            items.append({"kind": "sandbox_operation", "stage": o.stage, "status": o.status, "started_at_utc": o.started_at_utc,
+                          "image_uuid": o.image_uuid, "operation_uuid": o.operation_uuid, "attempts": o.attempts,
+                          "transport_failures": o.transport_failures, "how": how})
+    return items
 
 
 # ----------------------------------------------------------------------------- one cell
@@ -362,14 +415,17 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
     except Exception as error:  # noqa: BLE001 - the pipeline wrote its bundle (ERROR) before re-raising; the paid calls stay accounted for
         totals = ledger.totals()
         message = f"{type(error).__name__}: {str(error)[:200]}"
+        reconciliation = reconciliation_items(ledger)
         return {**cell, "status": "completed", "verdict": "ERROR", "accepted": False, "held_out_correct": None, "judge_passed": None,
+                "reconciliation": reconciliation, "calls_not_sent": totals.get("calls_not_sent"),
+                "sandbox_spawn_retries": totals.get("sandbox_spawn_retries"), "sandbox_duration_s": totals.get("sandbox_duration_s"),
                 "held_out_summary": "not judged: the run crashed", "cost_usd": totals.get("cost_usd"), "cost_committed_usd": totals.get("cost_usd_committed"),
                 "uncertain_calls": totals.get("uncertain_unpriced_calls"), "model_calls": totals.get("model_calls"),
                 "model_calls_failed": totals.get("model_calls_failed"), "sandbox_ops": totals.get("sandbox_operations"),
                 "wall_s": round(time.monotonic() - t0, 1), "reasons": [message], "warnings": [], "gates": {}, "out_dir": str(pipeline.out_dir),
                 "run_id": pipeline.run_id, "revision_digest": revision_of(pipeline.bundle), "arbitration": None, "error": message,
                 "provider_profile": provider_profile(((pipeline.bundle or {}).get("profile") or {}).get("provider")),
-                "infra_error": True, "uncertain": "uncertain" in message.lower() or bool(totals.get("uncertain_unpriced_calls"))}
+                "infra_error": True, "uncertain": "uncertain" in message.lower() or bool(totals.get("uncertain_unpriced_calls")) or bool(reconciliation)}
     wall = round(time.monotonic() - t0, 1)
     judge_error = None
     try:
@@ -389,7 +445,9 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
         correct = judge_passed
     arb = bundle.get("arbitration")
     reasons = bundle["verdict"].get("reasons", [])
-    uncertain = any("uncertain" in r for r in reasons) or bool(totals.get("uncertain_unpriced_calls")) or bool(judge_error and "uncertain" in judge_error.lower())
+    reconciliation = reconciliation_items(ledger)
+    uncertain = (any("uncertain" in r for r in reasons) or bool(totals.get("uncertain_unpriced_calls")) or bool(judge_error and "uncertain" in judge_error.lower())
+                 or bool(reconciliation))
     roles = ((bundle.get("profile") or {}).get("provider") or {}).get("roles")
     recorded_profile = provider_profile((bundle.get("profile") or {}).get("provider"))  # what the bundle says ran, not what we built
     candidate = bundle.get("candidate") or {}
@@ -401,7 +459,9 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
             "uncertain_calls": totals.get("uncertain_unpriced_calls"), "model_calls": totals.get("model_calls"),
             "model_calls_failed": totals.get("model_calls_failed"),  # provider refusals (for example an hourly limit) that shaped the verdict
             "rate_limited_calls": totals.get("rate_limited_calls"), "pacing_wait_ms": totals.get("pacing_wait_ms"),
-            "sandbox_ops": totals.get("sandbox_operations"), "wall_s": wall, "turns": bundle["trajectory"]["turns"],
+            "sandbox_ops": totals.get("sandbox_operations"), "sandbox_duration_s": totals.get("sandbox_duration_s"),
+            "sandbox_spawn_retries": totals.get("sandbox_spawn_retries"), "calls_not_sent": totals.get("calls_not_sent"),
+            "reconciliation": reconciliation, "wall_s": wall, "turns": bundle["trajectory"]["turns"],
             "finished": bundle["trajectory"]["finished"], "reasons": reasons[:4], "warnings": bundle["verdict"].get("warnings", [])[:4],
             "gates": {k: {"ok": g.get("ok"), "evidence_class": g.get("evidence_class")} for k, g in (bundle.get("gates") or {}).items()},
             "out_dir": str(pipeline.out_dir), "run_id": bundle["run_id"], "roles": roles, "provider_profile": recorded_profile,
@@ -900,7 +960,8 @@ def run_batch(args) -> int:
                                        "ledger journal is read back) or 'finished_unreported' (the pipeline finished but its row was never persisted; the "
                                        "ledger totals are read back). Every entry with included_in_batch_total is part of this batch's committed total, "
                                        "rebuilt from disk at every process start; the cell itself ran again as a fresh attempt"),
-                  "rows": ordered, "summary": summarize(ordered, systems, validity)}
+                  "rows": ordered, "summary": summarize(ordered, systems, validity),
+                  "services": services_summary(ordered, args.provider), "harness_peak_rss_mb": peak_rss_mb()}
         (out_root / "evaluation.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         return report
 
@@ -922,6 +983,8 @@ def run_batch(args) -> int:
     print("\n=== SUMMARY (all scheduled cells) ===")
     print(json.dumps(report["summary"], indent=2))
     print("budget:", json.dumps(report["budget"]))
+    print("services (kept apart, never added into one figure):", json.dumps(report["services"]))
+    print("harness peak resident memory:", report["harness_peak_rss_mb"], "MiB")
     print("provenance:", json.dumps({k: v for k, v in report["provenance_check"].items() if k != "comparisons"}))
     if governor:
         print("pacing:", json.dumps({k: v for k, v in report["pacing"].items() if k != "waits"}), f"waits={len(report['pacing']['waits'])}")

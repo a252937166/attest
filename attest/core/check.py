@@ -663,6 +663,17 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
                 problems.append(f"cost_usd_committed {totals['cost_usd_committed']} vs {round(committed, 6)}")
         if totals.get("sandbox_operations") is not None and totals["sandbox_operations"] != len(ledger.get("sandbox_ops") or []):
             problems.append("sandbox_operations")
+        # transport counters (revision 8), recomputed when the bundle carries them: attempts that were never sent, spawn resends and
+        # operations whose outcome is unknown
+        ops = ledger.get("sandbox_ops") or []
+        if totals.get("calls_not_sent") is not None and totals["calls_not_sent"] != sum(1 for c in calls if c.get("request_sent") is False):
+            problems.append("calls_not_sent")
+        if totals.get("sandbox_spawn_retries") is not None and totals["sandbox_spawn_retries"] != sum(max(0, (o.get("attempts") or 1) - 1) for o in ops):
+            problems.append("sandbox_spawn_retries")
+        if totals.get("sandbox_uncertain") is not None and totals["sandbox_uncertain"] != sum(1 for o in ops if o.get("status") in ("UNCERTAIN", "ACCEPTED_UNREAD")):
+            problems.append("sandbox_uncertain")
+        if any(c.get("request_sent") is False and (c.get("cost_usd") or 0.0) != 0.0 for c in calls):
+            problems.append("a call recorded as never sent carries a cost")
         report.add("ledger_totals", not problems, "totals recomputed from the individual records " + ("match" if not problems else "differ: " + "; ".join(problems)))
 
     # 5. gates against stage records, then the verdict rule
