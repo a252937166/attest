@@ -51,7 +51,8 @@ ALLOW_REPORTS = ["attest-first-slice-2026-10-15", "attest-verification-2026-10-1
                  "attest-m2-2026-10-17", "attest-m3-2026-10-17", "attest-reliability-2026-10-17", "attest-m4-2026-10-17",
                  "attest-deployment-2026-10-17", "attest-freeze-2026-10-17", "attest-evaluation-2026-10-17-nebius-m5",
                  "attest-ui-2026-10-18", "attest-deployment-2026-10-18", "attest-revision-2026-10-19",
-                 "attest-deployment-2026-10-19", "attest-audit-2026-10-19", "attest-audit-repairs-2026-10-19"]  # the gateway operations report stays private (internal infrastructure)
+                 "attest-deployment-2026-10-19", "attest-audit-2026-10-19", "attest-audit-repairs-2026-10-19",
+                 "attest-deployment-2026-10-19b"]  # the gateway operations report stays private (internal infrastructure)
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".venv", "snapshot", "screens", "refresh-sequence", "runs-private",
                 # the 19 Oct audit's synthetic bundles are deliberately defective (they fail `attest check` by design) and its
                 # synthetic work directory is scratch; the audit report describes both

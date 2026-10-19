@@ -98,6 +98,15 @@ What the batches did not exercise: no run needed an arbitration correction, so t
 rests on the offline acceptance tests and the earlier revision-4 batches; no sealed hold occurred (`kvparse-refactor-001`,
 which held in M5, now ends INFEASIBLE before sealing, see above).
 
+## Frozen and deployed
+
+Revision 5 is pinned in `FREEZE.md` (review commit `320651d3bd4011538fe2f6d240a1e5769b019051`, package digest
+`1e12d46217fb6b8a…`, harness `2aa28413a1ccfe42…`, examples `6db7a2e937d6e5d4…`, suite unchanged, supervisor v7, guest runner v3,
+pin commit `7c1c734`) and was deployed to yungou at 08:47 UTC on 19 Oct 2026 with the transactional installer
+(`reports/attest-deployment-2026-10-19b/README.md`): the server reads back the pinned digest through the new release layout, the
+previous 0.4.0 tree is the rollback target, and the public console shows version 0.5.0 with public response models. The Nemotron
+validation of this revision is the unapproved proposal at the end of `FREEZE.md`; no paid call was made.
+
 ## Remaining limitations (summary)
 
 See each area's README for the complete list. The ones that bound the claims most: the supervisor's trust boundary is

@@ -65,6 +65,9 @@ On the server, as root in `/var/tmp/attest-deploy`:
 7. Record the deployment under `reports/attest-deployment-<date>/` with the archive sha256, the label, the readback and the
    two snapshots. The rollback paragraph of that record must describe `rollback.sh` as below, not a directory swap.
 
+First deployment with this installer: 19 Oct 2026, 08:47 UTC, revision 5 (`0.5.0-1e12d46217fb`), which migrated the host from
+the directory layout to the release layout (`reports/attest-deployment-2026-10-19b/README.md`).
+
 ## Rollback (version) and decommissioning (service removal) are different commands
 
 `bash rollback.sh` re-selects the release `/opt/attest/app.prev` points at (`--to <label>` selects any installed release,
