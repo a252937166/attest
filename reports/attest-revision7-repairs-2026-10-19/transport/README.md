@@ -106,6 +106,12 @@ traffic in this pass; its behaviour is covered by the loopback and adapter tests
 - The evaluation harness writes a reconciliation list per cell (each uncertain call with its stage, time, elapsed time and phase;
   each uncertain or unread operation with its source image or id and how to settle it) and stops the batch when any list is not
   empty. The console's restart recovery names accepted operations whose outcome a run never read.
+- The pipeline stops at the first uncertain model call, wherever it happens. Until revision 8 the sealing stage took an uncertain
+  call as an unusable attempt and sent its next attempt, which carried the same prompt (an uncertain request sent again in effect),
+  and the adversarial-test authoring, the drift audit and arbitration recorded the failure and went on to further calls. All of them
+  now end the run as ERROR (uncertain, not retried) with nothing further sent, as the specification, the contract audit and the
+  implementation loop already did (`tests/test_transport.py`, `UncertainStopsTheRun`). Found during this pass's review of the
+  transport paths, after the batches below had run; none of their failures was in those stages, so their outcomes are unaffected.
 - `attest check` recomputes the new counters (`calls_not_sent`, `sandbox_spawn_retries`, `sandbox_uncertain`) and refuses a cost on
   an attempt recorded as never sent.
 

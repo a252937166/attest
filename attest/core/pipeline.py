@@ -871,16 +871,10 @@ class Pipeline:
         red_summary = None
         for attempt in range(1, MAX_SEAL_ATTEMPTS + 1):
             self.log(f"sealing acceptance tests (attempt {attempt})", "seal")
-            try:
-                result = self.ask("seal", seal_prompt(task, spec, snapshot, feedback, sources, audit_hint), SEAL_SCHEMA, f"seal-{attempt}")
-            except ModelError as error:
-                if not error.uncertain:
-                    raise
-                feedback = None
-                public = self.diagnostics.public_text(f"seal-{attempt}", error)
-                rejected.append({"attempt": attempt, "reason": f"inference outcome uncertain: {public}"})
-                self.log(f"seal attempt {attempt} not usable: {public}")
-                continue
+            # A ModelError propagates, an uncertain one included: the next attempt would send the same prompt again, and a request whose
+            # outcome is uncertain is never sent again; the run stops for reconciliation (revision 8). A request that was never sent
+            # has already been sent again, bounded, by the provider.
+            result = self.ask("seal", seal_prompt(task, spec, snapshot, feedback, sources, audit_hint), SEAL_SCHEMA, f"seal-{attempt}")
             candidate_src, repaired = repair_escapes(result.json["test_file"])
             if repaired:
                 self.log(f"seal attempt {attempt}: repaired literal escape sequences in the returned module")
@@ -1056,6 +1050,8 @@ class Pipeline:
                     warnings.append(f"drift audit: score {score:.2f}, widened {len(drift.get('scope_widened') or [])}, unsupported claims {len(drift.get('unsupported_claims') or [])}")
             self.log(f"drift audit: score {score} ({drift.get('assessment')})")
         except ModelError as error:
+            if error.uncertain:
+                raise  # an uncertain call stops the run for reconciliation; nothing further is sent (revision 8)
             public = self.diagnostics.public_text("drift-audit", error)
             self.bundle["drift"] = {"error": public}
             gates["drift_audit"] = {"ok": False, "detail": f"audit call failed: {public}", "evidence_class": "model"}
@@ -1440,6 +1436,8 @@ class Pipeline:
                                "operation_uuid": run.operation_uuid}
                 self.log(f"breaker tests: {summary['summary_line']}; binding {'ok' if binding['ok'] else 'FAILED'}")
         except ModelError as error:
+            if error.uncertain:
+                raise  # an uncertain call stops the run for reconciliation; nothing further is sent (revision 8)
             public = self.diagnostics.public_text("break-tests", error)
             adversarial = {"unusable": f"adversarial test authoring failed: {public}",
                            "summary": {"ran": 0, "tests": [], "passed": 0, "failing": 0, "all_passed": False, "summary_line": f"authoring failed: {public}"},
@@ -1538,6 +1536,8 @@ class Pipeline:
             answer = self.ask("arbitrate", arbitrate_prompt(self.task, spec, diff, module_src, module_name, failing),
                               ARBITRATION_SCHEMA, f"arbitrate-{label}").json
         except ModelError as error:
+            if error.uncertain:
+                raise  # an uncertain call stops the run for reconciliation; nothing further is sent (revision 8)
             record["error"] = f"arbiter call failed: {self.diagnostics.public_text(f'arbitrate-{label}', error)}"
             return record
         record["classifications"] = answer.get("classifications") or []

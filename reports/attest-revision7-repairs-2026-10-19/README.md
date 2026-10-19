@@ -55,3 +55,28 @@ call records in the three batches, 28 of them executed by the backend (all 200; 
 forwarded (the 408); none was a never-sent attempt; Token
 Factory Sandboxes, 38 operations executed (3 + 27 + 8, every one matched to a ledger or judge record, all `SUCCESS`) and 1 uncertain
 spawn that created none; Tavily, no call. The harness's peak resident memory was 53.2, 55.7 and 51.0 MiB.
+
+## Final-tree offline suite
+
+Run after the batches, the reports and the export, on the exact trees that are pinned and deployed (`corpus/`, local paths masked):
+
+| Run | Tree | Tests | Failures | Errors | Skips |
+| --- | --- | --- | --- | --- | --- |
+| 1 | clean checkout (`git worktree`) of the code commit `35248d0` | 397 | 0 | 0 | 0 |
+| 2 | clean checkout of the pin record `6eca557` (the tree the release was built from) | 397 | 0 | 0 | 0 |
+| 3 | private working tree, same code | 397 | 0 | 0 | 0 |
+
+The count grew from 367 (revision 7) by the 23 tests of `tests/test_transport.py`, the five explicit-start tests and two
+installer scenarios; the console's confirmation check and the escaped-host checks of the export were added inside existing tests. A high count is not evidence that the deployment, billing or external services are correct; those
+are checked separately below and in the folders above.
+
+## Commits (review repository, local only, not pushed)
+
+| Commit | Content |
+| --- | --- |
+| `d5498e6` | memory limit in force on systemd 219, installer readback, rehearsal shims, ops scenarios 9 and 10 |
+| `be503dd` | transport phases, bounded resends of never-sent requests, accepted-operation journaling, reconciliation and services records, checker counters, `tests/test_transport.py` |
+| `2183c03` | console: explicit start (428 without the confirmation header, the confirmation step, automated browsers refused), cost labels by service, the phone layout, the layout audit script |
+| `21d5310` | export privacy (private hosts from private configuration, every spelling, rule labels in `REDACTION.json`), the provenance check |
+| `35248d0` | documentation, this folder's evidence, dated corrections of earlier records, version 0.8.0 (the pinned code commit) |
+| `6eca557` | the revision-8 pin in `FREEZE.md` (package `68e9de49…`, harness `9f9e4bc2…`) and the clean-checkout log |

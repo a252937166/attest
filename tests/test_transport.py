@@ -527,3 +527,73 @@ class CheckerTransportCounters(unittest.TestCase):
         rewrite_bundle(run_dir, forge_cost)
         detail = failed_checks(check_bundle(run_dir)).get("ledger_totals", "")
         self.assertIn("never sent carries a cost", detail)
+
+
+class UncertainStopsTheRun(unittest.TestCase):
+    """Revision 8: once a model call's outcome is uncertain the run sends nothing further and ends ERROR (uncertain, not retried):
+    in sealing (whose next attempt would have sent the same prompt again), in the adversarial tests' authoring, in the drift audit
+    and in arbitration, as already in the specification, the contract audit and the implementation loop. The offline pipeline and its
+    fake provider are used; the wrapper fails the first call of one stage and records every call."""
+
+    class UncertainAt:
+        def __init__(self, inner, stage_prefix):
+            self.inner, self.stage_prefix, self.calls, self.raised = inner, stage_prefix, [], False
+            self.name = inner.name
+
+        def __getattr__(self, attr):
+            return getattr(self.inner, attr)
+
+        def describe(self):
+            return self.inner.describe()
+
+        def structured(self, role, prompt, schema, stage):
+            self.calls.append(stage)
+            if not self.raised and stage.startswith(self.stage_prefix):
+                self.raised = True
+                raise ModelError("inference outcome uncertain (RemoteDisconnected: Remote end closed connection without response); not retried",
+                                 uncertain=True)
+            return self.inner.structured(role, prompt, schema, stage)
+
+    def run_with(self, scenario, stage_prefix):
+        import contextlib, io, shutil
+        from attest.core.pipeline import Pipeline
+        from attest.core.task import TaskSpec
+        from tests.test_verification import TASK, FakeExecutor, FakeProvider
+        tmp = Path(tempfile.mkdtemp(prefix="attest-uncertain-"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        ledger = Ledger()
+        provider = self.UncertainAt(FakeProvider(ledger, scenario), stage_prefix)
+        pipeline = Pipeline(task=TaskSpec.load(TASK), provider=provider, executor=FakeExecutor(ledger, scenario), ledger=ledger, out_dir=tmp,
+                            max_turns=4, max_mutants=6, mutant_workers=2, tavily=None, profile_label="test")
+        with contextlib.redirect_stdout(io.StringIO()):
+            bundle = pipeline.run()
+        return bundle, provider
+
+    def assert_stopped(self, bundle, provider, stage_prefix):
+        self.assertTrue(provider.raised, f"the scenario never reached {stage_prefix}")
+        self.assertEqual(bundle["verdict"]["verdict"], "ERROR")
+        self.assertIn("outcome uncertain; not retried", bundle["verdict"]["reasons"][0])
+        failed_at = next(i for i, stage in enumerate(provider.calls) if stage.startswith(stage_prefix))
+        self.assertEqual(len(provider.calls), failed_at + 1, f"calls after the uncertain one: {provider.calls[failed_at + 1:]}")
+
+    def test_sealing_does_not_send_the_same_prompt_again(self):
+        bundle, provider = self.run_with("honest", "seal-1")
+        self.assert_stopped(bundle, provider, "seal-1")
+        self.assertNotIn("seal-2", provider.calls)
+
+    def test_adversarial_authoring_stops_the_run(self):
+        bundle, provider = self.run_with("honest", "break-tests")
+        self.assert_stopped(bundle, provider, "break-tests")
+
+    def test_drift_audit_stops_the_run(self):
+        bundle, provider = self.run_with("honest", "drift-audit")
+        self.assert_stopped(bundle, provider, "drift-audit")
+
+    def test_arbitration_stops_the_run(self):
+        bundle, provider = self.run_with("arb_clear", "arbitrate")
+        self.assert_stopped(bundle, provider, "arbitrate")
+
+    def test_the_honest_run_without_failures_is_verified(self):
+        bundle, provider = self.run_with("honest", "no-such-stage")
+        self.assertFalse(provider.raised)
+        self.assertEqual(bundle["verdict"]["verdict"], "VERIFIED")

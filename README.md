@@ -120,8 +120,9 @@ showed the memory-cgroup OOM killer ending a process at the limit and systemd st
 alone lets the same process swap past it. Transport: every request records how far it got. A request whose connection, proxy
 tunnel or TLS handshake failed before any byte of it was written cannot have reached the server, so it is sent again (bounded,
 every attempt recorded, a paid reservation closed at a known $0); reads are retried; a request whose bytes were written is
-uncertain and is never sent again: the run stops, a batch stops with a list of what to reconcile, and an accepted Sandboxes
-operation id is journaled before polling starts. Of the six revision-7 transport failures, four failed during connection setup
+uncertain and is never sent again: the run stops at the first uncertain call in any stage (the sealing stage used to send its
+next attempt with the same prompt), a batch stops with a list of what to reconcile, and an accepted Sandboxes operation id is
+journaled before polling starts. Of the six revision-7 transport failures, four failed during connection setup
 and two after the request body stalled in transit; the gateway's ingress log and the Sandboxes operation list show that none of
 them was executed. Spending: a run starts only on explicit confirmation. The console's Run button opens a confirmation that states
 the inference cap and names Sandboxes and Tavily as separately metered services, the page refuses to start a run from an
