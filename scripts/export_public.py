@@ -185,7 +185,16 @@ def copy_tree(source: Path, dest: Path, stats: dict) -> None:
             target.write_bytes(text.encode("utf-8"))
         else:
             shutil.copyfile(path, target)
+        publish_mode(path, target)
         stats["files"] += 1
+
+
+def publish_mode(source: Path, target: Path) -> None:
+    """Give an exported file the mode its source implies: 0755 when the source is executable by its owner, 0644 otherwise.
+    shutil.copyfile and write_bytes copy content only, so before 19 Oct 2026 (revision 7) every exported script, including the
+    rehearsal shims that tests/test_audit_ops.py executes, was published non-executable and a clean checkout of the export
+    failed those tests. Other permission bits of the source (group or world write, setuid) are never carried over."""
+    target.chmod(0o755 if source.stat().st_mode & 0o100 else 0o644)
 
 
 def _run_dir_of(path: Path, stop: Path) -> Path | None:
@@ -402,6 +411,7 @@ def build_export(staging: Path, dest: Path) -> tuple[dict, int]:
                 (staging / name).write_bytes(text.encode("utf-8"))
             else:
                 shutil.copyfile(source, staging / name)
+            publish_mode(source, staging / name)
             stats["files"] += 1
     for name in ALLOW_REPORTS:
         source = ROOT / "reports" / name

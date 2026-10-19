@@ -440,6 +440,31 @@ class Rel01ReleaseExclusionsAndWholeTreeScan(unittest.TestCase):
                           "deploy/id_ed25519", "deploy/evidence.zip", "deploy/state.db", "deploy/mod.pyc", "deploy/bundle.tar.gz"})
         self.assertEqual(self.stats["files"], 2)
 
+    def test_the_export_keeps_scripts_executable_and_nothing_else(self):
+        """Revision 7: the export used to copy content only, so every exported script, including the rehearsal shims that
+        tests/test_audit_ops.py runs, was published non-executable and a clean checkout of the export failed those tests."""
+        import stat
+        source = self.tmp / "source"
+        shims = source / "deploy" / "rehearsal" / "shims"
+        shims.mkdir(parents=True)
+        (shims / "systemctl").write_text("#!/bin/sh\nexit 0\n")
+        (shims / "systemctl").chmod(0o755)
+        (shims / "_log.sh").write_text("log() { :; }\n")
+        (shims / "_log.sh").chmod(0o644)
+        (shims / "owner-only").write_text("#!/bin/sh\n")
+        (shims / "owner-only").chmod(0o700)
+        (shims / "too-open").write_text("#!/bin/sh\n")
+        (shims / "too-open").chmod(0o777 | stat.S_ISUID)
+        (shims / "group-writable.txt").write_text("x\n")
+        (shims / "group-writable.txt").chmod(0o664)
+        out = self.tmp / "out" / "deploy"
+        with mock.patch.object(export_public, "ROOT", source):
+            export_public.copy_tree(source / "deploy", out, self.stats)
+        modes = {p.name: stat.S_IMODE(p.stat().st_mode) for p in (out / "rehearsal" / "shims").iterdir()}
+        self.assertEqual(modes, {"systemctl": 0o755, "_log.sh": 0o644, "owner-only": 0o755, "too-open": 0o755, "group-writable.txt": 0o644})
+        completed = subprocess.run([str(out / "rehearsal" / "shims" / "systemctl")], capture_output=True)
+        self.assertEqual(completed.returncode, 0, "an exported shim runs as it does in the source tree")
+
     def test_every_staged_file_is_scanned_whatever_its_name(self):
         out = self.tmp / "staged"
         out.mkdir()
