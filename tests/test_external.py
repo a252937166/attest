@@ -267,6 +267,15 @@ class RedactedExport(unittest.TestCase):
             self.assertTrue(all(f["original_sha256"] != f["redacted_sha256"] for f in record["files"]))
             manifest = json.loads((copy / MANIFEST_FILE).read_text())
             self.assertEqual(manifest["derived_from"]["original_manifest_sha256"], record["source_manifest_sha256"])
+            # deterministic export (revision 7): the derived manifest carries the original's time, and a second export is identical
+            self.assertEqual(manifest["generated_at_utc"], json.loads((run_dir / MANIFEST_FILE).read_text())["generated_at_utc"])
+            first = {q.relative_to(dest).as_posix(): hashlib_sha(q) for q in dest.rglob("*") if q.is_file()}
+            again = tmp / "public-again"
+            stats2 = {"files": 0, "redactions": 0, "redacted_files": [], "skipped_large": [], "redacted_pairs": []}
+            with mock.patch.object(export_public, "ROOT", tmp):
+                export_public.copy_tree(tmp / "orig", again / "orig", stats2)
+                export_public.trace_redacted_runs(stats2, again)
+            self.assertEqual({q.relative_to(again).as_posix(): hashlib_sha(q) for q in again.rglob("*") if q.is_file()}, first)
             report = check_bundle(copy)
             self.assertTrue(report["ok"], [c for c in report["checks"] if c["ok"] is False])
             self.assertTrue(report["redacted_export"])

@@ -238,8 +238,17 @@ def trace_redacted_runs(stats: dict, dest: Path) -> list[dict]:
         (run_copy / "REDACTION.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
         if original_manifest.is_file():
             manifest = build_manifest(run_copy, run_id)
+            # deterministic: the derived manifest carries the original manifest's time, so that exporting unchanged evidence again
+            # yields identical files (until revision 7 every export rewrote ~100 derived manifests with a new timestamp)
+            try:
+                original_time = json.loads(original_manifest.read_text(encoding="utf-8")).get("generated_at_utc")
+            except (json.JSONDecodeError, OSError):
+                original_time = None
+            if original_time:
+                manifest["generated_at_utc"] = original_time
             manifest["derived_from"] = {"original_manifest_sha256": record["source_manifest_sha256"], "redaction_record": "REDACTION.json",
-                                        "note": "manifest of the redacted public copy; the original manifest covers the private original"}
+                                        "note": "manifest of the redacted public copy; the original manifest covers the private original",
+                                        "generated_at_policy": "the original manifest's time, so that repeated exports of unchanged evidence are identical"}
             (run_copy / MANIFEST_FILE).write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         records.append({"run_copy": str(run_copy.relative_to(dest)), "run_id": run_id, "files": len(pairs), "manifest_regenerated": original_manifest.is_file()})
     return records
