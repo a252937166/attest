@@ -277,7 +277,7 @@ Harness, examples, task suite, method, guest programs, models and sampling are u
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `dd361b50e03691f9b16752a4c7eec68d7b441489` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| Repository commit (code) | `1a6a5232a2418894ce6c34a1ae953e52ad289a27` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
 | `attest/` package digest (sha256 over path and content of every source, 37 files) | `f836cfd0154faa878214976dab4fcc0a982dde38343e3944afceb8fc7f3336d3` |
 | Harness `scripts/run_evaluation.py` sha256 | `5af2b4989b2b93db7a9c37b4e1d654cb1e8b703bba47c8cfcf3a0e0c36bec5a3` (unchanged since revision 6) |
 | `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` (unchanged; a clean git clone computes `e95a28aa…`, see revision 5) |
@@ -288,7 +288,23 @@ Harness, examples, task suite, method, guest programs, models and sampling are u
 | Effective provider configuration, proposed paid run (computed offline from the pinned package, no environment override; `reports/attest-revision6-repairs-2026-10-19/nemotron-effective-profile.json`) | provider `nebius_tokenfactory`; roles spec, audit, arbitrate `nvidia/Nemotron-3-Ultra-550b-a55b`, seal, implement, break `nvidia/nemotron-3-super-120b-a12b`, summary `nvidia/Nemotron-3_5-Lightning`; `reasoning_effort` break low, implement medium, seal low, summary low (model default for the Ultra roles); temperature 0.2; max_tokens 16000; no thinking flag sent; per-run USD cap 0.50; per-run call cap 22 |
 | Effective provider configuration, development batch (registered in `reports/attest-revision6-repairs-2026-10-19/evaluation-codex/schedule.json`) | provider `codex_gateway`; roles spec `gpt-6-astra:low`, audit `gpt-6-astra:low`, arbitrate `gpt-6-astra:medium`, seal, implement, break `gpt-6-sol:medium`, summary `gpt-6-luna:low`; gateway URL recorded only as `base_url_sha256` `68e25b464500800e` |
 | Limits | revision-6 limits (22 calls per run at every entry point, download tickets 600 s) |
-| Offline suite on the final tree | REV7-SUITE-RESULT |
+| Offline suite on the final tree | **367 tests, 0 failures, 0 errors, 0 skips** on a clean checkout (`git worktree`) of the pinned commit `1a6a523` (`reports/attest-revision6-repairs-2026-10-19/corpus/final-tree-suite-5-clean-1a6a523.log`) and on the private working tree (`final-tree-suite-6-working-tree-after-fixes.log`) |
+
+History of this pin (all on 19 Oct 2026, before any deployment or paid run of revision 7): the pin first named commit
+`dd361b5` (pin record `6f6bf76`). Running the complete suite on a clean checkout of that commit, as the review required, gave
+365 tests with 18 failures, 20 errors and 4 skips (`final-tree-suite-1-clean-dd361b5.log`), while the private working tree passed
+all 365 (`final-tree-suite-3-working-tree-before-fixes.log`). Two export defects caused it, both present since the review repository
+was created: (1) `scripts/export_public.py` copied file content only, so every exported script, including the rehearsal shims that
+`tests/test_audit_ops.py` executes, was committed non-executable (fixed in `969f721`); (2) the exported `.gitignore` carried
+unanchored `runs/` and `data/` patterns, so git ignored every `reports/**/runs/` directory and the review repository held only 25 of
+the 175 exported bundles, the M5 batch and every development batch among the missing (fixed in `b21782d`, which also makes the export
+fail when any exported file would be ignored; the 150 bundles are committed in `1a6a523`). The pin now names `1a6a523`; the package
+digest is unchanged, because neither fix touches `attest/`.
+
+Correction of the earlier pins (their sections above are unchanged): the offline-suite counts recorded for revision 5 (314) and
+revision 6 (352) were runs of the private working tree. A clean checkout of the review repository at those pins would have failed
+the rehearsal tests and every test that reads run evidence under `reports/**/runs/`, for the two reasons above, and it lacked the
+run directories those pins' reports cite. The files themselves were in the export directory and in the deployed releases throughout.
 
 Development-gateway reliability batch of this revision (Attest only, one attempt per task, no paid inference call):
 `reports/attest-revision6-repairs-2026-10-19/evaluation-codex/`. Four batches, ten cells: `rle-encode` INFEASIBLE (`true_reject`; a TC5-only literal-input witness in `attest-witness/1`, grounded,
@@ -301,7 +317,7 @@ checking, not correct patches: the held-out judge establishes the two judged out
 ## The exact command (revision 7)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout dd361b50e03691f9b16752a4c7eec68d7b441489
+git clone <repository> attest-eval && cd attest-eval && git checkout 1a6a5232a2418894ce6c34a1ae953e52ad289a27
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r7-final \

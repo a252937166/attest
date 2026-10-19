@@ -32,4 +32,13 @@ protocol. The test is what was wrong.
 
 ## Final-tree runs
 
-REV7-CORPUS-RESULTS
+After the final batch, the reports and the export, the complete suite was run on clean checkouts of the review repository and on
+the private working tree (logs in this folder; the table is in the parent README). The corpus tests themselves passed in the working
+tree from the start. The first clean checkout of the pinned commit `dd361b5`, however, failed 38 tests and skipped 4, because the
+export had two defects that the private tree hides: scripts were exported without the executable bit, and the exported `.gitignore`
+ignored every `reports/**/runs/` directory, so the review repository held 25 of the 175 exported bundles. Both are repaired
+(`969f721`, `b21782d`; the 150 bundles are committed in `1a6a523`), the export now fails when git would ignore any exported file, the
+semver symlink test builds its own fixture (the export publishes no links), and the recorded protocol-2 bundle test requires its
+fixture. On a clean checkout of `1a6a523`: 367 tests, 0 failures, 0 errors, 0 skips; `RecordedCorpusHistorical` checks 157
+historical bundles, `RecordedCorpusModern` 18 modern bundles in 7 folders, and `RecordedCorpusInventory` finds no unclassified run
+directory among the 175 (the private working tree adds the 9 known-defective and synthetic run directories, which are not exported).
