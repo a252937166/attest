@@ -1,4 +1,4 @@
-# Repairs after revision 7 (revision 8, versions 0.8.0 to 0.8.2, 19 October 2026)
+# Repairs after revision 7 (revision 8, versions 0.8.0 to 0.8.3, 19 October 2026)
 
 This pass fixes the issues left after revision 7 before any video work: the memory limit on yungou, horizontal overflow on phones,
 the development batches' transport failures, accidental spending, and the separation of the services' costs; it then verifies
@@ -73,7 +73,8 @@ Run after the batches, the reports and the export, on the exact trees that are p
 | 6 | clean checkout of `3be63fa`, the pin record the 0.8.0 release is built from | 402 | 0 | 0 | 0 |
 | 7 | clean checkout of `d15046a` (0.8.1, the console repairs) | 402 | 0 | 0 | 0 |
 | 8 | clean checkout of `17a58c5` (the records of the 0.8.1 deployment) | 402 | 0 | 0 | 0 |
-| 9 | clean checkout of `4d37dbb` (0.8.2, the hero's check claim; the pinned code commit from then on) | 402 | 0 | 0 | 0 |
+| 9 | clean checkout of `4d37dbb` (0.8.2, the hero's check claim) | 402 | 0 | 0 | 0 |
+| 10 | clean checkout of `459fe8d` (0.8.3, the badge length; the pinned code commit from then on) | 402 | 0 | 0 | 0 |
 
 The count grew from 367 (revision 7) by the 28 tests of `tests/test_transport.py`, the five explicit-start tests and two
 installer scenarios; the console's confirmation check and the escaped-host checks of the export were added inside existing tests. A high count is not evidence that the deployment, billing or external services are correct; those
@@ -117,7 +118,12 @@ through, the Guide opened by itself only at 1440 px, and 2,563 GET requests left
 checker. The current checker passes that bundle as a historical bundle (28 checks, 0 errors, 2 warnings: it predates the evidence
 protocol, so it is checked for internal consistency and never reported as fully verified), as the page's own Proof Bundle section
 already showed. The badge now reads "attest check: OK, historical bundle" and the caption says what the check establishes; the
-Python sources differ only by the version string (package `ed1ac3bad3ec…`). It was pinned in `FREEZE.md` before its deployment.
+Python sources differ only by the version string (package `ed1ac3bad3ec…`). It was pinned in `FREEZE.md` before its deployment and deployed at 23:11 UTC
+(`reports/attest-deployment-2026-10-19g/`; read back and checked as before: 728 + 182 browser states clean, only GET requests).
+Watched to its end, the replay then showed a defect 0.8.2 itself had introduced: the longer badge left the "Proof Bundle" title
+beside it about 30 px, so the title broke inside the word on every desktop width (the audits measure at load, while the badge
+still reads "pending"). 0.8.3 (`459fe8d`, package `35b264adcd08…`) shortens the badge to "attest check: OK, partial", and the
+audit now measures the finished replay too. It was pinned in `FREEZE.md` before its deployment.
 
 ## yungou's availability during this pass
 
@@ -180,3 +186,5 @@ credentials and made no external request.
 | `d15046a` | 0.8.1: the console repairs found on the deployed 0.8.0 (the Guide, the decision card and the overview at narrow desktop widths, two error states); the layout audit's new checks; the pinned code commit, package `3c0cbfca…` |
 | `ab8c445` | the pin record re-pinned to `d15046a` before 0.8.1 was deployed, and the records of the 0.8.0 deployment; the 0.8.1 release was built from a clean checkout of this commit |
 | `4d37dbb` | 0.8.2: the hero replay states the offline check as the current checker reports it; the pinned code commit, package `ed1ac3ba…` |
+| `cb94aef` | the pin record re-pinned to `4d37dbb` before 0.8.2 was deployed; the 0.8.2 release was built from a clean checkout of this commit |
+| `459fe8d` | 0.8.3: the hero's check badge at most 26 characters again; the audit measures the finished replay; the pinned code commit, package `35b264ad…` |

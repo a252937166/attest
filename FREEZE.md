@@ -355,8 +355,8 @@ revision 7. The harness changed (reconciliation and services records).
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `4d37dbbf5232ddf4ce7d7bfe12414a669cbe8d2d` on branch `main` of the review repository, version 0.8.2 (the documentation commits that follow carry this record with an identical `attest/` digest) |
-| `attest/` package digest (sha256 over path and content of every source, 37 files) | `ed1ac3bad3ec8d3cc77d8cb1b86408cb46147d6dee1d26e2a1c1be6e5ad51b4f` (differs from 0.8.0's `ed41f4c95bd1…` and 0.8.1's `3c0cbfcaa9d6…` only by the version string in `attest/__init__.py`) |
+| Repository commit (code) | `459fe8dd97bb1f719edff42921c04fa43bb50196` on branch `main` of the review repository, version 0.8.3 (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 37 files) | `35b264adcd0805b91c71c7742518c55af794d742bb93c0b6a3a22a0b10d548f5` (differs from 0.8.0's `ed41f4c95bd1…`, 0.8.1's `3c0cbfcaa9d6…` and 0.8.2's `ed1ac3bad3ec…` only by the version string in `attest/__init__.py`) |
 | Harness `scripts/run_evaluation.py` sha256 | `9f9e4bc2ebfee8ec6fbf2504d510fdaf71b137197fbf192dd20be16a9cb70c0f` (changed: the reconciliation list, the per-service record and the peak memory) |
 | `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` (unchanged) |
 | Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
@@ -366,7 +366,7 @@ revision 7. The harness changed (reconciliation and services records).
 | Effective provider configuration, proposed paid run (`reports/attest-revision7-repairs-2026-10-19/nemotron-effective-profile.json`, computed offline from the pinned package with a placeholder key and blocked sockets) | the compared profile is identical to revision 7's (provider `nebius_tokenfactory`; roles spec, audit, arbitrate `nvidia/Nemotron-3-Ultra-550b-a55b`, seal, implement, break `nvidia/nemotron-3-super-120b-a12b`, summary `nvidia/Nemotron-3_5-Lightning`; reasoning effort break low, implement medium, seal low, summary low; temperature 0.2; max_tokens 16000; no thinking flag; per-run USD cap 0.50; per-run call cap 22); the provider's description adds the transport retry policy |
 | Effective provider configuration, development batches (registered in each `schedule.json` of `reports/attest-revision7-repairs-2026-10-19/evaluation-codex*/`) | unchanged from revision 7 (`base_url_sha256` `68e25b464500800e`) |
 | Limits | revision-7 limits; deployment memory limit 200M (memory and memory plus swap) |
-| Offline suite on the final tree | **402 tests, 0 failures, 0 errors, 0 skips** on a clean checkout (`git worktree`) of the pinned commit `4d37dbb` (`reports/attest-revision7-repairs-2026-10-19/corpus/final-tree-suite-9-clean-4d37dbb.log`); the private working tree passes the same 402 |
+| Offline suite on the final tree | **402 tests, 0 failures, 0 errors, 0 skips** on a clean checkout (`git worktree`) of the pinned commit `459fe8d` (`reports/attest-revision7-repairs-2026-10-19/corpus/final-tree-suite-10-clean-459fe8d.log`); the private working tree passes the same 402 |
 
 History of this pin (19 Oct 2026, before any deployment of revision 8): the pin first named commit `35248d0` (package
 `68e9de49df5b…`, pin record `6eca557`; 397 tests on clean checkouts of both). A review of the transport paths then found that the
@@ -381,7 +381,9 @@ names `d15046a` from 19 Oct, before 0.8.1 was deployed. 0.8.1 was deployed at 22
 (`reports/attest-deployment-2026-10-19f/`). While the video was prepared, the home page's replay of a 17 Oct bundle was found to
 claim "offline check 24 of 24 OK", a figure from an earlier checker; the current checker passes that bundle as a historical bundle
 (0 errors, 2 warnings). `4d37dbb` (0.8.2) corrects the claim in the console's static files and bumps the version; the pin names
-`4d37dbb` from 19 Oct, before 0.8.2 was deployed.
+`4d37dbb` from 19 Oct, before 0.8.2 was deployed. 0.8.2 was deployed at 23:11 UTC (`reports/attest-deployment-2026-10-19g/`);
+watched to its end, its replay showed the longer badge squeezing the title beside it into a mid-word break, and `459fe8d` (0.8.3)
+shortens the badge to "attest check: OK, partial"; the pin names `459fe8d` from 19 Oct, before 0.8.3 was deployed.
 
 Development-gateway reliability batches of this revision (Attest only, one attempt per task, no paid inference call; they ran on
 package `68e9de49df5b…`, before the stop fix, and none of their failures was in a stage that fix changed):
@@ -396,7 +398,7 @@ judge establishes the judged outcomes.
 ## The exact command (revision 8)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout 4d37dbbf5232ddf4ce7d7bfe12414a669cbe8d2d
+git clone <repository> attest-eval && cd attest-eval && git checkout 459fe8dd97bb1f719edff42921c04fa43bb50196
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r8-final \
