@@ -254,3 +254,67 @@ python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-
 Credit: the last verified reading of the Token Factory billing page is $25.00 at 16:55 UTC on 17 Oct 2026; committed spend
 since then is about $1.49 (plus at most $0.03 unrecorded). Reading the current balance and its expiry needs the owner's
 signed-in browser session; the account is never recharged by the project.
+
+# Revision 7 (19 Oct 2026): the version proposed for the next paid validation
+
+Revision 7 closes the three items of the independent review of revision 6 (`reports/attest-revision6-review-2026-10-19/README.md`;
+repairs and acceptance evidence in `reports/attest-revision6-repairs-2026-10-19/README.md`). The M5 pin at the top of this file is
+history, and the revision-4, revision-5 and revision-6 pins above were never run on Nemotron; all of them stay as written. No paid
+Nebius call runs before the owner approves the proposal at the end of this section.
+
+## What changed in the method (revision 6 to revision 7)
+
+| Stage | Revision 6 | Revision 7 |
+| --- | --- | --- |
+| Witness constraint | a list of forbidden spellings (direct `type(...)` with several arguments, `exec`, `eval`, `compile`, `__import__`, `globals`, `locals`, `vars`, `setattr`, `getattr`, definitions); an import alias of `type` passed it | the constrained witness language `attest-witness/1` (`attest/core/witness.py`): a positive grammar of statements, expressions, imports, calls and attributes; every repository name resolved statically through the frozen repository's source to a function or class it defines; calls only through resolved origins; anything outside the language holds the run (`contract_conflict_held`) |
+| Evidence protocol | version 3 | version 4: every witness carries its language analysis, the bundle keeps copies of the repository files the analysis read, and `attest check` repeats the analysis (a copy counts only when its digest equals the frozen task's) |
+| Admission | `RunRequest.provider` defaulted to Nebius; unknown fields ignored | unknown fields refused, `provider` required and validated, 422 before the handler (no row, queue entry, reservation or provider) |
+| Recorded-evidence tests | a glob over `reports/` assumed every bundle outside two exclusions was historical | explicit classes: a frozen historical corpus, a modern corpus by declared protocol, an inventory that fails on any unclassified run directory |
+
+Harness, examples, task suite, method, guest programs, models and sampling are unchanged from revision 6.
+
+## The pin (revision 7)
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `REV7-CODE-COMMIT` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 37 files) | `f836cfd0154faa878214976dab4fcc0a982dde38343e3944afceb8fc7f3336d3` |
+| Harness `scripts/run_evaluation.py` sha256 | `5af2b4989b2b93db7a9c37b4e1d654cb1e8b703bba47c8cfcf3a0e0c36bec5a3` (unchanged since revision 6) |
+| `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` (unchanged; a clean git clone computes `e95a28aa…`, see revision 5) |
+| Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
+| Method `METHOD.md` sha256 | `ec415afcf1649040a219968d49a469553058d8299a1dfd3ad557bafe71c138dc` (unchanged: the frozen M5 method; its 20-call cap is historical, revisions 5 to 7 use 22) |
+| Guest programs | unchanged: supervisor `attest-sealed-supervisor/7` `97d3d47d1d5b4fed…`; per-test child `e4e7b0b294a2004c…`; canary `9cdc57c1348fae5c…`; sandbox runner `attest-guest/3` `db8e2a76834b83ac…` |
+| Evidence protocol and witness language | version 4 (`attest.core.verdict.EVIDENCE_PROTOCOL_VERSION`); `attest-witness/1` (`attest.core.witness.WITNESS_LANGUAGE`); manifest version 2 |
+| Effective provider configuration, proposed paid run (computed offline from the pinned package, no environment override; `reports/attest-revision6-repairs-2026-10-19/nemotron-effective-profile.json`) | provider `nebius_tokenfactory`; roles spec, audit, arbitrate `nvidia/Nemotron-3-Ultra-550b-a55b`, seal, implement, break `nvidia/nemotron-3-super-120b-a12b`, summary `nvidia/Nemotron-3_5-Lightning`; `reasoning_effort` break low, implement medium, seal low, summary low (model default for the Ultra roles); temperature 0.2; max_tokens 16000; no thinking flag sent; per-run USD cap 0.50; per-run call cap 22 |
+| Effective provider configuration, development batch (registered in `reports/attest-revision6-repairs-2026-10-19/evaluation-codex/schedule.json`) | provider `codex_gateway`; roles spec `gpt-6-astra:low`, audit `gpt-6-astra:low`, arbitrate `gpt-6-astra:medium`, seal, implement, break `gpt-6-sol:medium`, summary `gpt-6-luna:low`; gateway URL recorded only as `base_url_sha256` `68e25b464500800e` |
+| Limits | revision-6 limits (22 calls per run at every entry point, download tickets 600 s) |
+| Offline suite on the final tree | REV7-SUITE-RESULT |
+
+Development-gateway reliability batch of this revision (Attest only, one attempt per task, no paid inference call):
+`reports/attest-revision6-repairs-2026-10-19/evaluation-codex/`. Four batches, ten cells: `rle-encode` INFEASIBLE (`true_reject`; a TC5-only literal-input witness in `attest-witness/1`, grounded,
+re-derived by `attest check`), `balanced-brackets` VERIFIED (`true_accept`), six infrastructure errors (transport failures on
+the path to the gateway and the Sandboxes API, uncertain outcomes never replayed) and two cells not run under the batches'
+stop rule. Every completed contract audit of `kvparse-refactor-001` and `durationkit-units-001` was consistent (no false
+refusal); neither reached a verdict in this pass. All eight bundles check `OK, EVIDENCE COMPLETE` under protocol 4. Record
+checking, not correct patches: the held-out judge establishes the two judged outcomes.
+
+## The exact command (revision 7)
+
+```bash
+git clone <repository> attest-eval && cd attest-eval && git checkout REV7-CODE-COMMIT
+export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
+python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
+    --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r7-final \
+    --out reports/attest-evaluation-2026-10-XX-nebius-r7
+```
+
+## Proposed paid work (awaiting the owner's approval; nothing runs before it)
+
+Unchanged in scope and budget from the revision-6 proposal, re-pinned to revision 7: a smoke test of two Nemotron runs through
+the CLI (`python3 -m attest run --provider nebius --task examples/durationkit-task/task.json --out runs --usd-cap 0.5 --max-calls 22`
+and the same with `--task examples/eval/rle-encode/task.json`; about $0.15, at most $1.00) and the revised 32-cell evaluation with
+the command above (about $3.00 to $4.00, at most $9.00 through `--approve-usd`). Total maximum **$10.00**; stop rules as in the
+revision-6 proposal. Credit: the last verified reading of the Token Factory billing page is $25.00 at 16:55 UTC on 17 Oct 2026;
+journal-accounted Nebius spend since then is about $1.49 plus the unapproved $0.055226 of the 19 Oct verification incident
+(`reports/attest-deployment-2026-10-19c/README.md`); none of these figures is a billing-page reading. The account is never
+recharged by the project.

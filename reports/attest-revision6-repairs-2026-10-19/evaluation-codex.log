@@ -1,0 +1,94 @@
+[14:23:00] snapshot /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex/snapshot: attest revision f836cfd0154f (37 sources), eval script 5af2b4989b2b, examples 6db7a2e937d6 (196 files)
+[14:23:00] fresh process from the snapshot: /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex/snapshot/scripts/run_evaluation.py --provider ...
+[14:23:03] codex pacing policy: gateway status: hourly request counting not enforced
+[14:23:03] pre-registered 4 cells (4 tasks x ['attest'] x 1 attempt(s)) on provider=codex; per-run cap $0.5, batch approval None, max calls None; schedule -> /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex/schedule.json
+[14:23:03] provider profile registered: {"base_url_sha256": "68e25b464500800e", "provider": "codex_gateway", "roles": {"arbitrate": "gpt-6-astra:medium", "audit": "gpt-6-astra:low", "break": "gpt-6-sol:medium", "implement": "gpt-6-sol:medium", "seal": "gpt-6-sol:medium", "spec": "gpt-6-astra:low", "summary": "gpt-6-luna:low"}}
+[14:23:03] frozen task rle-encode with 4 files, spec sha256 e64da208acc9
+[14:23:03] frozen task balanced-brackets with 4 files, spec sha256 84a644df7111
+[14:23:06] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[14:23:06] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[14:23:10] checkpoint 5b7bd811-b76f-42d8-8969-6366bbc512e9 ready; baseline OK (2 tests)
+[14:23:10] suite binding: bound (2 statically discovered test ids in 1 module(s) match the baseline run)
+[14:23:10] specification
+[14:23:14] checkpoint cc9668cc-ecd9-418f-a5fe-47bf88ed4a36 ready; baseline OK (2 tests)
+[14:23:14] suite binding: bound (2 statically discovered test ids in 1 module(s) match the baseline run)
+[14:23:14] specification
+[14:24:03] spec: feasible=True, 12 criteria, 2 contract entries, 0 external references
+[14:24:03] contract audit
+[14:24:48] spec: feasible=False, 11 criteria, 2 contract entries, 0 external references
+[14:24:48] contract audit
+[14:25:11] contract audit: consistent (0 grounded, 0 demonstrated but not grounded, 0 claimed only)
+[14:25:11] sealing acceptance tests (attempt 1)
+[14:26:00] contract audit: conflict 1 (TC5): demonstrated and grounded (authoritative criteria, witness in attest-witness/1)
+[14:26:00] contract audit: contradiction demonstrated (1 grounded, 0 demonstrated but not grounded, 0 claimed only)
+[14:26:00] ABORT INFEASIBLE: contract contradiction demonstrated by an executed witness in attest-witness/1 on the task's own criteria (requirements TC5): TC5 conflicts with the authoritative task's mandatory encoding format and unchanged decode: input 'a1' must encode as 'a111', which decodes to 111 copies of 'a'.; witness output: CONTRADICTION TC5: input 'a1' requires encoding 'a111', but unchanged decode returns 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' i
+[14:26:00] verdict INFEASIBLE -> /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex/runs/rle-encode-attest-a1-20261019T142303670350Z
+  [ 0] rle-encode                   attest    a1 completed verdict=INFEASIBLE   correct=False -> true_reject  $0.0 177.0s rev=f836cfd0 paced=0.0s
+[14:26:08] frozen task durationkit-units-001 with 5 files, spec sha256 52f44d7aa752
+[14:26:09] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[14:26:14] checkpoint 6df49ea6-b73a-408a-a128-5d86563ca814 ready; baseline OK (6 tests)
+[14:26:14] suite binding: bound (6 statically discovered test ids in 1 module(s) match the baseline run)
+[14:26:14] specification
+[14:27:13] sealed 16 test methods (sha256 dd8487107a3a); red check: 13 of 16 failing on base, 3 passing
+[14:27:13] implementation
+[14:28:01] spec: feasible=True, 16 criteria, 1 contract entries, 0 external references
+[14:28:01] contract audit
+[14:28:20] turn 1: read_file brackets/core.py -> [lines 1-14 of 14]
+[14:28:39] contract audit: consistent (0 grounded, 0 demonstrated but not grounded, 0 claimed only)
+[14:28:39] sealing acceptance tests (attempt 1)
+[14:29:01] turn 2: replace_in_file brackets/core.py -> replaced one occurrence in brackets/core.py; the file is now 683 bytes
+[14:29:50] sealed 22 test methods (sha256 09818549a179); red check: 8 of 22 failing on base, 14 passing
+[14:29:50] implementation
+[14:30:09] turn 3: run_tests  -> existing test suite: OK (ran 2, passed 2, exit 0)
+[14:30:19] turn 1: read_file durationkit/parse.py -> [lines 1-15 of 15]
+[14:30:44] turn 4: run_python  -> exit 0
+[14:31:07] turn 2: write_file durationkit/parse.py -> wrote durationkit/parse.py (1238 bytes)
+[14:31:19] turn 5: finish  -> finished: Implemented is_balanced with string type validation and correct ASCII bracket nesting; pre
+[14:31:19] verification
+[14:31:26] verify: sealed OK (16 of 16 methods, each in its own process); binding ok
+[14:31:31] existing suite (bound): OK (2 of 2 methods, each in its own process) (2/2)
+[14:31:31] breaker pass
+[14:31:31] breaker: 9 mutants of changed lines; running in parallel branches (workers=8)
+[14:31:43] verdict ERROR -> /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex/runs/durationkit-units-001-attest-a1-20261019T142607972621Z
+[14:31:47] breaker: killed 9, survived 0, unknown 0, mutation score 1.0
+[14:33:03] breaker tests: OK (10 of 10 methods, each in its own process); binding ok
+[14:33:03] drift audit
+[14:33:23] drift audit: score 0.0 (aligned)
+[14:33:23] verdict VERIFIED -> /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex/runs/balanced-brackets-attest-a1-20261019T142303669858Z
+  [ 1] balanced-brackets            attest    a1 completed verdict=VERIFIED     correct=True  -> true_accept  $0.0 619.5s rev=f836cfd0 paced=0.0s
+  [ 2] durationkit-units-001        attest    a1 completed verdict=ERROR        correct=None  -> infra_error  $0.0 335.6s rev=f836cfd0 paced=0.0s
+  [ 3] kvparse-refactor-001         attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a transport-uncertain operation occurred; the batch stopped without replaying anything)
+
+=== SUMMARY (all scheduled cells) ===
+{
+  "attest": {
+    "scheduled": 4,
+    "completed": 3,
+    "not_run": 1,
+    "confusion": {
+      "true_accept": 1,
+      "false_accept": 0,
+      "false_reject": 0,
+      "true_reject": 1,
+      "false_refusal": 0,
+      "no_patch": 0,
+      "infra_error": 1,
+      "unknown": 0,
+      "not_run": 1
+    },
+    "shipped_broken_code": 0,
+    "needs_human": 1,
+    "no_patch": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_s": 0.0,
+    "cells_in_invalid_comparisons": 0,
+    "total_cost_committed_usd": 0.0,
+    "mean_wall_s": 377.4
+  }
+}
+budget: {"approve_usd": null, "per_run_cap_usd": 0.5, "committed_usd": 0, "peak_projected_usd": 0, "stopped": "a transport-uncertain operation occurred; the batch stopped without replaying anything"}
+provenance: {"registered_revision": "f836cfd0154faa878214976dab4fcc0a982dde38343e3944afceb8fc7f3336d3", "snapshot_intact_at_end": true, "working_tree_revision_now": "f836cfd0154faa878214976dab4fcc0a982dde38343e3944afceb8fc7f3336d3", "working_tree_changed_since_launch": false, "invalid_tasks": []}
+pacing: {"model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only", "policy_source": "gateway status: hourly request counting not enforced", "policy_checked_at_epoch": 1792419783.6444402, "hourly_limit_assumed": null, "budget": null, "max_concurrency": 2, "max_wait_s": 3900.0, "used_in_window": 18, "blocked_until_epoch": null, "rejections_seen": 0, "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json", "state_shared_across_processes": true, "state_error": null} waits=0
+
+wrote /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex/evaluation.json
+exit 0

@@ -1,0 +1,59 @@
+{
+  "r502_errors": [
+    {
+      "detail": "gates disagree with their stage records: existing_suite (gate without a stage record)",
+      "name": "gates_match_stage_records",
+      "ok": false,
+      "severity": "error"
+    },
+    {
+      "detail": "required evidence missing: gate existing_suite has no stage record; existing-suite stage record missing",
+      "name": "required_evidence",
+      "ok": false,
+      "severity": "error"
+    }
+  ],
+  "r502_joint_deletion": {
+    "errors": 2,
+    "evidence_complete": false,
+    "fully_verified": false,
+    "manifest_verified": true,
+    "ok": false,
+    "protocol": 3,
+    "warnings": 0
+  },
+  "r502_positive": {
+    "errors": 0,
+    "evidence_complete": true,
+    "fully_verified": true,
+    "manifest_verified": true,
+    "ok": true,
+    "protocol": 3,
+    "warnings": 0
+  },
+  "r503_alias_bypass": {
+    "actual_audit": {
+      "demonstrated": true,
+      "grounded": false,
+      "provenance": "task",
+      "status": "demonstrated by a witness outside the constrained witness language attest-witness/1 (imports type from the module builtins at line 1, which is neither an allowed standard-library module (itertools, json, math, string, sys) nor a module of the frozen repository; accesses the attribute ); held for a human, not infeasible",
+      "witness_constrained": false
+    },
+    "actual_type_is_str": false,
+    "constraint_problems": [
+      "imports type from the module builtins at line 1, which is neither an allowed standard-library module (itertools, json, math, string, sys) nor a module of the frozen repository",
+      "accesses the attribute __int__ at line 3; attribute names that start with an underscore are outside attest-witness/1",
+      "calls Z at line 4, which is bound by an assignment or loop at line 3; a witness may call only allowed built-ins, allowed standard-library functions and the repository's own functions and classes, by their imported names"
+    ],
+    "execution_evidence": "FakeExecutor only; no model or real sandbox call. The small local class construction is auditor-authored.",
+    "isinstance_str": true,
+    "len": 0,
+    "local_toy_exit": 3,
+    "source": "from builtins import type as make_type\nimport sys\nZ = make_type('Z', (str,), {'__len__': (0).__int__})\nx = Z('a=b')\nprint('CONTRADICTION TC1: this value is a custom str subclass')\nsys.exit(3)\n"
+  },
+  "source_sha256": {
+    "attest/core/check.py": "2cb01313f038d506020a5fdfe8abc340e444ccb074629b18d5f30a8f4cafadee",
+    "attest/core/pipeline.py": "fd6d186debc7d080c6247e514a6a12f9168aafa1d0b687a21319481b5d645872"
+  }
+}
+exit 0

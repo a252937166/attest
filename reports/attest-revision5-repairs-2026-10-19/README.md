@@ -89,6 +89,13 @@ step, not by a user or a defect; the row stays in the public history as recorded
 `RunRequest` reject unknown fields and require the provider explicitly, so a malformed client request answers 422 instead of
 starting a paid run.
 
+[Note appended 19 Oct 2026, revision 7; the paragraphs above are unchanged] The incident's $0.0552 ($0.055226 across 16
+model calls) is the journal-accounted cost computed by the console from the returned usage and the public price table, not a
+reconciled provider invoice, billing-page reading or card charge; "restart reconciliation" names the console's procedure for
+interrupted runs. The run was not an approved smoke test. The follow-up above is implemented in revision 7
+(`reports/attest-revision6-repairs-2026-10-19/README.md`); see also the clarification appended to
+`reports/attest-deployment-2026-10-19c/README.md`.
+
 ## Remaining limitations (summary)
 
 - Complete evidence establishes that the recorded verdict follows from the recorded evidence; it does not establish that the

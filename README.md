@@ -92,6 +92,21 @@ freezes the effective provider configuration (resolved model ids per role, reaso
 environment override no longer silently preserves a valid comparison. Console: the team token travels in a header only, and
 team downloads use short-lived, run-scoped, read-only tickets that can authorise no POST. The M5 results are unchanged.
 
+Revision 7 (19 Oct 2026, version 0.7.0, `reports/attest-revision6-repairs-2026-10-19/README.md`) closes the three items of
+the independent review of revision 6 (`reports/attest-revision6-review-2026-10-19/README.md`). Witness constraints: the
+revision-6 rule was a list of forbidden spellings and an import alias of `type` passed it; a witness can now establish
+INFEASIBLE only when it conforms to the constrained witness language `attest-witness/1` (`attest/core/witness.py`), a positive
+grammar whose every import, call and attribute has an origin resolved statically against the frozen repository (allowed
+built-ins, a short list of standard-library functions, functions and classes the repository itself defines, methods of
+built-in values); anything outside the language holds the run for a person, and `attest check` repeats the analysis from the
+witness file and copies of the repository files the resolution read (evidence protocol 4). This is mechanical enforcement of
+how a witness builds inputs and what it may call; whether its inputs demonstrate that the criteria cannot all hold remains the
+auditor model's reasoning. Admission: `POST /api/runs` refuses unknown fields and requires an explicit, supported provider (no
+default), so a malformed request is answered 422 before any row, queue entry, reservation or provider exists; the 19 Oct
+verification request that started an unapproved Nemotron run (16 model calls, $0.055226 journal-accounted) would now be refused.
+Tests: the recorded evidence is classified explicitly (a frozen historical corpus, a modern corpus by declared protocol, and an
+inventory that fails on any unclassified run directory), replacing a glob that counted new protocol-3 bundles as historical.
+
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).
@@ -135,6 +150,8 @@ attest/
   core/check.py           `attest check`: offline recomputation of digests, bindings, mutants, corrections, ledger totals, verdict rule and
                           PROOF.md; strict for current bundles (evidence protocol 2 or 3, mandatory records derived from the
                           frozen task and the execution mode), historical mode for older ones
+  core/witness.py         the constrained witness language attest-witness/1: positive grammar, static call-origin resolution
+                          against the frozen repository, shared by the pipeline and `attest check`
   core/diagnostics.py     public error vocabulary with correlation references; the raw text of every failure goes to a private
                           sidecar outside the run directory, never into a bundle, an event, a call record or a download
   core/proof.py           Proof Bundle (proof_bundle.json + PROOF.md, exhibits and provenance sections)
@@ -230,10 +247,15 @@ to the write scope can satisfy and must back each claim with a witness program; 
 branch of the unmodified checkpoint and records the program, its digest, exit code, output and operation id. A conflict is
 demonstrated only by exit code 3 and a `CONTRADICTION` line. Since revision 6 the auditor sees the task's own criteria
 (`TC` ids) apart from the specification's derived ones (`AC` ids) and every conflict records its provenance (`task`,
-`derived`, `mixed`); INFEASIBLE needs a conflict whose requirements are all the task's own and whose witness is constrained
-(no function, class, lambda, dynamic type, `exec` or `eval`: it may only call the public interface on literal inputs of the
-declared domain). A demonstrated conflict that fails either condition holds the run for a person instead
-(`contract_conflict_held`); a witness that disproves one implementation never establishes that the task is impossible.
+`derived`, `mixed`); INFEASIBLE needs a conflict whose requirements are all the task's own and, since revision 7, whose
+witness conforms to the constrained witness language `attest-witness/1`: imports, assignments, control flow and
+comprehensions only, no function, class or lambda definitions; imports limited to `sys`, `itertools`, `math`, `string`, `json`
+and the repository's own modules, every repository name resolving through the repository's source to a function or class it
+defines; calls only to allowed built-ins, allowed standard-library functions, resolved repository code and methods of
+built-in values, never through a value held in a variable; no attribute starting with an underscore. The analysis is
+recorded per conflict with the resolved origins, and the repository files it read are copied into the bundle. A demonstrated
+conflict that fails either condition holds the run for a person instead (`contract_conflict_held`); a witness that
+disproves one implementation never establishes that the task is impossible.
 The sealer's coverage map (which test checks which criterion) is checked for completeness and its gaps are recorded.
 
 Arbitration (revisions 4 and 5): a corrected generated-test module counts only when it keeps every test method, changes only
@@ -252,14 +274,18 @@ least one sealed test failed with an authentic child result under a structurally
 passed authentically, and otherwise as unknown (excluded from the score). The policy is recorded in the bundle and `attest
 check` reclassifies every mutant from its raw result.
 
-Evidence protocol (revisions 5 and 6): every bundle declares `evidence_protocol.version` (2 for revision 5, 3 since revision
-6). `attest check` requires the complete evidence for a current bundle's verdict and reports `EVIDENCE COMPLETE` only when
+Evidence protocol (revisions 5 to 7): every bundle declares `evidence_protocol.version` (2 for revision 5, 3 for revision 6,
+4 since revision 7). `attest check` requires the complete evidence for a current bundle's verdict and reports `EVIDENCE COMPLETE` only when
 the digests, the complete manifest and that evidence all check; a bundle without the field is historical (internal
 consistency only, never fully verified), and the former explicit apply mode (`cleared_by_arbitration`) is honoured only for
 historical bundles started before 19 Oct 2026. Under version 3 the mandatory records are derived from the frozen task and
 the execution mode rather than from what survived in the bundle: the existing-suite stage record, its raw supervisor result
 and its binding in bound mode, held-out evidence exactly when the task declares held-out tests, a stage record behind every
-recorded gate, and a grounded conflict with a constrained witness behind an INFEASIBLE verdict. Complete evidence
+recorded gate, and a grounded conflict with a constrained witness behind an INFEASIBLE verdict. Under version 4 the
+checker repeats the witness-language analysis from the witness file and the repository copies kept in the bundle (a copy
+counts only when its digest equals the frozen task's) and never trusts a recorded `grounded` or `witness_constrained` flag;
+a protocol-3 INFEASIBLE bundle keeps no copies, so its grounding cannot be re-established when its witness imports
+repository code (no such bundle has been recorded). Complete evidence
 establishes that the recorded verdict follows from the recorded evidence; it does not establish that the verdict is correct
 (the held-out judge of the evaluation harness measures that).
 

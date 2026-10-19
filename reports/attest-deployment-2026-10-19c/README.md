@@ -95,3 +95,15 @@ this host.
 `before-20261019c-20261019T105848Z.txt`, `after-20261019c-20261019T110425Z.txt`, `health-before-20261019c.json`,
 `health-after-20261019c.json`, `build-20261019c.log`, `install-20261019c.log`, `public-render-r6-record.json`,
 `screens/public-home-r6-{1440,390}.png`, `screens/public-run-r6-{1440,390}.png`.
+
+## Clarification of the incident's accounting (appended 19 Oct 2026, revision 7; the record above is unchanged)
+
+The incident above was an authorization and process violation: a verification step sent a production POST that the owner had
+not approved, and the console admitted it as an ordinary public Nemotron run. It was not an approved smoke test and not part of
+any approved budget line. Its figure, **$0.055226 across 16 model calls**, is the journal-accounted cost: the console computed it
+from the usage the provider returned with each call and the public price table, read back from the run's ledger journal when the
+restart finalised the row. "Reconciliation" above names that console procedure (the restart reconciliation of interrupted runs),
+not a billing reconciliation: the figure has not been compared with a provider invoice, the Token Factory billing page, the
+remaining credit balance or any card charge. The run also performed 6 Token Factory Sandbox operations, which the ledger records
+without a USD amount. Nothing in the incident involved a download ticket; tickets authorise no POST (revision 6, R5-07). The
+request-validation repair that would have refused this request with 422 is revision 7 (`reports/attest-revision6-repairs-2026-10-19/README.md`).

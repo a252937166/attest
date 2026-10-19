@@ -1,0 +1,67 @@
+[14:34:04] snapshot /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex-2/snapshot: attest revision f836cfd0154f (37 sources), eval script 5af2b4989b2b, examples 6db7a2e937d6 (196 files)
+[14:34:04] fresh process from the snapshot: /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex-2/snapshot/scripts/run_evaluation.py --provider ...
+[14:34:08] codex pacing policy: gateway status: hourly request counting not enforced
+[14:34:08] pre-registered 2 cells (2 tasks x ['attest'] x 1 attempt(s)) on provider=codex; per-run cap $0.5, batch approval None, max calls None; schedule -> /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex-2/schedule.json
+[14:34:08] provider profile registered: {"base_url_sha256": "68e25b464500800e", "provider": "codex_gateway", "roles": {"arbitrate": "gpt-6-astra:medium", "audit": "gpt-6-astra:low", "break": "gpt-6-sol:medium", "implement": "gpt-6-sol:medium", "seal": "gpt-6-sol:medium", "spec": "gpt-6-astra:low", "summary": "gpt-6-luna:low"}}
+[14:34:08] frozen task durationkit-units-001 with 5 files, spec sha256 52f44d7aa752
+[14:34:08] frozen task kvparse-refactor-001 with 4 files, spec sha256 4c9587b9205c
+[14:34:09] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[14:34:09] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[14:34:13] checkpoint e1e388fa-6d13-41f8-842a-733e277e2dd5 ready; baseline OK (4 tests)
+[14:34:13] suite binding: bound (4 statically discovered test ids in 1 module(s) match the baseline run)
+[14:34:13] specification
+[14:34:16] checkpoint a27e3533-5e73-49e5-9ac0-ca4b556195c8 ready; baseline OK (6 tests)
+[14:34:16] suite binding: bound (6 statically discovered test ids in 1 module(s) match the baseline run)
+[14:34:16] specification
+[14:35:20] spec: feasible=True, 18 criteria, 3 contract entries, 0 external references
+[14:35:20] contract audit
+[14:36:09] spec: feasible=True, 18 criteria, 1 contract entries, 0 external references
+[14:36:09] contract audit
+[14:36:33] contract audit: consistent (0 grounded, 0 demonstrated but not grounded, 0 claimed only)
+[14:36:33] sealing acceptance tests (attempt 1)
+[14:36:49] contract audit: consistent (0 grounded, 0 demonstrated but not grounded, 0 claimed only)
+[14:36:49] sealing acceptance tests (attempt 1)
+[14:36:54] seal attempt 1 not usable: the inference outcome is uncertain (transport failure); the request was not retried [ref d69acf88]
+[14:36:54] sealing acceptance tests (attempt 2)
+[14:38:20] MODEL ERROR: the model provider returned HTTP 502 [ref 52473d9a]
+[14:38:20] verdict ERROR -> /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex-2/runs/durationkit-units-001-attest-a1-20261019T143408064400Z
+[14:38:25] sealed 30 test methods (sha256 90fbbb3cafd5); red check: 5 of 30 failing on base, 25 passing
+[14:38:25] implementation
+  [ 0] durationkit-units-001        attest    a1 completed verdict=ERROR        correct=False -> infra_error  $0.0 252.3s rev=f836cfd0 paced=0.0s
+[14:39:26] MODEL ERROR: the inference outcome is uncertain (transport failure); the request was not retried [ref 64abe21e]
+[14:39:26] verdict ERROR -> /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex-2/runs/kvparse-refactor-001-attest-a1-20261019T143408064764Z
+  [ 1] kvparse-refactor-001         attest    a1 completed verdict=ERROR        correct=False -> infra_error  $0.0 318.2s rev=f836cfd0 paced=0.0s
+
+=== SUMMARY (all scheduled cells) ===
+{
+  "attest": {
+    "scheduled": 2,
+    "completed": 2,
+    "not_run": 0,
+    "confusion": {
+      "true_accept": 0,
+      "false_accept": 0,
+      "false_reject": 0,
+      "true_reject": 0,
+      "false_refusal": 0,
+      "no_patch": 0,
+      "infra_error": 2,
+      "unknown": 0,
+      "not_run": 0
+    },
+    "shipped_broken_code": 0,
+    "needs_human": 0,
+    "no_patch": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_s": 0.0,
+    "cells_in_invalid_comparisons": 0,
+    "total_cost_committed_usd": 0.0,
+    "mean_wall_s": 285.2
+  }
+}
+budget: {"approve_usd": null, "per_run_cap_usd": 0.5, "committed_usd": 0, "peak_projected_usd": 0, "stopped": "a transport-uncertain operation occurred; the batch stopped without replaying anything"}
+provenance: {"registered_revision": "f836cfd0154faa878214976dab4fcc0a982dde38343e3944afceb8fc7f3336d3", "snapshot_intact_at_end": true, "working_tree_revision_now": "f836cfd0154faa878214976dab4fcc0a982dde38343e3944afceb8fc7f3336d3", "working_tree_changed_since_launch": false, "invalid_tasks": []}
+pacing: {"model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only", "policy_source": "gateway status: hourly request counting not enforced", "policy_checked_at_epoch": 1792420448.0463831, "hourly_limit_assumed": null, "budget": null, "max_concurrency": 2, "max_wait_s": 3900.0, "used_in_window": 26, "blocked_until_epoch": null, "rejections_seen": 0, "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json", "state_shared_across_processes": true, "state_error": null} waits=0
+
+wrote /work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex-2/evaluation.json
+exit 0
