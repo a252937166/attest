@@ -1,0 +1,42 @@
+{
+  "applied": false,
+  "cleared": true,
+  "all_corrected": true,
+  "mutation_ran_ok": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "all 1 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base — candidate not falsified by these tests",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestIsCompatibleBreaker.test_major_positive_minor_equal_patch_any",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test attempts to create Version instances with negative patch values (range -5 to 10), but the Version constructor rejects negative patch with ValueError. The contract does not require negative patch support; the Version class only accepts non-negative integers. The test's expectation that negative patch is valid is incorrect.",
+          "contract_basis": "The Version class in src/semver/version.py validates that major, minor, patch are non-negative integers. The compatibility method's contract only specifies that patch is ignored for compatibility, not that negative patch values are allowed."
+        }
+      ],
+      "corrected_notes": "Fixed the test_major_positive_minor_equal_patch_any test to use non-negative patch values (0 to 14) because the Version constructor rejects negative patch values. The contract does not require negative patch support.",
+      "corrected_module": "arbitration/adversarial_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (7 of 7 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a14af6-4763-7491-aed6-39062196471c"
+      },
+      "base_rerun": {
+        "summary_line": "FAILED (7 of 7 methods: ERROR 7)",
+        "failing": 7,
+        "operation_uuid": "01a14af6-5e5e-70a8-9be9-e3d4967e2671"
+      },
+      "cleared_module": true,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

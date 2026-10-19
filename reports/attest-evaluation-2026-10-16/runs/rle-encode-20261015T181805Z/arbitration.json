@@ -1,0 +1,30 @@
+{
+  "applied": false,
+  "cleared": false,
+  "counts": {
+    "implementation_bug": 1,
+    "test_defect": 0,
+    "contract_dispute": 0
+  },
+  "headline": "1 failing test(s) indicate a real implementation bug; human review required",
+  "modules": [
+    {
+      "module": "sealed",
+      "classifications": [
+        {
+          "test_id": "test_sealed.TestEncodeAdditional.test_round_trip_property",
+          "classification": "implementation_bug",
+          "rationale": "The round-trip test fails, meaning the candidate's encode function does not satisfy the required property decode(encode(x)) == x for all test strings. The test correctly encodes the contract's round-trip requirement, so the failure indicates a defect in the candidate's implementation.",
+          "contract_basis": "The contract explicitly requires that 'encode must return a str and must round-trip with decode (decode(encode(x)) == x for every string x).' The test directly verifies this property on a representative set of strings."
+        }
+      ],
+      "corrected_notes": "The failing test is a valid check of the contract's round-trip property. Since the candidate's encode implementation appears correct at first glance but the test fails, there is likely a subtle bug in encode (or an incompatibility with the fixed decode) that violates the contract. No correction to the test is needed; the candidate must be fixed.",
+      "corrected_module": null,
+      "candidate_rerun": null,
+      "base_rerun": null,
+      "cleared_module": false,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

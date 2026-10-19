@@ -1,0 +1,95 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Fix prerelease comparison in src/semver/version.py so ASCII numeric identifiers of arbitrary length compare by normalized decimal strings without integer conversion. Preserve existing numeric precedence, string ordering, identifier-list ordering, constructor permissiveness, Unicode digit conversion and eager conversion errors, core-version precedence, release precedence, and build-metadata independence. Keep public interfaces, parsing, stored attributes, and all unrelated behavior unchanged.",
+  "interface_contract": [
+    {
+      "name": "semver.version.Version (also semver.Version and VersionInfo)",
+      "signature": "Version(major: SupportsInt, minor: SupportsInt = 0, patch: SupportsInt = 0, prerelease: Optional[Union[String, int]] = None, build: Optional[Union[String, int]] = None)",
+      "behavior": "Constructor behavior remains unchanged. Core components are converted with int(). Prerelease and build are stored as None or str(argument). In particular, string prereleases retain their exact spelling, including leading zeros, non-ASCII digits, empty strings and otherwise invalid SemVer identifiers. Construction does not validate prerelease identifiers.",
+      "error_cases": [
+        "ValueError: a converted core component is negative.",
+        "TypeError or ValueError: existing core-component integer conversion fails; preserve existing behavior."
+      ]
+    },
+    {
+      "name": "Version._nat_cmp",
+      "signature": "@classmethod def _nat_cmp(cls, a: Optional[str], b: Optional[str]) -> int",
+      "behavior": "Return exactly -1, 0 or 1. Split each input on dots, treating None and the empty string as a single empty identifier and preserving other empty identifiers. A nonempty identifier consisting exclusively of ASCII digits is numeric: remove leading ASCII zeros, use '0' for an all-zero identifier, then compare numeric values by normalized length and lexicographic order without int() conversion. An identifier containing non-ASCII characters for which str.isdigit() is true retains legacy int(identifier) conversion and participates in the same numeric ordering, including equality with equivalent ASCII values. All other identifiers are non-numeric and compare using Python string ordering. Numeric identifiers precede non-numeric identifiers. Compare corresponding identifiers in order; after equal shared identifiers, the longer list is higher. Validate all digit identifiers in both lists eagerly before returning an ordering result. Normalization must not mutate either input or stored attributes.",
+      "error_cases": [
+        "ValueError: any non-ASCII-containing identifier satisfies str.isdigit() but int(identifier) fails, even in an unmatched suffix or after an earlier pair that would determine ordering.",
+        "Preserve runtime integer-conversion errors for the legacy non-ASCII digit path, including applicable digit-limit errors; arbitrary-length support is required for ASCII numeric identifiers."
+      ]
+    },
+    {
+      "name": "Version.compare",
+      "signature": "def compare(self, other: Comparable) -> int",
+      "behavior": "Preserve existing operand coercion for Version instances, strings, bytes, dictionaries, tuples and lists. Return exactly -1, 0 or 1. After operand coercion, compare (major, minor, patch) first and return immediately on a difference. For equal cores, apply the prerelease comparison contract, including eager errors, before applying release precedence. None and empty prereleases are equivalent absences; a nonempty prerelease precedes absence. Ignore build metadata.",
+      "error_cases": [
+        "TypeError: unsupported operand type, preserving existing handling.",
+        "ValueError or TypeError: existing operand parsing or construction fails.",
+        "ValueError: equal core versions contain a prerelease digit identifier whose required legacy int() conversion fails, including when the other version has no prerelease.",
+        "No prerelease-conversion error when already-constructed operands have different core versions."
+      ]
+    },
+    {
+      "name": "Version comparison operators",
+      "signature": "__eq__(self, other: Comparable) -> bool; __ne__(self, other: Comparable) -> bool; __lt__(self, other: Comparable) -> bool; __le__(self, other: Comparable) -> bool; __gt__(self, other: Comparable) -> bool; __ge__(self, other: Comparable) -> bool",
+      "behavior": "Continue deriving results from compare(). Long numeric prereleases work through equality, ordering and sorted(). Preserve the existing decorator's NotImplemented handling for unsupported operands and collections that cannot construct a version.",
+      "error_cases": [
+        "Propagate comparison-time ValueError for invalid legacy digit identifiers when cores are equal.",
+        "Preserve existing parsing errors and Python operator behavior for unsupported operands."
+      ]
+    },
+    {
+      "name": "Version.parse",
+      "signature": "@classmethod def parse(cls: Type[T], version: String, optional_minor_and_patch: bool = False) -> T",
+      "behavior": "Remain unchanged. Accept canonical ASCII numeric prereleases of 5000 digits and preserve their text. Reject noncanonical numeric prereleases and non-ASCII prereleases. Preserve bytes decoding, subclass construction, optional core parts and optional native backend behavior.",
+      "error_cases": [
+        "ValueError: invalid SemVer syntax, including prereleases '01', '01.2', '١٢' and '１２'.",
+        "TypeError: unsupported version input type.",
+        "Preserve existing decoding and constructor errors."
+      ]
+    },
+    {
+      "name": "Version.is_valid",
+      "signature": "@classmethod def is_valid(cls, version: str) -> bool",
+      "behavior": "Remain unchanged: return True when parse succeeds and False when parse raises ValueError. A canonical 5000-digit ASCII numeric prerelease is valid.",
+      "error_cases": [
+        "Exceptions other than ValueError from parse retain their existing propagation behavior."
+      ]
+    },
+    {
+      "name": "semver.compare",
+      "signature": "def compare(ver1: str, ver2: str) -> int",
+      "behavior": "Continue delegating to Version.parse(ver1).compare(ver2), retaining its deprecation warning and exposing the corrected ordering.",
+      "error_cases": [
+        "Propagate existing parsing and comparison exceptions."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. Let v = '0.0.0-' + '1' * 5000. Version.is_valid(v) is True, Version.parse(v).compare(v) is 0, semver.compare(v, '0.0.0-2') is 1, and semver.compare('0.0.0-2', v) is -1, without ValueError.",
+    "2. For parsed prereleases, each following pair is strictly increasing: ('9' * 4999, '1' + '0' * 4999); ('1' + '0' * 4998 + '1', '1' + '0' * 4998 + '2'); ('1' * 5000, 'alpha'); ('alpha.' + '1' * 5000, 'alpha.' + '1' * 5000 + '.1'). For every pair, low.compare(high) == -1, high.compare(low) == 1, and sorted([high, low]) == [low, high].",
+    "3. For version = Version.parse('0.0.0-' + '1' * 5000), version == version.replace(build='other') and version < Version(0, 0, 0). Comparison leaves prerelease text unchanged.",
+    "4. For equal-core constructor operands, the following (left, right, result) cases hold: ('0001', '1', 0), ('000', '0', 0), ('02', '10', -1), ('01.2', '1.2', 0), ('2a', '10a', 1), ('01a', '1a', -1), ('-1', '0', 1), ('', None, 0), ('١٢', '12', 0), ('１２', '13', -1), ('1٢', '12', 0), ('٠٠١', '1', 0). Reverse comparisons negate the result, and both prerelease attributes retain the supplied values.",
+    "5. Constructor prereleases '0' * 5000 and '0' compare equal; '0' * 5000 + '12' compares equal to both '12' and '١٢'; '1' * 5000 compares greater than '١٢'. None of these comparisons converts the ASCII identifier to int or raises a digit-limit error.",
+    "6. Version.parse('0.0.0-' + p) raises ValueError for each p in ('01', '01.2', '١٢', '１２'); Version.is_valid returns False for those strings.",
+    "7. Equal-core constructor comparisons raise ValueError for each pair ('²', '2'), ('a.²', 'b.0'), ('a.0', 'b.²'), ('a', 'a.²'), and ('²', None), and for their reversals. Comparing a version whose prerelease is '²' with itself also raises ValueError; equality or identity shortcuts must not suppress validation.",
+    "8. Core precedence bypasses prerelease validation for already-constructed operands: Version(0, 0, 0, prerelease='²') < Version(1, 0, 0, prerelease='²') is True. Equivalent tests where minor alone or patch alone differs also succeed, with compare returning -1 forward and 1 in reverse.",
+    "9. Empty identifiers remain non-numeric strings. Direct helper results include Version._nat_cmp('', None) == 0, Version._nat_cmp('a.', 'a') == 1, Version._nat_cmp('a..1', 'a..2') == -1, and Version._nat_cmp('0', '') == -1. At the public version level, a numeric prerelease still precedes a release because release precedence overrides the helper's empty-string ordering.",
+    "10. ASCII numeric comparison uses normalized decimal length followed by lexicographic order for all lengths, without int() conversion or changing interpreter integer-string conversion limits. On CPython with the conversion limit enabled at 4300 digits, the 5000-digit cases pass and the limit remains unchanged.",
+    "11. Existing supported operand coercions, comparison operators, deprecation warnings, parsing behavior, attribute storage and build-metadata independence remain unchanged. The existing pytest suite, including tests/ and configured doctests, passes without modifying its files.",
+    "12. The implementation diff is confined to prerelease comparison and necessary internal support in src/semver/version.py. No parsing logic, optional native backend integration or unrelated behavior is changed."
+  ],
+  "out_of_scope": [
+    "Implementation code in this specification stage.",
+    "Changes to files other than src/semver/version.py, including tests, documentation, changelogs, packaging and dependencies.",
+    "Changes to parsing grammar, constructor validation, optional native parsing or public signatures.",
+    "Normalizing stored prerelease attributes or changing hash behavior.",
+    "Removing legacy Unicode digit conversion errors or guaranteeing arbitrary-length non-ASCII digit conversion.",
+    "Fixing integer conversion limits in core version components, bump operations or other unrelated methods.",
+    "Disabling or raising Python's integer-string conversion limit."
+  ],
+  "external_references_needed": []
+}

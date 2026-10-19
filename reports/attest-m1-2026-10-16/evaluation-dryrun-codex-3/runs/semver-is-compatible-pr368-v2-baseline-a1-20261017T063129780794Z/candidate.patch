@@ -1,0 +1,37 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -422,6 +422,34 @@
+ 
+         return rccmp
+ 
++    def is_compatible(self, other: "Version") -> bool:
++        """Return whether ``other`` can be used in place of this version.
++
++        Patch differences are ignored for major versions above zero. For major
++        version zero, major, minor, patch, and prerelease must all match.
++
++        >>> Version(1, 2, 3).is_compatible(Version(1, 3, 0))
++        True
++        >>> Version(0, 1, 0).is_compatible(Version(0, 1, 1))
++        False
++        """
++        if not isinstance(other, Version):
++            raise TypeError(f"Expected a Version type but got {type(other)}")
++
++        if self._major == 0:
++            return (
++                self._major == other._major
++                and self._minor == other._minor
++                and self._patch == other._patch
++                and self._prerelease == other._prerelease
++            )
++
++        return (
++            self._major == other._major
++            and other._minor >= self._minor
++            and self._prerelease == other._prerelease
++        )
++
+     def next_version(self, part: str, prerelease_token: str = "rc") -> "Version":
+         """
+         Determines next version, preserving natural order.

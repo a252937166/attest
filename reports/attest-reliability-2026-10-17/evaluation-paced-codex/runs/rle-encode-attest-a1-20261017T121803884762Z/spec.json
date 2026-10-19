@@ -1,0 +1,46 @@
+{
+  "feasible": false,
+  "infeasibility_reason": "The required encoding format contradicts universal round-tripping with the unchanged decode. For x='a1', maximal-run encoding must produce 'a111' ('a1' followed by '11'), but decode('a111') returns 'a' repeated 111 times, not 'a1'. The decoder consumes digit characters as part of the preceding count. Satisfying all requirements requires changing either the supported input domain or the encoding format and decoder; neither change is authorized.",
+  "restated_task": "Implement rle.encode(s) to return a string formed by replacing each maximal run of identical characters with that character followed by its positive decimal run length, including counts of 1; return an empty string for empty input and raise TypeError for non-string input. Preserve decode and existing tests. The additional requirement that every string round-trip through decode is incompatible with the specified format and existing decoder.",
+  "interface_contract": [
+    {
+      "name": "rle.encode",
+      "signature": "encode(s)",
+      "behavior": "Accept a str, including str subclasses. Process characters as Python string elements, without normalization. Emit each maximal run's character followed by its length in ASCII decimal digits, without leading zeros. Return a str; empty input returns ''. Universal round-tripping is requested but cannot be satisfied under the remaining constraints.",
+      "error_cases": [
+        "TypeError: s is not an instance of str. No specific exception message is required."
+      ]
+    },
+    {
+      "name": "rle.decode",
+      "signature": "decode(s)",
+      "behavior": "Preserve the existing implementation exactly. At each position, take one character and consume the following maximal sequence of characters for which isdigit() is true as its count, convert that sequence with int(), repeat the character by that count, and concatenate the results. Empty input returns ''.",
+      "error_cases": [
+        "TypeError: s is not an instance of str.",
+        "ValueError: a character has no following count.",
+        "ValueError: a consumed count cannot be converted by int(), including some Unicode characters accepted by isdigit()."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. from rle import encode succeeds and exposes encode(s).",
+    "2. encode('aaabbc') == 'a3b2c1' and encode('a') == 'a1'.",
+    "3. encode('') == ''.",
+    "4. encode('abc') == 'a1b1c1'; counts of 1 are always included.",
+    "5. encode('x' * 12) == 'x12'; counts support multiple decimal digits.",
+    "6. encode('aba') == 'a1b1a1'; separated occurrences are not merged.",
+    "7. encode('éé🙂') == 'é2🙂1' and encode('  \\n') == ' 2\\n1'; Unicode characters and whitespace are preserved.",
+    "8. Every successful encode call returns a str, including calls with empty input and str subclass instances.",
+    "9. encode raises TypeError for non-string inputs, including None, integers, bytes, lists, and booleans.",
+    "10. The specified run format requires encode('a1') == 'a111'.",
+    "11. The requested universal round-trip property requires decode(encode(x)) == x for every string x. This conflicts with criterion 10 and the unchanged decoder, as witnessed by x='a1'; no implementation can pass all criteria.",
+    "12. Preserve decode unchanged, including decode('a3b1') == 'aaab', decode('') == '', and TypeError for decode(123).",
+    "13. Existing test files remain unchanged and their tests continue to pass."
+  ],
+  "out_of_scope": [
+    "Changing decode or existing tests.",
+    "Adding an escaping format or restricting accepted strings without revising the task requirements.",
+    "Changing unrelated package behavior."
+  ],
+  "external_references_needed": []
+}

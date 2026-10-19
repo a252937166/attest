@@ -1,0 +1,2017 @@
+{
+  "run_id": "roman-to-numeral-20261015T184550Z",
+  "started_at_utc": "2026-10-15T18:45:50.042014+00:00",
+  "finished_at_utc": "2026-10-15T18:48:56.926688+00:00",
+  "profile": {
+    "label": "eval-attest",
+    "provider": {
+      "provider": "nebius_tokenfactory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "roles": {
+        "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "seal": "nvidia/nemotron-3-super-120b-a12b",
+        "implement": "nvidia/nemotron-3-super-120b-a12b",
+        "break": "nvidia/nemotron-3-super-120b-a12b",
+        "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "summary": "nvidia/Nemotron-3_5-Lightning"
+      },
+      "usd_cap": 0.5,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
+      "schema_in_prompt": true,
+      "auto_retry": false,
+      "pre_request_reservation": true,
+      "max_prompt_chars": 120000,
+      "max_tokens": 16000
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "task": {
+    "id": "roman-to-numeral",
+    "title": "roman-to-numeral",
+    "statement": "The roman package exposes is_roman_numeral (already implemented) and a stub to_roman(n). Implement to_roman(n) so that it converts an integer n in the range 1..3999 inclusive to its standard Roman numeral string using subtractive notation (4='IV', 9='IX', 40='XL', 90='XC', 400='CD', 900='CM'). Return a str. Raise ValueError when n is an int outside 1..3999. Raise TypeError when n is not an int (bool counts as non-int for this task is not required; treat only real ints as valid). Do not change is_roman_numeral or the tests.",
+    "acceptance_criteria": [
+      "to_roman(1)=='I', to_roman(4)=='IV', to_roman(9)=='IX'",
+      "to_roman(40)=='XL', to_roman(90)=='XC', to_roman(400)=='CD', to_roman(900)=='CM'",
+      "to_roman(2024)=='MMXXIV', to_roman(3999)=='MMMCMXCIX', to_roman(1994)=='MCMXCIV'",
+      "to_roman returns a str",
+      "ValueError for ints outside 1..3999 (0, -1, 4000)",
+      "TypeError for non-int input ('5', 5.0, None, [1])"
+    ],
+    "allowed_write_globs": [
+      "roman/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from roman import to_roman",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {
+      "tests/test_heldout.py": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200"
+    },
+    "repo_files_sha256": {
+      "roman/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "roman/core.py": "ecf06262fbb5488a8342614555812ae355e921bc6af6c4ea62b26f06c56a6e6d",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "de899bd3b4bf3f6bdd8c55f4d46256450fd0eaf7c89e0609a4c808590649f203"
+    },
+    "spec_sha256": "4260759688c40bae278a4a6262c5bdc320c4a49fc026af98ea5bb6d9fde5b0f6"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a140e2-b3b5-73db-b654-a2e006cf6616",
+    "checkpoint_image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a140e2-b3b5-73db-b654-a2e006cf6616",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.204,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Implement the function to_roman(n) in the roman.core module to convert an integer n (1..3999 inclusive) to its standard Roman numeral string using subtractive notation (e.g., 4='IV', 9='IX', 40='XL', 90='XC', 400='CD', 900='CM'). The function must return a str. It must raise ValueError for integer inputs outside the range 1..3999, and raise TypeError for non-integer inputs (including bool, float, str, None, list, etc.). The existing is_roman_numeral function and the test suite must remain unchanged.",
+    "interface_contract": [
+      {
+        "name": "to_roman",
+        "signature": "to_roman(n: int) -> str",
+        "behavior": "Converts an integer n in the range 1 to 3999 inclusive to its Roman numeral representation using standard subtractive notation. Returns the Roman numeral as a string (uppercase letters).",
+        "error_cases": [
+          "ValueError: raised when n is an int but not in the range 1..3999 (e.g., 0, -1, 4000).",
+          "TypeError: raised when n is not an int (e.g., '5', 5.0, None, [1], True, False)."
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "1. to_roman(1) returns 'I'.",
+      "2. to_roman(4) returns 'IV'.",
+      "3. to_roman(9) returns 'IX'.",
+      "4. to_roman(40) returns 'XL'.",
+      "5. to_roman(90) returns 'XC'.",
+      "6. to_roman(400) returns 'CD'.",
+      "7. to_roman(900) returns 'CM'.",
+      "8. to_roman(2024) returns 'MMXXIV'.",
+      "9. to_roman(3999) returns 'MMMCMXCIX'.",
+      "10. to_roman(1994) returns 'MCMXCIV'.",
+      "11. to_roman returns a value of type str for all valid inputs.",
+      "12. to_roman raises ValueError for integer inputs 0, -1, and 4000 (and any other int outside 1..3999).",
+      "13. to_roman raises TypeError for non-int inputs: string '5', float 5.0, None, list [1] (and any other non-int type)."
+    ],
+    "out_of_scope": [
+      "Do not modify the existing is_roman_numeral function.",
+      "Do not modify the test files (tests/test_basic.py and tests/__init__.py).",
+      "Do not change the public interface of the roman package (i.e., the import structure in roman/__init__.py)."
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": {
+    "path": "sealed/test_sealed.py",
+    "sha256": "9549a75586b0bf8149bc5abf313636899e1a84999e539000c3b7706eae15bc84",
+    "test_count": 13,
+    "declared_test_count": 13,
+    "expected_ids": [
+      "test_sealed.TestToRoman.test_to_roman_1_returns_I",
+      "test_sealed.TestToRoman.test_to_roman_4_returns_IV",
+      "test_sealed.TestToRoman.test_to_roman_9_returns_IX",
+      "test_sealed.TestToRoman.test_to_roman_40_returns_XL",
+      "test_sealed.TestToRoman.test_to_roman_90_returns_XC",
+      "test_sealed.TestToRoman.test_to_roman_400_returns_CD",
+      "test_sealed.TestToRoman.test_to_roman_900_returns_CM",
+      "test_sealed.TestToRoman.test_to_roman_2024_returns_MMXXIV",
+      "test_sealed.TestToRoman.test_to_roman_3999_returns_MMMCMXCIX",
+      "test_sealed.TestToRoman.test_to_roman_1994_returns_MCMXCIV",
+      "test_sealed.TestToRoman.test_to_roman_returns_str_type",
+      "test_sealed.TestToRoman.test_to_roman_value_error_on_out_of_range_int",
+      "test_sealed.TestToRoman.test_to_roman_type_error_on_non_int_inputs"
+    ],
+    "escapes_repaired": false,
+    "sealed_at_utc": "2026-10-15T18:46:48.930145+00:00",
+    "author_model": "nvidia/nemotron-3-super-120b-a12b",
+    "attempts": 1,
+    "rejected_attempts": [],
+    "notes": "Covered all acceptance criteria with separate test methods for each numeric conversion and grouped type/value error checks."
+  },
+  "red_run": {
+    "ran": 13,
+    "tests": [
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_1_returns_I",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_4_returns_IV",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_9_returns_IX",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_40_returns_XL",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_90_returns_XC",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_400_returns_CD",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_900_returns_CM",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_2024_returns_MMXXIV",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_3999_returns_MMMCMXCIX",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_1994_returns_MCMXCIV",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_returns_str_type",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_value_error_on_out_of_range_int",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_type_error_on_non_int_inputs",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      }
+    ],
+    "passed": 0,
+    "failing": 13,
+    "subtest_events": 0,
+    "import_error": null,
+    "all_passed": false,
+    "summary_line": "FAILED (13 of 13 methods: ERROR 13)",
+    "operation_uuid": "01a140e3-6c71-73ae-bca8-ba14b7a6ae09",
+    "nonce": "7d950464eab03fad418190892778d5ef",
+    "supervisor_exit_code": 1,
+    "runner_error": null
+  },
+  "trajectory": {
+    "turns": 7,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "list_files",
+        "path": null,
+        "reason": "Show repository tree to confirm files.",
+        "observation_head": "roman/__init__.py\nroman/core.py\ntests/__init__.py\ntests/test_basic.py"
+      },
+      {
+        "turn": 2,
+        "action": "read_file",
+        "path": "roman/core.py",
+        "reason": "View current content of roman/core.py to see existing functions and where to add to_roman.",
+        "observation_head": "[10 lines]\n\"\"\"Roman numerals.\"\"\"\n\n\ndef is_roman_numeral(s):\n    \"\"\"True when s is a non-empty string of Roman numeral letters (case-insensitive). Already implem"
+      },
+      {
+        "turn": 3,
+        "action": "read_file",
+        "path": "roman/core.py",
+        "reason": "Read full roman/core.py to see exact content and ensure correct replacement.",
+        "observation_head": "[10 lines]\n\"\"\"Roman numerals.\"\"\"\n\n\ndef is_roman_numeral(s):\n    \"\"\"True when s is a non-empty string of Roman numeral letters (case-insensitive). Already implem"
+      },
+      {
+        "turn": 4,
+        "action": "replace_in_file",
+        "path": "roman/core.py",
+        "reason": "Replace the placeholder to_roman with a proper implementation that validates input and converts to Roman numerals.",
+        "observation_head": "replaced one occurrence in roman/core.py; the file is now 870 bytes"
+      },
+      {
+        "turn": 5,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Run the test suite to ensure to_roman passes all acceptance criteria",
+        "observation_head": "existing test suite: OK (ran 2, passed 2, exit 0)\ntest_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ."
+      },
+      {
+        "turn": 6,
+        "action": "run_python",
+        "path": null,
+        "reason": "Run a quick sanity check on to_roman with the acceptance criteria and error cases.",
+        "observation_head": "exit 0\nstdout:\nAll tests passed\n\nstderr:\n"
+      },
+      {
+        "turn": 7,
+        "action": "finish",
+        "path": null,
+        "reason": "Implementation of to_roman is complete and passes all acceptance criteria and existing tests.",
+        "observation_head": "finished: Successfully implemented to_roman in roman/core.py with proper validation and conversion."
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": true
+  },
+  "candidate": {
+    "changed_paths": [
+      "roman/core.py"
+    ],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "--- a/roman/core.py\n+++ b/roman/core.py\n@@ -7,4 +7,28 @@\n \n \n def to_roman(n):\n-    raise NotImplementedError(\"to_roman is not implemented yet\")\n+    if type(n) is not int:\n+        raise TypeError(\"n must be an integer\")\n+    if n < 1 or n > 3999:\n+        raise ValueError(\"n must be between 1 and 3999 inclusive\")\n+    val_sym = [\n+        (1000, 'M'),\n+        (900, 'CM'),\n+        (500, 'D'),\n+        (400, 'CD'),\n+        (100, 'C'),\n+        (90, 'XC'),\n+        (50, 'L'),\n+        (40, 'XL'),\n+        (10, 'X'),\n+        (9, 'IX'),\n+        (5, 'V'),\n+        (4, 'IV'),\n+        (1, 'I')\n+    ]\n+    result = []\n+    for value, symbol in val_sym:\n+        while n >= value:\n+            result.append(symbol)\n+            n -= value\n+    return ''.join(result)\n",
+    "sha256": {
+      "roman/core.py": "ebfc931c0056ff57750c0a0397624eb5a6d4547073617fd2f6213cd828c0d500"
+    },
+    "implementer_finished": true
+  },
+  "verification": {
+    "operation_uuid": "01a140e4-3f05-7001-927c-31ed59e5c5c0",
+    "status": "SUCCESS",
+    "sealed_sha256_injected": "9549a75586b0bf8149bc5abf313636899e1a84999e539000c3b7706eae15bc84",
+    "expected_ids": [
+      "test_sealed.TestToRoman.test_to_roman_1_returns_I",
+      "test_sealed.TestToRoman.test_to_roman_4_returns_IV",
+      "test_sealed.TestToRoman.test_to_roman_9_returns_IX",
+      "test_sealed.TestToRoman.test_to_roman_40_returns_XL",
+      "test_sealed.TestToRoman.test_to_roman_90_returns_XC",
+      "test_sealed.TestToRoman.test_to_roman_400_returns_CD",
+      "test_sealed.TestToRoman.test_to_roman_900_returns_CM",
+      "test_sealed.TestToRoman.test_to_roman_2024_returns_MMXXIV",
+      "test_sealed.TestToRoman.test_to_roman_3999_returns_MMMCMXCIX",
+      "test_sealed.TestToRoman.test_to_roman_1994_returns_MCMXCIV",
+      "test_sealed.TestToRoman.test_to_roman_returns_str_type",
+      "test_sealed.TestToRoman.test_to_roman_value_error_on_out_of_range_int",
+      "test_sealed.TestToRoman.test_to_roman_type_error_on_non_int_inputs"
+    ],
+    "existing": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a140e4-3f05-7001-927c-31ed59e5c5c0",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.216,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "sealed": {
+      "ran": 13,
+      "tests": [
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_1_returns_I",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_4_returns_IV",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_9_returns_IX",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_40_returns_XL",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_90_returns_XC",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_400_returns_CD",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_900_returns_CM",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_2024_returns_MMXXIV",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_3999_returns_MMMCMXCIX",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_1994_returns_MCMXCIV",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_returns_str_type",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_value_error_on_out_of_range_int",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_type_error_on_non_int_inputs",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        }
+      ],
+      "passed": 13,
+      "failing": 0,
+      "subtest_events": 0,
+      "import_error": null,
+      "all_passed": true,
+      "summary_line": "OK (13 of 13 methods, each in its own process)",
+      "operation_uuid": "01a140e4-3f05-7001-927c-31ed59e5c5c0",
+      "nonce": "a6ee8197270b6742e88cde5d77ec39b3",
+      "supervisor_exit_code": 0,
+      "runner_error": null
+    },
+    "binding": {
+      "ok": true,
+      "checks": {
+        "result_file_present": true,
+        "supervisor_completed": true,
+        "verifier_isolation_active": true,
+        "nonce_matches": true,
+        "sealed_file_unchanged_before": true,
+        "sealed_file_unchanged_after": true,
+        "no_discovery_error": true,
+        "expected_test_ids_present": true,
+        "no_unexpected_test_ids": true,
+        "static_ids_match_red": true,
+        "no_nonzero_exit": true,
+        "no_signal": true,
+        "no_timeout": true,
+        "no_missing_or_forged_result": true,
+        "all_expected_pass": true
+      },
+      "reasons": []
+    },
+    "heldout": {
+      "runner": "unittest",
+      "ran": 8,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_hundreds_thousands",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_non_int_raises_typeerror",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_out_of_range_raises_valueerror",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_returns_str",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_tens_and_subtractive",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_units",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_hundreds_thousands",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_non_int_raises_typeerror",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_out_of_range_raises_valueerror",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_returns_str",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_tens_and_subtractive",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_units",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 8,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a140e4-69df-7657-8b8f-e1235a37adc8",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.214,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\ntest_hundreds_thousands (tests.test_heldout.HeldOut.test_hundreds_thousands) ... ok\ntest_non_int_raises_typeerror (tests.test_heldout.HeldOut.test_non_int_raises_typeerror) ... ok\ntest_out_of_range_raises_valueerror (tests.test_heldout.HeldOut.test_out_of_range_raises_valueerror) ... ok\ntest_returns_str (tests.test_heldout.HeldOut.test_returns_str) ... ok\ntest_tens_and_subtractive (tests.test_heldout.HeldOut.test_tens_and_subtractive) ... ok\ntest_units (tests.test_heldout.HeldOut.test_units) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK\n",
+      "stdout_tail": "",
+      "files": [
+        "tests/test_heldout.py"
+      ]
+    }
+  },
+  "breaker": {
+    "mutation": {
+      "generated": 12,
+      "evaluated": 12,
+      "killed": 9,
+      "survived": 3,
+      "unknown": 0,
+      "score": 0.75,
+      "threshold": 0.5,
+      "mutants": [
+        {
+          "id": "m01-6677eb850c",
+          "path": "roman/core.py",
+          "lineno": 10,
+          "operator": "compare",
+          "description": "IsNot -> Is",
+          "status": "killed",
+          "operation_uuid": "01a140e4-786b-7428-b345-396152ee2060",
+          "failing_methods": 13,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_to_roman_1_returns_I",
+            "test_sealed.TestToRoman.test_to_roman_4_returns_IV",
+            "test_sealed.TestToRoman.test_to_roman_9_returns_IX",
+            "test_sealed.TestToRoman.test_to_roman_40_returns_XL",
+            "test_sealed.TestToRoman.test_to_roman_90_returns_XC"
+          ]
+        },
+        {
+          "id": "m02-11894b121b",
+          "path": "roman/core.py",
+          "lineno": 11,
+          "operator": "raise",
+          "description": "raise -> pass",
+          "status": "killed",
+          "operation_uuid": "01a140e4-77fa-76c1-9be3-41e5a9175dec",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_to_roman_type_error_on_non_int_inputs"
+          ]
+        },
+        {
+          "id": "m03-db6dc9aeff",
+          "path": "roman/core.py",
+          "lineno": 12,
+          "operator": "compare",
+          "description": "Lt -> LtE",
+          "status": "killed",
+          "operation_uuid": "01a140e4-7846-7522-9a07-2481ef6883f1",
+          "failing_methods": 2,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_to_roman_1_returns_I",
+            "test_sealed.TestToRoman.test_to_roman_returns_str_type"
+          ]
+        },
+        {
+          "id": "m04-554bced466",
+          "path": "roman/core.py",
+          "lineno": 12,
+          "operator": "compare",
+          "description": "Gt -> GtE",
+          "status": "killed",
+          "operation_uuid": "01a140e4-7877-7389-8bb0-91aa3ccfb354",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_to_roman_3999_returns_MMMCMXCIX"
+          ]
+        },
+        {
+          "id": "m05-31ea72235f",
+          "path": "roman/core.py",
+          "lineno": 13,
+          "operator": "raise",
+          "description": "raise -> pass",
+          "status": "killed",
+          "operation_uuid": "01a140e4-7872-71fe-af9c-7eb3a7b1d858",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_to_roman_value_error_on_out_of_range_int"
+          ]
+        },
+        {
+          "id": "m06-3fdf57ef9f",
+          "path": "roman/core.py",
+          "lineno": 16,
+          "operator": "int",
+          "description": "900 -> 901",
+          "status": "killed",
+          "operation_uuid": "01a140e4-7866-7092-b09b-8ae199f9aaa3",
+          "failing_methods": 3,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_to_roman_900_returns_CM",
+            "test_sealed.TestToRoman.test_to_roman_3999_returns_MMMCMXCIX",
+            "test_sealed.TestToRoman.test_to_roman_1994_returns_MCMXCIV"
+          ]
+        },
+        {
+          "id": "m07-56d53aab85",
+          "path": "roman/core.py",
+          "lineno": 18,
+          "operator": "int",
+          "description": "400 -> 401",
+          "status": "killed",
+          "operation_uuid": "01a140e4-78a0-7725-86de-2aad072833eb",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_to_roman_400_returns_CD"
+          ]
+        },
+        {
+          "id": "m08-6e89bfa395",
+          "path": "roman/core.py",
+          "lineno": 19,
+          "operator": "int",
+          "description": "100 -> 101",
+          "status": "survived",
+          "operation_uuid": "01a140e4-788a-75fb-9881-862802ee0053",
+          "failing_methods": 0,
+          "killed_by": []
+        },
+        {
+          "id": "m09-c8def1f0f0",
+          "path": "roman/core.py",
+          "lineno": 21,
+          "operator": "int",
+          "description": "50 -> 51",
+          "status": "survived",
+          "operation_uuid": "01a140e4-9415-77e6-be44-8890eb679aab",
+          "failing_methods": 0,
+          "killed_by": []
+        },
+        {
+          "id": "m10-623ac5a171",
+          "path": "roman/core.py",
+          "lineno": 23,
+          "operator": "int",
+          "description": "10 -> 11",
+          "status": "killed",
+          "operation_uuid": "01a140e4-94bf-7164-a976-8e86d3e98cd7",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_to_roman_2024_returns_MMXXIV"
+          ]
+        },
+        {
+          "id": "m11-d62c7a1a82",
+          "path": "roman/core.py",
+          "lineno": 25,
+          "operator": "int",
+          "description": "5 -> 6",
+          "status": "survived",
+          "operation_uuid": "01a140e4-9556-7002-a30d-cb9e4a95f5bd",
+          "failing_methods": 0,
+          "killed_by": []
+        },
+        {
+          "id": "m12-4163cb4128",
+          "path": "roman/core.py",
+          "lineno": 27,
+          "operator": "int",
+          "description": "1 -> 2",
+          "status": "killed",
+          "operation_uuid": "01a140e4-95da-71f9-a6b2-e65a62863231",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_to_roman_1_returns_I"
+          ]
+        }
+      ]
+    },
+    "adversarial": {
+      "skipped": null,
+      "sha256": "e22f25b8afef271b717413912a8fd1c68689c44f706ffed294bdb95d9c0b434f",
+      "author_model": "nvidia/nemotron-3-super-120b-a12b",
+      "expected_ids": [
+        "test_breaker.TestToRomanBreaker.test_int_subclass_accepted",
+        "test_breaker.TestToRomanBreaker.test_bool_raises_TypeError",
+        "test_breaker.TestToRomanBreaker.test_float_nonintegral_raises_TypeError",
+        "test_breaker.TestToRomanBreaker.test_float_integral_raises_TypeError",
+        "test_breaker.TestToRomanBreaker.test_decimal_raises_TypeError",
+        "test_breaker.TestToRomanBreaker.test_fraction_raises_TypeError",
+        "test_breaker.TestToRomanBreaker.test_complex_raises_TypeError",
+        "test_breaker.TestToRomanBreaker.test_large_int_out_of_range_raises_ValueError",
+        "test_breaker.TestToRomanBreaker.test_negative_large_int_raises_ValueError",
+        "test_breaker.TestToRomanBreaker.test_zero_raises_ValueError",
+        "test_breaker.TestToRomanBreaker.test_result_is_uppercase_and_valid_characters",
+        "test_breaker.TestToRomanBreaker.test_is_roman_numeral_returns_true"
+      ],
+      "summary": {
+        "ran": 12,
+        "tests": [
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_int_subclass_accepted",
+            "outcome": "ERROR",
+            "events": 1,
+            "exit_code": 1,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_bool_raises_TypeError",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_float_nonintegral_raises_TypeError",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_float_integral_raises_TypeError",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_decimal_raises_TypeError",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_fraction_raises_TypeError",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_complex_raises_TypeError",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_large_int_out_of_range_raises_ValueError",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_negative_large_int_raises_ValueError",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_zero_raises_ValueError",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_result_is_uppercase_and_valid_characters",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestToRomanBreaker.test_is_roman_numeral_returns_true",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          }
+        ],
+        "passed": 11,
+        "failing": 1,
+        "subtest_events": 0,
+        "import_error": null,
+        "all_passed": false,
+        "summary_line": "FAILED (1 of 12 methods: ERROR 1)",
+        "operation_uuid": "01a140e5-18b1-77f4-8f8e-f2fc45968b6d",
+        "nonce": "e0be994b3cabeeeb327c91705d78757e",
+        "supervisor_exit_code": 1,
+        "runner_error": null
+      },
+      "binding": {
+        "ok": false,
+        "checks": {
+          "result_file_present": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "sealed_file_unchanged_before": true,
+          "sealed_file_unchanged_after": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "static_ids_match_red": true,
+          "no_nonzero_exit": false,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": false
+        },
+        "reasons": [
+          "child process nonzero exit: test_int_subclass_accepted exit 1"
+        ]
+      },
+      "notes": "Targets subclass acceptance, bool, float, decimal, fraction, complex, large ints, zero, output validity, and interaction with is_roman_numeral.",
+      "operation_uuid": "01a140e5-18b1-77f4-8f8e-f2fc45968b6d"
+    }
+  },
+  "drift": {
+    "drift_score": 0.0,
+    "assessment": "aligned",
+    "scope_narrowed": [],
+    "scope_widened": [],
+    "unsupported_claims": [],
+    "summary": "The diff implements to_roman with correct input validation (TypeError for non-int, ValueError for out-of-range int) and a standard greedy conversion using the required subtractive pairs (CM, CD, XC, XL, IX, IV). All acceptance criteria are satisfied, existing tests pass, and no unrelated changes were made.",
+    "threshold": 0.6
+  },
+  "arbitration": {
+    "applied": false,
+    "cleared": false,
+    "counts": {
+      "implementation_bug": 0,
+      "test_defect": 0,
+      "contract_dispute": 1
+    },
+    "headline": "1 failing test(s) are contract disputes; a human must decide",
+    "modules": [
+      {
+        "module": "adversarial",
+        "classifications": [
+          {
+            "test_id": "test_breaker.TestToRomanBreaker.test_int_subclass_accepted",
+            "classification": "contract_dispute",
+            "rationale": "The contract states to raise TypeError for non-integer inputs, including bool. However, it does not explicitly specify whether other subclasses of int (like a user-defined MyInt) should be accepted or rejected. The candidate implementation rejects all subclasses by checking `type(n) is not int`, while the test expects subclasses to be accepted. Reasonable interpretations differ: one could argue 'int' means isinstance(n, int) (accepting subclasses), or that 'int' means the exact built-in type (rejecting subclasses, as the contract explicitly excludes bool which is a subclass). The contract is ambiguous on this point.",
+            "contract_basis": "Contract: 'Raise TypeError for non-integer inputs (including bool, float, str, None, list, etc.)' and original note 'treat only real ints as valid'."
+          }
+        ],
+        "corrected_notes": "The failing test involves a contract ambiguity regarding int subclasses. Since it is a contract dispute, no correction to the test module is provided; a human decision is needed.",
+        "corrected_module": null,
+        "candidate_rerun": null,
+        "base_rerun": null,
+        "cleared_module": false,
+        "error": null
+      }
+    ],
+    "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+  },
+  "gates": {
+    "existing_suite": {
+      "ok": true,
+      "detail": "OK"
+    },
+    "sealed_binding": {
+      "ok": true,
+      "detail": "all checks pass"
+    },
+    "heldout_suite": {
+      "ok": true,
+      "detail": "OK",
+      "failing": []
+    },
+    "mutation": {
+      "ok": true,
+      "detail": "score 0.75 on 12 mutants"
+    },
+    "adversarial_tests": {
+      "ok": false,
+      "detail": "FAILED (1 of 12 methods: ERROR 1)",
+      "failing": [
+        "test_breaker.TestToRomanBreaker.test_int_subclass_accepted"
+      ]
+    },
+    "drift_audit": {
+      "ok": true,
+      "detail": "score 0.0 (aligned)"
+    }
+  },
+  "verdict": {
+    "verdict": "NEEDS HUMAN",
+    "reasons": [
+      "model-written adversarial tests failed: 1 of 12 (test_breaker.TestToRomanBreaker.test_int_subclass_accepted); each failure is a bug or a contract disagreement to resolve"
+    ],
+    "warnings": [
+      "arbitration (advisory): 1 failing test(s) are contract disputes; a human must decide"
+    ]
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:45:59.961862+00:00",
+        "elapsed_ms": 4427,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3242,
+        "tokens_in": 1181,
+        "tokens_out": 1031,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1031,
+          "prompt_tokens": 1181,
+          "total_tokens": 2212,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 320,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1181
+        },
+        "cost_usd": 0.004274,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.050081
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:46:04.406485+00:00",
+        "elapsed_ms": 34672,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4363,
+        "tokens_in": 1350,
+        "tokens_out": 7130,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 7130,
+          "prompt_tokens": 1350,
+          "total_tokens": 8480,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 6439,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1350
+        },
+        "cost_usd": 0.006822,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015136
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:46:48.931137+00:00",
+        "elapsed_ms": 6592,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4218,
+        "tokens_in": 1401,
+        "tokens_out": 84,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 84,
+          "prompt_tokens": 1401,
+          "total_tokens": 1485,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 22,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1401
+        },
+        "cost_usd": 0.000496,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015122
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:46:55.534206+00:00",
+        "elapsed_ms": 2591,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4504,
+        "tokens_in": 1490,
+        "tokens_out": 104,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 104,
+          "prompt_tokens": 1490,
+          "total_tokens": 1594,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 27,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1490
+        },
+        "cost_usd": 0.000541,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.01515
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:46:58.135524+00:00",
+        "elapsed_ms": 3208,
+        "gateway_duration_ms": null,
+        "prompt_chars": 5145,
+        "tokens_in": 1668,
+        "tokens_out": 273,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 273,
+          "prompt_tokens": 1668,
+          "total_tokens": 1941,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 201,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1668
+        },
+        "cost_usd": 0.000746,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015215
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:47:01.352287+00:00",
+        "elapsed_ms": 11698,
+        "gateway_duration_ms": null,
+        "prompt_chars": 5772,
+        "tokens_in": 1841,
+        "tokens_out": 2042,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 2042,
+          "prompt_tokens": 1841,
+          "total_tokens": 3883,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 1683,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1841
+        },
+        "cost_usd": 0.00239,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015277
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-5",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:47:13.065229+00:00",
+        "elapsed_ms": 7268,
+        "gateway_duration_ms": null,
+        "prompt_chars": 6897,
+        "tokens_in": 2228,
+        "tokens_out": 257,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 257,
+          "prompt_tokens": 2228,
+          "total_tokens": 2485,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 188,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2228
+        },
+        "cost_usd": 0.0009,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.01539
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-6",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:47:24.639302+00:00",
+        "elapsed_ms": 6635,
+        "gateway_duration_ms": null,
+        "prompt_chars": 7427,
+        "tokens_in": 2375,
+        "tokens_out": 951,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 951,
+          "prompt_tokens": 2375,
+          "total_tokens": 3326,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 404,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2375
+        },
+        "cost_usd": 0.001568,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015443
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-7",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:47:34.460062+00:00",
+        "elapsed_ms": 3220,
+        "gateway_duration_ms": null,
+        "prompt_chars": 9201,
+        "tokens_in": 2946,
+        "tokens_out": 253,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 253,
+          "prompt_tokens": 2946,
+          "total_tokens": 3199,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 168,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2946
+        },
+        "cost_usd": 0.001111,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.01562
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "break",
+        "stage": "break-tests-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:48:12.051295+00:00",
+        "elapsed_ms": 21236,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4350,
+        "tokens_in": 1504,
+        "tokens_out": 4588,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 4588,
+          "prompt_tokens": 1504,
+          "total_tokens": 6092,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 3904,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1504
+        },
+        "cost_usd": 0.00458,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015135
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "audit",
+        "stage": "drift-audit",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:48:39.940240+00:00",
+        "elapsed_ms": 6457,
+        "gateway_duration_ms": null,
+        "prompt_chars": 5700,
+        "tokens_in": 1877,
+        "tokens_out": 1720,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1720,
+          "prompt_tokens": 1877,
+          "total_tokens": 3597,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 1600,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1877
+        },
+        "cost_usd": 0.007037,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.0509
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "arbitrate",
+        "stage": "arbitrate-adversarial",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:48:46.404580+00:00",
+        "elapsed_ms": 10513,
+        "gateway_duration_ms": null,
+        "prompt_chars": 7761,
+        "tokens_in": 2416,
+        "tokens_out": 3105,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 3105,
+          "prompt_tokens": 2416,
+          "total_tokens": 5521,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 2828,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2416
+        },
+        "cost_usd": 0.011731,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.051587
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a140e2-b3b5-73db-b654-a2e006cf6616",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.723,
+        "raw_cost_diag": 0.0027348999999999997,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:45:51.741157+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": "01a140e3-6c71-73ae-bca8-ba14b7a6ae09",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.907,
+        "raw_cost_diag": 0.023024580000000003,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:46:39.086427+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-5",
+        "operation_uuid": "01a140e3-f9a7-71db-8375-557db0fa4321",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.754,
+        "raw_cost_diag": 0.0027463400000000003,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:20.343509+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-python-6",
+        "operation_uuid": "01a140e4-24aa-765a-8768-6e79bbd880e5",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.561,
+        "raw_cost_diag": 0.00110998,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:31.285428+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "verify",
+        "operation_uuid": "01a140e4-3f05-7001-927c-31ed59e5c5c0",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.112,
+        "raw_cost_diag": 0.02474992,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:37.689154+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "heldout",
+        "operation_uuid": "01a140e4-69df-7657-8b8f-e1235a37adc8",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.752,
+        "raw_cost_diag": 0.00277025,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:44.060206+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m01-6677eb850c",
+        "operation_uuid": "01a140e4-786b-7428-b345-396152ee2060",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.052,
+        "raw_cost_diag": 0.023504340000000002,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:52.198911+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m02-11894b121b",
+        "operation_uuid": "01a140e4-77fa-76c1-9be3-41e5a9175dec",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.005,
+        "raw_cost_diag": 0.023279229999999998,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:52.199256+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m03-db6dc9aeff",
+        "operation_uuid": "01a140e4-7846-7522-9a07-2481ef6883f1",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.056,
+        "raw_cost_diag": 0.023347470000000002,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:52.199428+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m04-554bced466",
+        "operation_uuid": "01a140e4-7877-7389-8bb0-91aa3ccfb354",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.036,
+        "raw_cost_diag": 0.02340537,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:52.199829+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m05-31ea72235f",
+        "operation_uuid": "01a140e4-7872-71fe-af9c-7eb3a7b1d858",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.034,
+        "raw_cost_diag": 0.023151880000000003,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:52.200194+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m06-3fdf57ef9f",
+        "operation_uuid": "01a140e4-7866-7092-b09b-8ae199f9aaa3",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.057,
+        "raw_cost_diag": 0.02346684,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:52.200349+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m07-56d53aab85",
+        "operation_uuid": "01a140e4-78a0-7725-86de-2aad072833eb",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.034,
+        "raw_cost_diag": 0.023161510000000003,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:52.200590+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m08-6e89bfa395",
+        "operation_uuid": "01a140e4-788a-75fb-9881-862802ee0053",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.036,
+        "raw_cost_diag": 0.0231814,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:52.200886+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m09-c8def1f0f0",
+        "operation_uuid": "01a140e4-9415-77e6-be44-8890eb679aab",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.912,
+        "raw_cost_diag": 0.02315422,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:59.237846+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m10-623ac5a171",
+        "operation_uuid": "01a140e4-94bf-7164-a976-8e86d3e98cd7",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.002,
+        "raw_cost_diag": 0.023548060000000003,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:59.559871+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m11-d62c7a1a82",
+        "operation_uuid": "01a140e4-9556-7002-a30d-cb9e4a95f5bd",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.926,
+        "raw_cost_diag": 0.02304414,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:47:59.845781+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m12-4163cb4128",
+        "operation_uuid": "01a140e4-95da-71f9-a6b2-e65a62863231",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.995,
+        "raw_cost_diag": 0.02346608,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:48:00.048183+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "breaker-tests",
+        "operation_uuid": "01a140e5-18b1-77f4-8f8e-f2fc45968b6d",
+        "image_uuid": "53fd9985-c09f-4f5c-bd50-a7521d023135",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.844,
+        "raw_cost_diag": 0.022345300000000002,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:48:33.296525+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "totals": {
+      "model_calls": 12,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 22277,
+      "tokens_out": 21538,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 118517,
+      "cost_usd": 0.042196,
+      "cost_usd_committed": 0.042196,
+      "uncertain_unpriced_calls": 0,
+      "by_model": {
+        "nebius_tokenfactory:nvidia/Nemotron-3-Ultra-550b-a55b": {
+          "calls": 3,
+          "tokens_in": 5474,
+          "tokens_out": 5856,
+          "tokens_cached": 0,
+          "cost_usd": 0.023042,
+          "elapsed_ms": 21397,
+          "failed": 0
+        },
+        "nebius_tokenfactory:nvidia/nemotron-3-super-120b-a12b": {
+          "calls": 9,
+          "tokens_in": 16803,
+          "tokens_out": 15682,
+          "tokens_cached": 0,
+          "cost_usd": 0.019154,
+          "elapsed_ms": 97120,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 19,
+      "sandbox_duration_s": 47.798,
+      "sandbox_retained_images": [
+        "53fd9985-c09f-4f5c-bd50-a7521d023135"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.35919181
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest': inference provider nebius_tokenfactory; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code; a candidate can still tamper from inside a child after the nonce was read (the mutation gate and held-out tests are the structural detectors).",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter then classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, corrects and re-verifies them (must pass on the candidate and still fail on the base). Arbitration is advisory by default and never clears an implementation bug or a contract dispute; it changes the verdict only in explicit apply mode.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API."
+  ],
+  "stage": "arbitrate"
+}

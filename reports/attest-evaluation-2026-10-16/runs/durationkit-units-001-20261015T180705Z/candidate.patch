@@ -1,0 +1,63 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -1,15 +1,56 @@
+ """Duration parsing."""
++
++import re
+ 
+ 
+ def parse_duration(text: str) -> float:
+     """Parse a duration string and return the number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts either a plain non-negative integer (seconds) or a sequence of components in descending unit order (days, hours, minutes, seconds, milliseconds).
++    Each component is a non-negative integer immediately followed by its unit (d, h, m, s, ms).
++    Whitespace is allowed around the entire string and between components, but not between a number and its unit.
++    Each unit may appear at most once.
++    Returns the sum of all components converted to seconds (1d=86400, 1h=3600, 1m=60, 1s=1, 1ms=0.001).
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+     stripped = text.strip()
+-    if not stripped.isdigit():
++    if not stripped:
++        raise ValueError("duration string is empty or only whitespace")
++
++    # Pattern for a single component: number followed by unit, then optional whitespace (to be consumed after)
++    component_pattern = re.compile(r'(\d+)(d|h|ms|m|s)\s*')
++    pos = 0
++    components = []
++    seen_units = set()
++    # Order: d > h > m > s -> ms -> assign increasing indices for ease of checking increasing sequence
++    order_index = {'d': 0, 'h': 1, 'm': 2, 's': 3, 'ms': 4}
++    prev_index = -1  # so that first unit's index must be >=0 and > prev_index
++
++    while pos < len(stripped):
++        match = component_pattern.match(stripped, pos)
++        if not match:
++            break
++        number = int(match.group(1))
++        unit = match.group(2)
++        if unit in seen_units:
++            raise ValueError(f"duplicate unit: {unit}")
++        seen_units.add(unit)
++        cur_index = order_index[unit]
++        if cur_index <= prev_index:
++            raise ValueError(f"units out of order: {unit}")
++        prev_index = cur_index
++        components.append((number, unit))
++        pos = match.end()
++
++    if pos == len(stripped) and components:
++        # Successfully parsed as component format
++        multipliers = {'d': 86400, 'h': 3600, 'm': 60, 's': 1, 'ms': 0.001}
++        total = sum(number * multipliers[unit] for number, unit in components)
++        return float(total)
++
++    # Fallback to plain integer seconds
++    if stripped.isdigit():
++        return float(stripped)
++    else:
+         raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)

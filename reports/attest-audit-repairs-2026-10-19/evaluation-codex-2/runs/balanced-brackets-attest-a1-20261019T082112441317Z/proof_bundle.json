@@ -1,0 +1,2080 @@
+{
+  "run_id": "balanced-brackets-attest-a1-20261019T082112441317Z",
+  "started_at_utc": "2026-10-19T08:21:12.441914+00:00",
+  "finished_at_utc": "2026-10-19T08:33:06.584274+00:00",
+  "profile": {
+    "label": "eval-attest-a1",
+    "provider": {
+      "provider": "codex_gateway",
+      "base_url": null,
+      "base_url_sha256": "68e25b464500800e",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "structured_endpoint": "/run",
+      "native_tools": false,
+      "streaming": false,
+      "auto_retry": false,
+      "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+      "pacing": {
+        "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+        "policy_source": "gateway status: hourly request counting not enforced",
+        "hourly_limit_assumed": null,
+        "budget": null,
+        "max_concurrency": 2,
+        "max_wait_s": 3900.0,
+        "state_shared_across_processes": true
+      }
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "provenance": {
+    "attest_version": "0.5.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "1e12d46217fb6b8a27a08b4463f42f361e7309257b211103c08777c91cb10ce5",
+      "files": 35,
+      "git_commit": null,
+      "version": "0.5.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/7",
+      "sha256": "97d3d47d1d5b4fed68c3349da14c0cdb06091ec61afa61699eac5b27315b1415"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "db8e2a76834b83ac69a3d5ecad722e712693ecb982f2a2ec3b2e4d5dde6de00f",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/reports/attest-audit-repairs-2026-10-19/evaluation-codex-2/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "codex_gateway",
+      "temperature": null,
+      "max_tokens": null,
+      "note": "sampling is controlled by the gateway; the reasoning effort requested per role is recorded",
+      "roles": {
+        "spec": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "seal": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "implement": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "break": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "audit": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "arbitrate": {
+          "model": "gpt-6-astra",
+          "effort": "medium"
+        },
+        "summary": {
+          "model": "gpt-6-luna",
+          "effort": "low"
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 14,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": true,
+      "arbitration_apply": true,
+      "max_corrected_tests": 3,
+      "max_mutants_for_discrimination": 3,
+      "max_breaker_attempts": 3,
+      "max_witnesses": 3,
+      "witness_timeout_s": 60
+    },
+    "pacing": {
+      "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+      "policy_source": "gateway status: hourly request counting not enforced",
+      "hourly_limit_assumed": null,
+      "budget": null,
+      "max_concurrency": 2,
+      "max_wait_s": 3900.0,
+      "state_shared_across_processes": true
+    },
+    "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+    "upstream": null
+  },
+  "task": {
+    "id": "balanced-brackets",
+    "title": "balanced-brackets",
+    "statement": "The brackets package exposes is_bracket (already implemented) and a stub is_balanced(s). Implement is_balanced(s) so that it returns True when the three kinds of brackets (), [] and {} in the string s are correctly matched and nested, and False otherwise. Characters that are not brackets are ignored. The empty string is balanced. is_balanced must return a bool. Raise TypeError when s is not a string. Do not change is_bracket or the tests.",
+    "acceptance_criteria": [
+      "'', '()', '[]', '{}', '()[]{}', '([{}])' are all balanced (True)",
+      "nested mixed brackets with other characters are balanced: '(a[b]{c})', 'f(x[0], y[1])'",
+      "'(', ')', '([)]', '(]', '{[}', '())' are not balanced (False)",
+      "non-bracket characters are ignored",
+      "is_balanced returns a bool",
+      "TypeError when s is not a string"
+    ],
+    "allowed_write_globs": [
+      "brackets/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from brackets import is_balanced",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "brackets/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "brackets/core.py": "3a0cd36293e50969dc0998431824b865e88dd6595ac0f6a4015bb8027a03c6b2",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "39b91f3a7dfaa300b6f06ae7b98b10208ebaeb9ad8a8613b6eb91465b53ab80f"
+    },
+    "spec_sha256": "84a644df71119f779e1a38d10248660efd901acec94c0ee01ed3d5db79c00f01"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a15340-5136-7746-931f-f42297d6ad75",
+    "checkpoint_image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+    "checkpoint_chain": [],
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a15340-5136-7746-931f-f42297d6ad75",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.252,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "suite_binding": {
+      "mode": "bound",
+      "reason": "2 statically discovered test ids in 1 module(s) match the baseline run",
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "path": "tests/test_basic.py",
+          "sha256": "39b91f3a7dfaa300b6f06ae7b98b10208ebaeb9ad8a8613b6eb91465b53ab80f",
+          "tests": 2
+        }
+      ]
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Implement brackets.core.is_balanced(s), available through from brackets import is_balanced, to return a bool indicating whether the ASCII brackets (), [] and {} in a string are correctly paired and nested. Ignore every other character, treat strings containing no brackets as balanced, and raise TypeError for any non-string input. Preserve is_bracket and the existing tests.",
+    "interface_contract": [
+      {
+        "name": "brackets.is_balanced",
+        "signature": "is_balanced(s)",
+        "behavior": "Accept a str instance, including a str subclass. Process bracket characters in order: each closing bracket must match the most recent unmatched opening bracket, and no opening brackets may remain unmatched at the end. Ignore all characters other than (, ), [, ], { and }. Return exactly True if these conditions hold and exactly False otherwise. Empty strings and strings without brackets return True. Quotes, backslashes and other surrounding text do not alter how bracket characters are interpreted.",
+        "error_cases": [
+          "TypeError: s is not an instance of str, including bytes, None, numbers, lists and other iterable objects; do not coerce such inputs to strings. Exception message is unspecified."
+        ]
+      },
+      {
+        "name": "brackets.is_bracket",
+        "signature": "is_bracket(c)",
+        "behavior": "Preserve the existing implementation: return True only when c is a str instance of length one containing one of ()[]{}; return False otherwise.",
+        "error_cases": []
+      }
+    ],
+    "acceptance_criteria": [
+      "1. from brackets import is_balanced and from brackets import is_bracket continue to work.",
+      "2. is_balanced returns True for each of '', '()', '[]', '{}', '()[]{}' and '([{}])'.",
+      "3. is_balanced returns True for '(a[b]{c})' and 'f(x[0], y[1])'.",
+      "4. is_balanced returns False for each of '(', ')', '([)]', '(]', '{[}' and '())'.",
+      "5. Unmatched opening brackets of every kind return False, including '[', '{' and '(()'. Unmatched closing brackets of every kind return False, including ']', '}' and ')('.",
+      "6. Matching requires the correct bracket type and nesting order, not merely equal counts; '[)' and '{]' return False.",
+      "7. Removing every character except ()[]{} from any string leaves its is_balanced result unchanged. Strings containing only ordinary text, whitespace or non-ASCII non-bracket characters return True.",
+      "8. Brackets inside quotes or preceded by backslashes are still counted; a string consisting of a backslash followed by '(' returns False.",
+      "9. For every valid string input, the result has type bool, including balanced and unbalanced cases.",
+      "10. Non-string inputs raise TypeError, including None, True, 0, 1.5, b'()', [], ['(', ')'], {}, and an arbitrary object instance.",
+      "11. Instances of str subclasses are accepted and evaluated using the same bracket-matching rules.",
+      "12. is_bracket remains unchanged and returns True for each character in '()[]{}' and False for 'a', '', '((', and 1.",
+      "13. Existing test files remain unchanged and their tests continue to pass."
+    ],
+    "out_of_scope": [
+      "Changing is_bracket, bracket constants, existing package exports or existing tests.",
+      "Recognizing additional bracket types or applying language-specific quoting, escaping or comment rules.",
+      "Adding dependencies, new public APIs or unrelated refactoring.",
+      "Mandating a particular algorithm or exception message."
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": {
+    "path": "sealed/test_sealed.py",
+    "sha256": "c0179e20a928a8bc780edd3a336f74c0f6a977f2465a57d30e7f5cc257cac201",
+    "test_count": 17,
+    "declared_test_count": 17,
+    "expected_ids": [
+      "test_sealed.TestBalanced.test_public_api_exports",
+      "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+      "test_sealed.TestBalanced.test_nested_balanced_string",
+      "test_sealed.TestBalanced.test_text_between_brackets",
+      "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+      "test_sealed.TestBalanced.test_unmatched_openings_of_every_kind",
+      "test_sealed.TestBalanced.test_unmatched_closings_of_every_kind",
+      "test_sealed.TestBalanced.test_wrong_type_or_nesting_order",
+      "test_sealed.TestBalanced.test_removing_nonbrackets_preserves_result",
+      "test_sealed.TestBalanced.test_strings_without_brackets_are_balanced",
+      "test_sealed.TestBalanced.test_quotes_do_not_hide_brackets",
+      "test_sealed.TestBalanced.test_backslashes_do_not_escape_brackets",
+      "test_sealed.TestBalanced.test_result_is_exactly_bool",
+      "test_sealed.TestBalanced.test_nonstring_inputs_raise_type_error",
+      "test_sealed.TestBalanced.test_str_subclasses_are_evaluated",
+      "test_sealed.TestBracketHelper.test_is_bracket_accepts_six_ascii_brackets",
+      "test_sealed.TestBracketHelper.test_is_bracket_rejects_other_values"
+    ],
+    "escapes_repaired": false,
+    "sealed_at_utc": "2026-10-19T08:28:31.730191+00:00",
+    "author_model": "gpt-6-sol",
+    "attempts": 1,
+    "rejected_attempts": [],
+    "notes": "AC13 is covered through the existing helper behavior; file contents cannot be checked through the public API.",
+    "coverage": [
+      {
+        "criterion": 1,
+        "tests": [
+          "test_public_api_exports"
+        ]
+      },
+      {
+        "criterion": 2,
+        "tests": [
+          "test_empty_and_simple_balanced_strings",
+          "test_nested_balanced_string"
+        ]
+      },
+      {
+        "criterion": 3,
+        "tests": [
+          "test_text_between_brackets"
+        ]
+      },
+      {
+        "criterion": 4,
+        "tests": [
+          "test_representative_unbalanced_strings"
+        ]
+      },
+      {
+        "criterion": 5,
+        "tests": [
+          "test_unmatched_openings_of_every_kind",
+          "test_unmatched_closings_of_every_kind"
+        ]
+      },
+      {
+        "criterion": 6,
+        "tests": [
+          "test_wrong_type_or_nesting_order"
+        ]
+      },
+      {
+        "criterion": 7,
+        "tests": [
+          "test_removing_nonbrackets_preserves_result",
+          "test_strings_without_brackets_are_balanced"
+        ]
+      },
+      {
+        "criterion": 8,
+        "tests": [
+          "test_quotes_do_not_hide_brackets",
+          "test_backslashes_do_not_escape_brackets"
+        ]
+      },
+      {
+        "criterion": 9,
+        "tests": [
+          "test_result_is_exactly_bool"
+        ]
+      },
+      {
+        "criterion": 10,
+        "tests": [
+          "test_nonstring_inputs_raise_type_error"
+        ]
+      },
+      {
+        "criterion": 11,
+        "tests": [
+          "test_str_subclasses_are_evaluated"
+        ]
+      },
+      {
+        "criterion": 12,
+        "tests": [
+          "test_is_bracket_accepts_six_ascii_brackets",
+          "test_is_bracket_rejects_other_values"
+        ]
+      },
+      {
+        "criterion": 13,
+        "tests": [
+          "test_is_bracket_accepts_six_ascii_brackets",
+          "test_is_bracket_rejects_other_values"
+        ]
+      }
+    ],
+    "coverage_gaps": [],
+    "coverage_note": "the map is the sealer's own claim of which test checks which criterion; gaps are criteria no test claims"
+  },
+  "red_run": {
+    "ran": 17,
+    "tests": [
+      {
+        "id": "test_sealed.TestBalanced.test_public_api_exports",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.182,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": " yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 14, in test_empty_and_simple_balanced_strings\n    self.assertIs(is_balanced(s), True)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 14, in test_empty_and_simple_balanced_strings\n    self.assertIs(is_balanced(s), True)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 14, in test_empty_and_simple_balanced_strings\n    self.assertIs(is_balanced(s), True)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_nested_balanced_string",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.176,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 17, in test_nested_balanced_string\n    self.assertIs(is_balanced('([{}])'), True)\n                  ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_text_between_brackets",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 22, in test_text_between_brackets\n    self.assertIs(is_balanced(s), True)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 22, in test_text_between_brackets\n    self.assertIs(is_balanced(s), True)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.178,
+        "captured_tail": "",
+        "failure_tail": "t\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 27, in test_representative_unbalanced_strings\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 27, in test_representative_unbalanced_strings\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 27, in test_representative_unbalanced_strings\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_unmatched_openings_of_every_kind",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": " yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 32, in test_unmatched_openings_of_every_kind\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 32, in test_unmatched_openings_of_every_kind\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 32, in test_unmatched_openings_of_every_kind\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_unmatched_closings_of_every_kind",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": " yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 37, in test_unmatched_closings_of_every_kind\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 37, in test_unmatched_closings_of_every_kind\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 37, in test_unmatched_closings_of_every_kind\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_wrong_type_or_nesting_order",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 42, in test_wrong_type_or_nesting_order\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 42, in test_wrong_type_or_nesting_order\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 42, in test_wrong_type_or_nesting_order\n    self.assertIs(is_balanced(s), False)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_removing_nonbrackets_preserves_result",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 49, in test_removing_nonbrackets_preserves_result\n    self.assertIs(is_balanced(s), is_balanced(filtered))\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 49, in test_removing_nonbrackets_preserves_result\n    self.assertIs(is_balanced(s), is_balanced(filtered))\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 49, in test_removing_nonbrackets_preserves_result\n    self.assertIs(is_balanced(s), is_balanced(filtered))\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_strings_without_brackets_are_balanced",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.175,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 54, in test_strings_without_brackets_are_balanced\n    self.assertIs(is_balanced(s), True)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 54, in test_strings_without_brackets_are_balanced\n    self.assertIs(is_balanced(s), True)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 54, in test_strings_without_brackets_are_balanced\n    self.assertIs(is_balanced(s), True)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_quotes_do_not_hide_brackets",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "mented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 59, in test_quotes_do_not_hide_brackets\n    self.assertIs(is_balanced(s), expected)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 59, in test_quotes_do_not_hide_brackets\n    self.assertIs(is_balanced(s), expected)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 59, in test_quotes_do_not_hide_brackets\n    self.assertIs(is_balanced(s), expected)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_backslashes_do_not_escape_brackets",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 65, in test_backslashes_do_not_escape_brackets\n    self.assertIs(is_balanced(s), expected)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 65, in test_backslashes_do_not_escape_brackets\n    self.assertIs(is_balanced(s), expected)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 65, in test_backslashes_do_not_escape_brackets\n    self.assertIs(is_balanced(s), expected)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_result_is_exactly_bool",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": " yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 70, in test_result_is_exactly_bool\n    self.assertIs(type(is_balanced(s)), bool)\n                       ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 70, in test_result_is_exactly_bool\n    self.assertIs(type(is_balanced(s)), bool)\n                       ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 70, in test_result_is_exactly_bool\n    self.assertIs(type(is_balanced(s)), bool)\n                       ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_nonstring_inputs_raise_type_error",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "e_error\n    is_balanced(value)\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 77, in test_nonstring_inputs_raise_type_error\n    is_balanced(value)\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 77, in test_nonstring_inputs_raise_type_error\n    is_balanced(value)\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 77, in test_nonstring_inputs_raise_type_error\n    is_balanced(value)\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBalanced.test_str_subclasses_are_evaluated",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 86, in test_str_subclasses_are_evaluated\n    self.assertIs(is_balanced(s), expected)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 86, in test_str_subclasses_are_evaluated\n    self.assertIs(is_balanced(s), expected)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 86, in test_str_subclasses_are_evaluated\n    self.assertIs(is_balanced(s), expected)\n                  ^^^^^^^^^^^^^^\n  File \"/tmp/w/brackets/core.py\", line 14, in is_balanced\n    raise NotImplementedError(\"is_balanced is not implemented yet\")\nNotImplementedError: is_balanced is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestBracketHelper.test_is_bracket_accepts_six_ascii_brackets",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestBracketHelper.test_is_bracket_rejects_other_values",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.184,
+        "captured_tail": "",
+        "failure_tail": ""
+      }
+    ],
+    "passed": 3,
+    "failing": 14,
+    "subtest_events": 0,
+    "import_error": null,
+    "all_passed": false,
+    "canary_ok": true,
+    "summary_line": "FAILED (14 of 17 methods: ERROR 14)",
+    "operation_uuid": "01a15346-ca03-7718-b0ba-f78273e3081b",
+    "nonce": "c93378bce9e020a70dc63e5fc04d6077",
+    "supervisor_exit_code": 1,
+    "runner_error": null
+  },
+  "trajectory": {
+    "turns": 4,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "read_file",
+        "path": "brackets/core.py",
+        "reason": "Read the existing bracket implementation before changing is_balanced.",
+        "observation_head": "[lines 1-14 of 14]\n\"\"\"Bracket matching.\"\"\"\n\nPAIRS = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}\nOPEN = set(PAIRS.values())\nCLOSE = set(PAIRS)\n\n\ndef is_bracket(c):\n    \"\"\"Tru"
+      },
+      {
+        "turn": 2,
+        "action": "replace_in_file",
+        "path": "brackets/core.py",
+        "reason": "Implement stack-based bracket matching with explicit string validation while leaving is_bracket unchanged.",
+        "observation_head": "replaced one occurrence in brackets/core.py; the file is now 598 bytes"
+      },
+      {
+        "turn": 3,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Run the existing test suite after implementing is_balanced.",
+        "observation_head": "existing test suite: OK (ran 2, passed 2, exit 0)\ntest_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ."
+      },
+      {
+        "turn": 4,
+        "action": "finish",
+        "path": null,
+        "reason": "The implementation satisfies the bracket-matching contract and the existing test suite passes.",
+        "observation_head": "finished: Implemented is_balanced with string validation and properly nested bracket matching; existing tests pass."
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": true
+  },
+  "candidate": {
+    "changed_paths": [
+      "brackets/core.py"
+    ],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "--- a/brackets/core.py\n+++ b/brackets/core.py\n@@ -11,4 +11,15 @@\n \n \n def is_balanced(s):\n-    raise NotImplementedError(\"is_balanced is not implemented yet\")\n+    if not isinstance(s, str):\n+        raise TypeError(\"s must be a string\")\n+\n+    stack = []\n+    for c in s:\n+        if c in OPEN:\n+            stack.append(c)\n+        elif c in CLOSE:\n+            if not stack or stack.pop() != PAIRS[c]:\n+                return False\n+\n+    return not stack\n",
+    "sha256": {
+      "brackets/core.py": "b728a7f38087852c25015b030e214eee650fa5db7e78207dd173b65aaae191cf"
+    },
+    "implementer_finished": true,
+    "tamper_scan": {
+      "added_lines": 12,
+      "flagged": [],
+      "labels": [],
+      "patterns_checked": 19,
+      "summary": "no suspicious constructs on the added lines"
+    }
+  },
+  "contract_audit": {
+    "model": "gpt-6-astra",
+    "consistent": true,
+    "notes": "The contract is satisfiable by implementing only is_balanced in brackets/core.py with string type validation and ordered bracket matching. Existing exports, constants, is_bracket, and tests can remain unchanged.",
+    "conflicts": [],
+    "outcome": "consistent",
+    "error": null,
+    "rule": "a conflict is demonstrated only when it names existing acceptance criteria and its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' that names at least one of them and exits with code 3; any other outcome records the conflict as claimed only, which never ends a run; the witness's reasoning is the model's and its execution is recorded, which is not a formal proof of impossibility",
+    "requirement_ids_known": [
+      "AC1",
+      "AC2",
+      "AC3",
+      "AC4",
+      "AC5",
+      "AC6",
+      "AC7",
+      "AC8",
+      "AC9",
+      "AC10",
+      "AC11",
+      "AC12",
+      "AC13"
+    ]
+  },
+  "verification": {
+    "operation_uuid": "01a15348-8748-7505-b000-5cf82533ad13",
+    "status": "SUCCESS",
+    "order": [
+      "verify: sealed supervisor is the only step of its branch (nothing imports candidate code before it)",
+      "existing: the repository's own suite runs afterwards in its own disposable branch",
+      "heldout: held-out modules run afterwards in their own disposable branch"
+    ],
+    "sealed_sha256_injected": "c0179e20a928a8bc780edd3a336f74c0f6a977f2465a57d30e7f5cc257cac201",
+    "expected_ids": [
+      "test_sealed.TestBalanced.test_public_api_exports",
+      "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+      "test_sealed.TestBalanced.test_nested_balanced_string",
+      "test_sealed.TestBalanced.test_text_between_brackets",
+      "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+      "test_sealed.TestBalanced.test_unmatched_openings_of_every_kind",
+      "test_sealed.TestBalanced.test_unmatched_closings_of_every_kind",
+      "test_sealed.TestBalanced.test_wrong_type_or_nesting_order",
+      "test_sealed.TestBalanced.test_removing_nonbrackets_preserves_result",
+      "test_sealed.TestBalanced.test_strings_without_brackets_are_balanced",
+      "test_sealed.TestBalanced.test_quotes_do_not_hide_brackets",
+      "test_sealed.TestBalanced.test_backslashes_do_not_escape_brackets",
+      "test_sealed.TestBalanced.test_result_is_exactly_bool",
+      "test_sealed.TestBalanced.test_nonstring_inputs_raise_type_error",
+      "test_sealed.TestBalanced.test_str_subclasses_are_evaluated",
+      "test_sealed.TestBracketHelper.test_is_bracket_accepts_six_ascii_brackets",
+      "test_sealed.TestBracketHelper.test_is_bracket_rejects_other_values"
+    ],
+    "existing": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.179,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "all_passed": true,
+      "summary_line": "OK (2 of 2 methods, each in its own process)",
+      "module_error": false,
+      "operation_uuid": "01a15348-bfe3-7200-95cf-4ee5069d275b",
+      "runner_error": null,
+      "evidence_class": "bound",
+      "evidence_note": "2 statically discovered test ids in 1 module(s) match the baseline run",
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "module_set_matches": true,
+          "module_digests_unchanged": true,
+          "static_ids_match_expected": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "supervisor_cleanup_complete": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "nonce": "914e423699ff7de225d174b507de087f",
+      "canary_ok": true,
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "sha256": "39b91f3a7dfaa300b6f06ae7b98b10208ebaeb9ad8a8613b6eb91465b53ab80f",
+          "tests": 2,
+          "ids": [
+            "tests.test_basic.TestHelper.test_true",
+            "tests.test_basic.TestHelper.test_false"
+          ]
+        }
+      ]
+    },
+    "sealed": {
+      "ran": 17,
+      "tests": [
+        {
+          "id": "test_sealed.TestBalanced.test_public_api_exports",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.182,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.181,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_nested_balanced_string",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_text_between_brackets",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_unmatched_openings_of_every_kind",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_unmatched_closings_of_every_kind",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.172,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_wrong_type_or_nesting_order",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_removing_nonbrackets_preserves_result",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_strings_without_brackets_are_balanced",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_quotes_do_not_hide_brackets",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_backslashes_do_not_escape_brackets",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_result_is_exactly_bool",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_nonstring_inputs_raise_type_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.174,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBalanced.test_str_subclasses_are_evaluated",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBracketHelper.test_is_bracket_accepts_six_ascii_brackets",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestBracketHelper.test_is_bracket_rejects_other_values",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.172,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 17,
+      "failing": 0,
+      "subtest_events": 0,
+      "import_error": null,
+      "all_passed": true,
+      "canary_ok": true,
+      "summary_line": "OK (17 of 17 methods, each in its own process)",
+      "operation_uuid": "01a15348-8748-7505-b000-5cf82533ad13",
+      "nonce": "98aa624213f91a2a904d79da31ca0151",
+      "supervisor_exit_code": 0,
+      "runner_error": null
+    },
+    "binding": {
+      "ok": true,
+      "checks": {
+        "result_file_present": true,
+        "sealed_file_unchanged_before": true,
+        "sealed_file_unchanged_after": true,
+        "static_ids_match_red": true,
+        "supervisor_completed": true,
+        "verifier_isolation_active": true,
+        "supervisor_cleanup_complete": true,
+        "nonce_matches": true,
+        "no_discovery_error": true,
+        "expected_test_ids_present": true,
+        "no_unexpected_test_ids": true,
+        "no_nonzero_exit": true,
+        "no_signal": true,
+        "no_timeout": true,
+        "no_missing_or_forged_result": true,
+        "all_expected_pass": true,
+        "no_startup_hooks_on_import_path": true,
+        "canary_must_pass_ok": true,
+        "canary_must_fail_failed": true
+      },
+      "reasons": []
+    },
+    "heldout": null,
+    "corrected": null
+  },
+  "breaker": {
+    "mutation": {
+      "generated": 9,
+      "evaluated": 9,
+      "killed": 9,
+      "survived": 0,
+      "unknown": 0,
+      "score": 1.0,
+      "threshold": 0.5,
+      "mutants": [
+        {
+          "id": "m01-17781654c1",
+          "path": "brackets/core.py",
+          "lineno": 14,
+          "operator": "not",
+          "description": "remove `not`",
+          "nonce": "680e2176f83199e23e9a8c629f519053",
+          "status": "killed",
+          "operation_uuid": "01a15348-e6ca-741f-81ea-3c29f09fd736",
+          "failing_methods": 14,
+          "killed_by": [
+            "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+            "test_sealed.TestBalanced.test_nested_balanced_string",
+            "test_sealed.TestBalanced.test_text_between_brackets",
+            "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+            "test_sealed.TestBalanced.test_unmatched_openings_of_every_kind"
+          ],
+          "evidence": "14 sealed test(s) failed with an authentic child result",
+          "binding_ok": false,
+          "structural_problems": []
+        },
+        {
+          "id": "m02-1d8db31cc8",
+          "path": "brackets/core.py",
+          "lineno": 15,
+          "operator": "raise",
+          "description": "raise -> pass",
+          "nonce": "38065a239538ffee5306077939727c32",
+          "status": "killed",
+          "operation_uuid": "01a15348-e69b-700d-a336-ba77575c6bf1",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.TestBalanced.test_nonstring_inputs_raise_type_error"
+          ],
+          "evidence": "1 sealed test(s) failed with an authentic child result",
+          "binding_ok": false,
+          "structural_problems": []
+        },
+        {
+          "id": "m03-3ed9a3293a",
+          "path": "brackets/core.py",
+          "lineno": 19,
+          "operator": "compare",
+          "description": "In -> NotIn",
+          "nonce": "fd7a7dd12a4aea573b2f3cfc5800488a",
+          "status": "killed",
+          "operation_uuid": "01a15348-e643-7203-8806-10dccb8d9835",
+          "failing_methods": 10,
+          "killed_by": [
+            "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+            "test_sealed.TestBalanced.test_nested_balanced_string",
+            "test_sealed.TestBalanced.test_text_between_brackets",
+            "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+            "test_sealed.TestBalanced.test_unmatched_openings_of_every_kind"
+          ],
+          "evidence": "10 sealed test(s) failed with an authentic child result",
+          "binding_ok": false,
+          "structural_problems": []
+        },
+        {
+          "id": "m04-be9c0a1c38",
+          "path": "brackets/core.py",
+          "lineno": 21,
+          "operator": "compare",
+          "description": "In -> NotIn",
+          "nonce": "501629157dd4b3b5164cd52a79204784",
+          "status": "killed",
+          "operation_uuid": "01a15348-e6c7-711a-989a-bedea8cfa97b",
+          "failing_methods": 10,
+          "killed_by": [
+            "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+            "test_sealed.TestBalanced.test_nested_balanced_string",
+            "test_sealed.TestBalanced.test_text_between_brackets",
+            "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+            "test_sealed.TestBalanced.test_unmatched_closings_of_every_kind"
+          ],
+          "evidence": "10 sealed test(s) failed with an authentic child result",
+          "binding_ok": false,
+          "structural_problems": []
+        },
+        {
+          "id": "m05-34fe0c49e2",
+          "path": "brackets/core.py",
+          "lineno": 22,
+          "operator": "not",
+          "description": "remove `not`",
+          "nonce": "ba259ac9e89724c54c80b67f54819e85",
+          "status": "killed",
+          "operation_uuid": "01a15348-e6ea-7631-b041-d08d9a310fa4",
+          "failing_methods": 8,
+          "killed_by": [
+            "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+            "test_sealed.TestBalanced.test_nested_balanced_string",
+            "test_sealed.TestBalanced.test_text_between_brackets",
+            "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+            "test_sealed.TestBalanced.test_unmatched_closings_of_every_kind"
+          ],
+          "evidence": "8 sealed test(s) failed with an authentic child result",
+          "binding_ok": false,
+          "structural_problems": []
+        },
+        {
+          "id": "m06-49e34e734e",
+          "path": "brackets/core.py",
+          "lineno": 22,
+          "operator": "compare",
+          "description": "NotEq -> Eq",
+          "nonce": "972d180238900bee1b15fbfd3171825a",
+          "status": "killed",
+          "operation_uuid": "01a15348-e6b6-77ca-bd61-3872d3bff67f",
+          "failing_methods": 8,
+          "killed_by": [
+            "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+            "test_sealed.TestBalanced.test_nested_balanced_string",
+            "test_sealed.TestBalanced.test_text_between_brackets",
+            "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+            "test_sealed.TestBalanced.test_wrong_type_or_nesting_order"
+          ],
+          "evidence": "8 sealed test(s) failed with an authentic child result",
+          "binding_ok": false,
+          "structural_problems": []
+        },
+        {
+          "id": "m07-fdc74f1cd4",
+          "path": "brackets/core.py",
+          "lineno": 22,
+          "operator": "boolop",
+          "description": "Or -> And",
+          "nonce": "59611857d5fa5282c4edee367860ac72",
+          "status": "killed",
+          "operation_uuid": "01a15348-e6c6-7236-a2b7-80d41ef2a7c0",
+          "failing_methods": 8,
+          "killed_by": [
+            "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+            "test_sealed.TestBalanced.test_nested_balanced_string",
+            "test_sealed.TestBalanced.test_text_between_brackets",
+            "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+            "test_sealed.TestBalanced.test_unmatched_closings_of_every_kind"
+          ],
+          "evidence": "8 sealed test(s) failed with an authentic child result",
+          "binding_ok": false,
+          "structural_problems": []
+        },
+        {
+          "id": "m08-4867ef55fc",
+          "path": "brackets/core.py",
+          "lineno": 23,
+          "operator": "bool",
+          "description": "False -> True",
+          "nonce": "1090f659cfc5c7170a1ae6062d61c090",
+          "status": "killed",
+          "operation_uuid": "01a15348-e6d4-713b-ae0c-75bc3fc1b07b",
+          "failing_methods": 5,
+          "killed_by": [
+            "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+            "test_sealed.TestBalanced.test_unmatched_closings_of_every_kind",
+            "test_sealed.TestBalanced.test_wrong_type_or_nesting_order",
+            "test_sealed.TestBalanced.test_backslashes_do_not_escape_brackets",
+            "test_sealed.TestBalanced.test_str_subclasses_are_evaluated"
+          ],
+          "evidence": "5 sealed test(s) failed with an authentic child result",
+          "binding_ok": false,
+          "structural_problems": []
+        },
+        {
+          "id": "m09-d543026f6d",
+          "path": "brackets/core.py",
+          "lineno": 25,
+          "operator": "not",
+          "description": "remove `not`",
+          "nonce": "51ac9c98ed810f4d590c0dc62919706a",
+          "status": "killed",
+          "operation_uuid": "01a15349-0cb2-7166-a76c-8618672afacd",
+          "failing_methods": 11,
+          "killed_by": [
+            "test_sealed.TestBalanced.test_empty_and_simple_balanced_strings",
+            "test_sealed.TestBalanced.test_nested_balanced_string",
+            "test_sealed.TestBalanced.test_text_between_brackets",
+            "test_sealed.TestBalanced.test_representative_unbalanced_strings",
+            "test_sealed.TestBalanced.test_unmatched_openings_of_every_kind"
+          ],
+          "evidence": "11 sealed test(s) failed with an authentic child result",
+          "binding_ok": false,
+          "structural_problems": []
+        }
+      ],
+      "policy": "a mutant is killed only when at least one expected sealed test failed with an authentic child result (exit code 1 and a FAIL or ERROR report bound to the nonce) under a structurally sound supervisor run (completed, isolated, nonce and digests intact, the expected test ids and nothing else, no lost, forged or mismatched result, no crash, no start-up hook); it survived only when every expected test passed authentically; a run with any structural problem, untrusted record or timed-out test is unknown and excluded from the score"
+    },
+    "adversarial": {
+      "sha256": "d543d29defa873fc61978dd52c9a520d6d958c3e12be68579832d7d0fc4fea46",
+      "author_model": "gpt-6-sol",
+      "author_role": "break",
+      "attempts": 1,
+      "escalated": false,
+      "expected_ids": [
+        "test_breaker.TestBreaker.test_deep_mixed_nesting",
+        "test_breaker.TestBreaker.test_many_adjacent_groups",
+        "test_breaker.TestBreaker.test_every_three_bracket_sequence_is_unbalanced",
+        "test_breaker.TestBreaker.test_later_brackets_cannot_repair_earlier_errors",
+        "test_breaker.TestBreaker.test_unicode_bracket_lookalikes_are_ignored",
+        "test_breaker.TestBreaker.test_quotes_and_backslashes_inside_groups",
+        "test_breaker.TestBreaker.test_additional_nonstring_iterables_raise_typeerror",
+        "test_breaker.TestBreaker.test_plain_str_subclass_with_deep_content",
+        "test_breaker.TestBreaker.test_is_bracket_single_ascii_character_boundary"
+      ],
+      "summary": {
+        "ran": 9,
+        "tests": [
+          {
+            "id": "test_breaker.TestBreaker.test_deep_mixed_nesting",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.181,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_many_adjacent_groups",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.171,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_every_three_bracket_sequence_is_unbalanced",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.173,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_later_brackets_cannot_repair_earlier_errors",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_unicode_bracket_lookalikes_are_ignored",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.168,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_quotes_and_backslashes_inside_groups",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_additional_nonstring_iterables_raise_typeerror",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.168,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_plain_str_subclass_with_deep_content",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_is_bracket_single_ascii_character_boundary",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.169,
+            "captured_tail": "",
+            "failure_tail": ""
+          }
+        ],
+        "passed": 9,
+        "failing": 0,
+        "subtest_events": 0,
+        "import_error": null,
+        "all_passed": true,
+        "canary_ok": true,
+        "summary_line": "OK (9 of 9 methods, each in its own process)",
+        "operation_uuid": "01a1534a-a58b-768b-85c2-69812bcccb26",
+        "nonce": "3577cca06c3465137b1f55b913d6e458",
+        "supervisor_exit_code": 0,
+        "runner_error": null
+      },
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "sealed_file_unchanged_before": true,
+          "sealed_file_unchanged_after": true,
+          "static_ids_match_red": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "supervisor_cleanup_complete": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "notes": "Targets deep nesting, long sequences, irreparable mismatches, Unicode lookalikes, quote and backslash handling, iterable type errors, and public API boundaries.",
+      "operation_uuid": "01a1534a-a58b-768b-85c2-69812bcccb26"
+    }
+  },
+  "drift": {
+    "drift_score": 0,
+    "assessment": "aligned",
+    "scope_narrowed": [],
+    "scope_widened": [],
+    "unsupported_claims": [],
+    "summary": "The diff solves the task: `if not isinstance(s, str)` rejects non-strings while accepting str subclasses, `stack.pop() != PAIRS[c]` enforces matching types and nesting, and `return not stack` returns a bool and rejects unmatched openings; other characters are ignored. Only is_balanced changes, preserving is_bracket, constants, exports and tests, and the observed test run supports the claim that existing tests pass (2 passed, exit 0).",
+    "threshold": 0.6
+  },
+  "arbitration": null,
+  "gates": {
+    "existing_suite": {
+      "ok": true,
+      "detail": "OK (2 of 2 methods, each in its own process)",
+      "evidence_class": "bound"
+    },
+    "sealed_binding": {
+      "ok": true,
+      "detail": "all checks pass",
+      "evidence_class": "bound"
+    },
+    "mutation": {
+      "ok": true,
+      "detail": "score 1.0 on 9 mutants",
+      "evidence_class": "bound"
+    },
+    "adversarial_tests": {
+      "ok": true,
+      "detail": "OK (9 of 9 methods, each in its own process)",
+      "evidence_class": "bound"
+    },
+    "drift_audit": {
+      "ok": true,
+      "detail": "score 0.0 (aligned)",
+      "evidence_class": "model"
+    }
+  },
+  "verdict": {
+    "verdict": "VERIFIED",
+    "reasons": [],
+    "warnings": [],
+    "derivation": {
+      "verdict": "VERIFIED",
+      "gates_failed": [],
+      "gates_skipped": [],
+      "blocking": [],
+      "cleared_by_arbitration": false,
+      "corrected_gates": [],
+      "rule": "VERIFIED only when every recorded gate passes (a skipped gate never counts as a pass), the implementer finished and the scope policy held; otherwise NEEDS HUMAN. A gate passes on a corrected generated-test module only when the correction was validated by execution (same test methods, only the failing ones changed, passes on the candidate, still discriminates on the base or a mutant with authentic, structurally sound results) and the gate was re-run; the arbiter's classification alone never changes a gate, and a sealed test that failed by assertion or exception is never overridden."
+    }
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "codex_gateway",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T08:21:30.486099+00:00",
+        "elapsed_ms": 45274,
+        "gateway_duration_ms": 40219,
+        "prompt_chars": 3094,
+        "tokens_in": 10116,
+        "tokens_out": 817,
+        "tokens_cached": 7680,
+        "usage_raw": {
+          "input_tokens": 10116,
+          "cached_input_tokens": 7680,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 817,
+          "reasoning_output_tokens": 0
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "audit",
+        "stage": "contract-audit",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T08:22:15.823543+00:00",
+        "elapsed_ms": 177876,
+        "gateway_duration_ms": 18734,
+        "prompt_chars": 7227,
+        "tokens_in": 10958,
+        "tokens_out": 97,
+        "tokens_cached": 7552,
+        "usage_raw": {
+          "input_tokens": 10958,
+          "cached_input_tokens": 7552,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 97,
+          "reasoning_output_tokens": 34
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T08:25:13.705160+00:00",
+        "elapsed_ms": 189982,
+        "gateway_duration_ms": 106677,
+        "prompt_chars": 6353,
+        "tokens_in": 10332,
+        "tokens_out": 2469,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10332,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2469,
+          "reasoning_output_tokens": 996
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T08:28:31.732911+00:00",
+        "elapsed_ms": 27682,
+        "gateway_duration_ms": 23553,
+        "prompt_chars": 6252,
+        "tokens_in": 10322,
+        "tokens_out": 88,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10322,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 88,
+          "reasoning_output_tokens": 20
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T08:28:59.424850+00:00",
+        "elapsed_ms": 29035,
+        "gateway_duration_ms": 19692,
+        "prompt_chars": 6905,
+        "tokens_in": 10510,
+        "tokens_out": 233,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10510,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 233,
+          "reasoning_output_tokens": 50
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T08:29:28.472791+00:00",
+        "elapsed_ms": 24501,
+        "gateway_duration_ms": 21231,
+        "prompt_chars": 7706,
+        "tokens_in": 10721,
+        "tokens_out": 78,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10721,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 78,
+          "reasoning_output_tokens": 13
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T08:29:57.359350+00:00",
+        "elapsed_ms": 20351,
+        "gateway_duration_ms": 16806,
+        "prompt_chars": 8227,
+        "tokens_in": 10855,
+        "tokens_out": 120,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10855,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 120,
+          "reasoning_output_tokens": 36
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "break",
+        "stage": "break-tests-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T08:31:00.846026+00:00",
+        "elapsed_ms": 95549,
+        "gateway_duration_ms": 90328,
+        "prompt_chars": 6617,
+        "tokens_in": 10353,
+        "tokens_out": 2144,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10353,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2144,
+          "reasoning_output_tokens": 1328
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "audit",
+        "stage": "drift-audit",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T08:32:44.619869+00:00",
+        "elapsed_ms": 21954,
+        "gateway_duration_ms": 18059,
+        "prompt_chars": 6123,
+        "tokens_in": 10745,
+        "tokens_out": 139,
+        "tokens_cached": 7552,
+        "usage_raw": {
+          "input_tokens": 10745,
+          "cached_input_tokens": 7552,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 139,
+          "reasoning_output_tokens": 0
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a15340-5136-7746-931f-f42297d6ad75",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.825,
+        "raw_cost_diag": 0.0028569299999999997,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:21:18.671347+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": "01a15346-ca03-7718-b0ba-f78273e3081b",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.129,
+        "raw_cost_diag": 0.033346,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:28:23.701911+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-3",
+        "operation_uuid": "01a15348-26af-7364-9701-93b6ab37a693",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.004,
+        "raw_cost_diag": 0.0028780299999999997,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:29:52.992654+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "verify",
+        "operation_uuid": "01a15348-8748-7505-b000-5cf82533ad13",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.066,
+        "raw_cost_diag": 0.03309881,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:17.724407+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "existing",
+        "operation_uuid": "01a15348-bfe3-7200-95cf-4ee5069d275b",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.442,
+        "raw_cost_diag": 0.00875403,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:25.657976+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m01-17781654c1",
+        "operation_uuid": "01a15348-e6ca-741f-81ea-3c29f09fd736",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.835,
+        "raw_cost_diag": 0.029801470000000004,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:41.597975+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m07-fdc74f1cd4",
+        "operation_uuid": "01a15348-e6c6-7236-a2b7-80d41ef2a7c0",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.895,
+        "raw_cost_diag": 0.03004993,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:41.601947+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m03-3ed9a3293a",
+        "operation_uuid": "01a15348-e643-7203-8806-10dccb8d9835",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.849,
+        "raw_cost_diag": 0.03050024,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:41.598732+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m05-34fe0c49e2",
+        "operation_uuid": "01a15348-e6ea-7631-b041-d08d9a310fa4",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.834,
+        "raw_cost_diag": 0.029878360000000003,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:41.599706+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m04-be9c0a1c38",
+        "operation_uuid": "01a15348-e6c7-711a-989a-bedea8cfa97b",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.855,
+        "raw_cost_diag": 0.03029118,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:41.600952+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m06-49e34e734e",
+        "operation_uuid": "01a15348-e6b6-77ca-bd61-3872d3bff67f",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.833,
+        "raw_cost_diag": 0.029750550000000004,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:41.601351+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m02-1d8db31cc8",
+        "operation_uuid": "01a15348-e69b-700d-a336-ba77575c6bf1",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.833,
+        "raw_cost_diag": 0.02964731,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:41.598456+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m08-4867ef55fc",
+        "operation_uuid": "01a15348-e6d4-713b-ae0c-75bc3fc1b07b",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.896,
+        "raw_cost_diag": 0.03026671,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:41.603445+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m09-d543026f6d",
+        "operation_uuid": "01a15349-0cb2-7166-a76c-8618672afacd",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.673,
+        "raw_cost_diag": 0.02996569,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:30:51.430917+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "breaker-tests",
+        "operation_uuid": "01a1534a-a58b-768b-85c2-69812bcccb26",
+        "image_uuid": "ea443985-e5d3-41e9-9db8-2ec4a18179cf",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.677,
+        "raw_cost_diag": 0.02003899,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T08:32:36.409900+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "open_reservations": [],
+    "journal_failures": [],
+    "totals": {
+      "model_calls": 9,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 94912,
+      "tokens_out": 6185,
+      "tokens_cached": 51456,
+      "model_elapsed_ms": 632204,
+      "cost_usd": null,
+      "cost_usd_committed": 0.0,
+      "uncertain_unpriced_calls": 0,
+      "open_reservations": 0,
+      "open_reserved_usd": 0,
+      "journal_failures": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "codex_gateway:gpt-6-astra": {
+          "calls": 3,
+          "tokens_in": 31819,
+          "tokens_out": 1053,
+          "tokens_cached": 22784,
+          "cost_usd": null,
+          "elapsed_ms": 245104,
+          "failed": 0
+        },
+        "codex_gateway:gpt-6-sol": {
+          "calls": 6,
+          "tokens_in": 63093,
+          "tokens_out": 5132,
+          "tokens_cached": 28672,
+          "cost_usd": null,
+          "elapsed_ms": 387100,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 15,
+      "sandbox_duration_s": 48.646,
+      "sandbox_retained_images": [
+        "ea443985-e5d3-41e9-9db8-2ec4a18179cf"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.37112423
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest-a1': inference provider codex_gateway; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, offers a corrected module. The correction counts only after mechanical validation (same test methods, only the failing tests' bodies changed, passes on the candidate, still fails on the unmodified base or is caught by a mutant, with every result structurally sound and bound to its nonce); the corrected gate is then re-run and the verdict re-derived from the gates. A sealed test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected). The classification itself remains a model judgement.",
+    "A mutant counts as killed only when a sealed test failed with an authentic child result under a structurally sound supervisor run; lost, forged, incomplete, non-isolated, crashed or timed-out runs are unknown and excluded from the mutation score, and `attest check` recomputes the classification from the raw results.",
+    "INFEASIBLE is recorded only when a witness program written by the contract auditor demonstrated the contradiction by running on the unmodified repository (exit code and output recorded); the witness's logic is the model's, its execution is not.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "audit",
+  "evidence_protocol": {
+    "version": 2,
+    "supervisor": "attest-sealed-supervisor/7",
+    "note": "a VERIFIED bundle of this protocol carries every gate with its raw supervisor result, every evaluated mutant's raw result, the base and mutant evidence of any validated correction, the contract audit and the ledger; an INFEASIBLE bundle carries the executed witness, its digest, output and operation; a bundle without this field is historical and is checked for internal consistency only"
+  }
+}

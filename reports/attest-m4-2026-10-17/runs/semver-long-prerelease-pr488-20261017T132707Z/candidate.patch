@@ -1,0 +1,45 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -185,21 +185,28 @@
+ 
+     @classmethod
+     def _nat_cmp(cls, a: Optional[str], b: Optional[str]) -> int:
+-        def cmp_prerelease_tag(a, b):
+-            if isinstance(a, int) and isinstance(b, int):
+-                return _cmp(a, b)
+-            elif isinstance(a, int):
+-                return -1
+-            elif isinstance(b, int):
+-                return 1
++        def classify(identifier):
++            if identifier and all("0" <= char <= "9" for char in identifier):
++                return (0, identifier.lstrip("0") or "0")
++            if identifier.isdigit():
++                # Preserve int() conversion and its errors for non-ASCII digits.
++                return (0, str(int(identifier)))
++            return (1, identifier)
++
++        # Classify every identifier before deciding precedence, so legacy
++        # numeric conversion errors are raised even past a decisive prefix.
++        a_parts = [classify(x) for x in (a or "").split(".")]
++        b_parts = [classify(x) for x in (b or "").split(".")]
++
++        for sub_a, sub_b in zip(a_parts, b_parts):
++            if sub_a[0] != sub_b[0]:
++                cmp_result = _cmp(sub_a[0], sub_b[0])
++            elif sub_a[0] == 0:
++                cmp_result = _cmp(len(sub_a[1]), len(sub_b[1])) or _cmp(
++                    sub_a[1], sub_b[1]
++                )
+             else:
+-                return _cmp(a, b)
+-
+-        a_parts = [int(x) if x.isdigit() else x for x in (a or "").split(".")]
+-        b_parts = [int(x) if x.isdigit() else x for x in (b or "").split(".")]
+-
+-        for sub_a, sub_b in zip(a_parts, b_parts):
+-            cmp_result = cmp_prerelease_tag(sub_a, sub_b)
++                cmp_result = _cmp(sub_a[1], sub_b[1])
+             if cmp_result != 0:
+                 return cmp_result
+ 

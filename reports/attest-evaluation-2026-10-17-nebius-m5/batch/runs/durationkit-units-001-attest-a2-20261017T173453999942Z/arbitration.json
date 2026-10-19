@@ -1,0 +1,42 @@
+{
+  "applied": false,
+  "cleared": true,
+  "all_corrected": true,
+  "mutation_ran_ok": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "all 1 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base — candidate not falsified by these tests",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestBreakerParseDuration.test_mixed_whitespace_between_components",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects parse_duration to accept '1\\nh\\t30m', but this string contains a newline between the number '1' and its unit 'h', which the contract explicitly forbids (whitespace not allowed between a number and its unit). The test's expected value is therefore wrong under the contract.",
+          "contract_basis": "Contract: 'whitespace is allowed around the whole string and between components (but not between a number and its unit).'"
+        }
+      ],
+      "corrected_notes": "Changed test_mixed_whitespace_between_components to use valid inputs with whitespace only between components (e.g., '1h 30m', '1h\\t30m', '1h\\n30m', '1h \\t\\n 30m'), as the contract permits whitespace between components but not between a number and its unit.",
+      "corrected_module": "arbitration/adversarial_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (13 of 13 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a14af3-0cee-72ba-9010-8c55d95c36e5"
+      },
+      "base_rerun": {
+        "summary_line": "FAILED (2 of 13 methods: ERROR 2)",
+        "failing": 2,
+        "operation_uuid": "01a14af3-2f2a-7689-9820-e3c1a3ded75d"
+      },
+      "cleared_module": true,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

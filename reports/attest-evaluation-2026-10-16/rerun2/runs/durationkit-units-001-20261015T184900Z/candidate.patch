@@ -1,0 +1,111 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -1,15 +1,101 @@
+-"""Duration parsing."""
++'''Duration parsing.'''
+ 
+ 
+ def parse_duration(text: str) -> float:
+     """Parse a duration string and return the number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts a plain non-negative integer number of seconds (e.g. "90") or
++    one or more components made of a non-negative integer followed by a unit:
++    d (days), h (hours), m (minutes), s (seconds) or ms (milliseconds).
++    Components must appear in descending unit order (e.g. "2d4h", "1h30m"),
++    each unit may appear at most once, and whitespace is allowed around the
++    whole string and between components (but not between a number and its unit).
++    Returns the total number of seconds as a float.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+-    stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    s = text.strip()
++    if not s:
++        raise ValueError(f"empty duration: {text!r}")
++
++    # Plain integer seconds (existing behavior)
++    if s.isdigit():
++        return float(s)
++
++    # Parse components
++    i = 0
++    n = len(s)
++    total = 0.0
++    # unit order: d > h > m > s > ms
++    order = {'d': 0, 'h': 1, 'm': 2, 's': 3, 'ms': 4}
++    seen = set()
++    last_order = -1  # nothing seen yet
++
++    while i < n:
++        # skip whitespace between components
++        while i < n and s[i].isspace():
++            i += 1
++        if i >= n:
++            break  # trailing whitespace
++
++        # parse number
++        start_num = i
++        while i < n and s[i].isdigit():
++            i += 1
++        if start_num == i:
++            raise ValueError(f"missing number in duration: {text!r}")
++        num_str = s[start_num:i]
++        # Leading zeros are okay; int conversion works.
++        try:
++            value = int(num_str)
++        except ValueError:
++            raise ValueError(f"invalid number in duration: {text!r}")
++        if value < 0:
++            raise ValueError(f"negative number in duration: {text!r}")
++
++        # parse unit
++        if i >= n:
++            raise ValueError(f"missing unit in duration: {text!r}")
++        # check for ms first because it's two chars
++        if s[i:i+2] == 'ms':
++            unit = 'ms'
++            i += 2
++        elif s[i] in 'dhms':
++            unit = s[i]
++            i += 1
++        else:
++            raise ValueError(f"unknown unit in duration: {text!r}")
++
++        # check repetition
++        if unit in seen:
++            raise ValueError(f"repeated unit '{unit}' in duration: {text!r}")
++        seen.add(unit)
++
++        # check order
++        cur_order = order[unit]
++        if cur_order <= last_order:
++            raise ValueError(f"units out of descending order in duration: {text!r}")
++        last_order = cur_order
++
++        # add to total
++        if unit == 'd':
++            total += value * 86400.0
++        elif unit == 'h':
++            total += value * 3600.0
++        elif unit == 'm':
++            total += value * 60.0
++        elif unit == 's':
++            total += value * 1.0
++        elif unit == 'ms':
++            total += value * 0.001
++        else:
++            # shouldn't happen
++            raise ValueError(f"unsupported unit: {unit}")
++
++    # after loop, skip any trailing whitespace
++    while i < n and s[i].isspace():
++        i += 1
++    if i != n:
++        raise ValueError(f"unexpected characters in duration: {text!r}")
++
++    return float(total)

@@ -1,0 +1,44 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Add an instance method `Version.is_compatible(other) -> bool` to the Version class in src/semver/version.py. The method implements semantic version compatibility checking: `old.is_compatible(new)` returns True when `new` can replace `old`. Compatibility requires equal major versions, new.minor >= old.minor, equal prerelease parts (both None counts as equal), and ignores patch. Major 0 versions are special: only compatible with an identical version (major, minor, patch, prerelease all equal). Raise TypeError with message 'Expected a Version type but got <type>' for non-Version arguments (subclasses allowed). Include a docstring with at least two doctest examples. Do not modify any other public behavior, tests, docs, or packaging files; the existing pytest suite must continue to pass.",
+  "interface_contract": [
+    {
+      "name": "Version.is_compatible",
+      "signature": "def is_compatible(self, other: 'Version') -> bool:",
+      "behavior": "Returns True if `other` (the candidate replacement version) is compatible with `self` (the baseline version). Compatibility rules: (1) If self.major == 0: return True only if other.major == 0 AND other.minor == self.minor AND other.patch == self.patch AND other.prerelease == self.prerelease (exact match on all four parts). (2) If self.major > 0: return True only if other.major == self.major AND other.minor >= self.minor AND other.prerelease == self.prerelease (both None or both same string). Patch is ignored in all cases. The method does not modify either Version instance.",
+      "error_cases": [
+        "Raise TypeError with message starting with 'Expected a Version type but got ' followed by the type of `other` (e.g., \"Expected a Version type but got <class 'str'>\") if `other` is not an instance of Version (subclasses of Version are accepted via isinstance check)."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 3)) is True",
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 4)) is True (patch ignored)",
+    "Version(1, 2, 4).is_compatible(Version(1, 2, 3)) is True (patch ignored, symmetric for patch)",
+    "Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) is True (equal prereleases)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 0)) is True (major 0 identical)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 1)) is False (major 0 requires exact match including patch)",
+    "Version(1, 1, 0).is_compatible(Version(1, 0, 0)) is False (lower minor)",
+    "Version(2, 0, 0).is_compatible(Version(1, 5, 0)) is False (different major)",
+    "Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0')) is False (different prerelease)",
+    "Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1')) is False (prerelease vs None)",
+    "Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0)) is False (None vs prerelease)",
+    "Version(1, 2, 3).is_compatible('wrongtype') raises TypeError with message 'Expected a Version type but got <class 'str'>'",
+    "Version(1, 2, 3).is_compatible({'a': 2}) raises TypeError with message starting with 'Expected a Version type but got'",
+    "Version(1, 2, 3).is_compatible([]) raises TypeError with message starting with 'Expected a Version type but got'",
+    "Subclass instance accepted: class CustomVersion(Version): pass; CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) is True",
+    "Method docstring contains at least two doctest examples",
+    "Existing pytest test suite (tests/) passes without modification"
+  ],
+  "out_of_scope": [
+    "Do not modify any existing public methods or attributes of Version class",
+    "Do not modify tests/ directory or any test files",
+    "Do not modify docs/ directory or documentation files",
+    "Do not modify pyproject.toml, setup.cfg, README.rst, LICENSE.txt, or any packaging files",
+    "Do not modify src/semver/__init__.py, src/semver/__about__.py, src/semver/__main__.py, src/semver/_deprecated.py, src/semver/_types.py, src/semver/cli.py, src/semver/py.typed",
+    "Do not change Version.__slots__ or any existing private attributes",
+    "Do not add new public exports to src/semver/__init__.py"
+  ],
+  "external_references_needed": []
+}

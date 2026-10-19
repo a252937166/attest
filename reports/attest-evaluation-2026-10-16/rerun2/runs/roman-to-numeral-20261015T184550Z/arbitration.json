@@ -1,0 +1,30 @@
+{
+  "applied": false,
+  "cleared": false,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 0,
+    "contract_dispute": 1
+  },
+  "headline": "1 failing test(s) are contract disputes; a human must decide",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestToRomanBreaker.test_int_subclass_accepted",
+          "classification": "contract_dispute",
+          "rationale": "The contract states to raise TypeError for non-integer inputs, including bool. However, it does not explicitly specify whether other subclasses of int (like a user-defined MyInt) should be accepted or rejected. The candidate implementation rejects all subclasses by checking `type(n) is not int`, while the test expects subclasses to be accepted. Reasonable interpretations differ: one could argue 'int' means isinstance(n, int) (accepting subclasses), or that 'int' means the exact built-in type (rejecting subclasses, as the contract explicitly excludes bool which is a subclass). The contract is ambiguous on this point.",
+          "contract_basis": "Contract: 'Raise TypeError for non-integer inputs (including bool, float, str, None, list, etc.)' and original note 'treat only real ints as valid'."
+        }
+      ],
+      "corrected_notes": "The failing test involves a contract ambiguity regarding int subclasses. Since it is a contract dispute, no correction to the test module is provided; a human decision is needed.",
+      "corrected_module": null,
+      "candidate_rerun": null,
+      "base_rerun": null,
+      "cleared_module": false,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

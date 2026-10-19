@@ -1,0 +1,79 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -4,12 +4,70 @@
+ def parse_duration(text: str) -> float:
+     """Parse a duration string and return the number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts two forms:
++    1. A plain non-negative integer representing seconds (whitespace allowed around).
++    2. One or more components of a non-negative integer immediately followed by a unit
++       (d, h, m, s, ms) in strictly descending order (d > h > m > s > ms).
++       Whitespace is allowed around the entire string and between components,
++       but not between a number and its unit.
++    Returns the total number of seconds as a float.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+-    stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    s = text.strip()
++    if not s:
++        raise ValueError("empty duration")
++    i = 0
++    total = 0.0
++    seen_units = set()
++    order = {'d': 4, 'h': 3, 'm': 2, 's': 1, 'ms': 0}
++    prev_order = float('inf')
++    while i < len(s):
++        # skip whitespace between components
++        if s[i].isspace():
++            while i < len(s) and s[i].isspace():
++                i += 1
++            continue
++        # parse number
++        start_num = i
++        while i < len(s) and s[i].isdigit():
++            i += 1
++        if start_num == i:
++            raise ValueError(f"missing number in duration: {text!r}")
++        num_str = s[start_num:i]
++        # after number, check if we are at end (plain seconds case)
++        if i == len(s):
++            # plain integer seconds
++            if 's' in seen_units:
++                raise ValueError(f"repeated unit: s")
++            seen_units.add('s')
++            total += int(num_str)
++            break
++        # parse unit
++        if s[i] == 'm' and i + 1 < len(s) and s[i + 1] == 's':
++            unit = 'ms'
++            i += 2
++        else:
++            unit = s[i]
++            i += 1
++            if unit not in ('d', 'h', 'm', 's'):
++                raise ValueError(f"unknown unit: {unit}")
++        if unit in seen_units:
++            raise ValueError(f"repeated unit: {unit}")
++        seen_units.add(unit)
++        cur_order = order[unit]
++        if cur_order > prev_order:
++            raise ValueError(f"units out of order: {unit} after previous")
++        prev_order = cur_order
++        num = int(num_str)
++        if unit == 'd':
++            total += num * 86400
++        elif unit == 'h':
++            total += num * 3600
++        elif unit == 'm':
++            total += num * 60
++        elif unit == 's':
++            total += num
++        elif unit == 'ms':
++            total += num / 1000.0
++    return total

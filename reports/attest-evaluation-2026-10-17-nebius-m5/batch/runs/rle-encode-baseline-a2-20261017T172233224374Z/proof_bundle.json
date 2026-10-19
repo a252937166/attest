@@ -1,0 +1,745 @@
+{
+  "run_id": "rle-encode-baseline-a2-20261017T172233224374Z",
+  "started_at_utc": "2026-10-17T17:22:33.224544+00:00",
+  "finished_at_utc": "2026-10-17T17:23:07.531437+00:00",
+  "profile": {
+    "label": "eval-baseline-a2",
+    "provider": {
+      "provider": "nebius_tokenfactory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "roles": {
+        "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "seal": "nvidia/nemotron-3-super-120b-a12b",
+        "implement": "nvidia/nemotron-3-super-120b-a12b",
+        "break": "nvidia/nemotron-3-super-120b-a12b",
+        "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "summary": "nvidia/Nemotron-3_5-Lightning"
+      },
+      "usd_cap": 0.5,
+      "max_calls": 20,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "temperature": 0.2,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
+      "schema_in_prompt": true,
+      "auto_retry": false,
+      "pre_request_reservation": true,
+      "max_prompt_chars": 120000,
+      "max_tokens": 16000
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "provenance": {
+    "attest_version": "0.3.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "166cdcbd46a74cd0c666a19e111762eea64cd973c80396dfad724c1d47791b4e",
+      "files": 35,
+      "git_commit": null,
+      "version": "0.3.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/6",
+      "sha256": "93e8c9edacca93fc4b8a8c2cf86b44374aab3a9a752dc35b7af5e3dfdc935211"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "80999537285bacafdd86e7faad72792e2a7a25f87d691231e76f3905a1aa91b6",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/reports/attest-evaluation-2026-10-17-nebius-m5/batch/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "nebius_tokenfactory",
+      "temperature": 0.2,
+      "max_tokens": 16000,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "note": "temperature and max_tokens are sent with every request; roles map to model ids",
+      "roles": {
+        "spec": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "seal": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "implement": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "break": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "audit": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "arbitrate": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "summary": {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "effort": null
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 14,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": false,
+      "arbitration_apply": false
+    },
+    "pacing": null,
+    "retry_policy": null,
+    "upstream": null
+  },
+  "task": {
+    "id": "rle-encode",
+    "title": "rle-encode",
+    "statement": "The rle package exposes decode (already implemented) and a stub encode(s). Implement encode(s) so that it run-length encodes a string: each maximal run of one character becomes that character followed by the decimal count of the run (the count is always written, even when it is 1). For example encode('aaabbc') is 'a3b2c1', encode('abc') is 'a1b1c1', encode('') is ''. encode must return a str and must round-trip with decode (decode(encode(x)) == x for every string x). Raise TypeError when s is not a string. Do not change decode or the tests.",
+    "acceptance_criteria": [
+      "encode('aaabbc')=='a3b2c1' and encode('a')=='a1'",
+      "encode('')==''",
+      "encode('abc')=='a1b1c1' (count written even when 1)",
+      "encode('x'*12)=='x12' (multi-digit counts)",
+      "decode(encode(x))==x for every string x",
+      "encode returns a str",
+      "TypeError when s is not a string"
+    ],
+    "allowed_write_globs": [
+      "rle/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from rle import encode",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "rle/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "rle/core.py": "04edfeb9ac54e38bad7a82baedc1d438a75c655881c389267ac9c7f44c24fb5c",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "1114c65e31fcd1be6cc0cf8b23a1024da1ea6f91bd0f87091dfd1cdc743e6723"
+    },
+    "spec_sha256": "e64da208acc97bfcb964f579c1a5687bc6340ce7531452982870487fe1231c41"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "checkpoint_operation_uuid": "01a14ae3-1bfc-7600-94b0-08fc7a0b58dc",
+    "checkpoint_image_uuid": "f4cbbbb6-afe9-4451-985f-b94fcfc702e5",
+    "baseline": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestDecode.test_decode",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestDecode.test_decode_type",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestDecode.test_decode",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestDecode.test_decode_type",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a14ae3-1bfc-7600-94b0-08fc7a0b58dc",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.216,
+      "stderr_tail": "test_decode (tests.test_basic.TestDecode.test_decode) ... ok\ntest_decode_type (tests.test_basic.TestDecode.test_decode_type) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "suite_binding": {
+      "mode": "bound",
+      "reason": "2 statically discovered test ids in 1 module(s) match the baseline run",
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "path": "tests/test_basic.py",
+          "sha256": "1114c65e31fcd1be6cc0cf8b23a1024da1ea6f91bd0f87091dfd1cdc743e6723",
+          "tests": 2
+        }
+      ]
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "The rle package exposes decode (already implemented) and a stub encode(s). Implement encode(s) so that it run-length encodes a string: each maximal run of one character becomes that character followed by the decimal count of the run (the count is always written, even when it is 1). For example encode('aaabbc') is 'a3b2c1', encode('abc') is 'a1b1c1', encode('') is ''. encode must return a str and must round-trip with decode (decode(encode(x)) == x for every string x). Raise TypeError when s is not a string. Do not change decode or the tests.",
+    "interface_contract": [],
+    "acceptance_criteria": [
+      "encode('aaabbc')=='a3b2c1' and encode('a')=='a1'",
+      "encode('')==''",
+      "encode('abc')=='a1b1c1' (count written even when 1)",
+      "encode('x'*12)=='x12' (multi-digit counts)",
+      "decode(encode(x))==x for every string x",
+      "encode returns a str",
+      "TypeError when s is not a string"
+    ],
+    "out_of_scope": [],
+    "external_references_needed": []
+  },
+  "grounding": null,
+  "sealed_tests": null,
+  "red_run": null,
+  "trajectory": {
+    "turns": 7,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "list_files",
+        "path": null,
+        "reason": "List files to understand project layout.",
+        "observation_head": "rle/__init__.py\nrle/core.py\ntests/__init__.py\ntests/test_basic.py"
+      },
+      {
+        "turn": 2,
+        "action": "read_file",
+        "path": "rle/core.py",
+        "reason": "View current implementation of encode and decode.",
+        "observation_head": "[23 lines]\n\"\"\"Run-length encoding.\"\"\"\n\n\ndef decode(s):\n    \"\"\"Decode a run-length string like 'a3b1' back to 'aaab'. Already implemented.\"\"\"\n    if not isinstan"
+      },
+      {
+        "turn": 3,
+        "action": "read_file",
+        "path": "rle/core.py",
+        "reason": "Read entire file to see full content before editing.",
+        "observation_head": "[23 lines]\n\"\"\"Run-length encoding.\"\"\"\n\n\ndef decode(s):\n    \"\"\"Decode a run-length string like 'a3b1' back to 'aaab'. Already implemented.\"\"\"\n    if not isinstan"
+      },
+      {
+        "turn": 4,
+        "action": "replace_in_file",
+        "path": "rle/core.py",
+        "reason": "Replace stub encode with proper run-length encoding implementation.",
+        "observation_head": "replaced one occurrence in rle/core.py; the file is now 956 bytes"
+      },
+      {
+        "turn": 5,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Run existing test suite to ensure our encode implementation passes all tests.",
+        "observation_head": "existing test suite: OK (ran 2, passed 2, exit 0)\ntest_decode (tests.test_basic.TestDecode.test_decode) ... ok\ntest_decode_type (tests.test_basic.TestDecode.tes"
+      },
+      {
+        "turn": 6,
+        "action": "run_python",
+        "path": null,
+        "reason": "Run a quick sanity check on encode implementation to ensure it meets acceptance criteria and round-trip property.",
+        "observation_head": "exit 0\nstdout:\nAll tests passed\n\nstderr:\n"
+      },
+      {
+        "turn": 7,
+        "action": "finish",
+        "path": null,
+        "reason": "Implementation complete and tests pass.",
+        "observation_head": "finished: Encode function implemented correctly, satisfying all acceptance criteria."
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": true
+  },
+  "candidate": {
+    "changed_paths": [
+      "rle/core.py"
+    ],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "--- a/rle/core.py\n+++ b/rle/core.py\n@@ -20,4 +20,19 @@\n \n \n def encode(s):\n-    raise NotImplementedError(\"encode is not implemented yet\")\n+    if not isinstance(s, str):\n+        raise TypeError(\"encode expects a string\")\n+    if not s:\n+        return \"\"\n+    result = []\n+    current_char = s[0]\n+    count = 1\n+    for ch in s[1:]:\n+        if ch == current_char:\n+            count += 1\n+        else:\n+            result.append(current_char + str(count))\n+            current_char = ch\n+            count = 1\n+    result.append(current_char + str(count))\n+    return \"\".join(result)\n",
+    "sha256": {
+      "rle/core.py": "f687513bb4af47cef05096617d22fb48ec3d6ef9ef9b4a846c81af450c18b7e9"
+    },
+    "implementer_finished": true
+  },
+  "verification": null,
+  "breaker": null,
+  "drift": null,
+  "arbitration": null,
+  "gates": {},
+  "verdict": {
+    "verdict": "BASELINE",
+    "reasons": [],
+    "warnings": [],
+    "finished": true,
+    "summary": "Encode function implemented correctly, satisfying all acceptance criteria."
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:22:38.067656+00:00",
+        "elapsed_ms": 2496,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3136,
+        "tokens_in": 1011,
+        "tokens_out": 95,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 95,
+          "prompt_tokens": 1011,
+          "total_tokens": 1106,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 33,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1011
+        },
+        "cost_usd": 0.000389,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015014,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:22:40.614119+00:00",
+        "elapsed_ms": 2522,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3418,
+        "tokens_in": 1102,
+        "tokens_out": 93,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 93,
+          "prompt_tokens": 1102,
+          "total_tokens": 1195,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 26,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1102
+        },
+        "cost_usd": 0.000414,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015042,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:22:43.141485+00:00",
+        "elapsed_ms": 2678,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4268,
+        "tokens_in": 1344,
+        "tokens_out": 137,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 137,
+          "prompt_tokens": 1344,
+          "total_tokens": 1481,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 68,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1344
+        },
+        "cost_usd": 0.000526,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015127,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:22:45.823951+00:00",
+        "elapsed_ms": 5235,
+        "gateway_duration_ms": null,
+        "prompt_chars": 5121,
+        "tokens_in": 1588,
+        "tokens_out": 819,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 819,
+          "prompt_tokens": 1588,
+          "total_tokens": 2407,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 600,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1588
+        },
+        "cost_usd": 0.001213,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015212,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-5",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:22:51.064231+00:00",
+        "elapsed_ms": 2516,
+        "gateway_duration_ms": null,
+        "prompt_chars": 6010,
+        "tokens_in": 1836,
+        "tokens_out": 96,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 96,
+          "prompt_tokens": 1836,
+          "total_tokens": 1932,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 28,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1836
+        },
+        "cost_usd": 0.000637,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015301,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-6",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:22:56.928225+00:00",
+        "elapsed_ms": 4162,
+        "gateway_duration_ms": null,
+        "prompt_chars": 6563,
+        "tokens_in": 1982,
+        "tokens_out": 490,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 490,
+          "prompt_tokens": 1982,
+          "total_tokens": 2472,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 199,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1982
+        },
+        "cost_usd": 0.001036,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015356,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-7",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:23:04.327975+00:00",
+        "elapsed_ms": 3201,
+        "gateway_duration_ms": null,
+        "prompt_chars": 7554,
+        "tokens_in": 2297,
+        "tokens_out": 296,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 296,
+          "prompt_tokens": 2297,
+          "total_tokens": 2593,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 226,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2297
+        },
+        "cost_usd": 0.000955,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015455,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a14ae3-1bfc-7600-94b0-08fc7a0b58dc",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "f4cbbbb6-afe9-4451-985f-b94fcfc702e5",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.805,
+        "raw_cost_diag": 0.00282363,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:22:34.860161+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-5",
+        "operation_uuid": "01a14ae3-65a2-700c-8aa6-c4fb17adc6c7",
+        "image_uuid": "f4cbbbb6-afe9-4451-985f-b94fcfc702e5",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.747,
+        "raw_cost_diag": 0.0028312399999999996,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:22:53.584752+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-python-6",
+        "operation_uuid": "01a14ae3-8297-7327-8f8b-612f97e54d9b",
+        "image_uuid": "f4cbbbb6-afe9-4451-985f-b94fcfc702e5",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.621,
+        "raw_cost_diag": 0.0017578599999999998,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:23:01.094888+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "totals": {
+      "model_calls": 7,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 11160,
+      "tokens_out": 2026,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 22810,
+      "cost_usd": 0.00517,
+      "cost_usd_committed": 0.00517,
+      "uncertain_unpriced_calls": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "nebius_tokenfactory:nvidia/nemotron-3-super-120b-a12b": {
+          "calls": 7,
+          "tokens_in": 11160,
+          "tokens_out": 2026,
+          "tokens_cached": 0,
+          "cost_usd": 0.00517,
+          "elapsed_ms": 22810,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 3,
+      "sandbox_duration_s": 2.173,
+      "sandbox_retained_images": [
+        "f4cbbbb6-afe9-4451-985f-b94fcfc702e5"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.00741273
+    }
+  },
+  "limitations": [
+    "Profile 'eval-baseline-a2': inference provider nebius_tokenfactory; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter then classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, corrects and re-verifies them (must pass on the candidate and still fail on the base). Arbitration is advisory by default and never clears an implementation bug or a contract dispute; it changes the verdict only in explicit apply mode.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "implement"
+}

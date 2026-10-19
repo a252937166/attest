@@ -1,0 +1,43 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement brackets.is_balanced(s) in the existing stub so that string inputs return a bool indicating whether the ASCII brackets (), [] and {} are correctly matched and nested. Ignore all other characters, accept empty strings and strings containing no brackets as balanced, and raise TypeError for every non-string input. Preserve is_bracket, existing package imports, and all existing tests.",
+  "interface_contract": [
+    {
+      "name": "brackets.is_balanced",
+      "signature": "is_balanced(s)",
+      "behavior": "Accept str instances, including subclasses. Ignore every character other than (, ), [, ], { and }. Return True exactly when every closing bracket matches the most recent unmatched opening bracket and no opening brackets remain unmatched at the end; otherwise return False. Return an actual bool. Empty strings and strings without bracket characters return True. Remain available through from brackets import is_balanced.",
+      "error_cases": [
+        "TypeError: s is not an instance of str, including bytes, None, numbers, booleans, lists and other containers; do not coerce inputs to strings."
+      ]
+    },
+    {
+      "name": "brackets.is_bracket",
+      "signature": "is_bracket(c)",
+      "behavior": "Preserve the existing implementation and public import. Return True exactly when c is a str instance of length one containing one of the six ASCII bracket characters; return False otherwise.",
+      "error_cases": []
+    }
+  ],
+  "acceptance_criteria": [
+    "1. from brackets import is_balanced and from brackets import is_bracket both succeed.",
+    "2. is_balanced returns True for each of '', '()', '[]', '{}', '()[]{}' and '([{}])'.",
+    "3. is_balanced returns True for '(a[b]{c})' and 'f(x[0], y[1])'.",
+    "4. is_balanced returns False for each of '(', ')', '([)]', '(]', '{[}' and '())'.",
+    "5. Each standalone opening or closing bracket returns False; premature closing brackets, such as in ')(', and leftover opening brackets, such as in '(()', return False.",
+    "6. Repeated nesting and successive balanced groups are accepted, including '((()))' and '[{}]([])'.",
+    "7. All non-bracket characters are ignored, including whitespace, newlines, Unicode characters, quotes and backslashes. Strings containing no ASCII brackets return True. Quotes and backslashes do not escape brackets or suppress matching.",
+    "8. Removing every non-bracket character from any string leaves its is_balanced result unchanged.",
+    "9. Every successful call returns an object whose type is bool, for both balanced and unbalanced string inputs.",
+    "10. Non-string inputs raise TypeError, including None, True, 0, 1.5, b'()', [], (), {}, and an arbitrary object instance. Empty containers are not treated as balanced.",
+    "11. Instances of str subclasses are accepted and evaluated using the same bracket rules as ordinary strings.",
+    "12. is_bracket remains unchanged: it returns True for each character in '()[]{}' and False for 'a', '', '((', and 1. Existing tests remain unchanged and pass."
+  ],
+  "out_of_scope": [
+    "Changing is_bracket or any existing tests.",
+    "Changing the public function signatures or package exports.",
+    "Changing PAIRS, OPEN or CLOSE.",
+    "Adding support for other bracket types, language syntax, quoting or escape rules.",
+    "Adding dependencies or unrelated functionality."
+  ],
+  "external_references_needed": []
+}

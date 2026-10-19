@@ -1,0 +1,30 @@
+{
+  "applied": false,
+  "cleared": false,
+  "counts": {
+    "implementation_bug": 1,
+    "test_defect": 0,
+    "contract_dispute": 0
+  },
+  "headline": "1 failing test(s) indicate a real implementation bug; human review required",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestBreaker.test_str_subclass_uses_its_string_contents",
+          "classification": "implementation_bug",
+          "rationale": "The subclass instances contain '(' and '()', respectively, so their required results are False and True. The candidate instead processes the replacement characters supplied by the overridden __iter__, producing the opposite results.",
+          "contract_basis": "The contract explicitly accepts str subclasses and requires evaluating the brackets in the string using the same matching rules (acceptance criterion 12). An unmatched '(' is unbalanced; '()' is balanced."
+        }
+      ],
+      "corrected_notes": "No test correction is appropriate: the failing test exposes incorrect evaluation of accepted str subclass inputs.",
+      "corrected_module": null,
+      "candidate_rerun": null,
+      "base_rerun": null,
+      "cleared_module": false,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

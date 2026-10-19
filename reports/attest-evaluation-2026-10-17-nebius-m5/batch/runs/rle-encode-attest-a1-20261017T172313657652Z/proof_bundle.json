@@ -1,0 +1,2094 @@
+{
+  "run_id": "rle-encode-attest-a1-20261017T172313657652Z",
+  "started_at_utc": "2026-10-17T17:23:13.657861+00:00",
+  "finished_at_utc": "2026-10-17T17:26:32.256628+00:00",
+  "profile": {
+    "label": "eval-attest-a1",
+    "provider": {
+      "provider": "nebius_tokenfactory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "roles": {
+        "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "seal": "nvidia/nemotron-3-super-120b-a12b",
+        "implement": "nvidia/nemotron-3-super-120b-a12b",
+        "break": "nvidia/nemotron-3-super-120b-a12b",
+        "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "summary": "nvidia/Nemotron-3_5-Lightning"
+      },
+      "usd_cap": 0.5,
+      "max_calls": 20,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "temperature": 0.2,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
+      "schema_in_prompt": true,
+      "auto_retry": false,
+      "pre_request_reservation": true,
+      "max_prompt_chars": 120000,
+      "max_tokens": 16000
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "provenance": {
+    "attest_version": "0.3.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "166cdcbd46a74cd0c666a19e111762eea64cd973c80396dfad724c1d47791b4e",
+      "files": 35,
+      "git_commit": null,
+      "version": "0.3.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/6",
+      "sha256": "93e8c9edacca93fc4b8a8c2cf86b44374aab3a9a752dc35b7af5e3dfdc935211"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "80999537285bacafdd86e7faad72792e2a7a25f87d691231e76f3905a1aa91b6",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/reports/attest-evaluation-2026-10-17-nebius-m5/batch/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "nebius_tokenfactory",
+      "temperature": 0.2,
+      "max_tokens": 16000,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "note": "temperature and max_tokens are sent with every request; roles map to model ids",
+      "roles": {
+        "spec": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "seal": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "implement": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "break": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "audit": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "arbitrate": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "summary": {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "effort": null
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 14,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": true,
+      "arbitration_apply": false
+    },
+    "pacing": null,
+    "retry_policy": null,
+    "upstream": null
+  },
+  "task": {
+    "id": "rle-encode",
+    "title": "rle-encode",
+    "statement": "The rle package exposes decode (already implemented) and a stub encode(s). Implement encode(s) so that it run-length encodes a string: each maximal run of one character becomes that character followed by the decimal count of the run (the count is always written, even when it is 1). For example encode('aaabbc') is 'a3b2c1', encode('abc') is 'a1b1c1', encode('') is ''. encode must return a str and must round-trip with decode (decode(encode(x)) == x for every string x). Raise TypeError when s is not a string. Do not change decode or the tests.",
+    "acceptance_criteria": [
+      "encode('aaabbc')=='a3b2c1' and encode('a')=='a1'",
+      "encode('')==''",
+      "encode('abc')=='a1b1c1' (count written even when 1)",
+      "encode('x'*12)=='x12' (multi-digit counts)",
+      "decode(encode(x))==x for every string x",
+      "encode returns a str",
+      "TypeError when s is not a string"
+    ],
+    "allowed_write_globs": [
+      "rle/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from rle import encode",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "rle/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "rle/core.py": "04edfeb9ac54e38bad7a82baedc1d438a75c655881c389267ac9c7f44c24fb5c",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "1114c65e31fcd1be6cc0cf8b23a1024da1ea6f91bd0f87091dfd1cdc743e6723"
+    },
+    "spec_sha256": "e64da208acc97bfcb964f579c1a5687bc6340ce7531452982870487fe1231c41"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a14ae4-73b8-7037-a841-b25997e9d879",
+    "checkpoint_image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+    "checkpoint_chain": [],
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestDecode.test_decode",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestDecode.test_decode_type",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestDecode.test_decode",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestDecode.test_decode_type",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a14ae4-73b8-7037-a841-b25997e9d879",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.214,
+      "stderr_tail": "test_decode (tests.test_basic.TestDecode.test_decode) ... ok\ntest_decode_type (tests.test_basic.TestDecode.test_decode_type) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "suite_binding": {
+      "mode": "bound",
+      "reason": "2 statically discovered test ids in 1 module(s) match the baseline run",
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "path": "tests/test_basic.py",
+          "sha256": "1114c65e31fcd1be6cc0cf8b23a1024da1ea6f91bd0f87091dfd1cdc743e6723",
+          "tests": 2
+        }
+      ]
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Implement the `encode` function in the `rle` package to perform run-length encoding on a string. The function must convert each maximal run of identical characters into the character followed by the decimal count of the run (always including the count, even for runs of length 1). The function must return a string, raise `TypeError` for non-string inputs, and satisfy the round-trip property `decode(encode(x)) == x` for all strings `x`. The existing `decode` function and tests must not be modified.",
+    "interface_contract": [
+      {
+        "name": "encode",
+        "signature": "encode(s: str) -> str",
+        "behavior": "Returns the run-length encoding of the input string `s`. Each maximal run of a single character is replaced by that character followed by the decimal representation of the run length (with no leading zeros). The count is always written, even for runs of length 1. For an empty string, returns an empty string.",
+        "error_cases": [
+          "TypeError: raised when `s` is not a string."
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "encode('aaabbc') == 'a3b2c1'",
+      "encode('a') == 'a1'",
+      "encode('') == ''",
+      "encode('abc') == 'a1b1c1' (count written even when 1)",
+      "encode('x' * 12) == 'x12' (multi-digit counts)",
+      "decode(encode(x)) == x for every string x (round-trip property)",
+      "encode returns a str instance",
+      "encode raises TypeError when the argument is not a string"
+    ],
+    "out_of_scope": [
+      "The `decode` function in `rle/core.py` must not be changed.",
+      "The test file `tests/test_basic.py` must not be changed.",
+      "The `__init__.py` files must not be changed."
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": {
+    "path": "sealed/test_sealed.py",
+    "sha256": "1dfbb27cbc9e5d34ebad35bc51025a5dd0f1b8dddd4266ed2be6d9dc4df4c790",
+    "test_count": 10,
+    "declared_test_count": 9,
+    "expected_ids": [
+      "test_sealed.TestEncode.test_encode_aaabbc",
+      "test_sealed.TestEncode.test_encode_single_char",
+      "test_sealed.TestEncode.test_encode_empty",
+      "test_sealed.TestEncode.test_encode_all_one_counts",
+      "test_sealed.TestEncode.test_encode_multi_digit_count",
+      "test_sealed.TestEncode.test_round_trip_property",
+      "test_sealed.TestEncode.test_encode_returns_str",
+      "test_sealed.TestEncode.test_encode_type_error_non_string",
+      "test_sealed.TestEncode.test_encode_long_run",
+      "test_sealed.TestEncode.test_encode_mixed_runs"
+    ],
+    "escapes_repaired": false,
+    "sealed_at_utc": "2026-10-17T17:24:21.586771+00:00",
+    "author_model": "nvidia/nemotron-3-super-120b-a12b",
+    "attempts": 1,
+    "rejected_attempts": [],
+    "notes": "Covered all acceptance criteria with extra edge cases."
+  },
+  "red_run": {
+    "ran": 10,
+    "tests": [
+      {
+        "id": "test_sealed.TestEncode.test_encode_aaabbc",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.182,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 6, in test_encode_aaabbc\n    self.assertEqual(encode('aaabbc'), 'a3b2c1')\n                     ^^^^^^^^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestEncode.test_encode_single_char",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 8, in test_encode_single_char\n    self.assertEqual(encode('a'), 'a1')\n                     ^^^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestEncode.test_encode_empty",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 10, in test_encode_empty\n    self.assertEqual(encode(''), '')\n                     ^^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestEncode.test_encode_all_one_counts",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.172,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 12, in test_encode_all_one_counts\n    self.assertEqual(encode('abc'), 'a1b1c1')\n                     ^^^^^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestEncode.test_encode_multi_digit_count",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 14, in test_encode_multi_digit_count\n    self.assertEqual(encode('x' * 12), 'x12')\n                     ^^^^^^^^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestEncode.test_round_trip_property",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "re.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 19, in test_round_trip_property\n    self.assertEqual(decode(encode(s)), s)\n                            ^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 19, in test_round_trip_property\n    self.assertEqual(decode(encode(s)), s)\n                            ^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 19, in test_round_trip_property\n    self.assertEqual(decode(encode(s)), s)\n                            ^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestEncode.test_encode_returns_str",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 21, in test_encode_returns_str\n    result = encode('hello')\n             ^^^^^^^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestEncode.test_encode_type_error_non_string",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "emented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 27, in test_encode_type_error_non_string\n    encode(bad)\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 27, in test_encode_type_error_non_string\n    encode(bad)\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 27, in test_encode_type_error_non_string\n    encode(bad)\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 27, in test_encode_type_error_non_string\n    encode(bad)\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestEncode.test_encode_long_run",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.172,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 29, in test_encode_long_run\n    self.assertEqual(encode('a'*1000), 'a1000')\n                     ^^^^^^^^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestEncode.test_encode_mixed_runs",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.183,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 31, in test_encode_mixed_runs\n    self.assertEqual(encode('aaabbbcccdddde'), 'a3b3c3d4e1')\n                     ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/rle/core.py\", line 23, in encode\n    raise NotImplementedError(\"encode is not implemented yet\")\nNotImplementedError: encode is not implemented yet\n"
+      }
+    ],
+    "passed": 0,
+    "failing": 10,
+    "subtest_events": 0,
+    "import_error": null,
+    "all_passed": false,
+    "canary_ok": true,
+    "summary_line": "FAILED (10 of 10 methods: ERROR 10)",
+    "operation_uuid": "01a14ae4-a4f9-741c-b0f1-25479d3a76ae",
+    "nonce": "3a69c0ad92b4a524564c788cb38db038",
+    "supervisor_exit_code": 1,
+    "runner_error": null
+  },
+  "trajectory": {
+    "turns": 8,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "list_files",
+        "path": null,
+        "reason": "List files to locate where encode should be implemented.",
+        "observation_head": "rle/__init__.py\nrle/core.py\ntests/__init__.py\ntests/test_basic.py"
+      },
+      {
+        "turn": 2,
+        "action": "read_file",
+        "path": "rle/core.py",
+        "reason": "Examine existing decode function and see if encode exists.",
+        "observation_head": "[23 lines]\n\"\"\"Run-length encoding.\"\"\"\n\n\ndef decode(s):\n    \"\"\"Decode a run-length string like 'a3b1' back to 'aaab'. Already implemented.\"\"\"\n    if not isinstan"
+      },
+      {
+        "turn": 3,
+        "action": "replace_in_file",
+        "path": "rle/core.py",
+        "reason": "Implement encode function according to contract.",
+        "observation_head": "replaced one occurrence in rle/core.py; the file is now 956 bytes"
+      },
+      {
+        "turn": 4,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Run test suite to verify encode implementation.",
+        "observation_head": "existing test suite: OK (ran 2, passed 2, exit 0)\ntest_decode (tests.test_basic.TestDecode.test_decode) ... ok\ntest_decode_type (tests.test_basic.TestDecode.tes"
+      },
+      {
+        "turn": 5,
+        "action": "run_python",
+        "path": null,
+        "reason": "Run a quick sanity check on encode and round-trip property.",
+        "observation_head": "exit 1\nstdout:\n\nstderr:\n  File \"<string>\", line 17\n    test()\", \n          ^\nSyntaxError: unterminated string literal (detected at line 17)\n"
+      },
+      {
+        "turn": 6,
+        "action": "run_python",
+        "path": null,
+        "reason": "Run a comprehensive test on encode.",
+        "observation_head": "exit 0\nstdout:\nAll tests passed\n\nstderr:\n"
+      },
+      {
+        "turn": 7,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Run test suite again to ensure everything passes after implementation.",
+        "observation_head": "existing test suite: OK (ran 2, passed 2, exit 0)\ntest_decode (tests.test_basic.TestDecode.test_decode) ... ok\ntest_decode_type (tests.test_basic.TestDecode.tes"
+      },
+      {
+        "turn": 8,
+        "action": "finish",
+        "path": null,
+        "reason": "Implementation of encode is complete and passes all tests.",
+        "observation_head": "finished: Encode function implemented in rle/core.py, satisfies contract and round-trip property."
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": true
+  },
+  "candidate": {
+    "changed_paths": [
+      "rle/core.py"
+    ],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "--- a/rle/core.py\n+++ b/rle/core.py\n@@ -20,4 +20,19 @@\n \n \n def encode(s):\n-    raise NotImplementedError(\"encode is not implemented yet\")\n+    if not isinstance(s, str):\n+        raise TypeError(\"encode expects a string\")\n+    if not s:\n+        return \"\"\n+    result = []\n+    current_char = s[0]\n+    count = 1\n+    for ch in s[1:]:\n+        if ch == current_char:\n+            count += 1\n+        else:\n+            result.append(current_char + str(count))\n+            current_char = ch\n+            count = 1\n+    result.append(current_char + str(count))\n+    return \"\".join(result)\n",
+    "sha256": {
+      "rle/core.py": "f687513bb4af47cef05096617d22fb48ec3d6ef9ef9b4a846c81af450c18b7e9"
+    },
+    "implementer_finished": true,
+    "tamper_scan": {
+      "added_lines": 16,
+      "flagged": [],
+      "labels": [],
+      "patterns_checked": 19,
+      "summary": "no suspicious constructs on the added lines"
+    }
+  },
+  "verification": {
+    "operation_uuid": "01a14ae5-ac4a-77ab-b39a-60a9701c66f3",
+    "status": "SUCCESS",
+    "order": [
+      "verify: sealed supervisor is the only step of its branch (nothing imports candidate code before it)",
+      "existing: the repository's own suite runs afterwards in its own disposable branch",
+      "heldout: held-out modules run afterwards in their own disposable branch"
+    ],
+    "sealed_sha256_injected": "1dfbb27cbc9e5d34ebad35bc51025a5dd0f1b8dddd4266ed2be6d9dc4df4c790",
+    "expected_ids": [
+      "test_sealed.TestEncode.test_encode_aaabbc",
+      "test_sealed.TestEncode.test_encode_single_char",
+      "test_sealed.TestEncode.test_encode_empty",
+      "test_sealed.TestEncode.test_encode_all_one_counts",
+      "test_sealed.TestEncode.test_encode_multi_digit_count",
+      "test_sealed.TestEncode.test_round_trip_property",
+      "test_sealed.TestEncode.test_encode_returns_str",
+      "test_sealed.TestEncode.test_encode_type_error_non_string",
+      "test_sealed.TestEncode.test_encode_long_run",
+      "test_sealed.TestEncode.test_encode_mixed_runs"
+    ],
+    "existing": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestDecode.test_decode",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.182,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_basic.TestDecode.test_decode_type",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "all_passed": true,
+      "summary_line": "OK (2 of 2 methods, each in its own process)",
+      "module_error": false,
+      "operation_uuid": "01a14ae6-0ac6-7637-b21c-533f16586574",
+      "runner_error": null,
+      "evidence_class": "bound",
+      "evidence_note": "2 statically discovered test ids in 1 module(s) match the baseline run",
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "module_set_matches": true,
+          "module_digests_unchanged": true,
+          "static_ids_match_expected": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "nonce": "c1beb2699d926b4f2da14006cabb0c59",
+      "canary_ok": true,
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "sha256": "1114c65e31fcd1be6cc0cf8b23a1024da1ea6f91bd0f87091dfd1cdc743e6723",
+          "tests": 2,
+          "ids": [
+            "tests.test_basic.TestDecode.test_decode",
+            "tests.test_basic.TestDecode.test_decode_type"
+          ]
+        }
+      ]
+    },
+    "sealed": {
+      "ran": 10,
+      "tests": [
+        {
+          "id": "test_sealed.TestEncode.test_encode_aaabbc",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.188,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestEncode.test_encode_single_char",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestEncode.test_encode_empty",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.176,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestEncode.test_encode_all_one_counts",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.172,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestEncode.test_encode_multi_digit_count",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.174,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestEncode.test_round_trip_property",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestEncode.test_encode_returns_str",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestEncode.test_encode_type_error_non_string",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.172,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestEncode.test_encode_long_run",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestEncode.test_encode_mixed_runs",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 10,
+      "failing": 0,
+      "subtest_events": 0,
+      "import_error": null,
+      "all_passed": true,
+      "canary_ok": true,
+      "summary_line": "OK (10 of 10 methods, each in its own process)",
+      "operation_uuid": "01a14ae5-ac4a-77ab-b39a-60a9701c66f3",
+      "nonce": "da89b38be106aa640b01b6660e6f6272",
+      "supervisor_exit_code": 0,
+      "runner_error": null
+    },
+    "binding": {
+      "ok": true,
+      "checks": {
+        "result_file_present": true,
+        "sealed_file_unchanged_before": true,
+        "sealed_file_unchanged_after": true,
+        "static_ids_match_red": true,
+        "supervisor_completed": true,
+        "verifier_isolation_active": true,
+        "nonce_matches": true,
+        "no_discovery_error": true,
+        "expected_test_ids_present": true,
+        "no_unexpected_test_ids": true,
+        "no_nonzero_exit": true,
+        "no_signal": true,
+        "no_timeout": true,
+        "no_missing_or_forged_result": true,
+        "all_expected_pass": true,
+        "no_startup_hooks_on_import_path": true,
+        "canary_must_pass_ok": true,
+        "canary_must_fail_failed": true
+      },
+      "reasons": []
+    },
+    "heldout": null
+  },
+  "breaker": {
+    "mutation": {
+      "generated": 11,
+      "evaluated": 11,
+      "killed": 11,
+      "survived": 0,
+      "unknown": 0,
+      "score": 1.0,
+      "threshold": 0.5,
+      "mutants": [
+        {
+          "id": "m01-8ec8ddc94d",
+          "path": "rle/core.py",
+          "lineno": 23,
+          "operator": "not",
+          "description": "remove `not`",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-2849-717b-8fc3-8cbe885509eb",
+          "failing_methods": 10,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_aaabbc",
+            "test_sealed.TestEncode.test_encode_single_char",
+            "test_sealed.TestEncode.test_encode_empty",
+            "test_sealed.TestEncode.test_encode_all_one_counts",
+            "test_sealed.TestEncode.test_encode_multi_digit_count"
+          ]
+        },
+        {
+          "id": "m02-d577c0fd83",
+          "path": "rle/core.py",
+          "lineno": 24,
+          "operator": "raise",
+          "description": "raise -> pass",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-2828-7785-8022-6233751b5f44",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_type_error_non_string"
+          ]
+        },
+        {
+          "id": "m03-d71b8e165a",
+          "path": "rle/core.py",
+          "lineno": 25,
+          "operator": "not",
+          "description": "remove `not`",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-283e-707c-8dfb-3e41120136bf",
+          "failing_methods": 8,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_aaabbc",
+            "test_sealed.TestEncode.test_encode_single_char",
+            "test_sealed.TestEncode.test_encode_empty",
+            "test_sealed.TestEncode.test_encode_all_one_counts",
+            "test_sealed.TestEncode.test_encode_multi_digit_count"
+          ]
+        },
+        {
+          "id": "m04-4041d1d761",
+          "path": "rle/core.py",
+          "lineno": 28,
+          "operator": "int",
+          "description": "0 -> 1",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-284d-72c8-a226-90ad0ccfe83b",
+          "failing_methods": 3,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_single_char",
+            "test_sealed.TestEncode.test_encode_all_one_counts",
+            "test_sealed.TestEncode.test_round_trip_property"
+          ]
+        },
+        {
+          "id": "m05-697d3a6162",
+          "path": "rle/core.py",
+          "lineno": 29,
+          "operator": "int",
+          "description": "1 -> 2",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-2810-7082-8248-4b10727311f0",
+          "failing_methods": 7,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_aaabbc",
+            "test_sealed.TestEncode.test_encode_single_char",
+            "test_sealed.TestEncode.test_encode_all_one_counts",
+            "test_sealed.TestEncode.test_encode_multi_digit_count",
+            "test_sealed.TestEncode.test_round_trip_property"
+          ]
+        },
+        {
+          "id": "m06-d95fbb9afb",
+          "path": "rle/core.py",
+          "lineno": 30,
+          "operator": "int",
+          "description": "1 -> 2",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-2848-7040-b4f8-fd3c2d1f1366",
+          "failing_methods": 6,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_aaabbc",
+            "test_sealed.TestEncode.test_encode_all_one_counts",
+            "test_sealed.TestEncode.test_encode_multi_digit_count",
+            "test_sealed.TestEncode.test_round_trip_property",
+            "test_sealed.TestEncode.test_encode_long_run"
+          ]
+        },
+        {
+          "id": "m07-4d9f698d3f",
+          "path": "rle/core.py",
+          "lineno": 31,
+          "operator": "compare",
+          "description": "Eq -> NotEq",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-2829-754f-99f9-741ae52d4cdf",
+          "failing_methods": 6,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_aaabbc",
+            "test_sealed.TestEncode.test_encode_all_one_counts",
+            "test_sealed.TestEncode.test_encode_multi_digit_count",
+            "test_sealed.TestEncode.test_round_trip_property",
+            "test_sealed.TestEncode.test_encode_long_run"
+          ]
+        },
+        {
+          "id": "m08-368674d77d",
+          "path": "rle/core.py",
+          "lineno": 32,
+          "operator": "int",
+          "description": "1 -> 2",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-2845-7422-9e0c-48e74b0609a7",
+          "failing_methods": 5,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_aaabbc",
+            "test_sealed.TestEncode.test_encode_multi_digit_count",
+            "test_sealed.TestEncode.test_round_trip_property",
+            "test_sealed.TestEncode.test_encode_long_run",
+            "test_sealed.TestEncode.test_encode_mixed_runs"
+          ]
+        },
+        {
+          "id": "m09-f40ccb6538",
+          "path": "rle/core.py",
+          "lineno": 34,
+          "operator": "binop",
+          "description": "Add -> Sub",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-4365-74e1-870d-a9803de16a5a",
+          "failing_methods": 5,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_aaabbc",
+            "test_sealed.TestEncode.test_encode_all_one_counts",
+            "test_sealed.TestEncode.test_round_trip_property",
+            "test_sealed.TestEncode.test_encode_returns_str",
+            "test_sealed.TestEncode.test_encode_mixed_runs"
+          ]
+        },
+        {
+          "id": "m10-1e99faa709",
+          "path": "rle/core.py",
+          "lineno": 36,
+          "operator": "int",
+          "description": "1 -> 2",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-42b4-740c-8460-5b6abf015bcd",
+          "failing_methods": 4,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_aaabbc",
+            "test_sealed.TestEncode.test_encode_all_one_counts",
+            "test_sealed.TestEncode.test_round_trip_property",
+            "test_sealed.TestEncode.test_encode_mixed_runs"
+          ]
+        },
+        {
+          "id": "m11-164ff607ed",
+          "path": "rle/core.py",
+          "lineno": 37,
+          "operator": "binop",
+          "description": "Add -> Sub",
+          "status": "killed",
+          "operation_uuid": "01a14ae6-42e4-773a-a658-fb121ae5af39",
+          "failing_methods": 8,
+          "killed_by": [
+            "test_sealed.TestEncode.test_encode_aaabbc",
+            "test_sealed.TestEncode.test_encode_single_char",
+            "test_sealed.TestEncode.test_encode_all_one_counts",
+            "test_sealed.TestEncode.test_encode_multi_digit_count",
+            "test_sealed.TestEncode.test_round_trip_property"
+          ]
+        }
+      ]
+    },
+    "adversarial": {
+      "sha256": "e373ad62aa223bb17776ec2fdd4cd08ec98b5170c92719921a397fdc417ac000",
+      "author_model": "nvidia/nemotron-3-super-120b-a12b",
+      "expected_ids": [
+        "test_breaker.BreakerTests.test_unicode_characters",
+        "test_breaker.BreakerTests.test_null_byte",
+        "test_breaker.BreakerTests.test_very_long_run",
+        "test_breaker.BreakerTests.test_alternating_chars",
+        "test_breaker.BreakerTests.test_mixed_ascii_and_unicode",
+        "test_breaker.BreakerTests.test_encode_returns_new_str_instance",
+        "test_breaker.BreakerTests.test_type_error_subclasses",
+        "test_breaker.BreakerTests.test_encode_with_leading_zeros_in_count_not_allowed",
+        "test_breaker.BreakerTests.test_round_trip_for_all_lengths_up_to_20",
+        "test_breaker.BreakerTests.test_encode_preserves_order_of_runs"
+      ],
+      "summary": {
+        "ran": 10,
+        "tests": [
+          {
+            "id": "test_breaker.BreakerTests.test_unicode_characters",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.18,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.BreakerTests.test_null_byte",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.173,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.BreakerTests.test_very_long_run",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.BreakerTests.test_alternating_chars",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.175,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.BreakerTests.test_mixed_ascii_and_unicode",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.171,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.BreakerTests.test_encode_returns_new_str_instance",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.169,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.BreakerTests.test_type_error_subclasses",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.BreakerTests.test_encode_with_leading_zeros_in_count_not_allowed",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.168,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.BreakerTests.test_round_trip_for_all_lengths_up_to_20",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.178,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.BreakerTests.test_encode_preserves_order_of_runs",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.169,
+            "captured_tail": "",
+            "failure_tail": ""
+          }
+        ],
+        "passed": 10,
+        "failing": 0,
+        "subtest_events": 0,
+        "import_error": null,
+        "all_passed": true,
+        "canary_ok": true,
+        "summary_line": "OK (10 of 10 methods, each in its own process)",
+        "operation_uuid": "01a14ae6-7826-75df-8603-051bc93b3482",
+        "nonce": "37db4161b7b30b9e27e8bf0238865704",
+        "supervisor_exit_code": 0,
+        "runner_error": null
+      },
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "sealed_file_unchanged_before": true,
+          "sealed_file_unchanged_after": true,
+          "static_ids_match_red": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "notes": "Targeted edge cases: Unicode, null bytes, very long runs, alternating patterns, mixed scripts, subclass handling, no leading zeros, exhaustive small lengths.",
+      "operation_uuid": "01a14ae6-7826-75df-8603-051bc93b3482"
+    }
+  },
+  "drift": {
+    "drift_score": 0.0,
+    "assessment": "aligned",
+    "scope_narrowed": [],
+    "scope_widened": [],
+    "unsupported_claims": [
+      "Run test suite to verify encode implementation."
+    ],
+    "summary": "The diff implements encode correctly, satisfying all contract requirements including TypeError for non-strings, proper run-length encoding with counts, and round-trip with decode. The implementer's assertion that the existing test suite verifies encode is unsupported because the suite only contains decode tests.",
+    "threshold": 0.6
+  },
+  "arbitration": null,
+  "gates": {
+    "existing_suite": {
+      "ok": true,
+      "detail": "OK (2 of 2 methods, each in its own process)",
+      "evidence_class": "bound"
+    },
+    "sealed_binding": {
+      "ok": true,
+      "detail": "all checks pass",
+      "evidence_class": "bound"
+    },
+    "mutation": {
+      "ok": true,
+      "detail": "score 1.0 on 11 mutants",
+      "evidence_class": "bound"
+    },
+    "adversarial_tests": {
+      "ok": true,
+      "detail": "OK (10 of 10 methods, each in its own process)",
+      "evidence_class": "bound"
+    },
+    "drift_audit": {
+      "ok": true,
+      "detail": "score 0.0 (aligned)",
+      "evidence_class": "model"
+    }
+  },
+  "verdict": {
+    "verdict": "VERIFIED",
+    "reasons": [],
+    "warnings": [
+      "drift audit: score 0.00, widened 0, unsupported claims 1"
+    ],
+    "derivation": {
+      "verdict": "VERIFIED",
+      "gates_failed": [],
+      "gates_skipped": [],
+      "blocking": [],
+      "cleared_by_arbitration": false,
+      "rule": "VERIFIED only when every recorded gate passes (a skipped gate never counts as a pass), the implementer finished and the scope policy held; otherwise NEEDS HUMAN. Arbitration changes the verdict only in apply mode and only when every failing generated test was corrected and re-verified."
+    }
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:24:06.060903+00:00",
+        "elapsed_ms": 5106,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3322,
+        "tokens_in": 1133,
+        "tokens_out": 1526,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1526,
+          "prompt_tokens": 1133,
+          "total_tokens": 2659,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 1058,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1133
+        },
+        "cost_usd": 0.005711,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.050107,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "low",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:24:11.174326+00:00",
+        "elapsed_ms": 4052,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4431,
+        "tokens_in": 1219,
+        "tokens_out": 472,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 472,
+          "prompt_tokens": 1219,
+          "total_tokens": 1691,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 38,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1219
+        },
+        "cost_usd": 0.00079,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015143,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:24:21.587004+00:00",
+        "elapsed_ms": 12476,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3812,
+        "tokens_in": 1162,
+        "tokens_out": 93,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 93,
+          "prompt_tokens": 1162,
+          "total_tokens": 1255,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 28,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1162
+        },
+        "cost_usd": 0.000432,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015081,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:24:34.065220+00:00",
+        "elapsed_ms": 2527,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4112,
+        "tokens_in": 1256,
+        "tokens_out": 93,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 93,
+          "prompt_tokens": 1256,
+          "total_tokens": 1349,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 23,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1256
+        },
+        "cost_usd": 0.00046,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015111,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:24:36.594244+00:00",
+        "elapsed_ms": 7062,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4973,
+        "tokens_in": 1501,
+        "tokens_out": 1078,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1078,
+          "prompt_tokens": 1501,
+          "total_tokens": 2579,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 861,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1501
+        },
+        "cost_usd": 0.00142,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015197,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:24:43.658726+00:00",
+        "elapsed_ms": 7771,
+        "gateway_duration_ms": null,
+        "prompt_chars": 5845,
+        "tokens_in": 1747,
+        "tokens_out": 250,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 250,
+          "prompt_tokens": 1747,
+          "total_tokens": 1997,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 187,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1747
+        },
+        "cost_usd": 0.000749,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015285,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-5",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:24:54.710278+00:00",
+        "elapsed_ms": 3989,
+        "gateway_duration_ms": null,
+        "prompt_chars": 6370,
+        "tokens_in": 1888,
+        "tokens_out": 388,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 388,
+          "prompt_tokens": 1888,
+          "total_tokens": 2276,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 138,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1888
+        },
+        "cost_usd": 0.000916,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015337,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-6",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:25:04.297230+00:00",
+        "elapsed_ms": 5769,
+        "gateway_duration_ms": null,
+        "prompt_chars": 7300,
+        "tokens_in": 2191,
+        "tokens_out": 868,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 868,
+          "prompt_tokens": 2191,
+          "total_tokens": 3059,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 630,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2191
+        },
+        "cost_usd": 0.001438,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.01543,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-7",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:25:13.282049+00:00",
+        "elapsed_ms": 2664,
+        "gateway_duration_ms": null,
+        "prompt_chars": 8085,
+        "tokens_in": 2453,
+        "tokens_out": 172,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 172,
+          "prompt_tokens": 2453,
+          "total_tokens": 2625,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 106,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2453
+        },
+        "cost_usd": 0.000891,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015509,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-8",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:25:19.182147+00:00",
+        "elapsed_ms": 3397,
+        "gateway_duration_ms": null,
+        "prompt_chars": 8633,
+        "tokens_in": 2596,
+        "tokens_out": 207,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 207,
+          "prompt_tokens": 2596,
+          "total_tokens": 2803,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 126,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2596
+        },
+        "cost_usd": 0.000965,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015563,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "break",
+        "stage": "break-tests-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "low",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:26:07.808361+00:00",
+        "elapsed_ms": 6965,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4457,
+        "tokens_in": 1234,
+        "tokens_out": 859,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 859,
+          "prompt_tokens": 1234,
+          "total_tokens": 2093,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 98,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1234
+        },
+        "cost_usd": 0.001143,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015146,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "audit",
+        "stage": "drift-audit",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-17T17:26:21.219660+00:00",
+        "elapsed_ms": 11035,
+        "gateway_duration_ms": null,
+        "prompt_chars": 5140,
+        "tokens_in": 1546,
+        "tokens_out": 3453,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 3453,
+          "prompt_tokens": 1546,
+          "total_tokens": 4999,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 3332,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1546
+        },
+        "cost_usd": 0.011905,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.050713,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a14ae4-73b8-7037-a841-b25997e9d879",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.101,
+        "raw_cost_diag": 0.0028459699999999997,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:23:15.266238+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": "01a14ae4-a4f9-741c-b0f1-25479d3a76ae",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.999,
+        "raw_cost_diag": 0.02187196,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:24:15.229069+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-4",
+        "operation_uuid": "01a14ae5-31c6-75d6-a150-3c9417ceb25e",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.761,
+        "raw_cost_diag": 0.00285353,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:24:51.431352+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-python-5",
+        "operation_uuid": "01a14ae5-4e59-7707-8de6-0a5f4877d62c",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.615,
+        "raw_cost_diag": 0.0012209,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:24:58.701368+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-python-6",
+        "operation_uuid": "01a14ae5-7a60-7769-a609-60cb7d8e3a93",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.622,
+        "raw_cost_diag": 0.00177645,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:10.068077+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-7",
+        "operation_uuid": "01a14ae5-9151-7340-bb1e-268737085bd3",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.791,
+        "raw_cost_diag": 0.00286655,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:15.948611+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "verify",
+        "operation_uuid": "01a14ae5-ac4a-77ab-b39a-60a9701c66f3",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.026,
+        "raw_cost_diag": 0.02180712,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:22.582664+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "existing",
+        "operation_uuid": "01a14ae6-0ac6-7637-b21c-533f16586574",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.408,
+        "raw_cost_diag": 0.00878648,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:29.023205+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m01-8ec8ddc94d",
+        "operation_uuid": "01a14ae6-2849-717b-8fc3-8cbe885509eb",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.56,
+        "raw_cost_diag": 0.01853513,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:54.227000+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m02-d577c0fd83",
+        "operation_uuid": "01a14ae6-2828-7785-8022-6233751b5f44",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.529,
+        "raw_cost_diag": 0.01858595,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:54.227263+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m03-d71b8e165a",
+        "operation_uuid": "01a14ae6-283e-707c-8dfb-3e41120136bf",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.55,
+        "raw_cost_diag": 0.01846917,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:54.227450+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m04-4041d1d761",
+        "operation_uuid": "01a14ae6-284d-72c8-a226-90ad0ccfe83b",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.53,
+        "raw_cost_diag": 0.018461039999999998,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:54.227715+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m05-697d3a6162",
+        "operation_uuid": "01a14ae6-2810-7082-8248-4b10727311f0",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.492,
+        "raw_cost_diag": 0.018541989999999998,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:54.227787+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m06-d95fbb9afb",
+        "operation_uuid": "01a14ae6-2848-7040-b4f8-fd3c2d1f1366",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.518,
+        "raw_cost_diag": 0.01856246,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:54.228113+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m07-4d9f698d3f",
+        "operation_uuid": "01a14ae6-2829-754f-99f9-741ae52d4cdf",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.503,
+        "raw_cost_diag": 0.01861713,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:54.228303+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m08-368674d77d",
+        "operation_uuid": "01a14ae6-2845-7422-9e0c-48e74b0609a7",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.519,
+        "raw_cost_diag": 0.01836547,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:25:54.228452+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m09-f40ccb6538",
+        "operation_uuid": "01a14ae6-4365-74e1-870d-a9803de16a5a",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.466,
+        "raw_cost_diag": 0.018625970000000002,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:26:01.102392+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m10-1e99faa709",
+        "operation_uuid": "01a14ae6-42b4-740c-8460-5b6abf015bcd",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.473,
+        "raw_cost_diag": 0.01848354,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:26:01.234186+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m11-164ff607ed",
+        "operation_uuid": "01a14ae6-42e4-773a-a658-fb121ae5af39",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.482,
+        "raw_cost_diag": 0.01858322,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:26:01.268067+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "breaker-tests",
+        "operation_uuid": "01a14ae6-7826-75df-8603-051bc93b3482",
+        "image_uuid": "0d525222-5934-47c0-bf01-8e90945e7eb6",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.806,
+        "raw_cost_diag": 0.02187216,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T17:26:14.775849+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "totals": {
+      "model_calls": 12,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 19926,
+      "tokens_out": 9459,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 72813,
+      "cost_usd": 0.02682,
+      "cost_usd_committed": 0.02682,
+      "uncertain_unpriced_calls": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "nebius_tokenfactory:nvidia/Nemotron-3-Ultra-550b-a55b": {
+          "calls": 2,
+          "tokens_in": 2679,
+          "tokens_out": 4979,
+          "tokens_cached": 0,
+          "cost_usd": 0.017616,
+          "elapsed_ms": 16141,
+          "failed": 0
+        },
+        "nebius_tokenfactory:nvidia/nemotron-3-super-120b-a12b": {
+          "calls": 10,
+          "tokens_in": 17247,
+          "tokens_out": 4480,
+          "tokens_cached": 0,
+          "cost_usd": 0.009204,
+          "elapsed_ms": 56672,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 20,
+      "sandbox_duration_s": 42.751,
+      "sandbox_retained_images": [
+        "0d525222-5934-47c0-bf01-8e90945e7eb6"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.28973219
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest-a1': inference provider nebius_tokenfactory; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter then classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, corrects and re-verifies them (must pass on the candidate and still fail on the base). Arbitration is advisory by default and never clears an implementation bug or a contract dispute; it changes the verdict only in explicit apply mode.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "audit"
+}

@@ -1,0 +1,40 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement the to_roman function in the roman package to convert integers from 1 to 3999 inclusive into standard Roman numeral strings using subtractive notation (e.g., 4 -> 'IV', 9 -> 'IX', 40 -> 'XL', 90 -> 'XC', 400 -> 'CD', 900 -> 'CM'). The function must return a string. It must raise ValueError for integer values outside the 1..3999 range (including int subclass instances with such values). It must raise TypeError for non-int inputs (such as strings, floats, None, lists). Int subclasses (e.g., IntEnum, PlainInt) with values in range are accepted and converted like the equivalent int. The behavior for bool (a subclass of int) is unspecified; rejecting or accepting is permitted but tests must not depend on it. The existing is_roman_numeral function and tests must remain unchanged.",
+  "interface_contract": [
+    {
+      "name": "to_roman",
+      "signature": "def to_roman(n: int) -> str:",
+      "behavior": "Converts an integer n in the range 1..3999 inclusive to its standard Roman numeral representation using subtractive notation. Returns the Roman numeral as a string. Accepts int subclasses (e.g., IntEnum, PlainInt) and treats them as their integer value. Does not coerce numeric strings, floats, or other types.",
+      "error_cases": [
+        "TypeError: raised when n is not an instance of int (including bool if the implementation chooses to reject, but not required).",
+        "ValueError: raised when n is an int (or int subclass) with value outside the range 1..3999."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "to_roman(1) == 'I'",
+    "to_roman(4) == 'IV'",
+    "to_roman(9) == 'IX'",
+    "to_roman(40) == 'XL'",
+    "to_roman(90) == 'XC'",
+    "to_roman(400) == 'CD'",
+    "to_roman(900) == 'CM'",
+    "to_roman(2024) == 'MMXXIV'",
+    "to_roman(3999) == 'MMMCMXCIX'",
+    "to_roman(1994) == 'MCMXCIV'",
+    "to_roman returns a str (type check)",
+    "ValueError for ints outside 1..3999 (0, -1, 4000), including int subclass instances with such values",
+    "TypeError for non-int input ('5', 5.0, None, [1])",
+    "An int subclass instance with a value in range (e.g., PlainInt(49)) converts like the equal int: PlainInt(49) -> 'XLIX'",
+    "Existing tests in tests/test_basic.py continue to pass (is_roman_numeral behavior unchanged)"
+  ],
+  "out_of_scope": [
+    "The implementer must not change is_roman_numeral.",
+    "The implementer must not change the tests (tests/test_basic.py).",
+    "The implementer must not handle int subclasses that override arithmetic or comparison operators (behavior unspecified).",
+    "The implementer must not depend on bool acceptance/rejection (tests must not depend on it)."
+  ],
+  "external_references_needed": []
+}

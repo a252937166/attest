@@ -1,0 +1,52 @@
+{
+  "applied": false,
+  "cleared": false,
+  "counts": {
+    "implementation_bug": 4,
+    "test_defect": 0,
+    "contract_dispute": 0
+  },
+  "headline": "4 failing test(s) indicate a real implementation bug; human review required",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.BreakerTests.test_integer_keyed_mapping_preserves_indexed_input",
+          "classification": "implementation_bug",
+          "defect_kind": null,
+          "rationale": "The baseline reads dictionary values at integer indices 0, 1, and 2 and returns ('a', 'b'). The candidate instead iterates dictionary keys and raises ValueError.",
+          "contract_basis": "The contract explicitly requires preserving baseline outcomes for non-string parse_line inputs; ordinary dictionaries are not excluded."
+        },
+        {
+          "test_id": "test_breaker.BreakerTests.test_mapping_insertion_order_does_not_change_indexed_input",
+          "classification": "implementation_bug",
+          "defect_kind": null,
+          "rationale": "The baseline accesses indices in numeric order regardless of dictionary insertion order, yielding fields ' a ' and ' b ', which strip to ('a', 'b'). The candidate iterates dictionary keys and raises ValueError.",
+          "contract_basis": "The universal behavior-preservation requirement covers legacy non-string inputs and their parsing results."
+        },
+        {
+          "test_id": "test_breaker.BreakerTests.test_mapping_missing_zero_preserves_key_error",
+          "classification": "implementation_bug",
+          "defect_kind": null,
+          "rationale": "The baseline first accesses line[0], which raises KeyError for this dictionary. The candidate raises ValueError instead.",
+          "contract_basis": "Baseline exception types for non-string parse_line inputs must be preserved; only exception messages are exempt."
+        },
+        {
+          "test_id": "test_breaker.BreakerTests.test_mapping_noncharacter_key_preserves_type_error",
+          "classification": "implementation_bug",
+          "defect_kind": null,
+          "rationale": "The baseline collects integer 7 as the key content, finds '=' at index 1, and raises TypeError when joining the key content. The candidate instead searches dictionary keys for '=' and raises ValueError.",
+          "contract_basis": "The contract requires preserving baseline exception types for non-string parse_line inputs. This test uses a built-in dictionary without overridden behavior."
+        }
+      ],
+      "corrected_notes": "All four failures expose changes to required legacy non-string behavior. No test correction is warranted; the candidate must preserve indexed access outcomes and exception types.",
+      "corrected_module": null,
+      "candidate_rerun": null,
+      "base_rerun": null,
+      "cleared_module": false,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

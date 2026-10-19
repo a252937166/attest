@@ -1,0 +1,2006 @@
+{
+  "run_id": "balanced-brackets-20261015T180604Z",
+  "started_at_utc": "2026-10-15T18:06:04.749965+00:00",
+  "finished_at_utc": "2026-10-15T18:08:19.913346+00:00",
+  "profile": {
+    "label": "eval-attest",
+    "provider": {
+      "provider": "nebius_tokenfactory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "roles": {
+        "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "seal": "nvidia/nemotron-3-super-120b-a12b",
+        "implement": "nvidia/nemotron-3-super-120b-a12b",
+        "break": "nvidia/nemotron-3-super-120b-a12b",
+        "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "summary": "nvidia/Nemotron-3_5-Lightning"
+      },
+      "usd_cap": 0.5,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
+      "schema_in_prompt": true,
+      "auto_retry": false,
+      "pre_request_reservation": true,
+      "max_prompt_chars": 120000,
+      "max_tokens": 16000
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "task": {
+    "id": "balanced-brackets",
+    "title": "balanced-brackets",
+    "statement": "The brackets package exposes is_bracket (already implemented) and a stub is_balanced(s). Implement is_balanced(s) so that it returns True when the three kinds of brackets (), [] and {} in the string s are correctly matched and nested, and False otherwise. Characters that are not brackets are ignored. The empty string is balanced. is_balanced must return a bool. Raise TypeError when s is not a string. Do not change is_bracket or the tests.",
+    "acceptance_criteria": [
+      "'', '()', '[]', '{}', '()[]{}', '([{}])' are all balanced (True)",
+      "nested mixed brackets with other characters are balanced: '(a[b]{c})', 'f(x[0], y[1])'",
+      "'(', ')', '([)]', '(]', '{[}', '())' are not balanced (False)",
+      "non-bracket characters are ignored",
+      "is_balanced returns a bool",
+      "TypeError when s is not a string"
+    ],
+    "allowed_write_globs": [
+      "brackets/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from brackets import is_balanced",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {
+      "tests/test_heldout.py": "d43d71f0598f2fbf546153d7e19eabffb7e8cd3148a4f910c6f41f13462a06c2"
+    },
+    "repo_files_sha256": {
+      "brackets/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "brackets/core.py": "3a0cd36293e50969dc0998431824b865e88dd6595ac0f6a4015bb8027a03c6b2",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "39b91f3a7dfaa300b6f06ae7b98b10208ebaeb9ad8a8613b6eb91465b53ab80f"
+    },
+    "spec_sha256": "b4b1ed357cf1c1bd54b85a7c1e9d3157d00ec207969b2cf0547512c4dbe167c8"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a140be-39b5-707c-b67f-8bda98956af3",
+    "checkpoint_image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a140be-39b5-707c-b67f-8bda98956af3",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.21,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Implement the `is_balanced(s)` function in `brackets/core.py` to return True if the string `s` contains correctly matched and nested brackets of types `()`, `[]`, `{}`, ignoring all other characters. Return False otherwise. The empty string is balanced. The function must return a bool and raise TypeError if `s` is not a string. Do not modify the existing `is_bracket` function or the test files.",
+    "interface_contract": [
+      {
+        "name": "is_balanced",
+        "signature": "is_balanced(s: str) -> bool",
+        "behavior": "Returns True if all brackets in `s` are properly matched and nested, ignoring non-bracket characters. Returns False otherwise. Empty string returns True.",
+        "error_cases": [
+          "TypeError if `s` is not a string"
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "Empty string returns True.",
+      "Single pairs '()', '[]', '{}' return True.",
+      "Multiple adjacent pairs '()[]{}' return True.",
+      "Nested mixed brackets '([{}])' return True.",
+      "Nested mixed brackets with other characters '(a[b]{c})' and 'f(x[0], y[1])' return True.",
+      "Unbalanced opening bracket '(' returns False.",
+      "Unbalanced closing bracket ')' returns False.",
+      "Mismatched brackets '([)]' returns False.",
+      "Mismatched brackets '(]' returns False.",
+      "Mismatched brackets '{[}' returns False.",
+      "Extra closing bracket '())' returns False.",
+      "Non-bracket characters are ignored (they do not affect bracket matching).",
+      "Function returns a bool (True/False) for valid string inputs.",
+      "Function raises TypeError when input is not a string (e.g., int, list, None)."
+    ],
+    "out_of_scope": [
+      "Do not modify the `is_bracket` function.",
+      "Do not modify the test files (`tests/test_basic.py`, `tests/__init__.py`).",
+      "Do not change the public exports of the `brackets` module beyond implementing `is_balanced`.",
+      "Do not alter the existing constants `PAIRS`, `OPEN`, `CLOSE` unless necessary for the implementation (they are provided for use)."
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": {
+    "path": "sealed/test_sealed.py",
+    "sha256": "d15f660b9709f098ed0a810f89a3528ca512ea3541f0616c1b561cee35952041",
+    "test_count": 19,
+    "declared_test_count": 19,
+    "expected_ids": [
+      "test_sealed.TestIsBalanced.test_empty_string",
+      "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+      "test_sealed.TestIsBalanced.test_single_pair_square",
+      "test_sealed.TestIsBalanced.test_single_pair_curly",
+      "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs",
+      "test_sealed.TestIsBalanced.test_nested_mixed_brackets",
+      "test_sealed.TestIsBalanced.test_nested_with_other_chars1",
+      "test_sealed.TestIsBalanced.test_nested_with_other_chars2",
+      "test_sealed.TestIsBalanced.test_unbalanced_opening",
+      "test_sealed.TestIsBalanced.test_unbalanced_closing",
+      "test_sealed.TestIsBalanced.test_mismatched_round_square",
+      "test_sealed.TestIsBalanced.test_mismatched_round_curly",
+      "test_sealed.TestIsBalanced.test_mismatched_curly_square",
+      "test_sealed.TestIsBalanced.test_extra_closing",
+      "test_sealed.TestIsBalanced.test_non_bracket_only",
+      "test_sealed.TestIsBalanced.test_returns_bool",
+      "test_sealed.TestIsBalanced.test_type_error_int",
+      "test_sealed.TestIsBalanced.test_type_error_list",
+      "test_sealed.TestIsBalanced.test_type_error_none"
+    ],
+    "escapes_repaired": true,
+    "sealed_at_utc": "2026-10-15T18:06:33.568366+00:00",
+    "author_model": "nvidia/nemotron-3-super-120b-a12b",
+    "attempts": 1,
+    "rejected_attempts": [],
+    "notes": "Tests cover all acceptance criteria, each behavior isolated, including error cases and return type."
+  },
+  "red_run": {
+    "ran": 19,
+    "tests": [
+      {
+        "id": "test_sealed.TestIsBalanced.test_empty_string",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_single_pair_square",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_single_pair_curly",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_nested_mixed_brackets",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_nested_with_other_chars1",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_nested_with_other_chars2",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_unbalanced_opening",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_unbalanced_closing",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_mismatched_round_square",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_mismatched_round_curly",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_mismatched_curly_square",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_extra_closing",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_non_bracket_only",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_returns_bool",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_type_error_int",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_type_error_list",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      },
+      {
+        "id": "test_sealed.TestIsBalanced.test_type_error_none",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "captured_tail": ""
+      }
+    ],
+    "passed": 0,
+    "failing": 19,
+    "subtest_events": 0,
+    "import_error": null,
+    "all_passed": false,
+    "summary_line": "FAILED (19 of 19 methods: ERROR 19)",
+    "operation_uuid": "01a140be-8c80-7092-ba4c-9ef7b9c47590",
+    "nonce": "987fa264a38e039f46f73b8bc693d921",
+    "supervisor_exit_code": 1,
+    "runner_error": null
+  },
+  "trajectory": {
+    "turns": 6,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "read_file",
+        "path": "brackets/core.py",
+        "reason": "Read the current core.py to see existing functions and constants.",
+        "observation_head": "[14 lines]\n\"\"\"Bracket matching.\"\"\"\n\nPAIRS = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}\nOPEN = set(PAIRS.values())\nCLOSE = set(PAIRS)\n\n\ndef is_bracket(c):\n    \"\"\"True when c"
+      },
+      {
+        "turn": 2,
+        "action": "replace_in_file",
+        "path": "brackets/core.py",
+        "reason": "Replace the stub implementation of is_balanced with a correct bracket‑matching algorithm that respects the contract.",
+        "observation_head": "replaced one occurrence in brackets/core.py; the file is now 627 bytes"
+      },
+      {
+        "turn": 3,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Run the existing test suite to verify our implementation passes all tests.",
+        "observation_head": "existing test suite: OK (ran 2, passed 2, exit 0)\ntest_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ."
+      },
+      {
+        "turn": 4,
+        "action": "run_python",
+        "path": null,
+        "reason": "Run a comprehensive sanity check on our implementation to ensure it meets all acceptance criteria.",
+        "observation_head": "exit 0\nstdout:\nAll tests passed\n\nstderr:\n"
+      },
+      {
+        "turn": 5,
+        "action": "read_file",
+        "path": "brackets/core.py",
+        "reason": "Verify the final content of brackets/core.py before finishing.",
+        "observation_head": "[24 lines]\n\"\"\"Bracket matching.\"\"\"\n\nPAIRS = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}\nOPEN = set(PAIRS.values())\nCLOSE = set(PAIRS)\n\n\ndef is_bracket(c):\n    \"\"\"True when c"
+      },
+      {
+        "turn": 6,
+        "action": "finish",
+        "path": null,
+        "reason": "Implementation is complete and passes all tests.",
+        "observation_head": "finished: "
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": true
+  },
+  "candidate": {
+    "changed_paths": [
+      "brackets/core.py"
+    ],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "--- a/brackets/core.py\n+++ b/brackets/core.py\n@@ -11,4 +11,14 @@\n \n \n def is_balanced(s):\n-    raise NotImplementedError(\"is_balanced is not implemented yet\")\n+    if not isinstance(s, str):\n+        raise TypeError(\"Input must be a string\")\n+    stack = []\n+    for ch in s:\n+        if ch in OPEN:\n+            stack.append(ch)\n+        elif ch in CLOSE:\n+            if not stack or stack[-1] != PAIRS[ch]:\n+                return False\n+            stack.pop()\n+    return not stack\n",
+    "sha256": {
+      "brackets/core.py": "90ee783b65b96347d3651aa6dbae9a83f45e07451802410c12225939128bd4fe"
+    },
+    "implementer_finished": true
+  },
+  "verification": {
+    "operation_uuid": "01a140bf-47af-756f-9d94-a6360d2b0335",
+    "status": "SUCCESS",
+    "sealed_sha256_injected": "d15f660b9709f098ed0a810f89a3528ca512ea3541f0616c1b561cee35952041",
+    "expected_ids": [
+      "test_sealed.TestIsBalanced.test_empty_string",
+      "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+      "test_sealed.TestIsBalanced.test_single_pair_square",
+      "test_sealed.TestIsBalanced.test_single_pair_curly",
+      "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs",
+      "test_sealed.TestIsBalanced.test_nested_mixed_brackets",
+      "test_sealed.TestIsBalanced.test_nested_with_other_chars1",
+      "test_sealed.TestIsBalanced.test_nested_with_other_chars2",
+      "test_sealed.TestIsBalanced.test_unbalanced_opening",
+      "test_sealed.TestIsBalanced.test_unbalanced_closing",
+      "test_sealed.TestIsBalanced.test_mismatched_round_square",
+      "test_sealed.TestIsBalanced.test_mismatched_round_curly",
+      "test_sealed.TestIsBalanced.test_mismatched_curly_square",
+      "test_sealed.TestIsBalanced.test_extra_closing",
+      "test_sealed.TestIsBalanced.test_non_bracket_only",
+      "test_sealed.TestIsBalanced.test_returns_bool",
+      "test_sealed.TestIsBalanced.test_type_error_int",
+      "test_sealed.TestIsBalanced.test_type_error_list",
+      "test_sealed.TestIsBalanced.test_type_error_none"
+    ],
+    "existing": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a140bf-47af-756f-9d94-a6360d2b0335",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.216,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "sealed": {
+      "ran": 19,
+      "tests": [
+        {
+          "id": "test_sealed.TestIsBalanced.test_empty_string",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_single_pair_square",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_single_pair_curly",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_nested_mixed_brackets",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_nested_with_other_chars1",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_nested_with_other_chars2",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_unbalanced_opening",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_unbalanced_closing",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_mismatched_round_square",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_mismatched_round_curly",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_mismatched_curly_square",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_extra_closing",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_non_bracket_only",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_returns_bool",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_type_error_int",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_type_error_list",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        },
+        {
+          "id": "test_sealed.TestIsBalanced.test_type_error_none",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "captured_tail": ""
+        }
+      ],
+      "passed": 19,
+      "failing": 0,
+      "subtest_events": 0,
+      "import_error": null,
+      "all_passed": true,
+      "summary_line": "OK (19 of 19 methods, each in its own process)",
+      "operation_uuid": "01a140bf-47af-756f-9d94-a6360d2b0335",
+      "nonce": "35030169461bd691d1cd7cd971192463",
+      "supervisor_exit_code": 0,
+      "runner_error": null
+    },
+    "binding": {
+      "ok": true,
+      "checks": {
+        "result_file_present": true,
+        "supervisor_completed": true,
+        "verifier_isolation_active": true,
+        "nonce_matches": true,
+        "sealed_file_unchanged_before": true,
+        "sealed_file_unchanged_after": true,
+        "no_discovery_error": true,
+        "expected_test_ids_present": true,
+        "no_unexpected_test_ids": true,
+        "static_ids_match_red": true,
+        "no_nonzero_exit": true,
+        "no_signal": true,
+        "no_timeout": true,
+        "no_missing_or_forged_result": true,
+        "all_expected_pass": true
+      },
+      "reasons": []
+    },
+    "heldout": {
+      "runner": "unittest",
+      "ran": 8,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_ignores_non_bracket_chars",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_nested",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_non_string_raises_typeerror",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_returns_bool",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_simple_balanced",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_unbalanced",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_ignores_non_bracket_chars",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_nested",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_non_string_raises_typeerror",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_returns_bool",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_simple_balanced",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_heldout.HeldOut.test_unbalanced",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 8,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a140bf-6476-7373-9cf5-0ce451670dbd",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.215,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\ntest_ignores_non_bracket_chars (tests.test_heldout.HeldOut.test_ignores_non_bracket_chars) ... ok\ntest_nested (tests.test_heldout.HeldOut.test_nested) ... ok\ntest_non_string_raises_typeerror (tests.test_heldout.HeldOut.test_non_string_raises_typeerror) ... ok\ntest_returns_bool (tests.test_heldout.HeldOut.test_returns_bool) ... ok\ntest_simple_balanced (tests.test_heldout.HeldOut.test_simple_balanced) ... ok\ntest_unbalanced (tests.test_heldout.HeldOut.test_unbalanced) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.000s\n\nOK\n",
+      "stdout_tail": "",
+      "files": [
+        "tests/test_heldout.py"
+      ]
+    }
+  },
+  "breaker": {
+    "mutation": {
+      "generated": 10,
+      "evaluated": 10,
+      "killed": 10,
+      "survived": 0,
+      "unknown": 0,
+      "score": 1.0,
+      "threshold": 0.5,
+      "mutants": [
+        {
+          "id": "m01-ae970cbcac",
+          "path": "brackets/core.py",
+          "lineno": 14,
+          "operator": "not",
+          "description": "remove `not`",
+          "status": "killed",
+          "operation_uuid": "01a140bf-7243-72bd-b283-0ec7fac5eccb",
+          "failing_methods": 17,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_empty_string",
+            "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+            "test_sealed.TestIsBalanced.test_single_pair_square",
+            "test_sealed.TestIsBalanced.test_single_pair_curly",
+            "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs"
+          ]
+        },
+        {
+          "id": "m02-f95940ff2b",
+          "path": "brackets/core.py",
+          "lineno": 15,
+          "operator": "raise",
+          "description": "raise -> pass",
+          "status": "killed",
+          "operation_uuid": "01a140bf-7289-7159-b1b0-2e0e0c96f0f0",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_type_error_list"
+          ]
+        },
+        {
+          "id": "m03-13e48417f0",
+          "path": "brackets/core.py",
+          "lineno": 18,
+          "operator": "compare",
+          "description": "In -> NotIn",
+          "status": "killed",
+          "operation_uuid": "01a140bf-7216-7391-8350-4b9a76ea0329",
+          "failing_methods": 9,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+            "test_sealed.TestIsBalanced.test_single_pair_square",
+            "test_sealed.TestIsBalanced.test_single_pair_curly",
+            "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs",
+            "test_sealed.TestIsBalanced.test_nested_mixed_brackets"
+          ]
+        },
+        {
+          "id": "m04-25a5fc5b73",
+          "path": "brackets/core.py",
+          "lineno": 20,
+          "operator": "compare",
+          "description": "In -> NotIn",
+          "status": "killed",
+          "operation_uuid": "01a140bf-721b-770b-bed0-46900e0397e7",
+          "failing_methods": 9,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+            "test_sealed.TestIsBalanced.test_single_pair_square",
+            "test_sealed.TestIsBalanced.test_single_pair_curly",
+            "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs",
+            "test_sealed.TestIsBalanced.test_nested_mixed_brackets"
+          ]
+        },
+        {
+          "id": "m05-285d71b8c4",
+          "path": "brackets/core.py",
+          "lineno": 21,
+          "operator": "not",
+          "description": "remove `not`",
+          "status": "killed",
+          "operation_uuid": "01a140bf-7245-741a-903f-b5e0a22a4ec5",
+          "failing_methods": 8,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+            "test_sealed.TestIsBalanced.test_single_pair_square",
+            "test_sealed.TestIsBalanced.test_single_pair_curly",
+            "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs",
+            "test_sealed.TestIsBalanced.test_nested_mixed_brackets"
+          ]
+        },
+        {
+          "id": "m06-9bfdfde8f9",
+          "path": "brackets/core.py",
+          "lineno": 21,
+          "operator": "int",
+          "description": "1 -> 2",
+          "status": "killed",
+          "operation_uuid": "01a140bf-726e-723c-a8de-811a2887fa13",
+          "failing_methods": 11,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+            "test_sealed.TestIsBalanced.test_single_pair_square",
+            "test_sealed.TestIsBalanced.test_single_pair_curly",
+            "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs",
+            "test_sealed.TestIsBalanced.test_nested_mixed_brackets"
+          ]
+        },
+        {
+          "id": "m07-112d16b760",
+          "path": "brackets/core.py",
+          "lineno": 21,
+          "operator": "compare",
+          "description": "NotEq -> Eq",
+          "status": "killed",
+          "operation_uuid": "01a140bf-72c0-77d0-8e5e-ffe2b13b1bd0",
+          "failing_methods": 9,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+            "test_sealed.TestIsBalanced.test_single_pair_square",
+            "test_sealed.TestIsBalanced.test_single_pair_curly",
+            "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs",
+            "test_sealed.TestIsBalanced.test_nested_mixed_brackets"
+          ]
+        },
+        {
+          "id": "m08-9068babf89",
+          "path": "brackets/core.py",
+          "lineno": 21,
+          "operator": "boolop",
+          "description": "Or -> And",
+          "status": "killed",
+          "operation_uuid": "01a140bf-72e1-7681-aa89-ac6ceaeef567",
+          "failing_methods": 4,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_unbalanced_closing",
+            "test_sealed.TestIsBalanced.test_mismatched_round_square",
+            "test_sealed.TestIsBalanced.test_mismatched_round_curly",
+            "test_sealed.TestIsBalanced.test_extra_closing"
+          ]
+        },
+        {
+          "id": "m09-1b4087966f",
+          "path": "brackets/core.py",
+          "lineno": 22,
+          "operator": "bool",
+          "description": "False -> True",
+          "status": "killed",
+          "operation_uuid": "01a140bf-8b05-75e4-b509-431c2c78f01a",
+          "failing_methods": 5,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_unbalanced_closing",
+            "test_sealed.TestIsBalanced.test_mismatched_round_square",
+            "test_sealed.TestIsBalanced.test_mismatched_round_curly",
+            "test_sealed.TestIsBalanced.test_mismatched_curly_square",
+            "test_sealed.TestIsBalanced.test_extra_closing"
+          ]
+        },
+        {
+          "id": "m10-3493ff69c1",
+          "path": "brackets/core.py",
+          "lineno": 24,
+          "operator": "not",
+          "description": "remove `not`",
+          "status": "killed",
+          "operation_uuid": "01a140bf-a07e-7327-aa48-df1190b98c60",
+          "failing_methods": 11,
+          "killed_by": [
+            "test_sealed.TestIsBalanced.test_empty_string",
+            "test_sealed.TestIsBalanced.test_single_pair_parentheses",
+            "test_sealed.TestIsBalanced.test_single_pair_square",
+            "test_sealed.TestIsBalanced.test_single_pair_curly",
+            "test_sealed.TestIsBalanced.test_multiple_adjacent_pairs"
+          ]
+        }
+      ]
+    },
+    "adversarial": {
+      "skipped": null,
+      "sha256": "4a28b10a23314d6d0f16466309cc0135364005c351c48a103a3b7afd44d42f5f",
+      "author_model": "nvidia/nemotron-3-super-120b-a12b",
+      "expected_ids": [
+        "test_breaker.TestBreaker.test_multiple_openings_unbalanced",
+        "test_breaker.TestBreaker.test_multiple_closings_unbalanced",
+        "test_breaker.TestBreaker.test_mixed_unbalanced_open_close",
+        "test_breaker.TestBreaker.test_deep_nesting_single_type",
+        "test_breaker.TestBreaker.test_deep_nesting_mixed_types",
+        "test_breaker.TestBreaker.test_unicode_brackets_ignored",
+        "test_breaker.TestBreaker.test_bytes_input_type_error",
+        "test_breaker.TestBreaker.test_float_input_type_error",
+        "test_breaker.TestBreaker.test_dict_input_type_error",
+        "test_breaker.TestBreaker.test_set_input_type_error",
+        "test_breaker.TestBreaker.test_custom_object_type_error",
+        "test_breaker.TestBreaker.test_whitespace_and_newline",
+        "test_breaker.TestBreaker.test_only_closing_brackets",
+        "test_breaker.TestBreaker.test_only_opening_brackets"
+      ],
+      "summary": {
+        "ran": 14,
+        "tests": [
+          {
+            "id": "test_breaker.TestBreaker.test_multiple_openings_unbalanced",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_multiple_closings_unbalanced",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_mixed_unbalanced_open_close",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_deep_nesting_single_type",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_deep_nesting_mixed_types",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_unicode_brackets_ignored",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_bytes_input_type_error",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_float_input_type_error",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_dict_input_type_error",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_set_input_type_error",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_custom_object_type_error",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_whitespace_and_newline",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_only_closing_brackets",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_only_opening_brackets",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "captured_tail": ""
+          }
+        ],
+        "passed": 14,
+        "failing": 0,
+        "subtest_events": 0,
+        "import_error": null,
+        "all_passed": true,
+        "summary_line": "OK (14 of 14 methods, each in its own process)",
+        "operation_uuid": "01a140c0-18c1-708d-8145-96ef17407caa",
+        "nonce": "f49fe35ba273cfab1b9b6b54da05db02",
+        "supervisor_exit_code": 0,
+        "runner_error": null
+      },
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "sealed_file_unchanged_before": true,
+          "sealed_file_unchanged_after": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "static_ids_match_red": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true
+        },
+        "reasons": []
+      },
+      "notes": "Targets unbalanced multiples, deep nesting, unicode lookalikes, various non-string types, whitespace, and pure opening/closing strings.",
+      "operation_uuid": "01a140c0-18c1-708d-8145-96ef17407caa"
+    }
+  },
+  "drift": {
+    "drift_score": 0.0,
+    "assessment": "aligned",
+    "scope_narrowed": [],
+    "scope_widened": [],
+    "unsupported_claims": [],
+    "summary": "The diff implements is_balanced exactly as specified: it validates string input, uses a stack with the provided OPEN/CLOSE/PAIRS constants, ignores non-bracket characters, and returns a bool. All acceptance criteria are satisfied and the existing test suite passes.",
+    "threshold": 0.6
+  },
+  "arbitration": null,
+  "gates": {
+    "existing_suite": {
+      "ok": true,
+      "detail": "OK"
+    },
+    "sealed_binding": {
+      "ok": true,
+      "detail": "all checks pass"
+    },
+    "heldout_suite": {
+      "ok": true,
+      "detail": "OK",
+      "failing": []
+    },
+    "mutation": {
+      "ok": true,
+      "detail": "score 1.0 on 10 mutants"
+    },
+    "adversarial_tests": {
+      "ok": true,
+      "detail": "OK (14 of 14 methods, each in its own process)"
+    },
+    "drift_audit": {
+      "ok": true,
+      "detail": "score 0.0 (aligned)"
+    }
+  },
+  "verdict": {
+    "verdict": "VERIFIED",
+    "reasons": [],
+    "warnings": []
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:06:09.437825+00:00",
+        "elapsed_ms": 5249,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3094,
+        "tokens_in": 1046,
+        "tokens_out": 1388,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1388,
+          "prompt_tokens": 1046,
+          "total_tokens": 2434,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 842,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1046
+        },
+        "cost_usd": 0.00521,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.050031
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:06:14.699195+00:00",
+        "elapsed_ms": 12225,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4170,
+        "tokens_in": 1150,
+        "tokens_out": 2401,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 2401,
+          "prompt_tokens": 1150,
+          "total_tokens": 3551,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 1789,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1150
+        },
+        "cost_usd": 0.002506,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015117
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:06:33.568972+00:00",
+        "elapsed_ms": 2406,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4179,
+        "tokens_in": 1236,
+        "tokens_out": 102,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 102,
+          "prompt_tokens": 1236,
+          "total_tokens": 1338,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 31,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1236
+        },
+        "cost_usd": 0.000463,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015118
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:06:35.987298+00:00",
+        "elapsed_ms": 5506,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4823,
+        "tokens_in": 1429,
+        "tokens_out": 844,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 844,
+          "prompt_tokens": 1429,
+          "total_tokens": 2273,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 636,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1429
+        },
+        "cost_usd": 0.001188,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015182
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:06:41.502833+00:00",
+        "elapsed_ms": 2374,
+        "gateway_duration_ms": null,
+        "prompt_chars": 5665,
+        "tokens_in": 1669,
+        "tokens_out": 97,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 97,
+          "prompt_tokens": 1669,
+          "total_tokens": 1766,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 29,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1669
+        },
+        "cost_usd": 0.000588,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015267
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:06:46.958584+00:00",
+        "elapsed_ms": 5320,
+        "gateway_duration_ms": null,
+        "prompt_chars": 6199,
+        "tokens_in": 1815,
+        "tokens_out": 818,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 818,
+          "prompt_tokens": 1815,
+          "total_tokens": 2633,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 201,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1815
+        },
+        "cost_usd": 0.001281,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.01532
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-5",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:07:00.668843+00:00",
+        "elapsed_ms": 7365,
+        "gateway_duration_ms": null,
+        "prompt_chars": 8344,
+        "tokens_in": 2456,
+        "tokens_out": 169,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 169,
+          "prompt_tokens": 2456,
+          "total_tokens": 2625,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 99,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2456
+        },
+        "cost_usd": 0.000889,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015534
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-6",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:07:08.042652+00:00",
+        "elapsed_ms": 7206,
+        "gateway_duration_ms": null,
+        "prompt_chars": 9254,
+        "tokens_in": 2712,
+        "tokens_out": 117,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 117,
+          "prompt_tokens": 2712,
+          "total_tokens": 2829,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 55,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2712
+        },
+        "cost_usd": 0.000919,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015625
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "break",
+        "stage": "break-tests-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:07:44.856300+00:00",
+        "elapsed_ms": 21663,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3989,
+        "tokens_in": 1149,
+        "tokens_out": 3902,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 3902,
+          "prompt_tokens": 1149,
+          "total_tokens": 5051,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 3235,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1149
+        },
+        "cost_usd": 0.003857,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015099
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "audit",
+        "stage": "drift-audit",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:08:15.147373+00:00",
+        "elapsed_ms": 4755,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4908,
+        "tokens_in": 1460,
+        "tokens_out": 976,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 976,
+          "prompt_tokens": 1460,
+          "total_tokens": 2436,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 869,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1460
+        },
+        "cost_usd": 0.004388,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.050636
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a140be-39b5-707c-b67f-8bda98956af3",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.726,
+        "raw_cost_diag": 0.0027705499999999997,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:06:06.254518+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": "01a140be-8c80-7092-ba4c-9ef7b9c47590",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.998,
+        "raw_cost_diag": 0.0329433,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:06:26.937566+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-3",
+        "operation_uuid": "01a140be-cc46-7503-b0af-492d242f4642",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.72,
+        "raw_cost_diag": 0.0027705099999999995,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:06:43.886313+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-python-4",
+        "operation_uuid": "01a140be-f1b6-712e-af7a-c3ce0213b921",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.532,
+        "raw_cost_diag": 0.00112625,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:06:52.288759+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "verify",
+        "operation_uuid": "01a140bf-47af-756f-9d94-a6360d2b0335",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.107,
+        "raw_cost_diag": 0.03465854,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:15.259491+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "heldout",
+        "operation_uuid": "01a140bf-6476-7373-9cf5-0ce451670dbd",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.759,
+        "raw_cost_diag": 0.0027509199999999996,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:22.601101+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m02-f95940ff2b",
+        "operation_uuid": "01a140bf-7289-7159-b1b0-2e0e0c96f0f0",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.052,
+        "raw_cost_diag": 0.03276685,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:25.910903+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m03-13e48417f0",
+        "operation_uuid": "01a140bf-7216-7391-8350-4b9a76ea0329",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.014,
+        "raw_cost_diag": 0.03293188,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:25.911382+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m04-25a5fc5b73",
+        "operation_uuid": "01a140bf-721b-770b-bed0-46900e0397e7",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.956,
+        "raw_cost_diag": 0.0323881,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:25.911839+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m01-ae970cbcac",
+        "operation_uuid": "01a140bf-7243-72bd-b283-0ec7fac5eccb",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.069,
+        "raw_cost_diag": 0.03285196,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:25.912151+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m05-285d71b8c4",
+        "operation_uuid": "01a140bf-7245-741a-903f-b5e0a22a4ec5",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.958,
+        "raw_cost_diag": 0.03281106,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:25.912707+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m06-9bfdfde8f9",
+        "operation_uuid": "01a140bf-726e-723c-a8de-811a2887fa13",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.003,
+        "raw_cost_diag": 0.03282344,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:25.913112+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m07-112d16b760",
+        "operation_uuid": "01a140bf-72c0-77d0-8e5e-ffe2b13b1bd0",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.054,
+        "raw_cost_diag": 0.0327123,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:25.913650+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m08-9068babf89",
+        "operation_uuid": "01a140bf-72e1-7681-aa89-ac6ceaeef567",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.054,
+        "raw_cost_diag": 0.03284154,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:25.914847+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m09-1b4087966f",
+        "operation_uuid": "01a140bf-8b05-75e4-b509-431c2c78f01a",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.943,
+        "raw_cost_diag": 0.03273746,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:32.516573+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m10-3493ff69c1",
+        "operation_uuid": "01a140bf-a07e-7327-aa48-df1190b98c60",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.949,
+        "raw_cost_diag": 0.03262007,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:07:32.910358+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "breaker-tests",
+        "operation_uuid": "01a140c0-18c1-708d-8145-96ef17407caa",
+        "image_uuid": "50501052-ef44-46a1-9ab8-8c7c97935960",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.163,
+        "raw_cost_diag": 0.02465712,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:08:06.527010+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "totals": {
+      "model_calls": 10,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 16122,
+      "tokens_out": 10814,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 74069,
+      "cost_usd": 0.021289,
+      "cost_usd_committed": 0.021289,
+      "uncertain_unpriced_calls": 0,
+      "by_model": {
+        "nebius_tokenfactory:nvidia/Nemotron-3-Ultra-550b-a55b": {
+          "calls": 2,
+          "tokens_in": 2506,
+          "tokens_out": 2364,
+          "tokens_cached": 0,
+          "cost_usd": 0.009598,
+          "elapsed_ms": 10004,
+          "failed": 0
+        },
+        "nebius_tokenfactory:nvidia/nemotron-3-super-120b-a12b": {
+          "calls": 8,
+          "tokens_in": 13616,
+          "tokens_out": 8450,
+          "tokens_cached": 0,
+          "cost_usd": 0.011691,
+          "elapsed_ms": 64065,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 17,
+      "sandbox_duration_s": 54.057,
+      "sandbox_retained_images": [
+        "50501052-ef44-46a1-9ab8-8c7c97935960"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.42916185
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest': inference provider nebius_tokenfactory; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code; a candidate can still tamper from inside a child after the nonce was read (the mutation gate and held-out tests are the structural detectors).",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter then classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, corrects and re-verifies them (must pass on the candidate and still fail on the base). Arbitration is advisory by default and never clears an implementation bug or a contract dispute; it changes the verdict only in explicit apply mode.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API."
+  ],
+  "stage": "audit"
+}

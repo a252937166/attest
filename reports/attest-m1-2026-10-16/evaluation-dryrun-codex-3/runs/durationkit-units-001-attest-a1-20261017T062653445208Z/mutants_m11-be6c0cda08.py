@@ -1,0 +1,37 @@
+"""Duration parsing."""
+_SECONDS_PER_UNIT = {'d': 86400, 'h': 3600, 'm': 60, 's': 1, 'ms': 0.001}
+_UNIT_ORDER = {unit: rank for rank, unit in enumerate(_SECONDS_PER_UNIT)}
+
+def parse_duration(text: str) -> float:
+    """Parse non-negative seconds or descending duration components."""
+    if not isinstance(text, str):
+        raise TypeError('duration must be a string')
+    stripped = text.strip()
+    if not stripped:
+        raise ValueError('duration must not be empty')
+    if stripped.isdecimal():
+        return float(stripped)
+    total = 0.0
+    previous_rank = -1
+    position = 0
+    while position < len(stripped):
+        number_start = position
+        while position < len(stripped) and stripped[position].isdecimal():
+            position += 1
+        if position == number_start:
+            raise ValueError(f'unsupported duration: {text!r}')
+        if stripped.startswith('ms', position):
+            unit = 'ms'
+        elif position < len(stripped) and stripped[position] in 'dhms':
+            unit = stripped[position]
+        else:
+            raise ValueError(f'unsupported duration: {text!r}')
+        rank = _UNIT_ORDER[unit]
+        if rank <= previous_rank:
+            raise ValueError(f'units out of order: {text!r}')
+        total += float(stripped[number_start:position]) / _SECONDS_PER_UNIT[unit]
+        previous_rank = rank
+        position += len(unit)
+        while position < len(stripped) and stripped[position].isspace():
+            position += 1
+    return total

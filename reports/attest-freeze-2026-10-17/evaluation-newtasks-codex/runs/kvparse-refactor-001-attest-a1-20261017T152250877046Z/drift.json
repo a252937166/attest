@@ -1,0 +1,16 @@
+{
+  "drift_score": 0.2,
+  "assessment": "narrowed",
+  "scope_narrowed": [
+    "Legacy exception behavior is not fully preserved: _split_non_string_line joins both fields before checking the stripped key. For ['=', 1], the baseline raises ValueError for an empty key; the new return \"\".join(chars[:separator]), \"\".join(chars[separator + 1:]) raises TypeError first."
+  ],
+  "scope_widened": [
+    "Replacing indexed sequence access with chars = list(line) newly accepts some mappings. For {'a': 1, '=': 2, 'b': 3}, the baseline raises KeyError at line[0], whereas the new implementation returns ('a', 'b')."
+  ],
+  "unsupported_claims": [
+    "\"preserved legacy non-string behavior\" — contradicted by the exception-order and mapping regressions.",
+    "\"The refactor satisfies the contract\" — the universal behavior-preservation requirement is violated despite the reported passing checks."
+  ],
+  "summary": "The diff implements partition-based string parsing and the required _is_ignorable integration, and the observed test output supports all four existing tests passing. It does not fully solve the task because the compatibility helper changes outcomes for some non-string inputs.",
+  "threshold": 0.6
+}

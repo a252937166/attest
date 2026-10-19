@@ -1,0 +1,1575 @@
+{
+  "run_id": "slugkit-regression-001-attest-a1-20261017T151705980000Z",
+  "started_at_utc": "2026-10-17T15:17:05.980187+00:00",
+  "finished_at_utc": "2026-10-17T15:22:43.882469+00:00",
+  "profile": {
+    "label": "eval-attest-a1",
+    "provider": {
+      "provider": "codex_gateway",
+      "base_url": null,
+      "base_url_sha256": "68e25b464500800e",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "structured_endpoint": "/run",
+      "native_tools": false,
+      "streaming": false,
+      "auto_retry": false,
+      "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+      "pacing": {
+        "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+        "policy_source": "gateway status: hourly request counting not enforced",
+        "hourly_limit_assumed": null,
+        "budget": null,
+        "max_concurrency": 2,
+        "max_wait_s": 3900.0,
+        "state_shared_across_processes": true
+      }
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "provenance": {
+    "attest_version": "0.3.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "36369c7b572308977852cf61ce218f356f19d954f47319397dfa0d700b44301a",
+      "files": 35,
+      "git_commit": null,
+      "version": "0.3.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/6",
+      "sha256": "93e8c9edacca93fc4b8a8c2cf86b44374aab3a9a752dc35b7af5e3dfdc935211"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "80999537285bacafdd86e7faad72792e2a7a25f87d691231e76f3905a1aa91b6",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/reports/attest-freeze-2026-10-17/evaluation-newtasks-codex/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "codex_gateway",
+      "temperature": null,
+      "max_tokens": null,
+      "note": "sampling is controlled by the gateway; the reasoning effort requested per role is recorded",
+      "roles": {
+        "spec": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "seal": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "implement": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "break": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "audit": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "arbitrate": {
+          "model": "gpt-6-astra",
+          "effort": "medium"
+        },
+        "summary": {
+          "model": "gpt-6-luna",
+          "effort": "low"
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 14,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": true,
+      "arbitration_apply": false
+    },
+    "pacing": {
+      "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+      "policy_source": "gateway status: hourly request counting not enforced",
+      "hourly_limit_assumed": null,
+      "budget": null,
+      "max_concurrency": 2,
+      "max_wait_s": 3900.0,
+      "state_shared_across_processes": true
+    },
+    "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+    "upstream": null
+  },
+  "task": {
+    "id": "slugkit-regression-001",
+    "title": "Regression: slugify keeps separator runs and edge hyphens",
+    "statement": "Regression report for slugkit.slugify(text). Since the last change the function returns 'hello--world' for 'Hello--World', 'a---b' for 'a -- b' and 'end-' for 'end!'. The intended behaviour, which the existing tests only partly cover, is: lower-case the text; every maximal run of one or more characters that are not ASCII letters a-z or ASCII digits 0-9 becomes exactly one hyphen; leading and trailing hyphens are removed; an input with no ASCII letters or digits (including the empty string and whitespace-only text) returns ''. Non-ASCII letters such as 'é' are separators, not kept characters (so 'café crème' is 'caf-cr-me'). Keep raising TypeError for non-string input, keep returning a str, and keep the existing tests in tests/ passing without modifying them. Fix the regression in slugkit/core.py.",
+    "acceptance_criteria": [
+      "slugify('Hello--World') == 'hello-world', slugify('a -- b') == 'a-b', slugify('one , two ; three') == 'one-two-three', slugify('x___y') == 'x-y' (runs of separators collapse to one hyphen).",
+      "slugify('end!') == 'end', slugify('  padded  ') == 'padded', slugify('--both--') == 'both', slugify('(parens)') == 'parens' (no leading or trailing hyphen).",
+      "slugify('') == '', slugify('!!!') == '', slugify('   ') == '' (nothing to keep gives the empty string).",
+      "Existing behaviour is preserved: slugify('Hello World') == 'hello-world', slugify('already-a-slug') == 'already-a-slug', slugify('Python 3') == 'python-3', slugify('MiXeD CaSe 42') == 'mixed-case-42'.",
+      "Non-ASCII letters are separators: slugify('café crème') == 'caf-cr-me' and slugify('日本語') == ''.",
+      "The result is a str; TypeError for non-string input such as None, 3, 2.5, ['a'] and b'bytes'."
+    ],
+    "allowed_write_globs": [
+      "slugkit/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from slugkit import slugify",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "slugkit/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "slugkit/core.py": "61d01b73d49a7bc8ed942908d3800e6cdee151f519cba6b2c9de9058fa02373b",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "780b5db6e2779de1e0012705f342b2b2b643c3b05ce14032e464c5f2f832cb0f"
+    },
+    "spec_sha256": "a3f86579452e1665bb1b8e00e0a8c1a47f4408175e57f59bf6ab33a6265141f9"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a14a70-40cf-7013-ae1b-806f423d04bd",
+    "checkpoint_image_uuid": "8c3875f8-20ec-4ac1-9fac-4493503c5039",
+    "checkpoint_chain": [],
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 4,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestSlugify.test_already_a_slug",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestSlugify.test_digits_kept",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestSlugify.test_non_string_rejected",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestSlugify.test_simple_words",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestSlugify.test_already_a_slug",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestSlugify.test_digits_kept",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestSlugify.test_non_string_rejected",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestSlugify.test_simple_words",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 4,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a14a70-40cf-7013-ae1b-806f423d04bd",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.223,
+      "stderr_tail": "test_already_a_slug (tests.test_basic.TestSlugify.test_already_a_slug) ... ok\ntest_digits_kept (tests.test_basic.TestSlugify.test_digits_kept) ... ok\ntest_non_string_rejected (tests.test_basic.TestSlugify.test_non_string_rejected) ... ok\ntest_simple_words (tests.test_basic.TestSlugify.test_simple_words) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "suite_binding": {
+      "mode": "bound",
+      "reason": "4 statically discovered test ids in 1 module(s) match the baseline run",
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "path": "tests/test_basic.py",
+          "sha256": "780b5db6e2779de1e0012705f342b2b2b643c3b05ce14032e464c5f2f832cb0f",
+          "tests": 4
+        }
+      ]
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Fix slugkit/core.py so slugify produces lowercase ASCII slugs by preserving ASCII letters and digits, replacing each maximal run of all other characters with one hyphen, and removing edge hyphens. Inputs containing no ASCII letters or digits must produce an empty string. Preserve the public import, string return type, rejection of non-string inputs, and all existing tests without modifying them.",
+    "interface_contract": [
+      {
+        "name": "slugkit.slugify",
+        "signature": "slugify(text)",
+        "behavior": "Accept a str, including str subclasses, and return a str. Retain original ASCII letters A-Z and a-z and digits 0-9, converting A-Z to lowercase. Treat every other character, including existing hyphens, underscores, whitespace, punctuation, and non-ASCII characters, as a separator. Replace each maximal separator run with exactly one hyphen and remove leading and trailing hyphens. Return '' when no retained characters remain. To resolve Unicode casing ambiguity, determine ASCII eligibility from the original characters: non-ASCII characters remain separators even if Unicode lowercasing could map them to ASCII. The function remains accessible through both slugkit.slugify and slugkit.core.slugify.",
+        "error_cases": [
+          "TypeError when text is not an instance of str; preserve the existing message 'text must be a str'."
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "1. Separator runs collapse: slugify('Hello--World') == 'hello-world', slugify('a -- b') == 'a-b', slugify('one , two ; three') == 'one-two-three', and slugify('x___y') == 'x-y'.",
+      "2. Edge separators disappear: slugify('end!') == 'end', slugify('  padded  ') == 'padded', slugify('--both--') == 'both', and slugify('(parens)') == 'parens'.",
+      "3. Inputs without ASCII letters or digits return '': verify '', '!!!', '   ', '--', and '日本語'.",
+      "4. Existing normal behavior remains: slugify('Hello World') == 'hello-world', slugify('already-a-slug') == 'already-a-slug', slugify('Python 3') == 'python-3', and slugify('MiXeD CaSe 42') == 'mixed-case-42'.",
+      "5. Non-ASCII characters separate retained text: slugify('café crème') == 'caf-cr-me'. Original non-ASCII characters are never converted into retained ASCII letters; slugify('K') == '' and slugify('aKb') == 'a-b'.",
+      "6. ASCII letters and digits remain in their original order, with uppercase ASCII letters lowercased: slugify('AZaz09') == 'azaz09'.",
+      "7. Tabs and line breaks are separators: slugify('\\tA\\n\\r B\\t') == 'a-b'.",
+      "8. Every successful result is a str and is either empty or matches the entire pattern [a-z0-9]+(?:-[a-z0-9]+)*.",
+      "9. None, 3, 2.5, ['a'], and b'bytes' each raise TypeError with message 'text must be a str'. Instances of str subclasses are accepted and follow the same transformation rules.",
+      "10. Both existing import paths expose the function, and all existing tests in tests/ pass unchanged."
+    ],
+    "out_of_scope": [
+      "Modifying existing tests or slugkit/__init__.py.",
+      "Changing the public function name or parameter signature.",
+      "Adding Unicode transliteration, accent removal, configurable separators, or coercion of non-string inputs.",
+      "Adding dependencies or changing unrelated repository behavior."
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": {
+    "path": "sealed/test_sealed.py",
+    "sha256": "088e68aa70466ba92df62985e22c8a2f5bcf5ecc332e970d9e4cd9cd811511bd",
+    "test_count": 15,
+    "declared_test_count": 15,
+    "expected_ids": [
+      "test_sealed.TestSealedSlugify.test_repeated_hyphens_collapse",
+      "test_sealed.TestSealedSlugify.test_mixed_separator_runs_collapse",
+      "test_sealed.TestSealedSlugify.test_underscore_runs_collapse",
+      "test_sealed.TestSealedSlugify.test_edge_punctuation_disappears",
+      "test_sealed.TestSealedSlugify.test_edge_whitespace_and_hyphens_disappear",
+      "test_sealed.TestSealedSlugify.test_inputs_without_ascii_alphanumerics_return_empty",
+      "test_sealed.TestSealedSlugify.test_existing_normal_examples",
+      "test_sealed.TestSealedSlugify.test_accented_characters_are_separators",
+      "test_sealed.TestSealedSlugify.test_unicode_lowercasing_does_not_make_characters_eligible",
+      "test_sealed.TestSealedSlugify.test_ascii_letters_and_digits_keep_their_order",
+      "test_sealed.TestSealedSlugify.test_tabs_and_line_breaks_are_separators",
+      "test_sealed.TestSealedSlugify.test_successful_results_are_strings_with_slug_shape",
+      "test_sealed.TestSealedSlugify.test_non_string_inputs_raise_type_error_with_exact_message",
+      "test_sealed.TestSealedSlugify.test_string_subclasses_are_accepted",
+      "test_sealed.TestSealedSlugify.test_both_public_import_paths_expose_slugify"
+    ],
+    "escapes_repaired": false,
+    "sealed_at_utc": "2026-10-17T15:18:49.093768+00:00",
+    "author_model": "gpt-6-sol",
+    "attempts": 1,
+    "rejected_attempts": [],
+    "notes": "Covers all specified examples, slug shape and type, exact errors, str subclasses, and both import paths."
+  },
+  "red_run": {
+    "ran": 15,
+    "tests": [
+      {
+        "id": "test_sealed.TestSealedSlugify.test_repeated_hyphens_collapse",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.182,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 10, in test_repeated_hyphens_collapse\n    self.assertEqual(slugify('Hello--World'), 'hello-world')\nAssertionError: 'hello--world' != 'hello-world'\n- hello--world\n?      -\n+ hello-world\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_mixed_separator_runs_collapse",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 18, in test_mixed_separator_runs_collapse\n    self.assertEqual(slugify(source), expected)\nAssertionError: 'a----b' != 'a-b'\n- a----b\n+ a-b\n\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 18, in test_mixed_separator_runs_collapse\n    self.assertEqual(slugify(source), expected)\nAssertionError: 'one---two---three' != 'one-two-three'\n- one---two---three\n?     --   --\n+ one-two-three\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_underscore_runs_collapse",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 21, in test_underscore_runs_collapse\n    self.assertEqual(slugify('x___y'), 'x-y')\nAssertionError: 'x---y' != 'x-y'\n- x---y\n?  --\n+ x-y\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_edge_punctuation_disappears",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 26, in test_edge_punctuation_disappears\n    self.assertEqual(slugify(source), expected)\nAssertionError: 'end-' != 'end'\n- end-\n?    -\n+ end\n\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 26, in test_edge_punctuation_disappears\n    self.assertEqual(slugify(source), expected)\nAssertionError: '-parens-' != 'parens'\n- -parens-\n? -      -\n+ parens\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_edge_whitespace_and_hyphens_disappear",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 31, in test_edge_whitespace_and_hyphens_disappear\n    self.assertEqual(slugify(source), expected)\nAssertionError: '--padded--' != 'padded'\n- --padded--\n? --      --\n+ padded\n\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 31, in test_edge_whitespace_and_hyphens_disappear\n    self.assertEqual(slugify(source), expected)\nAssertionError: '--both--' != 'both'\n- --both--\n+ both\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_inputs_without_ascii_alphanumerics_return_empty",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 36, in test_inputs_without_ascii_alphanumerics_return_empty\n    self.assertEqual(slugify(source), '')\nAssertionError: '---' != ''\n- ---\n\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 36, in test_inputs_without_ascii_alphanumerics_return_empty\n    self.assertEqual(slugify(source), '')\nAssertionError: '---' != ''\n- ---\n\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 36, in test_inputs_without_ascii_alphanumerics_return_empty\n    self.assertEqual(slugify(source), '')\nAssertionError: '--' != ''\n- --\n\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 36, in test_inputs_without_ascii_alphanumerics_return_empty\n    self.assertEqual(slugify(source), '')\nAssertionError: '---' != ''\n- ---\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_existing_normal_examples",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.176,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_accented_characters_are_separators",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 49, in test_accented_characters_are_separators\n    self.assertEqual(slugify('café crème'), 'caf-cr-me')\nAssertionError: 'caf--cr-me' != 'caf-cr-me'\n- caf--cr-me\n?    -\n+ caf-cr-me\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_unicode_lowercasing_does_not_make_characters_eligible",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 52, in test_unicode_lowercasing_does_not_make_characters_eligible\n    self.assertEqual(slugify('K'), '')\nAssertionError: 'k' != ''\n- k\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_ascii_letters_and_digits_keep_their_order",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_tabs_and_line_breaks_are_separators",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 59, in test_tabs_and_line_breaks_are_separators\n    self.assertEqual(slugify('\\tA\\n\\r B\\t'), 'a-b')\nAssertionError: '-a---b-' != 'a-b'\n- -a---b-\n+ a-b\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_successful_results_are_strings_with_slug_shape",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 66, in test_successful_results_are_strings_with_slug_shape\n    self.assertTrue(result == '' or re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', result) is not None)\nAssertionError: False is not true\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 66, in test_successful_results_are_strings_with_slug_shape\n    self.assertTrue(result == '' or re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', result) is not None)\nAssertionError: False is not true\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 66, in test_successful_results_are_strings_with_slug_shape\n    self.assertTrue(result == '' or re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', result) is not None)\nAssertionError: False is not true\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 66, in test_successful_results_are_strings_with_slug_shape\n    self.assertTrue(result == '' or re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', result) is not None)\nAssertionError: False is not true\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_non_string_inputs_raise_type_error_with_exact_message",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_string_subclasses_are_accepted",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 79, in test_string_subclasses_are_accepted\n    self.assertEqual(slugify(Text(' --A___BK9-- ')), 'a-b-9')\nAssertionError: '---a---bk9---' != 'a-b-9'\n- ---a---bk9---\n+ a-b-9\n\n"
+      },
+      {
+        "id": "test_sealed.TestSealedSlugify.test_both_public_import_paths_expose_slugify",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 82, in test_both_public_import_paths_expose_slugify\n    self.assertEqual(slugify('A -- B'), 'a-b')\nAssertionError: 'a----b' != 'a-b'\n- a----b\n+ a-b\n\n"
+      }
+    ],
+    "passed": 3,
+    "failing": 12,
+    "subtest_events": 0,
+    "import_error": null,
+    "all_passed": false,
+    "canary_ok": true,
+    "summary_line": "FAILED (12 of 15 methods: FAIL 12)",
+    "operation_uuid": "01a14a71-b48f-7516-afe6-b359aa339092",
+    "nonce": "a893876eca8293e73195657cde0f6c5e",
+    "supervisor_exit_code": 1,
+    "runner_error": null
+  },
+  "trajectory": {
+    "turns": 4,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "read_file",
+        "path": "slugkit/core.py",
+        "reason": "I need to inspect the current implementation before making the scoped change.",
+        "observation_head": "[12 lines]\n\"\"\"URL slugs.\"\"\"\n\nimport re\n\n_NOT_ALNUM = re.compile(r\"[^a-z0-9]\")\n\n\ndef slugify(text):\n    \"\"\"Lower-case ASCII slug of `text`: letters and digits ar"
+      },
+      {
+        "turn": 2,
+        "action": "replace_in_file",
+        "path": "slugkit/core.py",
+        "reason": "Match separators before lowercasing so original non-ASCII characters stay separators, collapse their runs, and trim edge hyphens.",
+        "observation_head": "replaced one occurrence in slugkit/core.py; the file is now 305 bytes"
+      },
+      {
+        "turn": 3,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Verify the changed slugify implementation against the repository's existing tests.",
+        "observation_head": "existing test suite: OK (ran 4, passed 4, exit 0)\ntest_already_a_slug (tests.test_basic.TestSlugify.test_already_a_slug) ... ok\ntest_digits_kept (tests.test_bas"
+      },
+      {
+        "turn": 4,
+        "action": "finish",
+        "path": null,
+        "reason": "The scoped implementation is complete and the existing test suite passes after the edit.",
+        "observation_head": "finished: Updated slugify to collapse separator runs, trim edge hyphens, and lowercase retained ASCII characters. All 4 existing tests pass."
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": true
+  },
+  "candidate": {
+    "changed_paths": [
+      "slugkit/core.py"
+    ],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "--- a/slugkit/core.py\n+++ b/slugkit/core.py\n@@ -2,11 +2,11 @@\n \n import re\n \n-_NOT_ALNUM = re.compile(r\"[^a-z0-9]\")\n+_NOT_ALNUM = re.compile(r\"[^A-Za-z0-9]+\")\n \n \n def slugify(text):\n-    \"\"\"Lower-case ASCII slug of `text`: letters and digits are kept, everything else becomes a hyphen.\"\"\"\n+    \"\"\"Return a lowercase ASCII slug, using one hyphen per separator run.\"\"\"\n     if not isinstance(text, str):\n         raise TypeError(\"text must be a str\")\n-    return _NOT_ALNUM.sub(\"-\", text.lower())\n+    return _NOT_ALNUM.sub(\"-\", text).strip(\"-\").lower()\n",
+    "sha256": {
+      "slugkit/core.py": "1c91fce59359889960b3524d2242da9d46714e55daf4f9dc4a2c8cfd2f78b344"
+    },
+    "implementer_finished": true,
+    "tamper_scan": {
+      "added_lines": 3,
+      "flagged": [
+        {
+          "path": "slugkit/core.py",
+          "line": 5,
+          "pattern": "dynamic code or decoded payload",
+          "text": "_NOT_ALNUM = re.compile(r\"[^A-Za-z0-9]+\")"
+        }
+      ],
+      "labels": [
+        "dynamic code or decoded payload"
+      ],
+      "patterns_checked": 19,
+      "summary": "1 flagged line(s): dynamic code or decoded payload"
+    }
+  },
+  "verification": {
+    "operation_uuid": "01a14a73-98ad-729f-a7ed-38254d896f64",
+    "status": "SUCCESS",
+    "order": [
+      "verify: sealed supervisor is the only step of its branch (nothing imports candidate code before it)",
+      "existing: the repository's own suite runs afterwards in its own disposable branch",
+      "heldout: held-out modules run afterwards in their own disposable branch"
+    ],
+    "sealed_sha256_injected": "088e68aa70466ba92df62985e22c8a2f5bcf5ecc332e970d9e4cd9cd811511bd",
+    "expected_ids": [
+      "test_sealed.TestSealedSlugify.test_repeated_hyphens_collapse",
+      "test_sealed.TestSealedSlugify.test_mixed_separator_runs_collapse",
+      "test_sealed.TestSealedSlugify.test_underscore_runs_collapse",
+      "test_sealed.TestSealedSlugify.test_edge_punctuation_disappears",
+      "test_sealed.TestSealedSlugify.test_edge_whitespace_and_hyphens_disappear",
+      "test_sealed.TestSealedSlugify.test_inputs_without_ascii_alphanumerics_return_empty",
+      "test_sealed.TestSealedSlugify.test_existing_normal_examples",
+      "test_sealed.TestSealedSlugify.test_accented_characters_are_separators",
+      "test_sealed.TestSealedSlugify.test_unicode_lowercasing_does_not_make_characters_eligible",
+      "test_sealed.TestSealedSlugify.test_ascii_letters_and_digits_keep_their_order",
+      "test_sealed.TestSealedSlugify.test_tabs_and_line_breaks_are_separators",
+      "test_sealed.TestSealedSlugify.test_successful_results_are_strings_with_slug_shape",
+      "test_sealed.TestSealedSlugify.test_non_string_inputs_raise_type_error_with_exact_message",
+      "test_sealed.TestSealedSlugify.test_string_subclasses_are_accepted",
+      "test_sealed.TestSealedSlugify.test_both_public_import_paths_expose_slugify"
+    ],
+    "existing": {
+      "runner": "unittest",
+      "ran": 4,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestSlugify.test_simple_words",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.182,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_basic.TestSlugify.test_already_a_slug",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.174,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_basic.TestSlugify.test_digits_kept",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_basic.TestSlugify.test_non_string_rejected",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 4,
+      "failing": 0,
+      "all_passed": true,
+      "summary_line": "OK (4 of 4 methods, each in its own process)",
+      "module_error": false,
+      "operation_uuid": "01a14a73-b1e7-726c-b80c-ffca0ecd0f2f",
+      "runner_error": null,
+      "evidence_class": "bound",
+      "evidence_note": "4 statically discovered test ids in 1 module(s) match the baseline run",
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "module_set_matches": true,
+          "module_digests_unchanged": true,
+          "static_ids_match_expected": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "nonce": "a577d814596b203a60e95210b3e4adcd",
+      "canary_ok": true,
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "sha256": "780b5db6e2779de1e0012705f342b2b2b643c3b05ce14032e464c5f2f832cb0f",
+          "tests": 4,
+          "ids": [
+            "tests.test_basic.TestSlugify.test_simple_words",
+            "tests.test_basic.TestSlugify.test_already_a_slug",
+            "tests.test_basic.TestSlugify.test_digits_kept",
+            "tests.test_basic.TestSlugify.test_non_string_rejected"
+          ]
+        }
+      ]
+    },
+    "sealed": {
+      "ran": 15,
+      "tests": [
+        {
+          "id": "test_sealed.TestSealedSlugify.test_repeated_hyphens_collapse",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.18,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_mixed_separator_runs_collapse",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_underscore_runs_collapse",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_edge_punctuation_disappears",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.186,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_edge_whitespace_and_hyphens_disappear",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_inputs_without_ascii_alphanumerics_return_empty",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.181,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_existing_normal_examples",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_accented_characters_are_separators",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.172,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_unicode_lowercasing_does_not_make_characters_eligible",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_ascii_letters_and_digits_keep_their_order",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.175,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_tabs_and_line_breaks_are_separators",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.172,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_successful_results_are_strings_with_slug_shape",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_non_string_inputs_raise_type_error_with_exact_message",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_string_subclasses_are_accepted",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.175,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestSealedSlugify.test_both_public_import_paths_expose_slugify",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 15,
+      "failing": 0,
+      "subtest_events": 0,
+      "import_error": null,
+      "all_passed": true,
+      "canary_ok": true,
+      "summary_line": "OK (15 of 15 methods, each in its own process)",
+      "operation_uuid": "01a14a73-98ad-729f-a7ed-38254d896f64",
+      "nonce": "bce7cd594b1fb31a5954ed9105e2eab6",
+      "supervisor_exit_code": 0,
+      "runner_error": null
+    },
+    "binding": {
+      "ok": true,
+      "checks": {
+        "result_file_present": true,
+        "sealed_file_unchanged_before": true,
+        "sealed_file_unchanged_after": true,
+        "static_ids_match_red": true,
+        "supervisor_completed": true,
+        "verifier_isolation_active": true,
+        "nonce_matches": true,
+        "no_discovery_error": true,
+        "expected_test_ids_present": true,
+        "no_unexpected_test_ids": true,
+        "no_nonzero_exit": true,
+        "no_signal": true,
+        "no_timeout": true,
+        "no_missing_or_forged_result": true,
+        "all_expected_pass": true,
+        "no_startup_hooks_on_import_path": true,
+        "canary_must_pass_ok": true,
+        "canary_must_fail_failed": true
+      },
+      "reasons": []
+    },
+    "heldout": null
+  },
+  "breaker": {
+    "mutation": {
+      "generated": 0,
+      "evaluated": 0,
+      "killed": 0,
+      "survived": 0,
+      "unknown": 0,
+      "score": null,
+      "threshold": 0.5,
+      "mutants": []
+    },
+    "adversarial": {
+      "sha256": "80af91329bff83c5b2725accd1f57915666506f49a02748f89e53022e7da3196",
+      "author_model": "gpt-6-sol",
+      "expected_ids": [
+        "test_breaker.TestBreaker.test_unicode_case_mappings_do_not_create_ascii_letters",
+        "test_breaker.TestBreaker.test_non_ascii_digits_are_separators",
+        "test_breaker.TestBreaker.test_combining_marks_separate_ascii_letters",
+        "test_breaker.TestBreaker.test_control_characters_are_separators",
+        "test_breaker.TestBreaker.test_each_ascii_punctuation_character_is_a_separator",
+        "test_breaker.TestBreaker.test_long_mixed_separator_run_collapses_once",
+        "test_breaker.TestBreaker.test_long_separator_only_input_is_empty",
+        "test_breaker.TestBreaker.test_many_alternating_runs_preserve_order",
+        "test_breaker.TestBreaker.test_additional_non_string_types_raise_exact_error",
+        "test_breaker.TestBreaker.test_plain_string_subclass_returns_a_string"
+      ],
+      "summary": {
+        "ran": 10,
+        "tests": [
+          {
+            "id": "test_breaker.TestBreaker.test_unicode_case_mappings_do_not_create_ascii_letters",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.182,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_non_ascii_digits_are_separators",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.172,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_combining_marks_separate_ascii_letters",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.173,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_control_characters_are_separators",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.174,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_each_ascii_punctuation_character_is_a_separator",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.173,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_long_mixed_separator_run_collapses_once",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.174,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_long_separator_only_input_is_empty",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.172,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_many_alternating_runs_preserve_order",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.177,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_additional_non_string_types_raise_exact_error",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.173,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_plain_string_subclass_returns_a_string",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.173,
+            "captured_tail": "",
+            "failure_tail": ""
+          }
+        ],
+        "passed": 10,
+        "failing": 0,
+        "subtest_events": 0,
+        "import_error": null,
+        "all_passed": true,
+        "canary_ok": true,
+        "summary_line": "OK (10 of 10 methods, each in its own process)",
+        "operation_uuid": "01a14a74-b0bb-71f3-b0e3-a37bbce94ca9",
+        "nonce": "087a2ace342c29d2e4442717b50229d2",
+        "supervisor_exit_code": 0,
+        "runner_error": null
+      },
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "sealed_file_unchanged_before": true,
+          "sealed_file_unchanged_after": true,
+          "static_ids_match_red": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "notes": "Targets Unicode characters with ASCII case mappings, non-ASCII digits, controls, individual punctuation, long separator runs, and additional input types.",
+      "operation_uuid": "01a14a74-b0bb-71f3-b0e3-a37bbce94ca9"
+    }
+  },
+  "drift": {
+    "drift_score": 0,
+    "assessment": "aligned",
+    "scope_narrowed": [],
+    "scope_widened": [],
+    "unsupported_claims": [],
+    "summary": "The diff solves the task: `re.compile(r\"[^A-Za-z0-9]+\")` collapses runs of original non-ASCII or other separator characters, and `.sub(\"-\", text).strip(\"-\").lower()` trims edges and lowercases retained ASCII characters while preserving the existing type check. Changes stay within slugkit/core.py, and the observed test output supports the claim that all four existing tests pass; the additional acceptance cases were not explicitly run.",
+    "threshold": 0.6
+  },
+  "arbitration": null,
+  "gates": {
+    "existing_suite": {
+      "ok": true,
+      "detail": "OK (4 of 4 methods, each in its own process)",
+      "evidence_class": "bound"
+    },
+    "sealed_binding": {
+      "ok": true,
+      "detail": "all checks pass",
+      "evidence_class": "bound"
+    },
+    "mutation": {
+      "ok": true,
+      "detail": "no mutable sites on the changed lines; the adversarial suite (10 tests) carries the load",
+      "evidence_class": "bound",
+      "weak": true
+    },
+    "adversarial_tests": {
+      "ok": true,
+      "detail": "OK (10 of 10 methods, each in its own process)",
+      "evidence_class": "bound"
+    },
+    "drift_audit": {
+      "ok": true,
+      "detail": "score 0.0 (aligned)",
+      "evidence_class": "model"
+    }
+  },
+  "verdict": {
+    "verdict": "VERIFIED",
+    "reasons": [],
+    "warnings": [
+      "static tamper scan: 1 flagged line(s): dynamic code or decoded payload; review the patch before trusting self-reported results",
+      "mutation gate: no mutable sites were generated on the changed lines; only the adversarial suite (10 tests) tests the patch structurally"
+    ],
+    "derivation": {
+      "verdict": "VERIFIED",
+      "gates_failed": [],
+      "gates_skipped": [],
+      "blocking": [],
+      "cleared_by_arbitration": false,
+      "rule": "VERIFIED only when every recorded gate passes (a skipped gate never counts as a pass), the implementer finished and the scope policy held; otherwise NEEDS HUMAN. Arbitration changes the verdict only in apply mode and only when every failing generated test was corrected and re-verified."
+    }
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "codex_gateway",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-17T15:17:14.326444+00:00",
+        "elapsed_ms": 42457,
+        "gateway_duration_ms": 37727,
+        "prompt_chars": 4232,
+        "tokens_in": 10457,
+        "tokens_out": 970,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10457,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 970,
+          "reasoning_output_tokens": 120
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-17T15:17:56.838236+00:00",
+        "elapsed_ms": 45714,
+        "gateway_duration_ms": 29507,
+        "prompt_chars": 5697,
+        "tokens_in": 10232,
+        "tokens_out": 1459,
+        "tokens_cached": 7040,
+        "usage_raw": {
+          "input_tokens": 10232,
+          "cached_input_tokens": 7040,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1459,
+          "reasoning_output_tokens": 470
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-17T15:18:49.096876+00:00",
+        "elapsed_ms": 19185,
+        "gateway_duration_ms": 9808,
+        "prompt_chars": 5465,
+        "tokens_in": 10219,
+        "tokens_out": 90,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10219,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 90,
+          "reasoning_output_tokens": 20
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-17T15:19:08.291865+00:00",
+        "elapsed_ms": 33183,
+        "gateway_duration_ms": 20402,
+        "prompt_chars": 6063,
+        "tokens_in": 10382,
+        "tokens_out": 476,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10382,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 476,
+          "reasoning_output_tokens": 211
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-17T15:19:41.492912+00:00",
+        "elapsed_ms": 33850,
+        "gateway_duration_ms": 14049,
+        "prompt_chars": 7078,
+        "tokens_in": 10673,
+        "tokens_out": 84,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10673,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 84,
+          "reasoning_output_tokens": 17
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-17T15:20:18.684267+00:00",
+        "elapsed_ms": 27833,
+        "gateway_duration_ms": 16623,
+        "prompt_chars": 7818,
+        "tokens_in": 10861,
+        "tokens_out": 193,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10861,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 193,
+          "reasoning_output_tokens": 99
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "break",
+        "stage": "break-tests-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-17T15:20:59.645255+00:00",
+        "elapsed_ms": 58564,
+        "gateway_duration_ms": 49264,
+        "prompt_chars": 6263,
+        "tokens_in": 10385,
+        "tokens_out": 1477,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10385,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1477,
+          "reasoning_output_tokens": 638
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "audit",
+        "stage": "drift-audit",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-17T15:22:04.726307+00:00",
+        "elapsed_ms": 39146,
+        "gateway_duration_ms": 20111,
+        "prompt_chars": 6508,
+        "tokens_in": 10943,
+        "tokens_out": 138,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10943,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 138,
+          "reasoning_output_tokens": 0
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a14a70-40cf-7013-ae1b-806f423d04bd",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "8c3875f8-20ec-4ac1-9fac-4493503c5039",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.831,
+        "raw_cost_diag": 0.00286766,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T15:17:07.666040+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": "01a14a71-b48f-7516-afe6-b359aa339092",
+        "image_uuid": "8c3875f8-20ec-4ac1-9fac-4493503c5039",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.69,
+        "raw_cost_diag": 0.02993821,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T15:18:42.563282+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-3",
+        "operation_uuid": "01a14a73-1e61-748a-8cdc-723f02fb1959",
+        "image_uuid": "8c3875f8-20ec-4ac1-9fac-4493503c5039",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.745,
+        "raw_cost_diag": 0.0028393299999999997,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T15:20:15.352973+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "verify",
+        "operation_uuid": "01a14a73-98ad-729f-a7ed-38254d896f64",
+        "image_uuid": "8c3875f8-20ec-4ac1-9fac-4493503c5039",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.691,
+        "raw_cost_diag": 0.02996836,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T15:20:46.531840+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "existing",
+        "operation_uuid": "01a14a73-b1e7-726c-b80c-ffca0ecd0f2f",
+        "image_uuid": "8c3875f8-20ec-4ac1-9fac-4493503c5039",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.77,
+        "raw_cost_diag": 0.01202302,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T15:20:52.946684+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "breaker-tests",
+        "operation_uuid": "01a14a74-b0bb-71f3-b0e3-a37bbce94ca9",
+        "image_uuid": "8c3875f8-20ec-4ac1-9fac-4493503c5039",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.797,
+        "raw_cost_diag": 0.021772250000000003,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-17T15:21:58.224013+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "totals": {
+      "model_calls": 8,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 84152,
+      "tokens_out": 4887,
+      "tokens_cached": 35712,
+      "model_elapsed_ms": 299932,
+      "cost_usd": null,
+      "cost_usd_committed": 0.0,
+      "uncertain_unpriced_calls": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "codex_gateway:gpt-6-astra": {
+          "calls": 2,
+          "tokens_in": 21400,
+          "tokens_out": 1108,
+          "tokens_cached": 0,
+          "cost_usd": null,
+          "elapsed_ms": 81603,
+          "failed": 0
+        },
+        "codex_gateway:gpt-6-sol": {
+          "calls": 6,
+          "tokens_in": 62752,
+          "tokens_out": 3779,
+          "tokens_cached": 35712,
+          "cost_usd": null,
+          "elapsed_ms": 218329,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 6,
+      "sandbox_duration_s": 13.524,
+      "sandbox_retained_images": [
+        "8c3875f8-20ec-4ac1-9fac-4493503c5039"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.09940883
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest-a1': inference provider codex_gateway; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter then classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, corrects and re-verifies them (must pass on the candidate and still fail on the base). Arbitration is advisory by default and never clears an implementation bug or a contract dispute; it changes the verdict only in explicit apply mode.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "audit"
+}

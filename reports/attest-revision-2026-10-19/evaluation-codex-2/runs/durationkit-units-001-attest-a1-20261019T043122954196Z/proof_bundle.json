@@ -1,0 +1,3047 @@
+{
+  "run_id": "durationkit-units-001-attest-a1-20261019T043122954196Z",
+  "started_at_utc": "2026-10-19T04:31:22.955520+00:00",
+  "finished_at_utc": "2026-10-19T04:43:02.871844+00:00",
+  "profile": {
+    "label": "eval-attest-a1",
+    "provider": {
+      "provider": "codex_gateway",
+      "base_url": null,
+      "base_url_sha256": "68e25b464500800e",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "structured_endpoint": "/run",
+      "native_tools": false,
+      "streaming": false,
+      "auto_retry": false,
+      "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+      "pacing": {
+        "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+        "policy_source": "gateway status: hourly request counting not enforced",
+        "hourly_limit_assumed": null,
+        "budget": null,
+        "max_concurrency": 2,
+        "max_wait_s": 3900.0,
+        "state_shared_across_processes": true
+      }
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "provenance": {
+    "attest_version": "0.4.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "files": 35,
+      "git_commit": null,
+      "version": "0.4.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/6",
+      "sha256": "93e8c9edacca93fc4b8a8c2cf86b44374aab3a9a752dc35b7af5e3dfdc935211"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "80999537285bacafdd86e7faad72792e2a7a25f87d691231e76f3905a1aa91b6",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "codex_gateway",
+      "temperature": null,
+      "max_tokens": null,
+      "note": "sampling is controlled by the gateway; the reasoning effort requested per role is recorded",
+      "roles": {
+        "spec": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "seal": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "implement": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "break": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "audit": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "arbitrate": {
+          "model": "gpt-6-astra",
+          "effort": "medium"
+        },
+        "summary": {
+          "model": "gpt-6-luna",
+          "effort": "low"
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 14,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": true,
+      "arbitration_apply": true,
+      "max_corrected_tests": 3,
+      "max_mutants_for_discrimination": 3,
+      "max_breaker_attempts": 3,
+      "max_witnesses": 3,
+      "witness_timeout_s": 60
+    },
+    "pacing": {
+      "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+      "policy_source": "gateway status: hourly request counting not enforced",
+      "hourly_limit_assumed": null,
+      "budget": null,
+      "max_concurrency": 2,
+      "max_wait_s": 3900.0,
+      "state_shared_across_processes": true
+    },
+    "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+    "upstream": null
+  },
+  "task": {
+    "id": "durationkit-units-001",
+    "title": "Accept unit suffixes in parse_duration",
+    "statement": "Users want to write durations such as '1h30m' instead of counting seconds. Extend parse_duration(text) so that, in addition to the existing plain-integer-seconds form, it accepts one or more components made of a non-negative integer followed by a unit: d (days), h (hours), m (minutes), s (seconds) or ms (milliseconds). Components must appear in descending unit order (for example '2d4h', '1h30m', '45m10s', '1s500ms'), each unit may appear at most once, and whitespace is allowed around the whole string and between components (but not between a number and its unit). The function keeps returning the total number of seconds as a float (so '500ms' is 0.5 and '1h30m' is 5400.0). Reject with ValueError: empty or whitespace-only input, negative numbers, fractional numbers, unknown units, repeated units, components out of descending order, a unit without a number, and any other malformed text. Numbers are written with the ASCII digits 0-9. Whether other Unicode decimal digits (for example Arabic-Indic or fullwidth digits) are accepted by their numeric value or rejected with ValueError is unspecified, and tests must not depend on either choice; characters that are not decimal digits (letters, Roman numerals, fractions, circled numbers) are malformed text and raise ValueError. Keep raising TypeError for non-string input. The existing tests in tests/ must keep passing and must not be modified.",
+    "acceptance_criteria": [
+      "parse_duration('90') == 90.0 and surrounding whitespace is still ignored (existing behavior preserved).",
+      "Single components work for every unit: '2d' -> 172800.0, '3h' -> 10800.0, '15m' -> 900.0, '45s' -> 45.0, '500ms' -> 0.5.",
+      "Combined components in descending order work: '1h30m' -> 5400.0, '2d4h' -> 187200.0, '1m1s' -> 61.0, '1s500ms' -> 1.5, '1d1h1m1s1ms' -> 90061.001.",
+      "Whitespace is accepted around the string and between components: ' 1h 30m ' -> 5400.0; '1 h' raises ValueError.",
+      "'0s' and '0' return 0.0.",
+      "ValueError for: '', '   ', '-1h', '1.5h', '1x', '1h1h', '30m1h', 'h', '1h30', 'abc'.",
+      "TypeError for non-string input such as 90 or None.",
+      "The return type is float for every accepted input.",
+      "Unspecified, not to be tested: acceptance or rejection of non-ASCII Unicode decimal digits such as '١٢h'."
+    ],
+    "allowed_write_globs": [
+      "durationkit/**"
+    ],
+    "protected_globs": [
+      "tests/**",
+      "README.md"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from durationkit import parse_duration",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "README.md": "7fb26a829b376e73d47f5fb6e6a0def54646f963edc6534ffbe845d968faa3ff",
+      "durationkit/__init__.py": "ed59ec6803202d5d097eba57099f8daab8b9e199a721ba4fce6736457f6607bb",
+      "durationkit/parse.py": "80c22eaa60f98f01825bb4775bd1108983a87a905dbfdc75f39d68bcb6e62bf3",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_parse.py": "9f068d13f4c2dd7f484b639767092c53b33646526524cb2b68d0a22b8de55790"
+    },
+    "spec_sha256": "52f44d7aa75262eecd969a37464e8a7ece88ce0eaa3f4ef17e12e86fa71dc6f5"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a1526d-cf44-71d8-bc46-0699178e4715",
+    "checkpoint_image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+    "checkpoint_chain": [],
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 6,
+      "tests": [
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_empty_string_is_rejected",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_non_string_is_rejected",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_plain_integer_is_seconds",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_returns_float",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_surrounding_whitespace_is_ignored",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_zero",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_empty_string_is_rejected",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_non_string_is_rejected",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_plain_integer_is_seconds",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_returns_float",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_surrounding_whitespace_is_ignored",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_zero",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 6,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a1526d-cf44-71d8-bc46-0699178e4715",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.22,
+      "stderr_tail": "test_empty_string_is_rejected (tests.test_parse.ParseDurationExistingBehaviour.test_empty_string_is_rejected) ... ok\ntest_non_string_is_rejected (tests.test_parse.ParseDurationExistingBehaviour.test_non_string_is_rejected) ... ok\ntest_plain_integer_is_seconds (tests.test_parse.ParseDurationExistingBehaviour.test_plain_integer_is_seconds) ... ok\ntest_returns_float (tests.test_parse.ParseDurationExistingBehaviour.test_returns_float) ... ok\ntest_surrounding_whitespace_is_ignored (tests.test_parse.ParseDurationExistingBehaviour.test_surrounding_whitespace_is_ignored) ... ok\ntest_zero (tests.test_parse.ParseDurationExistingBehaviour.test_zero) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "suite_binding": {
+      "mode": "bound",
+      "reason": "6 statically discovered test ids in 1 module(s) match the baseline run",
+      "modules": [
+        {
+          "name": "tests.test_parse",
+          "path": "tests/test_parse.py",
+          "sha256": "9f068d13f4c2dd7f484b639767092c53b33646526524cb2b68d0a22b8de55790",
+          "tests": 6
+        }
+      ]
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Extend durationkit.parse_duration to accept either plain non-negative integer seconds or one or more integer-and-unit components using d, h, m, s, and ms, returning total seconds as a float. Require unique units in strictly descending order, permit surrounding whitespace and whitespace between complete components, reject malformed input with ValueError, and preserve TypeError for non-string input. Preserve the public import and all existing tests without modifying them.",
+    "interface_contract": [
+      {
+        "name": "durationkit.parse_duration",
+        "signature": "parse_duration(text: str) -> float",
+        "behavior": "Also available from durationkit.parse. Accept a string whose stripped content is either a nonempty sequence of ASCII digits representing seconds, or a sequence of components, each consisting of a nonempty sequence of ASCII digits immediately followed by a lowercase unit. Units and second multipliers are d=86400, h=3600, m=60, s=1, ms=0.001. Treat ms as one unit. Components must follow the strictly descending order d, h, m, s, ms; units may be skipped but never repeated. Component values are non-negative integers without clock-style range limits; zero and leading zeros are allowed. Whitespace means characters recognized by Python str.isspace(); it is allowed around the input and between complete components, but not within numbers or between numbers and units. Consume the entire input and return the summed duration as a float. Acceptance versus ValueError rejection of non-ASCII Unicode decimal digits is unspecified and must not be tested. Non-decimal numeric characters are invalid. No exact exception message is required.",
+        "error_cases": [
+          "TypeError: text is not an instance of str.",
+          "ValueError: input is empty or contains only whitespace.",
+          "ValueError: a number has a sign, fractional part, exponent, separator, or other malformed numeric syntax.",
+          "ValueError: a unit is unknown, uppercase, missing its preceding number, repeated, or out of descending order.",
+          "ValueError: whitespace splits a number or separates a number from its unit.",
+          "ValueError: bare integer seconds are mixed with unit components, including a trailing number without a unit.",
+          "ValueError: any unconsumed text, punctuation, non-decimal numeric character, or other malformed content occurs."
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "1. The existing tests in tests/ remain unchanged and pass using python -m unittest discover -s tests -t . -v; from durationkit import parse_duration continues to work.",
+      "2. Plain integer seconds remain supported: '90' returns 90.0, '  42 ' returns 42.0, '0' returns 0.0, and '0007' returns 7.0.",
+      "3. Single components return the specified seconds: '2d' → 172800.0, '3h' → 10800.0, '15m' → 900.0, '45s' → 45.0, and '500ms' → 0.5.",
+      "4. Ordered combinations work with adjacent components: '1h30m' → 5400.0, '2d4h' → 187200.0, '1m1s' → 61.0, '1s500ms' → 1.5, and '1d1h1m1s1ms' → 90061.001. Compare fractional results with ordinary floating-point tolerance.",
+      "5. Units may be skipped: '1d1ms' returns approximately 86400.001. Values need not fit clock ranges: '90m' returns 5400.0 and '1500ms' returns 1.5.",
+      "6. Zero-valued components and leading zeros are accepted: '0s' returns 0.0, '0d0h0m0s0ms' returns 0.0, and '001h030m' returns 5400.0.",
+      "7. Whitespace recognized by str.isspace() is accepted around the input and between components: ' 1h 30m ' and '\\t1h\\n30m\\r' return 5400.0.",
+      "8. Every accepted input returns a float, including plain integers, zero, whole-second unit durations, and millisecond durations.",
+      "9. Empty and whitespace-only strings raise ValueError, including '', '   ', and '\\t\\n'.",
+      "10. Invalid numeric syntax raises ValueError in either form: examples include '-1', '-1h', '+1', '+1h', '1.5', '1.5h', '1e3', '1e3s', and '1_000s'.",
+      "11. Unknown or incorrectly cased units and missing numbers raise ValueError: '1x', '1H', '1MS', 'h', 'ms', and 'abc'.",
+      "12. Repeated units raise ValueError even when separated by whitespace or carrying zero: '1h1h', '1ms 2ms', and '0s0s'.",
+      "13. Components out of descending order raise ValueError, including '30m1h', '1ms1s', '1s1m', and '0ms0s'.",
+      "14. Split components, split numbers, mixed forms, and trailing garbage raise ValueError: '1 h', '1 m s', '1 0s', '1h30', '1 2', '1h,30m', and '1s!'.",
+      "15. Non-decimal numeric characters raise ValueError in both plain and component forms, including '²', '²h', 'Ⅳ', 'Ⅳh', '½', '½h', '①', and '①h'. Tests must not assert acceptance or rejection for non-ASCII Unicode decimal digits such as Arabic-Indic or fullwidth digits.",
+      "16. Non-string inputs raise TypeError, including 90, None, 1.5, True, b'90', and ['90']."
+    ],
+    "out_of_scope": [
+      "Modifying or deleting existing tests in tests/.",
+      "Changing the public function signature, import path, or float return type.",
+      "Adding units, aliases, case-insensitive matching, signed or fractional values, or clock-style colon notation.",
+      "Requiring a particular behavior for non-ASCII Unicode decimal digits or a particular exception message.",
+      "Defining new overflow or precision guarantees for extremely large numeric values beyond existing Python numeric behavior.",
+      "Adding unrelated functionality or third-party dependencies."
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": {
+    "path": "sealed/test_sealed.py",
+    "sha256": "f8d172bb216cbf3da30847f17b2eff977c1d3d728f949f1493bfada9a29f9da1",
+    "test_count": 22,
+    "declared_test_count": 22,
+    "expected_ids": [
+      "test_sealed.ParseDurationAcceptanceTests.test_public_import_accepts_plain_seconds",
+      "test_sealed.ParseDurationAcceptanceTests.test_plain_integer_seconds",
+      "test_sealed.ParseDurationAcceptanceTests.test_single_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_adjacent_ordered_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_units_may_be_skipped",
+      "test_sealed.ParseDurationAcceptanceTests.test_component_values_have_no_clock_range_limit",
+      "test_sealed.ParseDurationAcceptanceTests.test_zero_valued_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_leading_zeros_in_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_whitespace_around_and_between_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_every_accepted_form_returns_float",
+      "test_sealed.ParseDurationAcceptanceTests.test_empty_or_whitespace_only_input_raises_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_signed_numbers_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_fractional_exponent_and_separator_syntax_raises_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_unknown_or_uppercase_units_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_units_without_numbers_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_repeated_units_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_units_out_of_descending_order_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_whitespace_inside_components_raises_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_bare_integers_mixed_with_components_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_trailing_punctuation_and_unconsumed_text_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_non_decimal_numeric_characters_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_non_string_inputs_raise_type_error"
+    ],
+    "escapes_repaired": false,
+    "sealed_at_utc": "2026-10-19T04:35:09.340110+00:00",
+    "author_model": "gpt-6-sol",
+    "attempts": 1,
+    "rejected_attempts": [],
+    "notes": "Covers AC1–AC16 through the public import; the existing test suite's unchanged status is verified by the runner.",
+    "coverage": [
+      {
+        "criterion": 1,
+        "tests": [
+          "test_public_import_accepts_plain_seconds"
+        ]
+      },
+      {
+        "criterion": 2,
+        "tests": [
+          "test_public_import_accepts_plain_seconds",
+          "test_plain_integer_seconds"
+        ]
+      },
+      {
+        "criterion": 3,
+        "tests": [
+          "test_single_components"
+        ]
+      },
+      {
+        "criterion": 4,
+        "tests": [
+          "test_adjacent_ordered_components"
+        ]
+      },
+      {
+        "criterion": 5,
+        "tests": [
+          "test_units_may_be_skipped",
+          "test_component_values_have_no_clock_range_limit"
+        ]
+      },
+      {
+        "criterion": 6,
+        "tests": [
+          "test_zero_valued_components",
+          "test_leading_zeros_in_components"
+        ]
+      },
+      {
+        "criterion": 7,
+        "tests": [
+          "test_whitespace_around_and_between_components"
+        ]
+      },
+      {
+        "criterion": 8,
+        "tests": [
+          "test_every_accepted_form_returns_float"
+        ]
+      },
+      {
+        "criterion": 9,
+        "tests": [
+          "test_empty_or_whitespace_only_input_raises_value_error"
+        ]
+      },
+      {
+        "criterion": 10,
+        "tests": [
+          "test_signed_numbers_raise_value_error",
+          "test_fractional_exponent_and_separator_syntax_raises_value_error"
+        ]
+      },
+      {
+        "criterion": 11,
+        "tests": [
+          "test_unknown_or_uppercase_units_raise_value_error",
+          "test_units_without_numbers_raise_value_error"
+        ]
+      },
+      {
+        "criterion": 12,
+        "tests": [
+          "test_repeated_units_raise_value_error"
+        ]
+      },
+      {
+        "criterion": 13,
+        "tests": [
+          "test_units_out_of_descending_order_raise_value_error"
+        ]
+      },
+      {
+        "criterion": 14,
+        "tests": [
+          "test_whitespace_inside_components_raises_value_error",
+          "test_bare_integers_mixed_with_components_raise_value_error",
+          "test_trailing_punctuation_and_unconsumed_text_raise_value_error"
+        ]
+      },
+      {
+        "criterion": 15,
+        "tests": [
+          "test_non_decimal_numeric_characters_raise_value_error"
+        ]
+      },
+      {
+        "criterion": 16,
+        "tests": [
+          "test_non_string_inputs_raise_type_error"
+        ]
+      }
+    ],
+    "coverage_gaps": [],
+    "coverage_note": "the map is the sealer's own claim of which test checks which criterion; gaps are criteria no test claims"
+  },
+  "red_run": {
+    "ran": 22,
+    "tests": [
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_public_import_accepts_plain_seconds",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.182,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_plain_integer_seconds",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_single_components",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "ted duration: {text!r}\")\nValueError: unsupported duration: '3h'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 18, in test_single_components\n    self.assertAlmostEqual(parse_duration(value), expected)\n                           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '15m'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 18, in test_single_components\n    self.assertAlmostEqual(parse_duration(value), expected)\n                           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '45s'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 18, in test_single_components\n    self.assertAlmostEqual(parse_duration(value), expected)\n                           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '500ms'\n"
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_adjacent_ordered_components",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.187,
+        "captured_tail": "",
+        "failure_tail": "orted duration: '2d4h'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 23, in test_adjacent_ordered_components\n    self.assertAlmostEqual(parse_duration(value), expected)\n                           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '1m1s'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 23, in test_adjacent_ordered_components\n    self.assertAlmostEqual(parse_duration(value), expected)\n                           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '1s500ms'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 23, in test_adjacent_ordered_components\n    self.assertAlmostEqual(parse_duration(value), expected)\n                           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '1d1h1m1s1ms'\n"
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_units_may_be_skipped",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 26, in test_units_may_be_skipped\n    self.assertAlmostEqual(parse_duration('1d1ms'), 86400.001)\n                           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '1d1ms'\n"
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_component_values_have_no_clock_range_limit",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 31, in test_component_values_have_no_clock_range_limit\n    self.assertAlmostEqual(parse_duration(value), expected)\n                           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '90m'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 31, in test_component_values_have_no_clock_range_limit\n    self.assertAlmostEqual(parse_duration(value), expected)\n                           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '1500ms'\n"
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_zero_valued_components",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 36, in test_zero_valued_components\n    self.assertEqual(parse_duration(value), 0.0)\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '0s'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 36, in test_zero_valued_components\n    self.assertEqual(parse_duration(value), 0.0)\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '0d0h0m0s0ms'\n"
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_leading_zeros_in_components",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.176,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 39, in test_leading_zeros_in_components\n    self.assertEqual(parse_duration('001h030m'), 5400.0)\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '001h030m'\n"
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_whitespace_around_and_between_components",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.175,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 44, in test_whitespace_around_and_between_components\n    self.assertEqual(parse_duration(value), 5400.0)\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: ' 1h 30m '\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 44, in test_whitespace_around_and_between_components\n    self.assertEqual(parse_duration(value), 5400.0)\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '\\t1h\\n30m\\r'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 44, in test_whitespace_around_and_between_components\n    self.assertEqual(parse_duration(value), 5400.0)\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '\\u20031h\\u200330m\\u2003'\n"
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_every_accepted_form_returns_float",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "supported duration: '0s'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 49, in test_every_accepted_form_returns_float\n    self.assertIsInstance(parse_duration(value), float)\n                          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '1h30m'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 49, in test_every_accepted_form_returns_float\n    self.assertIsInstance(parse_duration(value), float)\n                          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '500ms'\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 49, in test_every_accepted_form_returns_float\n    self.assertIsInstance(parse_duration(value), float)\n                          ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 14, in parse_duration\n    raise ValueError(f\"unsupported duration: {text!r}\")\nValueError: unsupported duration: '1s500ms'\n"
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_empty_or_whitespace_only_input_raises_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_signed_numbers_raise_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.171,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_fractional_exponent_and_separator_syntax_raises_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_unknown_or_uppercase_units_raise_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.171,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_units_without_numbers_raise_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_repeated_units_raise_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_units_out_of_descending_order_raise_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.172,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_whitespace_inside_components_raises_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.179,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_bare_integers_mixed_with_components_raise_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.175,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_trailing_punctuation_and_unconsumed_text_raise_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.18,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_non_decimal_numeric_characters_raise_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.172,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.ParseDurationAcceptanceTests.test_non_string_inputs_raise_type_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": ""
+      }
+    ],
+    "passed": 14,
+    "failing": 8,
+    "subtest_events": 0,
+    "import_error": null,
+    "all_passed": false,
+    "canary_ok": true,
+    "summary_line": "FAILED (8 of 22 methods: ERROR 8)",
+    "operation_uuid": "01a15271-1bdc-7605-b769-f172d15d42bc",
+    "nonce": "5f01b03750f7c2f5824a18957eaaf35a",
+    "supervisor_exit_code": 1,
+    "runner_error": null
+  },
+  "trajectory": {
+    "turns": 7,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "search",
+        "path": "durationkit/parse.py",
+        "reason": "Locate the parser definition before reading its implementation.",
+        "observation_head": "1 matching line(s):\ndurationkit/parse.py:4: def parse_duration(text: str) -> float:"
+      },
+      {
+        "turn": 2,
+        "action": "read_file",
+        "path": "durationkit/parse.py",
+        "reason": "Read the current parser so I can update it while preserving its public interface.",
+        "observation_head": "[lines 1-15 of 15]\n\"\"\"Duration parsing.\"\"\"\n\n\ndef parse_duration(text: str) -> float:\n    \"\"\"Parse a duration string and return the number of seconds as a float."
+      },
+      {
+        "turn": 3,
+        "action": "write_file",
+        "path": "durationkit/parse.py",
+        "reason": "Implement strict component scanning with ASCII digits, ordered units, and whitespace only between complete components.",
+        "observation_head": "wrote durationkit/parse.py (1580 bytes)"
+      },
+      {
+        "turn": 4,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Run the existing test suite against the updated parser before checking additional contract cases.",
+        "observation_head": "existing test suite: OK (ran 6, passed 6, exit 0)\ntest_empty_string_is_rejected (tests.test_parse.ParseDurationExistingBehaviour.test_empty_string_is_rejected) "
+      },
+      {
+        "turn": 5,
+        "action": "run_python",
+        "path": null,
+        "reason": "Check the full stated acceptance and rejection examples beyond the existing six tests.",
+        "observation_head": "exit 0\nstdout:\nchecked 22 valid, 40 invalid, and 6 non-string inputs\n\nstderr:\n"
+      },
+      {
+        "turn": 6,
+        "action": "read_file",
+        "path": "durationkit/parse.py",
+        "reason": "Review the completed scanner for edge cases before finishing.",
+        "observation_head": "[lines 1-50 of 50]\n\"\"\"Duration parsing.\"\"\"\n\n\n_UNITS = {\"d\": 86400.0, \"h\": 3600.0, \"m\": 60.0, \"s\": 1.0, \"ms\": 0.001}\n_ORDER = {unit: index for index, unit in enu"
+      },
+      {
+        "turn": 7,
+        "action": "finish",
+        "path": null,
+        "reason": "The parser satisfies the contract, all existing tests pass, and the stated acceptance and rejection cases were verified.",
+        "observation_head": "finished: Extended parse_duration to accept ordered d, h, m, s, and ms components while retaining plain integer seconds and float results. Existing tests: 6 pas"
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": true
+  },
+  "candidate": {
+    "changed_paths": [
+      "durationkit/parse.py"
+    ],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "--- a/durationkit/parse.py\n+++ b/durationkit/parse.py\n@@ -1,15 +1,50 @@\n \"\"\"Duration parsing.\"\"\"\n \n \n+_UNITS = {\"d\": 86400.0, \"h\": 3600.0, \"m\": 60.0, \"s\": 1.0, \"ms\": 0.001}\n+_ORDER = {unit: index for index, unit in enumerate(_UNITS)}\n+\n+\n def parse_duration(text: str) -> float:\n-    \"\"\"Parse a duration string and return the number of seconds as a float.\n-\n-    Only a plain non-negative integer number of seconds is accepted at the\n-    moment, for example ``\"90\"``. Surrounding whitespace is ignored.\n-    \"\"\"\n+    \"\"\"Parse integer seconds or ordered duration components into seconds.\"\"\"\n     if not isinstance(text, str):\n         raise TypeError(\"duration must be a string\")\n+\n     stripped = text.strip()\n-    if not stripped.isdigit():\n-        raise ValueError(f\"unsupported duration: {text!r}\")\n-    return float(stripped)\n+    if not stripped:\n+        raise ValueError(\"duration is empty\")\n+\n+    def is_ascii_digit(char: str) -> bool:\n+        return \"0\" <= char <= \"9\"\n+\n+    if all(is_ascii_digit(char) for char in stripped):\n+        return float(stripped)\n+\n+    total = 0.0\n+    position = 0\n+    previous_order = -1\n+    while position < len(stripped):\n+        start = position\n+        while position < len(stripped) and is_ascii_digit(stripped[position]):\n+            position += 1\n+        if position == start:\n+            raise ValueError(f\"invalid duration: {text!r}\")\n+\n+        if stripped.startswith(\"ms\", position):\n+            unit = \"ms\"\n+        elif position < len(stripped) and stripped[position] in \"dhms\":\n+            unit = stripped[position]\n+        else:\n+            raise ValueError(f\"invalid duration: {text!r}\")\n+\n+        order = _ORDER[unit]\n+        if order <= previous_order:\n+            raise ValueError(f\"duration units out of order: {text!r}\")\n+        previous_order = order\n+        total += int(stripped[start:position]) * _UNITS[unit]\n+        position += len(unit)\n+\n+        while position < len(stripped) and stripped[position].isspace():\n+            position += 1\n+\n+    return float(total)\n",
+    "sha256": {
+      "durationkit/parse.py": "4c7be9dc9613a7849d70dbaf7b9930cbe12a8ad73fc05e7a107462211f6528d1"
+    },
+    "implementer_finished": true,
+    "tamper_scan": {
+      "added_lines": 43,
+      "flagged": [],
+      "labels": [],
+      "patterns_checked": 19,
+      "summary": "no suspicious constructs on the added lines"
+    }
+  },
+  "contract_audit": {
+    "model": "gpt-6-astra",
+    "consistent": true,
+    "notes": "The contract is satisfiable by changing only durationkit/parse.py. The required parsing rules are mutually compatible, preserve the public imports, and satisfy all unchanged existing tests.",
+    "conflicts": [],
+    "outcome": "consistent",
+    "error": null,
+    "rule": "a conflict is demonstrated only when its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' and exits with code 3; any other outcome records the conflict as claimed only, which never ends a run"
+  },
+  "verification": {
+    "operation_uuid": "01a15275-deb8-7200-98a2-c303c6078fc9",
+    "status": "SUCCESS",
+    "order": [
+      "verify: sealed supervisor is the only step of its branch (nothing imports candidate code before it)",
+      "existing: the repository's own suite runs afterwards in its own disposable branch",
+      "heldout: held-out modules run afterwards in their own disposable branch"
+    ],
+    "sealed_sha256_injected": "f8d172bb216cbf3da30847f17b2eff977c1d3d728f949f1493bfada9a29f9da1",
+    "expected_ids": [
+      "test_sealed.ParseDurationAcceptanceTests.test_public_import_accepts_plain_seconds",
+      "test_sealed.ParseDurationAcceptanceTests.test_plain_integer_seconds",
+      "test_sealed.ParseDurationAcceptanceTests.test_single_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_adjacent_ordered_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_units_may_be_skipped",
+      "test_sealed.ParseDurationAcceptanceTests.test_component_values_have_no_clock_range_limit",
+      "test_sealed.ParseDurationAcceptanceTests.test_zero_valued_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_leading_zeros_in_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_whitespace_around_and_between_components",
+      "test_sealed.ParseDurationAcceptanceTests.test_every_accepted_form_returns_float",
+      "test_sealed.ParseDurationAcceptanceTests.test_empty_or_whitespace_only_input_raises_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_signed_numbers_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_fractional_exponent_and_separator_syntax_raises_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_unknown_or_uppercase_units_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_units_without_numbers_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_repeated_units_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_units_out_of_descending_order_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_whitespace_inside_components_raises_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_bare_integers_mixed_with_components_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_trailing_punctuation_and_unconsumed_text_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_non_decimal_numeric_characters_raise_value_error",
+      "test_sealed.ParseDurationAcceptanceTests.test_non_string_inputs_raise_type_error"
+    ],
+    "existing": {
+      "runner": "unittest",
+      "ran": 6,
+      "tests": [
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_plain_integer_is_seconds",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.181,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_zero",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_surrounding_whitespace_is_ignored",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_returns_float",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_empty_string_is_rejected",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.169,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_parse.ParseDurationExistingBehaviour.test_non_string_is_rejected",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 6,
+      "failing": 0,
+      "all_passed": true,
+      "summary_line": "OK (6 of 6 methods, each in its own process)",
+      "module_error": false,
+      "operation_uuid": "01a15276-0497-7199-af38-33ac871d342f",
+      "runner_error": null,
+      "evidence_class": "bound",
+      "evidence_note": "6 statically discovered test ids in 1 module(s) match the baseline run",
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "module_set_matches": true,
+          "module_digests_unchanged": true,
+          "static_ids_match_expected": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "nonce": "a887dd91243242341dce94e9725de2de",
+      "canary_ok": true,
+      "modules": [
+        {
+          "name": "tests.test_parse",
+          "sha256": "9f068d13f4c2dd7f484b639767092c53b33646526524cb2b68d0a22b8de55790",
+          "tests": 6,
+          "ids": [
+            "tests.test_parse.ParseDurationExistingBehaviour.test_plain_integer_is_seconds",
+            "tests.test_parse.ParseDurationExistingBehaviour.test_zero",
+            "tests.test_parse.ParseDurationExistingBehaviour.test_surrounding_whitespace_is_ignored",
+            "tests.test_parse.ParseDurationExistingBehaviour.test_returns_float",
+            "tests.test_parse.ParseDurationExistingBehaviour.test_empty_string_is_rejected",
+            "tests.test_parse.ParseDurationExistingBehaviour.test_non_string_is_rejected"
+          ]
+        }
+      ]
+    },
+    "sealed": {
+      "ran": 22,
+      "tests": [
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_public_import_accepts_plain_seconds",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.179,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_plain_integer_seconds",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_single_components",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_adjacent_ordered_components",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_units_may_be_skipped",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.169,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_component_values_have_no_clock_range_limit",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_zero_valued_components",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_leading_zeros_in_components",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_whitespace_around_and_between_components",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_every_accepted_form_returns_float",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_empty_or_whitespace_only_input_raises_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_signed_numbers_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.174,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_fractional_exponent_and_separator_syntax_raises_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.177,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_unknown_or_uppercase_units_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_units_without_numbers_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.182,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_repeated_units_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_units_out_of_descending_order_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_whitespace_inside_components_raises_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_bare_integers_mixed_with_components_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.17,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_trailing_punctuation_and_unconsumed_text_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_non_decimal_numeric_characters_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.171,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.ParseDurationAcceptanceTests.test_non_string_inputs_raise_type_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 22,
+      "failing": 0,
+      "subtest_events": 0,
+      "import_error": null,
+      "all_passed": true,
+      "canary_ok": true,
+      "summary_line": "OK (22 of 22 methods, each in its own process)",
+      "operation_uuid": "01a15275-deb8-7200-98a2-c303c6078fc9",
+      "nonce": "077a9b00784f8e7f89a064552bdc9b75",
+      "supervisor_exit_code": 0,
+      "runner_error": null
+    },
+    "binding": {
+      "ok": true,
+      "checks": {
+        "result_file_present": true,
+        "sealed_file_unchanged_before": true,
+        "sealed_file_unchanged_after": true,
+        "static_ids_match_red": true,
+        "supervisor_completed": true,
+        "verifier_isolation_active": true,
+        "nonce_matches": true,
+        "no_discovery_error": true,
+        "expected_test_ids_present": true,
+        "no_unexpected_test_ids": true,
+        "no_nonzero_exit": true,
+        "no_signal": true,
+        "no_timeout": true,
+        "no_missing_or_forged_result": true,
+        "all_expected_pass": true,
+        "no_startup_hooks_on_import_path": true,
+        "canary_must_pass_ok": true,
+        "canary_must_fail_failed": true
+      },
+      "reasons": []
+    },
+    "heldout": null,
+    "corrected": null
+  },
+  "breaker": {
+    "mutation": {
+      "generated": 12,
+      "evaluated": 12,
+      "killed": 9,
+      "survived": 3,
+      "unknown": 0,
+      "score": 0.75,
+      "threshold": 0.5,
+      "mutants": [
+        {
+          "id": "m01-ef0f37c856",
+          "path": "durationkit/parse.py",
+          "lineno": 14,
+          "operator": "not",
+          "description": "remove `not`",
+          "status": "killed",
+          "operation_uuid": "01a15276-1b22-70a1-ba79-8bb9d5d469c2",
+          "failing_methods": 10,
+          "killed_by": [
+            "test_sealed.ParseDurationAcceptanceTests.test_public_import_accepts_plain_seconds",
+            "test_sealed.ParseDurationAcceptanceTests.test_plain_integer_seconds",
+            "test_sealed.ParseDurationAcceptanceTests.test_single_components",
+            "test_sealed.ParseDurationAcceptanceTests.test_adjacent_ordered_components",
+            "test_sealed.ParseDurationAcceptanceTests.test_units_may_be_skipped"
+          ]
+        },
+        {
+          "id": "m02-19be8d04fe",
+          "path": "durationkit/parse.py",
+          "lineno": 15,
+          "operator": "raise",
+          "description": "raise -> pass",
+          "status": "survived",
+          "operation_uuid": "01a15276-1be0-731c-98d5-b922e7a40da2",
+          "failing_methods": 0,
+          "killed_by": []
+        },
+        {
+          "id": "m03-2e1df113ac",
+          "path": "durationkit/parse.py",
+          "lineno": 18,
+          "operator": "compare",
+          "description": "LtE -> Lt",
+          "status": "killed",
+          "operation_uuid": "01a15276-1bbf-77ac-af23-f992d2f2669b",
+          "failing_methods": 3,
+          "killed_by": [
+            "test_sealed.ParseDurationAcceptanceTests.test_public_import_accepts_plain_seconds",
+            "test_sealed.ParseDurationAcceptanceTests.test_component_values_have_no_clock_range_limit",
+            "test_sealed.ParseDurationAcceptanceTests.test_every_accepted_form_returns_float"
+          ]
+        },
+        {
+          "id": "m04-edb25abe2e",
+          "path": "durationkit/parse.py",
+          "lineno": 25,
+          "operator": "int",
+          "description": "1 -> 2",
+          "status": "survived",
+          "operation_uuid": "01a15276-1ba2-7501-bfdd-dd3602fc3165",
+          "failing_methods": 0,
+          "killed_by": []
+        },
+        {
+          "id": "m05-fb8d5eeec7",
+          "path": "durationkit/parse.py",
+          "lineno": 28,
+          "operator": "compare",
+          "description": "Lt -> LtE",
+          "status": "killed",
+          "operation_uuid": "01a15276-1b5e-72dd-a10b-68f6b6d7de0b",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.ParseDurationAcceptanceTests.test_bare_integers_mixed_with_components_raise_value_error"
+          ]
+        },
+        {
+          "id": "m06-f816ad2f88",
+          "path": "durationkit/parse.py",
+          "lineno": 29,
+          "operator": "int",
+          "description": "1 -> 2",
+          "status": "killed",
+          "operation_uuid": "01a15276-1be8-71a2-ae1e-f2e08f0008d0",
+          "failing_methods": 8,
+          "killed_by": [
+            "test_sealed.ParseDurationAcceptanceTests.test_single_components",
+            "test_sealed.ParseDurationAcceptanceTests.test_adjacent_ordered_components",
+            "test_sealed.ParseDurationAcceptanceTests.test_units_may_be_skipped",
+            "test_sealed.ParseDurationAcceptanceTests.test_zero_valued_components",
+            "test_sealed.ParseDurationAcceptanceTests.test_leading_zeros_in_components"
+          ]
+        },
+        {
+          "id": "m07-9b9bb86e26",
+          "path": "durationkit/parse.py",
+          "lineno": 31,
+          "operator": "raise",
+          "description": "raise -> pass",
+          "status": "survived",
+          "operation_uuid": "01a15276-1bd6-7546-97d9-593508fbf063",
+          "failing_methods": 0,
+          "killed_by": []
+        },
+        {
+          "id": "m08-e4ad9e11e5",
+          "path": "durationkit/parse.py",
+          "lineno": 35,
+          "operator": "compare",
+          "description": "Lt -> LtE",
+          "status": "killed",
+          "operation_uuid": "01a15276-1b32-74b4-bff1-0d7156ddefdc",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.ParseDurationAcceptanceTests.test_bare_integers_mixed_with_components_raise_value_error"
+          ]
+        },
+        {
+          "id": "m09-b73ff39f13",
+          "path": "durationkit/parse.py",
+          "lineno": 35,
+          "operator": "boolop",
+          "description": "And -> Or",
+          "status": "killed",
+          "operation_uuid": "01a15276-4200-76ea-a8c2-d492edb2f61d",
+          "failing_methods": 4,
+          "killed_by": [
+            "test_sealed.ParseDurationAcceptanceTests.test_fractional_exponent_and_separator_syntax_raises_value_error",
+            "test_sealed.ParseDurationAcceptanceTests.test_unknown_or_uppercase_units_raise_value_error",
+            "test_sealed.ParseDurationAcceptanceTests.test_whitespace_inside_components_raises_value_error",
+            "test_sealed.ParseDurationAcceptanceTests.test_bare_integers_mixed_with_components_raise_value_error"
+          ]
+        },
+        {
+          "id": "m10-1e70179db5",
+          "path": "durationkit/parse.py",
+          "lineno": 41,
+          "operator": "compare",
+          "description": "LtE -> Lt",
+          "status": "killed",
+          "operation_uuid": "01a15276-42e6-76b2-aca4-a0b138c2f011",
+          "failing_methods": 1,
+          "killed_by": [
+            "test_sealed.ParseDurationAcceptanceTests.test_repeated_units_raise_value_error"
+          ]
+        },
+        {
+          "id": "m11-151b63b170",
+          "path": "durationkit/parse.py",
+          "lineno": 44,
+          "operator": "binop",
+          "description": "Mult -> Div",
+          "status": "killed",
+          "operation_uuid": "01a15276-43be-77a1-8205-e489c9748db7",
+          "failing_methods": 6,
+          "killed_by": [
+            "test_sealed.ParseDurationAcceptanceTests.test_single_components",
+            "test_sealed.ParseDurationAcceptanceTests.test_adjacent_ordered_components",
+            "test_sealed.ParseDurationAcceptanceTests.test_units_may_be_skipped",
+            "test_sealed.ParseDurationAcceptanceTests.test_component_values_have_no_clock_range_limit",
+            "test_sealed.ParseDurationAcceptanceTests.test_leading_zeros_in_components"
+          ]
+        },
+        {
+          "id": "m12-822f492ab3",
+          "path": "durationkit/parse.py",
+          "lineno": 47,
+          "operator": "boolop",
+          "description": "And -> Or",
+          "status": "killed",
+          "operation_uuid": "01a15276-4487-74e9-897e-3593da9c4ca7",
+          "failing_methods": 12,
+          "killed_by": [
+            "test_sealed.ParseDurationAcceptanceTests.test_single_components",
+            "test_sealed.ParseDurationAcceptanceTests.test_adjacent_ordered_components",
+            "test_sealed.ParseDurationAcceptanceTests.test_units_may_be_skipped",
+            "test_sealed.ParseDurationAcceptanceTests.test_component_values_have_no_clock_range_limit",
+            "test_sealed.ParseDurationAcceptanceTests.test_zero_valued_components"
+          ]
+        }
+      ]
+    },
+    "adversarial": {
+      "sha256": "38e88542a00395e730f3d17c5f74822da6ac6dd9c5ec2bb96ba17676771f4d2f",
+      "author_model": "gpt-6-sol",
+      "author_role": "break",
+      "attempts": 1,
+      "escalated": false,
+      "expected_ids": [
+        "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds",
+        "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+        "test_breaker.TestBreaker.test_module_import_matches_public_import",
+        "test_breaker.TestBreaker.test_all_ordered_unit_pairs",
+        "test_breaker.TestBreaker.test_all_reversed_unit_pairs",
+        "test_breaker.TestBreaker.test_repeats_with_intervening_units",
+        "test_breaker.TestBreaker.test_varied_python_whitespace_between_components",
+        "test_breaker.TestBreaker.test_whitespace_cannot_split_any_component",
+        "test_breaker.TestBreaker.test_malformed_millisecond_boundaries",
+        "test_breaker.TestBreaker.test_non_decimal_numeric_characters_inside_numbers"
+      ],
+      "summary": {
+        "ran": 10,
+        "tests": [
+          {
+            "id": "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds",
+            "outcome": "ERROR",
+            "events": 1,
+            "exit_code": 1,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.18,
+            "captured_tail": "",
+            "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/breaker/test_breaker.py\", line 10, in test_large_millisecond_value_with_finite_seconds\n    result = parse_duration('1' + '0' * 309 + 'ms')\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 44, in parse_duration\n    total += int(stripped[start:position]) * _UNITS[unit]\n             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~\nOverflowError: int too large to convert to float\n"
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+            "outcome": "ERROR",
+            "events": 1,
+            "exit_code": 1,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.171,
+            "captured_tail": "",
+            "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/breaker/test_breaker.py\", line 16, in test_large_millisecond_value_in_combination\n    result = parse_duration('2s ' + '1' + '0' * 309 + 'ms')\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/durationkit/parse.py\", line 44, in parse_duration\n    total += int(stripped[start:position]) * _UNITS[unit]\n             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~\nOverflowError: int too large to convert to float\n"
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_module_import_matches_public_import",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_all_ordered_unit_pairs",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_all_reversed_unit_pairs",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.179,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_repeats_with_intervening_units",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.183,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_varied_python_whitespace_between_components",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.174,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_whitespace_cannot_split_any_component",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.174,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_malformed_millisecond_boundaries",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.174,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_non_decimal_numeric_characters_inside_numbers",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.174,
+            "captured_tail": "",
+            "failure_tail": ""
+          }
+        ],
+        "passed": 8,
+        "failing": 2,
+        "subtest_events": 0,
+        "import_error": null,
+        "all_passed": false,
+        "canary_ok": true,
+        "summary_line": "FAILED (2 of 10 methods: ERROR 2)",
+        "operation_uuid": "01a15277-3b12-75be-9f71-949ec9dcaa81",
+        "nonce": "8d73ac846e7b7622d735aeee935a53cd",
+        "supervisor_exit_code": 1,
+        "runner_error": null
+      },
+      "binding": {
+        "ok": false,
+        "checks": {
+          "result_file_present": true,
+          "sealed_file_unchanged_before": true,
+          "sealed_file_unchanged_after": true,
+          "static_ids_match_red": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": false,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": false,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": [
+          "child process nonzero exit: test_large_millisecond_value_with_finite_seconds exit 1, test_large_millisecond_value_in_combination exit 1"
+        ]
+      },
+      "notes": "Targets finite results from very large millisecond values, all unit pair orders, Unicode whitespace boundaries, and malformed numeric content.",
+      "operation_uuid": "01a15277-3b12-75be-9f71-949ec9dcaa81",
+      "corrected": {
+        "path": "arbitration/adversarial_corrected.py",
+        "sha256": "cdf4018d7199f026d3bf57f08d052d9f0f05a8d768f1588ae5efe3735875b1b7",
+        "expected_ids": [
+          "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds",
+          "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+          "test_breaker.TestBreaker.test_module_import_matches_public_import",
+          "test_breaker.TestBreaker.test_all_ordered_unit_pairs",
+          "test_breaker.TestBreaker.test_all_reversed_unit_pairs",
+          "test_breaker.TestBreaker.test_repeats_with_intervening_units",
+          "test_breaker.TestBreaker.test_varied_python_whitespace_between_components",
+          "test_breaker.TestBreaker.test_whitespace_cannot_split_any_component",
+          "test_breaker.TestBreaker.test_malformed_millisecond_boundaries",
+          "test_breaker.TestBreaker.test_non_decimal_numeric_characters_inside_numbers"
+        ],
+        "changed_tests": [
+          "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+          "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds"
+        ],
+        "summary": {
+          "ran": 10,
+          "tests": [
+            {
+              "id": "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.179,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.171,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestBreaker.test_module_import_matches_public_import",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.172,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestBreaker.test_all_ordered_unit_pairs",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.171,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestBreaker.test_all_reversed_unit_pairs",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.169,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestBreaker.test_repeats_with_intervening_units",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.171,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestBreaker.test_varied_python_whitespace_between_components",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.17,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestBreaker.test_whitespace_cannot_split_any_component",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.171,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestBreaker.test_malformed_millisecond_boundaries",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.17,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestBreaker.test_non_decimal_numeric_characters_inside_numbers",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.171,
+              "captured_tail": "",
+              "failure_tail": ""
+            }
+          ],
+          "passed": 10,
+          "failing": 0,
+          "subtest_events": 0,
+          "import_error": null,
+          "all_passed": true,
+          "canary_ok": true,
+          "summary_line": "OK (10 of 10 methods, each in its own process)",
+          "operation_uuid": "01a15278-3a90-75e1-8e40-381771cfad2e",
+          "nonce": "e021a209cb0989eaab4fc2e7cbe42601",
+          "supervisor_exit_code": 0,
+          "runner_error": null
+        },
+        "binding": {
+          "ok": true,
+          "checks": {
+            "result_file_present": true,
+            "sealed_file_unchanged_before": true,
+            "sealed_file_unchanged_after": true,
+            "static_ids_match_red": true,
+            "supervisor_completed": true,
+            "verifier_isolation_active": true,
+            "nonce_matches": true,
+            "no_discovery_error": true,
+            "expected_test_ids_present": true,
+            "no_unexpected_test_ids": true,
+            "no_nonzero_exit": true,
+            "no_signal": true,
+            "no_timeout": true,
+            "no_missing_or_forged_result": true,
+            "all_expected_pass": true,
+            "no_startup_hooks_on_import_path": true,
+            "canary_must_pass_ok": true,
+            "canary_must_fail_failed": true
+          },
+          "reasons": []
+        },
+        "nonce": "e021a209cb0989eaab4fc2e7cbe42601",
+        "operation_uuid": "01a15278-3a90-75e1-8e40-381771cfad2e",
+        "discrimination": "2 of 2 corrected test(s) fail on the unmodified base",
+        "base_rerun": {
+          "summary_line": "FAILED (5 of 10 methods: ERROR 5)",
+          "failing": 5,
+          "corrected_tests_failing_on_base": [
+            "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+            "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds"
+          ],
+          "operation_uuid": "01a15278-550f-75bb-bf9f-8d2a0a7fab81"
+        },
+        "mutant_reruns": [],
+        "original_sha256": "38e88542a00395e730f3d17c5f74822da6ac6dd9c5ec2bb96ba17676771f4d2f",
+        "original_failing": [
+          "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+          "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds"
+        ]
+      }
+    }
+  },
+  "drift": {
+    "drift_score": 0,
+    "assessment": "aligned",
+    "scope_narrowed": [],
+    "scope_widened": [],
+    "unsupported_claims": [],
+    "summary": "The diff solves the task: `stripped.startswith(\"ms\", position)` recognizes milliseconds, `order <= previous_order` rejects repeated or misordered units, and `.isspace()` permits whitespace between complete components while strict scanning rejects malformed text. The signature, TypeError check, float results, and existing tests remain unchanged; observed test output supports six existing tests passing and successful checks of 22 valid, 40 invalid, and six non-string inputs.",
+    "threshold": 0.6
+  },
+  "arbitration": {
+    "applied": true,
+    "validated_modules": [
+      "adversarial"
+    ],
+    "cleared": true,
+    "all_corrected": true,
+    "counts": {
+      "implementation_bug": 0,
+      "test_defect": 2,
+      "contract_dispute": 0
+    },
+    "headline": "all 2 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (2 of 2 corrected test(s) fail on the unmodified base); the affected gate(s) are re-run on the corrected modules",
+    "modules": [
+      {
+        "module": "adversarial",
+        "classifications": [
+          {
+            "test_id": "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds",
+            "classification": "test_defect",
+            "defect_kind": "unspecified_behavior",
+            "rationale": "The test requires converting 10**309 milliseconds to finite seconds without intermediate overflow. That imposes an overflow-handling guarantee explicitly excluded from scope, even though the mathematical result is representable.",
+            "contract_basis": "The contract excludes new overflow or precision guarantees for extremely large numeric values beyond existing Python numeric behavior."
+          },
+          {
+            "test_id": "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+            "classification": "test_defect",
+            "defect_kind": "unspecified_behavior",
+            "rationale": "Combining seconds with 10**309 milliseconds still requires an unspecified guarantee against intermediate numeric overflow.",
+            "contract_basis": "Ordered components are required, but new overflow or precision guarantees for extremely large numeric values are explicitly out of scope."
+          }
+        ],
+        "corrected_notes": "Changed only the failing methods to use 10**12 milliseconds, with expectations derived from the required millisecond multiplier and component sum. These retain coverage of unrestricted component ranges without imposing excluded overflow guarantees; all passing tests remain unchanged.",
+        "corrected_module": "arbitration/adversarial_corrected.py",
+        "candidate_rerun": {
+          "summary_line": "OK (10 of 10 methods, each in its own process)",
+          "all_passed": true,
+          "binding_ok": true,
+          "operation_uuid": "01a15278-3a90-75e1-8e40-381771cfad2e"
+        },
+        "base_rerun": {
+          "summary_line": "FAILED (5 of 10 methods: ERROR 5)",
+          "failing": 5,
+          "corrected_tests_failing_on_base": [
+            "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+            "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds"
+          ],
+          "operation_uuid": "01a15278-550f-75bb-bf9f-8d2a0a7fab81"
+        },
+        "mutant_reruns": [],
+        "cleared_module": true,
+        "validated": true,
+        "corrected": {
+          "path": "arbitration/adversarial_corrected.py",
+          "sha256": "cdf4018d7199f026d3bf57f08d052d9f0f05a8d768f1588ae5efe3735875b1b7",
+          "expected_ids": [
+            "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds",
+            "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+            "test_breaker.TestBreaker.test_module_import_matches_public_import",
+            "test_breaker.TestBreaker.test_all_ordered_unit_pairs",
+            "test_breaker.TestBreaker.test_all_reversed_unit_pairs",
+            "test_breaker.TestBreaker.test_repeats_with_intervening_units",
+            "test_breaker.TestBreaker.test_varied_python_whitespace_between_components",
+            "test_breaker.TestBreaker.test_whitespace_cannot_split_any_component",
+            "test_breaker.TestBreaker.test_malformed_millisecond_boundaries",
+            "test_breaker.TestBreaker.test_non_decimal_numeric_characters_inside_numbers"
+          ],
+          "changed_tests": [
+            "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+            "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds"
+          ],
+          "summary": {
+            "ran": 10,
+            "tests": [
+              {
+                "id": "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.179,
+                "captured_tail": "",
+                "failure_tail": ""
+              },
+              {
+                "id": "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.171,
+                "captured_tail": "",
+                "failure_tail": ""
+              },
+              {
+                "id": "test_breaker.TestBreaker.test_module_import_matches_public_import",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.172,
+                "captured_tail": "",
+                "failure_tail": ""
+              },
+              {
+                "id": "test_breaker.TestBreaker.test_all_ordered_unit_pairs",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.171,
+                "captured_tail": "",
+                "failure_tail": ""
+              },
+              {
+                "id": "test_breaker.TestBreaker.test_all_reversed_unit_pairs",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.169,
+                "captured_tail": "",
+                "failure_tail": ""
+              },
+              {
+                "id": "test_breaker.TestBreaker.test_repeats_with_intervening_units",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.171,
+                "captured_tail": "",
+                "failure_tail": ""
+              },
+              {
+                "id": "test_breaker.TestBreaker.test_varied_python_whitespace_between_components",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.17,
+                "captured_tail": "",
+                "failure_tail": ""
+              },
+              {
+                "id": "test_breaker.TestBreaker.test_whitespace_cannot_split_any_component",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.171,
+                "captured_tail": "",
+                "failure_tail": ""
+              },
+              {
+                "id": "test_breaker.TestBreaker.test_malformed_millisecond_boundaries",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.17,
+                "captured_tail": "",
+                "failure_tail": ""
+              },
+              {
+                "id": "test_breaker.TestBreaker.test_non_decimal_numeric_characters_inside_numbers",
+                "outcome": "ok",
+                "events": 1,
+                "exit_code": 0,
+                "signal": null,
+                "timed_out": false,
+                "duration_s": 0.171,
+                "captured_tail": "",
+                "failure_tail": ""
+              }
+            ],
+            "passed": 10,
+            "failing": 0,
+            "subtest_events": 0,
+            "import_error": null,
+            "all_passed": true,
+            "canary_ok": true,
+            "summary_line": "OK (10 of 10 methods, each in its own process)",
+            "operation_uuid": "01a15278-3a90-75e1-8e40-381771cfad2e",
+            "nonce": "e021a209cb0989eaab4fc2e7cbe42601",
+            "supervisor_exit_code": 0,
+            "runner_error": null
+          },
+          "binding": {
+            "ok": true,
+            "checks": {
+              "result_file_present": true,
+              "sealed_file_unchanged_before": true,
+              "sealed_file_unchanged_after": true,
+              "static_ids_match_red": true,
+              "supervisor_completed": true,
+              "verifier_isolation_active": true,
+              "nonce_matches": true,
+              "no_discovery_error": true,
+              "expected_test_ids_present": true,
+              "no_unexpected_test_ids": true,
+              "no_nonzero_exit": true,
+              "no_signal": true,
+              "no_timeout": true,
+              "no_missing_or_forged_result": true,
+              "all_expected_pass": true,
+              "no_startup_hooks_on_import_path": true,
+              "canary_must_pass_ok": true,
+              "canary_must_fail_failed": true
+            },
+            "reasons": []
+          },
+          "nonce": "e021a209cb0989eaab4fc2e7cbe42601",
+          "operation_uuid": "01a15278-3a90-75e1-8e40-381771cfad2e",
+          "discrimination": "2 of 2 corrected test(s) fail on the unmodified base",
+          "base_rerun": {
+            "summary_line": "FAILED (5 of 10 methods: ERROR 5)",
+            "failing": 5,
+            "corrected_tests_failing_on_base": [
+              "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+              "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds"
+            ],
+            "operation_uuid": "01a15278-550f-75bb-bf9f-8d2a0a7fab81"
+          },
+          "mutant_reruns": [],
+          "original_sha256": "38e88542a00395e730f3d17c5f74822da6ac6dd9c5ec2bb96ba17676771f4d2f",
+          "original_failing": [
+            "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+            "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds"
+          ]
+        },
+        "sealed_assertion_hold": false,
+        "error": null
+      }
+    ],
+    "rule": "a correction counts only when it keeps every test method, changes only the failing ones, passes on the candidate and still discriminates (fails on the unmodified base, or is caught by a mutant of the patch); a sealed test that failed by assertion is never overridden; a validated correction re-runs its gate and the verdict is derived from the gates",
+    "note": "original tests, results and reasons are preserved unchanged; the arbiter's classification alone never changes a gate",
+    "applied_to_gates": [
+      {
+        "gate": "adversarial_tests",
+        "module": "adversarial",
+        "corrected_sha256": "cdf4018d7199f026d3bf57f08d052d9f0f05a8d768f1588ae5efe3735875b1b7",
+        "changed_tests": [
+          "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+          "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds"
+        ],
+        "discrimination": "2 of 2 corrected test(s) fail on the unmodified base"
+      }
+    ]
+  },
+  "gates": {
+    "existing_suite": {
+      "ok": true,
+      "detail": "OK (6 of 6 methods, each in its own process)",
+      "evidence_class": "bound"
+    },
+    "sealed_binding": {
+      "ok": true,
+      "detail": "all checks pass",
+      "evidence_class": "bound"
+    },
+    "mutation": {
+      "ok": true,
+      "detail": "score 0.75 on 12 mutants",
+      "evidence_class": "bound"
+    },
+    "adversarial_tests": {
+      "ok": true,
+      "evidence_class": "bound",
+      "corrected": true,
+      "detail": "OK (10 of 10 methods, each in its own process) on the corrected module (2 test(s) corrected, validated: 2 of 2 corrected test(s) fail on the unmodified base); original failures kept in E3",
+      "original_failing": [
+        "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds",
+        "test_breaker.TestBreaker.test_large_millisecond_value_in_combination"
+      ],
+      "original_detail": "FAILED (2 of 10 methods: ERROR 2)"
+    },
+    "drift_audit": {
+      "ok": true,
+      "detail": "score 0.0 (aligned)",
+      "evidence_class": "model"
+    }
+  },
+  "verdict": {
+    "verdict": "VERIFIED",
+    "reasons": [],
+    "warnings": [
+      "arbitration (validated corrections re-run their gates): all 2 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (2 of 2 corrected test(s) fail on the unmodified base); the affected gate(s) are re-run on the corrected modules"
+    ],
+    "derivation": {
+      "verdict": "VERIFIED",
+      "gates_failed": [],
+      "gates_skipped": [],
+      "blocking": [],
+      "cleared_by_arbitration": false,
+      "corrected_gates": [
+        "adversarial_tests"
+      ],
+      "rule": "VERIFIED only when every recorded gate passes (a skipped gate never counts as a pass), the implementer finished and the scope policy held; otherwise NEEDS HUMAN. A gate passes on a corrected generated-test module only when the correction was validated by execution (same test methods, only the failing ones changed, passes on the candidate, still discriminates on the base or a mutant) and the gate was re-run; the arbiter's classification alone never changes a gate."
+    },
+    "corrections": [
+      {
+        "gate": "adversarial_tests",
+        "module": "adversarial",
+        "corrected_sha256": "cdf4018d7199f026d3bf57f08d052d9f0f05a8d768f1588ae5efe3735875b1b7",
+        "changed_tests": [
+          "test_breaker.TestBreaker.test_large_millisecond_value_in_combination",
+          "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds"
+        ],
+        "discrimination": "2 of 2 corrected test(s) fail on the unmodified base"
+      }
+    ],
+    "before_corrections": {
+      "verdict": "NEEDS HUMAN",
+      "reasons": [
+        "adversarial suite binding failed: child process nonzero exit: test_large_millisecond_value_with_finite_seconds exit 1, test_large_millisecond_value_in_combination exit 1",
+        "model-written adversarial tests failed: 2 of 10 (test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds, test_breaker.TestBreaker.test_large_millisecond_value_in_combination); each failure is a bug or a contract disagreement to resolve"
+      ],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "detail": "OK (6 of 6 methods, each in its own process)",
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": true,
+          "detail": "all checks pass",
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": true,
+          "detail": "score 0.75 on 12 mutants",
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": false,
+          "detail": "FAILED (2 of 10 methods: ERROR 2)",
+          "failing": [
+            "test_breaker.TestBreaker.test_large_millisecond_value_with_finite_seconds",
+            "test_breaker.TestBreaker.test_large_millisecond_value_in_combination"
+          ],
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "detail": "score 0.0 (aligned)",
+          "evidence_class": "model"
+        }
+      }
+    }
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "codex_gateway",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T04:31:33.336509+00:00",
+        "elapsed_ms": 50863,
+        "gateway_duration_ms": 47760,
+        "prompt_chars": 5589,
+        "tokens_in": 10756,
+        "tokens_out": 1445,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10756,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1445,
+          "reasoning_output_tokens": 0
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "audit",
+        "stage": "contract-audit",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T04:32:26.903506+00:00",
+        "elapsed_ms": 76084,
+        "gateway_duration_ms": 26346,
+        "prompt_chars": 11090,
+        "tokens_in": 11995,
+        "tokens_out": 94,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 11995,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 94,
+          "reasoning_output_tokens": 36
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:33:42.996933+00:00",
+        "elapsed_ms": 77498,
+        "gateway_duration_ms": 48364,
+        "prompt_chars": 9032,
+        "tokens_in": 11108,
+        "tokens_out": 2438,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 11108,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2438,
+          "reasoning_output_tokens": 501
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:35:09.345518+00:00",
+        "elapsed_ms": 76434,
+        "gateway_duration_ms": 21512,
+        "prompt_chars": 8252,
+        "tokens_in": 10989,
+        "tokens_out": 128,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10989,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 128,
+          "reasoning_output_tokens": 60
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:36:25.792456+00:00",
+        "elapsed_ms": 31243,
+        "gateway_duration_ms": 27770,
+        "prompt_chars": 8607,
+        "tokens_in": 11084,
+        "tokens_out": 87,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11084,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 87,
+          "reasoning_output_tokens": 14
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:36:57.049838+00:00",
+        "elapsed_ms": 37279,
+        "gateway_duration_ms": 34094,
+        "prompt_chars": 9446,
+        "tokens_in": 11295,
+        "tokens_out": 840,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11295,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 840,
+          "reasoning_output_tokens": 311
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:37:34.346812+00:00",
+        "elapsed_ms": 19788,
+        "gateway_duration_ms": 14457,
+        "prompt_chars": 10220,
+        "tokens_in": 11520,
+        "tokens_out": 111,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11520,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 111,
+          "reasoning_output_tokens": 42
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-5",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:38:00.519577+00:00",
+        "elapsed_ms": 25017,
+        "gateway_duration_ms": 20141,
+        "prompt_chars": 11317,
+        "tokens_in": 11764,
+        "tokens_out": 684,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11764,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 684,
+          "reasoning_output_tokens": 57
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-6",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:38:30.375625+00:00",
+        "elapsed_ms": 22676,
+        "gateway_duration_ms": 18259,
+        "prompt_chars": 12963,
+        "tokens_in": 12444,
+        "tokens_out": 149,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 12444,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 149,
+          "reasoning_output_tokens": 81
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-7",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:38:53.071795+00:00",
+        "elapsed_ms": 78488,
+        "gateway_duration_ms": 22695,
+        "prompt_chars": 14834,
+        "tokens_in": 12919,
+        "tokens_out": 177,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 12919,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 177,
+          "reasoning_output_tokens": 66
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "break",
+        "stage": "break-tests-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:40:48.842554+00:00",
+        "elapsed_ms": 52293,
+        "gateway_duration_ms": 44313,
+        "prompt_chars": 10406,
+        "tokens_in": 11473,
+        "tokens_out": 1889,
+        "tokens_cached": 7040,
+        "usage_raw": {
+          "input_tokens": 11473,
+          "cached_input_tokens": 7040,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1889,
+          "reasoning_output_tokens": 902
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "audit",
+        "stage": "drift-audit",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T04:41:51.637831+00:00",
+        "elapsed_ms": 18140,
+        "gateway_duration_ms": 14290,
+        "prompt_chars": 11519,
+        "tokens_in": 12275,
+        "tokens_out": 148,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 12275,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 148,
+          "reasoning_output_tokens": 0
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "arbitrate",
+        "stage": "arbitrate-adversarial",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:42:09.789300+00:00",
+        "elapsed_ms": 36129,
+        "gateway_duration_ms": 30582,
+        "prompt_chars": 17593,
+        "tokens_in": 13663,
+        "tokens_out": 1284,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 13663,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1284,
+          "reasoning_output_tokens": 50
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a1526d-cf44-71d8-bc46-0699178e4715",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.802,
+        "raw_cost_diag": 0.00285183,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:31:24.518096+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": "01a15271-1bdc-7605-b769-f172d15d42bc",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.947,
+        "raw_cost_diag": 0.04133874,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:35:00.509123+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-4",
+        "operation_uuid": "01a15273-c760-776a-96b1-cfffe54b8593",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.776,
+        "raw_cost_diag": 0.0028585399999999997,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:37:54.142251+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-python-5",
+        "operation_uuid": "01a15274-3e8b-742b-97ab-427cdbab74e4",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.581,
+        "raw_cost_diag": 0.0012435700000000003,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:38:25.544276+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "verify",
+        "operation_uuid": "01a15275-deb8-7200-98a2-c303c6078fc9",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.87,
+        "raw_cost_diag": 0.041243400000000006,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:11.600320+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "existing",
+        "operation_uuid": "01a15276-0497-7199-af38-33ac871d342f",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.118,
+        "raw_cost_diag": 0.015183569999999999,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:21.379934+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m01-ef0f37c856",
+        "operation_uuid": "01a15276-1b22-70a1-ba79-8bb9d5d469c2",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.685,
+        "raw_cost_diag": 0.038324500000000004,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:27.112477+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m03-2e1df113ac",
+        "operation_uuid": "01a15276-1bbf-77ac-af23-f992d2f2669b",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.687,
+        "raw_cost_diag": 0.038680400000000004,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:27.113082+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m02-19be8d04fe",
+        "operation_uuid": "01a15276-1be0-731c-98d5-b922e7a40da2",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.755,
+        "raw_cost_diag": 0.039147470000000004,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:27.114442+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m04-edb25abe2e",
+        "operation_uuid": "01a15276-1ba2-7501-bfdd-dd3602fc3165",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.656,
+        "raw_cost_diag": 0.038430030000000004,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:27.116038+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m06-f816ad2f88",
+        "operation_uuid": "01a15276-1be8-71a2-ae1e-f2e08f0008d0",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.688,
+        "raw_cost_diag": 0.038880460000000006,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:27.116184+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m07-9b9bb86e26",
+        "operation_uuid": "01a15276-1bd6-7546-97d9-593508fbf063",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.707,
+        "raw_cost_diag": 0.03888574,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:27.116402+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m05-fb8d5eeec7",
+        "operation_uuid": "01a15276-1b5e-72dd-a10b-68f6b6d7de0b",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.706,
+        "raw_cost_diag": 0.03874495,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:27.116726+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m08-e4ad9e11e5",
+        "operation_uuid": "01a15276-1b32-74b4-bff1-0d7156ddefdc",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.513,
+        "raw_cost_diag": 0.03769444,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:27.117820+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m09-b73ff39f13",
+        "operation_uuid": "01a15276-4200-76ea-a8c2-d492edb2f61d",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.471,
+        "raw_cost_diag": 0.038169770000000006,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:37.228065+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m10-1e70179db5",
+        "operation_uuid": "01a15276-42e6-76b2-aca4-a0b138c2f011",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.611,
+        "raw_cost_diag": 0.03841916,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:37.420155+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m11-151b63b170",
+        "operation_uuid": "01a15276-43be-77a1-8205-e489c9748db7",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.577,
+        "raw_cost_diag": 0.037947930000000005,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:37.595979+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m12-822f492ab3",
+        "operation_uuid": "01a15276-4487-74e9-897e-3593da9c4ca7",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.576,
+        "raw_cost_diag": 0.03790132,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:40:37.658137+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "breaker-tests",
+        "operation_uuid": "01a15277-3b12-75be-9f71-949ec9dcaa81",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.824,
+        "raw_cost_diag": 0.0218805,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:41:41.160222+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "arbitrate-adversarial-candidate",
+        "operation_uuid": "01a15278-3a90-75e1-8e40-381771cfad2e",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.817,
+        "raw_cost_diag": 0.02175098,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:42:45.936229+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "arbitrate-adversarial-base",
+        "operation_uuid": "01a15278-550f-75bb-bf9f-8d2a0a7fab81",
+        "image_uuid": "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.785,
+        "raw_cost_diag": 0.02164417,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:42:52.689903+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "open_reservations": [],
+    "totals": {
+      "model_calls": 13,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 153285,
+      "tokens_out": 9474,
+      "tokens_cached": 57216,
+      "model_elapsed_ms": 601932,
+      "cost_usd": null,
+      "cost_usd_committed": 0.0,
+      "uncertain_unpriced_calls": 0,
+      "open_reservations": 0,
+      "open_reserved_usd": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "codex_gateway:gpt-6-astra": {
+          "calls": 4,
+          "tokens_in": 48689,
+          "tokens_out": 2971,
+          "tokens_cached": 0,
+          "cost_usd": null,
+          "elapsed_ms": 181216,
+          "failed": 0
+        },
+        "codex_gateway:gpt-6-sol": {
+          "calls": 9,
+          "tokens_in": 104596,
+          "tokens_out": 6503,
+          "tokens_cached": 57216,
+          "cost_usd": null,
+          "elapsed_ms": 420716,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 21,
+      "sandbox_duration_s": 78.152,
+      "sandbox_retained_images": [
+        "bd4c4d49-6f89-4995-a6ff-1c35cbe7e64a"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.63122147
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest-a1': inference provider codex_gateway; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, offers a corrected module. The correction counts only after mechanical validation (same test methods, only the failing ones changed, passes on the candidate, still fails on the unmodified base or is caught by a mutant); the corrected gate is then re-run and the verdict re-derived from the gates. A sealed test that failed by assertion is never overridden. The classification itself remains a model judgement.",
+    "INFEASIBLE is recorded only when a witness program written by the contract auditor demonstrated the contradiction by running on the unmodified repository (exit code and output recorded); the witness's logic is the model's, its execution is not.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "arbitrate"
+}

@@ -1,0 +1,45 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement is_balanced(s) in brackets/core.py, available through from brackets import is_balanced, to determine whether the ASCII brackets (), [] and {} in a string are correctly matched and nested. Ignore every other character, treat empty strings and strings without brackets as balanced, always return a bool for string inputs, and raise TypeError for non-string inputs. Preserve is_bracket and the existing tests.",
+  "interface_contract": [
+    {
+      "name": "brackets.is_balanced",
+      "signature": "is_balanced(s)",
+      "behavior": "Accept str instances, including subclasses. Process the six ASCII bracket characters in their original order, ignoring all other characters. Return True exactly when every closing bracket matches the most recent unmatched opening bracket and no opening brackets remain unmatched at the end. Otherwise return False. Return values must be actual bool instances. Empty strings and strings containing no brackets return True. Quotes, escapes, and other text do not suppress bracket processing.",
+      "error_cases": [
+        "TypeError: s is not an instance of str; do not coerce or iterate non-string inputs. No particular exception message is required."
+      ]
+    },
+    {
+      "name": "brackets.is_bracket",
+      "signature": "is_bracket(c)",
+      "behavior": "Preserve the existing implementation: return True exactly when c is a str instance of length one containing one of (, ), [, ], {, or }; return False otherwise.",
+      "error_cases": []
+    }
+  ],
+  "acceptance_criteria": [
+    "1. from brackets import is_balanced and from brackets import is_bracket both succeed.",
+    "2. is_balanced returns True for each of '', '()', '[]', '{}', '()[]{}', and '([{}])'.",
+    "3. is_balanced returns True for '(a[b]{c})' and 'f(x[0], y[1])'.",
+    "4. is_balanced returns False for each of '(', ')', '([)]', '(]', '{[}', and '())'.",
+    "5. Closing brackets without preceding unmatched opening brackets are rejected: ')(', '][', and '}{' each return False.",
+    "6. Unmatched opening brackets remaining after otherwise valid pairs are rejected: '(()', '[[]', and '{{}' each return False.",
+    "7. All non-bracket characters, including whitespace, newlines, Unicode characters, quotes, and backslashes, are ignored. For every string s, its result equals the result for s with all characters outside '()[]{}' removed.",
+    "8. Strings containing no ASCII brackets, including 'abc', whitespace-only strings, and '你好（）', return True.",
+    "9. For every string input, the result has type bool, rather than an integer or another truthy or falsy object.",
+    "10. str subclass instances are accepted and evaluated by the same bracket-matching rules.",
+    "11. Non-string inputs, including None, True, 0, 1.5, b'()', ['(', ')'], ('(', ')'), {}, and set(), raise TypeError.",
+    "12. Repeated calls are independent: a call returning False or raising TypeError does not affect later calls with balanced strings.",
+    "13. is_bracket retains its existing behavior: each character in '()[]{}' returns True; 'a', '', '((', and 1 return False. Its implementation remains unchanged.",
+    "14. Existing test files remain unchanged and their tests continue to pass."
+  ],
+  "out_of_scope": [
+    "Changing is_bracket, PAIRS, OPEN, CLOSE, or package exports.",
+    "Changing existing tests.",
+    "Adding bracket types beyond the six ASCII bracket characters.",
+    "Parsing programming-language syntax or treating quoted or escaped brackets specially.",
+    "Adding dependencies, new public APIs, or input coercion."
+  ],
+  "external_references_needed": []
+}

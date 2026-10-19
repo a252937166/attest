@@ -1,0 +1,52 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -422,6 +422,49 @@
+ 
+         return rccmp
+ 
++    def is_compatible(self, other) -> bool:
++        """Return True if ``other`` is compatible with ``self``.
++
++        Two versions are compatible when they have the same major version,
++        the minor of ``other`` is greater than or equal to the minor of ``self``,
++        and their prerelease parts are equal (both absent counts as equal).
++        The patch part is ignored.
++
++        For major version 0, compatibility requires an exact match in
++        major, minor, patch and prerelease.
++
++        Examples::
++
++            >>> Version(1, 2, 3).is_compatible(Version(1, 2, 3))
++            True
++            >>> Version(1, 2, 3).is_compatible(Version(1, 2, 4))
++            True
++            >>> Version(1, 2, 4).is_compatible(Version(1, 2, 3))
++            True
++            >>> Version(0, 1, 0).is_compatible(Version(0, 1, 0))
++            True
++            >>> Version(0, 1, 0).is_compatible(Version(0, 1, 1))
++            False
++
++        :param other: the version to compare with
++        :return: True if compatible, False otherwise
++        :raises TypeError: if ``other`` is not a Version instance
++        """
++        if not isinstance(other, Version):
++            raise TypeError(f"Expected a Version type but got {type(other)}")
++
++        # Major version 0 requires exact match
++        if self.major == 0:
++            return (self.major == other.major and
++                    self.minor == other.minor and
++                    self.patch == other.patch and
++                    self.prerelease == other.prerelease)
++
++        # For major > 0, same major, other.minor >= self.minor, same prerelease
++        return (self.major == other.major and
++                other.minor >= self.minor and
++                self.prerelease == other.prerelease)
++
+     def next_version(self, part: str, prerelease_token: str = "rc") -> "Version":
+         """
+         Determines next version, preserving natural order.

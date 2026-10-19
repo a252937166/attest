@@ -1,0 +1,52 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Extend parse_duration to accept duration strings composed of one or more components, each a non-negative integer followed by a unit (d, h, m, s, ms), in strictly descending unit order, with optional whitespace around the whole string and between components. The function returns the total seconds as a float. It must preserve existing behavior for plain integer strings, reject malformed inputs with ValueError, and reject non-string inputs with TypeError.",
+  "interface_contract": [
+    {
+      "name": "parse_duration",
+      "signature": "parse_duration(text: str) -> float",
+      "behavior": "Parses a duration string and returns the total number of seconds as a float. Accepts two forms: (1) a plain non-negative integer (ASCII digits only) optionally surrounded by whitespace, interpreted as seconds; (2) one or more components each consisting of a non-negative integer (ASCII digits) immediately followed by a unit suffix (d, h, m, s, ms) with no whitespace between number and unit. Components must appear in descending unit order (d > h > m > s > ms), each unit at most once. Whitespace is allowed around the entire string and between components. The returned float is the sum of each component converted to seconds (1d=86400, 1h=3600, 1m=60, 1s=1, 1ms=0.001).",
+      "error_cases": [
+        "TypeError: if text is not a string.",
+        "ValueError: if text is empty or whitespace-only after stripping.",
+        "ValueError: if any component contains a negative number (leading '-').",
+        "ValueError: if any component contains a fractional number (decimal point or non-digit characters in the number).",
+        "ValueError: if an unknown unit suffix is used.",
+        "ValueError: if a unit suffix appears more than once.",
+        "ValueError: if components are not in strictly descending unit order.",
+        "ValueError: if a unit suffix appears without a preceding number (e.g., 'h').",
+        "ValueError: if a number is not followed by a unit suffix in a multi-component string (e.g., '1h30').",
+        "ValueError: if any other malformed text is present (letters, Roman numerals, fractions, circled numbers, etc.)."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "parse_duration('90') == 90.0 and surrounding whitespace is still ignored (existing behavior preserved).",
+    "parse_duration('0') == 0.0 and parse_duration('0s') == 0.0.",
+    "parse_duration('  42 ') == 42.0 (existing behavior preserved).",
+    "parse_duration('7') returns a float (existing behavior preserved).",
+    "Single components work for every unit: '2d' -> 172800.0, '3h' -> 10800.0, '15m' -> 900.0, '45s' -> 45.0, '500ms' -> 0.5.",
+    "Combined components in descending order work: '1h30m' -> 5400.0, '2d4h' -> 187200.0, '1m1s' -> 61.0, '1s500ms' -> 1.5, '1d1h1m1s1ms' -> 90061.001.",
+    "Whitespace is accepted around the string and between components: ' 1h 30m ' -> 5400.0; '1 h' raises ValueError (no space between number and unit).",
+    "ValueError for empty string '' and whitespace-only '   '.",
+    "ValueError for negative numbers: '-1h'.",
+    "ValueError for fractional numbers: '1.5h'.",
+    "ValueError for unknown units: '1x'.",
+    "ValueError for repeated units: '1h1h'.",
+    "ValueError for components out of descending order: '30m1h'.",
+    "ValueError for unit without a number: 'h'.",
+    "ValueError for number without a unit in a multi-component string: '1h30'.",
+    "ValueError for completely malformed text: 'abc'.",
+    "TypeError for non-string input such as 90 or None.",
+    "The return type is float for every accepted input."
+  ],
+  "out_of_scope": [
+    "The implementer must not modify the existing tests in tests/test_parse.py.",
+    "The implementer must not change the function signature or module public API (only parse_duration is public).",
+    "The implementer must not add new public functions or classes.",
+    "The implementer must not change the behavior for plain integer strings beyond preserving existing behavior.",
+    "The implementer must not depend on or test acceptance/rejection of non-ASCII Unicode decimal digits (e.g., Arabic-Indic or fullwidth digits) as it is unspecified."
+  ],
+  "external_references_needed": []
+}

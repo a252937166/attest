@@ -1,0 +1,59 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -545,6 +545,56 @@
+     def __hash__(self) -> int:
+         return hash(self.to_tuple()[:4])
+ 
++    def is_compatible(self, other: "Version") -> bool:
++        """
++        Return True if `other` can be used in place of `self`.
++
++        For a version with major number equal to 0, any change in version is considered
++        incompatible. For a version with major number >= 1, the version is compatible if
++        they have the same major version, the same prerelease version, and the minor
++        version of `other` is greater than or equal to the minor version of `self`.
++
++        The patch version is ignored.
++
++        Examples:
++            >>> Version(1, 2, 3).is_compatible(Version(1, 2, 3))
++            True
++            >>> Version(1, 2, 3).is_compatible(Version(1, 2, 4))
++            True
++            >>> Version(1, 2, 4).is_compatible(Version(1, 2, 3))
++            True
++            >>> Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0'))
++            True
++            >>> Version(0, 1, 0).is_compatible(Version(0, 1, 0))
++            True
++            >>> Version(0, 1, 0).is_compatible(Version(0, 1, 1))
++            False
++            >>> Version(1, 1, 0).is_compatible(Version(1, 0, 0))
++            False
++            >>> Version(2, 0, 0).is_compatible(Version(1, 5, 0))
++            False
++            >>> Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0'))
++            False
++            >>> Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1'))
++            False
++            >>> Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0))
++            False
++        """
++        if not isinstance(other, Version):
++            raise TypeError(f"Expected a Version type but got {type(other)}")
++
++        # For major 0, exact match required (including prerelease)
++        if self.major == 0:
++            return (self.major == other.major and
++                    self.minor == other.minor and
++                    self.patch == other.patch and
++                    self.prerelease == other.prerelease)
++
++        # For major >= 1
++        return (self.major == other.major and
++                self.prerelease == other.prerelease and
++                other.minor >= self.minor)
++
+     def finalize_version(self) -> "Version":
+         """
+         Remove any prerelease and build metadata from the version.

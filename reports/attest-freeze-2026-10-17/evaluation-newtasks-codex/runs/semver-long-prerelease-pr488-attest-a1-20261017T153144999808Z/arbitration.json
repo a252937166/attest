@@ -1,0 +1,40 @@
+{
+  "applied": false,
+  "cleared": false,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "generated-test failures could not be cleared by arbitration; human review required",
+  "modules": [
+    {
+      "module": "sealed",
+      "classifications": [
+        {
+          "test_id": "test_sealed.TestSealedPrereleaseComparison.test_core_precedence_skips_bad_prerelease_conversion",
+          "classification": "test_defect",
+          "defect_kind": "other",
+          "rationale": "The loop attempts to unpack each six-element tuple into two variables, raising ValueError before any candidate comparison runs. The intended core-precedence assertions are valid, but the test data and unpacking are inconsistent.",
+          "contract_basis": "Version.compare must decide differing major, minor, or patch components before examining prereleases, including prereleases whose legacy integer conversion would fail (acceptance criterion 9)."
+        }
+      ],
+      "corrected_notes": "Changed the malformed core-version cases to pairs of three-component tuples and passed each tuple to its respective constructor. The assertions still enforce core precedence before prerelease conversion; all other tests remain unchanged.",
+      "corrected_module": "arbitration/sealed_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (20 of 20 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a14a87-6265-7723-8eaa-8028eadf9a73"
+      },
+      "base_rerun": {
+        "summary_line": "FAILED (8 of 20 methods: ERROR 8)",
+        "failing": 8,
+        "operation_uuid": "01a14a87-8973-719b-b64f-576c2e527310"
+      },
+      "cleared_module": true,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

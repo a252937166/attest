@@ -1,0 +1,43 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement the `encode` function in the `rle` package to perform run-length encoding on a string. Each maximal run of identical characters is replaced by the character followed by its decimal count (always written, even for a count of 1). The function must return a string, raise `TypeError` for non-string inputs, and satisfy the round-trip property `decode(encode(x)) == x` for all strings `x`. The existing `decode` function and tests must remain unchanged.",
+  "interface_contract": [
+    {
+      "name": "encode",
+      "signature": "encode(s: str) -> str",
+      "behavior": "Returns the run-length encoding of the input string `s`. Each maximal run of a single character is represented as that character followed by the decimal count of the run (the count is always written, even when it is 1). For example, `encode('aaabbc')` returns `'a3b2c1'`, `encode('abc')` returns `'a1b1c1'`, `encode('')` returns `''`.",
+      "error_cases": [
+        "TypeError: raised when `s` is not a string."
+      ]
+    },
+    {
+      "name": "decode",
+      "signature": "decode(s: str) -> str",
+      "behavior": "Decodes a run-length encoded string `s` back to the original string. The input must consist of a character followed by one or more digits for each run. For example, `decode('a3b1')` returns `'aaab'`, `decode('')` returns `''`.",
+      "error_cases": [
+        "TypeError: raised when `s` is not a string.",
+        "ValueError: raised when a character is not followed by at least one digit (missing count)."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "encode('aaabbc') == 'a3b2c1'",
+    "encode('a') == 'a1'",
+    "encode('') == ''",
+    "encode('abc') == 'a1b1c1' (count written even when 1)",
+    "encode('x' * 12) == 'x12' (multi-digit counts)",
+    "decode(encode(x)) == x for every string x (round-trip property)",
+    "encode returns a str instance",
+    "encode raises TypeError when the argument is not a string (e.g., encode(123) raises TypeError)",
+    "The existing decode function behavior is unchanged: decode('a3b1') == 'aaab', decode('') == '', and decode(123) raises TypeError",
+    "encode handles strings with multiple runs of the same character separated by other characters (e.g., encode('aaabba') == 'a3b2a1')"
+  ],
+  "out_of_scope": [
+    "The implementer must not modify the `decode` function.",
+    "The implementer must not modify the existing test file `tests/test_basic.py`.",
+    "The implementer must not change the public function signatures (i.e., `encode` must accept a single argument and return a string).",
+    "The implementer must not add any external dependencies."
+  ],
+  "external_references_needed": []
+}

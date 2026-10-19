@@ -1,0 +1,47 @@
+{
+  "model": "gpt-6-astra",
+  "consistent": false,
+  "notes": "For ordinary built-in strings, the requested refactor is consistent with the supplied implementation and tests. Restricting behavioral preservation to inputs with type(line) is str would remove this subclass conflict.",
+  "conflicts": [
+    {
+      "requirement_ids": [
+        "AC1",
+        "AC2",
+        "AC16"
+      ],
+      "summary": "The universal string-input preservation requirement includes str subclasses. A subclass containing 'a=b' but overriding __len__ to return zero makes the original parse_line raise ValueError, whereas the required partition-and-strip behavior returns ('a', 'b').",
+      "witness_path": "contract_audit/witness_1.py",
+      "witness_sha256": "649d200169e23e47e043ca04dc33d102ed1427065d179b198d3070033b8194c3",
+      "exit_code": 3,
+      "timed_out": false,
+      "stdout_tail": "CONTRADICTION AC1 AC2 AC16: For ZeroLengthString('a=b') with __len__ returning 0, the original outcome is ('exception', 'ValueError') while the required partition-and-strip outcome is ('return', ('a', 'b')).\n",
+      "stderr_tail": "",
+      "operation_uuid": "01a15344-a27e-74c9-b84f-2000ed6798d7",
+      "demonstrated": true,
+      "status": "demonstrated"
+    }
+  ],
+  "outcome": "contradiction demonstrated",
+  "error": null,
+  "rule": "a conflict is demonstrated only when it names existing acceptance criteria and its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' that names at least one of them and exits with code 3; any other outcome records the conflict as claimed only, which never ends a run; the witness's reasoning is the model's and its execution is recorded, which is not a formal proof of impossibility",
+  "requirement_ids_known": [
+    "AC1",
+    "AC2",
+    "AC3",
+    "AC4",
+    "AC5",
+    "AC6",
+    "AC7",
+    "AC8",
+    "AC9",
+    "AC10",
+    "AC11",
+    "AC12",
+    "AC13",
+    "AC14",
+    "AC15",
+    "AC16",
+    "AC17",
+    "AC18"
+  ]
+}

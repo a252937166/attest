@@ -1,0 +1,43 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Add an instance method `Version.is_compatible(other: Version) -> bool` to the Version class in src/semver/version.py. The method returns True when `other` (the new version) can be used in place of `self` (the old version). Compatibility rules: majors must be equal; new.minor >= old.minor; prerelease parts must be equal (both None counts as equal); patch is ignored. Major version 0 is special: only identical versions (major, minor, patch, prerelease all equal) are compatible. If `other` is not a Version instance (subclasses allowed), raise TypeError with message starting with 'Expected a Version type but got ' followed by the type representation. Include a docstring with at least two doctest examples. Do not modify tests, docs, packaging, or other public behavior; keep existing pytest suite passing.",
+  "interface_contract": [
+    {
+      "name": "Version.is_compatible",
+      "signature": "def is_compatible(self, other: 'Version') -> bool",
+      "behavior": "Returns True when `other` (new version) is compatible with `self` (old version). Compatibility rules: 1) self.major == other.major. 2) If self.major == 0: return True only if self.major == other.major and self.minor == other.minor and self.patch == other.patch and self.prerelease == other.prerelease (identical version). 3) If self.major > 0: return True when other.major == self.major, other.minor >= self.minor, and other.prerelease == self.prerelease (both None counts as equal). Patch version is ignored for major > 0. Subclasses of Version are accepted as `other`.",
+      "error_cases": [
+        "TypeError: raised when `other` is not an instance of Version (or subclass). Message must start with 'Expected a Version type but got ' followed by the type representation (e.g., \"<class 'str'>\")."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 3)) is True",
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 4)) is True (patch ignored)",
+    "Version(1, 2, 4).is_compatible(Version(1, 2, 3)) is True (patch ignored, minor equal)",
+    "Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) is True (equal prereleases)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 0)) is True (identical major-0)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 1)) is False (major 0 requires identical version)",
+    "Version(1, 1, 0).is_compatible(Version(1, 0, 0)) is False (lower minor)",
+    "Version(2, 0, 0).is_compatible(Version(1, 5, 0)) is False (different major)",
+    "Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0')) is False (different prerelease)",
+    "Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1')) is False (prerelease vs none)",
+    "Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0)) is False (none vs prerelease)",
+    "Version(1, 2, 3).is_compatible('wrongtype') raises TypeError with message starting with 'Expected a Version type but got <class 'str'>'",
+    "Version(1, 2, 3).is_compatible({'a': 2}) raises TypeError with message starting with 'Expected a Version type but got <class 'dict'>'",
+    "Version(1, 2, 3).is_compatible([]) raises TypeError with message starting with 'Expected a Version type but got <class 'list'>'",
+    "Subclass instance accepted: class CustomVersion(Version): pass; CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) is True",
+    "Method docstring contains at least two doctest examples",
+    "Existing pytest test suite (tests/) passes without modification"
+  ],
+  "out_of_scope": [
+    "Do not modify any test files in tests/",
+    "Do not modify documentation files in docs/ or README.rst",
+    "Do not modify packaging files (pyproject.toml, setup.cfg, LICENSE.txt)",
+    "Do not modify src/semver/__init__.py, __about__.py, __main__.py, _deprecated.py, _types.py, cli.py, py.typed",
+    "Do not change any existing public API or behavior of Version class",
+    "Do not add new public methods or attributes other than is_compatible"
+  ],
+  "external_references_needed": []
+}

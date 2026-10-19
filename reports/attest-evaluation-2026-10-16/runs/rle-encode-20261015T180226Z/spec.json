@@ -1,0 +1,41 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement the encode function in the rle package to perform run-length encoding on a string. Each maximal run of a single character must be represented as that character followed by its decimal count (always written, even for a count of 1). The function must return a string, raise TypeError for non-string inputs, and satisfy the round-trip property decode(encode(x)) == x for all strings x. The existing decode function must not be altered.",
+  "interface_contract": [
+    {
+      "name": "encode",
+      "signature": "encode(s: str) -> str",
+      "behavior": "Run-length encodes the input string s. Each maximal run of identical characters is replaced by the character followed by the decimal representation of the run length (always written, even for length 1). Returns the concatenated encoded string. For empty input, returns empty string.",
+      "error_cases": [
+        "TypeError if s is not a string"
+      ]
+    },
+    {
+      "name": "decode",
+      "signature": "decode(s: str) -> str",
+      "behavior": "Decodes a run-length encoded string s. Expects each character followed by a decimal count (one or more digits). Returns the expanded string. For empty input, returns empty string.",
+      "error_cases": [
+        "TypeError if s is not a string",
+        "ValueError if a character is not followed by at least one digit (missing count)"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "encode('aaabbc') returns 'a3b2c1'",
+    "encode('a') returns 'a1'",
+    "encode('') returns ''",
+    "encode('abc') returns 'a1b1c1'",
+    "encode('x'*12) returns 'x12'",
+    "For any string x, decode(encode(x)) == x (round-trip property). This must hold for empty string, single character, multiple runs, and runs with multi-digit counts.",
+    "encode returns a value of type str",
+    "encode raises TypeError when the input is not a string (e.g., integer, list, None)"
+  ],
+  "out_of_scope": [
+    "The decode function implementation and behavior must not be changed.",
+    "The test file tests/test_basic.py must not be modified.",
+    "The __init__.py files must not be modified.",
+    "The function signature of encode must remain encode(s)."
+  ],
+  "external_references_needed": []
+}

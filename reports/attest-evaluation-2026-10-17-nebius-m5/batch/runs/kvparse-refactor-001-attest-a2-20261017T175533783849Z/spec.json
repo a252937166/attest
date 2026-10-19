@@ -1,0 +1,70 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Refactor kvparse/parser.py to replace the manual index loops in parse_line with str.partition, stripping, and quote removal, while preserving all existing behavior for string inputs. Additionally, extract the logic for detecting ignorable lines (blank, comment starting with '#' or ';') into a private module-level function _is_ignorable and use it in parse. The public functions parse and parse_line must remain exported and behave identically for all string inputs, including same return values, same exception types (TypeError for non-string input to parse, ValueError for malformed lines), duplicate key handling, and quote stripping rules. The existing test suite must continue to pass unchanged.",
+  "interface_contract": [
+    {
+      "name": "parse_line",
+      "signature": "parse_line(line: str) -> tuple[str, str]",
+      "behavior": "Splits the input line at the first '=' character using str.partition. The key is the part before '=', stripped of surrounding whitespace. The value is the part after '=', stripped of surrounding whitespace. If the stripped value has length >= 2 and starts and ends with the same quote character (either '\"' or \"'\"), the surrounding quotes are removed (only one pair). Returns a tuple (key, value).",
+      "error_cases": [
+        "ValueError: raised when the line contains no '=' character, or when the stripped key is empty."
+      ]
+    },
+    {
+      "name": "parse",
+      "signature": "parse(text: str) -> dict[str, str]",
+      "behavior": "Parses the input text into a dictionary. The text is split into lines (using splitlines). For each line, if _is_ignorable(line) returns True, the line is skipped. Otherwise, parse_line is called on the original line (not stripped) and the resulting key-value pair is added to the dictionary, with later duplicate keys overwriting earlier ones. Returns the resulting dictionary.",
+      "error_cases": [
+        "TypeError: raised when text is not a string.",
+        "ValueError: raised when any non-ignorable line causes parse_line to raise ValueError (i.e., malformed line)."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. parse_line('a=b') returns ('a', 'b').",
+    "2. parse_line(' a = b ') returns ('a', 'b').",
+    "3. parse_line('a==b') returns ('a', '=b').",
+    "4. parse_line('a = b = c') returns ('a', 'b = c').",
+    "5. parse_line('a=') returns ('a', '').",
+    "6. parse_line('q = \"x\"') returns ('q', 'x').",
+    "7. parse_line(\"q = 'x'\") returns ('q', 'x').",
+    "8. parse_line('q = \"x\\'') returns ('q', '\"x\\'').",
+    "9. parse_line('q = \"') returns ('q', '\"').",
+    "10. parse_line(\"q = ''\") returns ('q', '').",
+    "11. parse_line('q = \" spaced \"') returns ('q', ' spaced ').",
+    "12. parse_line('k e y = v') returns ('k e y', 'v').",
+    "13. parse_line('u = \"a\" \"b\"') returns ('u', 'a\" \"b').",
+    "14. parse_line raises ValueError for empty string ''.",
+    "15. parse_line raises ValueError for 'novalue' (no '=').",
+    "16. parse_line raises ValueError for ' = v' (empty key after stripping).",
+    "17. parse_line raises ValueError for '   ' (only whitespace, no '=').",
+    "18. parse_line raises ValueError for '=' (empty key).",
+    "19. parse_line raises ValueError for '\\t= 1' (key empty after stripping).",
+    "20. parse('') returns {}.",
+    "21. parse('k = v') returns {'k': 'v'}.",
+    "22. parse('a = 1\\nb=2\\n') returns {'a': '1', 'b': '2'}.",
+    "23. parse('# comment\\n\\n; other\\nname = x\\n') returns {'name': 'x'} (comments and blank lines ignored).",
+    "24. parse('title = \"Hello World\"\\n') returns {'title': 'Hello World'} (quotes removed).",
+    "25. parse(\"title = 'single'\\n\") returns {'title': 'single'} (single quotes removed).",
+    "26. parse raises ValueError for 'novalue\\n' (malformed line).",
+    "27. parse raises TypeError for non-string input (e.g., None, 3, [], b'bytes').",
+    "28. _is_ignorable('   # c') returns True.",
+    "29. _is_ignorable('') returns True.",
+    "30. _is_ignorable('\\t; c') returns True.",
+    "31. _is_ignorable('a = 1') returns False.",
+    "32. _is_ignorable('a = # not a comment') returns False.",
+    "33. parse_line contains no 'while' loop and uses str.partition.",
+    "34. The existing test suite (tests/test_parser.py) passes without modification."
+  ],
+  "out_of_scope": [
+    "Changing the public API: parse and parse_line must remain exported from kvparse with the same names.",
+    "Modifying the existing tests in tests/test_parser.py.",
+    "Altering the behavior of parse or parse_line for any string input (including edge cases).",
+    "Adding new public functions or classes.",
+    "Changing the behavior of parse_line for non-string arguments (it is unspecified and not tested).",
+    "Modifying the kvparse/__init__.py file beyond what is necessary (it currently only re-exports parse and parse_line).",
+    "Changing the quote stripping rule: quotes are removed only when the stripped value starts and ends with the same quote character (double or single) and length >= 2."
+  ],
+  "external_references_needed": []
+}

@@ -1,0 +1,45 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Fix the slugify function in slugkit/core.py so that it lowercases the input, collapses any maximal run of non-ASCII-alphanumeric characters (i.e., not a-z or 0-9) into a single hyphen, strips leading and trailing hyphens, returns an empty string if no ASCII letters or digits remain, treats non-ASCII letters as separators, raises TypeError for non-string input, and returns a string. The fix must not break the existing tests in tests/test_basic.py.",
+  "interface_contract": [
+    {
+      "name": "slugify",
+      "signature": "slugify(text: str) -> str",
+      "behavior": "Convert the input string to a URL-friendly slug: 1) Lowercase the entire string. 2) Replace each maximal contiguous sequence of characters that are not ASCII letters (a-z) or ASCII digits (0-9) with a single hyphen ('-'). 3) Remove any leading or trailing hyphens from the result. 4) If the resulting string contains no ASCII letters or digits (i.e., it is empty or only hyphens), return the empty string. Non-ASCII letters (e.g., 'é', '日') are considered separators and are replaced by hyphens. The function returns a string.",
+      "error_cases": [
+        "TypeError: raised if the input `text` is not an instance of str (e.g., None, int, float, list, bytes)."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. slugify('Hello--World') returns 'hello-world' (runs of separators collapse to one hyphen).",
+    "2. slugify('a -- b') returns 'a-b' (spaces and multiple hyphens collapse).",
+    "3. slugify('one , two ; three') returns 'one-two-three' (punctuation and spaces collapse).",
+    "4. slugify('x___y') returns 'x-y' (underscore runs collapse).",
+    "5. slugify('end!') returns 'end' (trailing separator removed).",
+    "6. slugify('  padded  ') returns 'padded' (leading/trailing whitespace removed).",
+    "7. slugify('--both--') returns 'both' (leading/trailing hyphens removed).",
+    "8. slugify('(parens)') returns 'parens' (parentheses removed, no leading/trailing hyphen).",
+    "9. slugify('') returns '' (empty input yields empty string).",
+    "10. slugify('!!!') returns '' (only separators yields empty string).",
+    "11. slugify('   ') returns '' (whitespace-only yields empty string).",
+    "12. slugify('Hello World') returns 'hello-world' (existing behavior preserved).",
+    "13. slugify('already-a-slug') returns 'already-a-slug' (existing behavior preserved).",
+    "14. slugify('Python 3') returns 'python-3' (existing behavior preserved).",
+    "15. slugify('MiXeD CaSe 42') returns 'mixed-case-42' (existing behavior preserved).",
+    "16. slugify('café crème') returns 'caf-cr-me' (non-ASCII letters are separators).",
+    "17. slugify('日本語') returns '' (non-ASCII letters only yields empty string).",
+    "18. The result is always a str.",
+    "19. TypeError is raised for non-string inputs such as None, 3, 2.5, ['a'], b'bytes'.",
+    "20. All existing tests in tests/test_basic.py pass without modification."
+  ],
+  "out_of_scope": [
+    "Do not change the function signature (name, parameters, return type).",
+    "Do not modify any test files (tests/test_basic.py).",
+    "Do not modify slugkit/__init__.py.",
+    "Do not add new dependencies or imports beyond what is already used (re module).",
+    "Do not change the behavior for valid string inputs beyond what is specified in the acceptance criteria."
+  ],
+  "external_references_needed": []
+}

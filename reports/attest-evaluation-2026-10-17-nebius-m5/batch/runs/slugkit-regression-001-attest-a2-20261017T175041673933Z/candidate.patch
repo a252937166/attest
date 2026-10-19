@@ -1,0 +1,18 @@
+--- a/slugkit/core.py
++++ b/slugkit/core.py
+@@ -6,7 +6,13 @@
+ 
+ 
+ def slugify(text):
+-    """Lower-case ASCII slug of `text`: letters and digits are kept, everything else becomes a hyphen."""
++    """Convert the input string to a URL-friendly slug."""
+     if not isinstance(text, str):
+         raise TypeError("text must be a str")
+-    return _NOT_ALNUM.sub("-", text.lower())
++    # Lowercase
++    lowered = text.lower()
++    # Replace any sequence of non-alnum chars with a single hyphen
++    slug = re.sub(r'[^a-z0-9]+', '-', lowered)
++    # Remove leading/trailing hyphens
++    slug = slug.strip('-')
++    return slug

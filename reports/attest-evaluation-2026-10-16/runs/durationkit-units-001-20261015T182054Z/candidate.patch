@@ -1,0 +1,86 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -4,12 +4,78 @@
+ def parse_duration(text: str) -> float:
+     """Parse a duration string and return the number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts a plain non-negative integer number of seconds (e.g. ``\"90\"") or
++    one or more components made of a non-negative integer followed by a unit:
++    d (days), h (hours), m (minutes), s (seconds) or ms (milliseconds).
++    Components must appear in descending unit order (e.g. ``'2d4h'``,
++    ``'1h30m'``), each unit may appear at most once, and whitespace is allowed
++    around the whole string and between components (but not between a number
++    and its unit). The function returns the total number of seconds as a float
++    (so ``'500ms'`` is 0.5 and ``'1h30m'`` is 5400.0).
++
++    Raises:
++        TypeError: if ``text`` is not a string.
++        ValueError: for empty or whitespace-only input, negative numbers,
++            fractional numbers, unknown units, repeated units, components out
++            of descending order, a unit without a number, or any other malformed
++            text.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+     stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if not stripped:
++        raise ValueError("empty duration")
++    # Plain integer seconds (existing behavior)
++    if stripped.isdigit():
++        return float(stripped)
++    # Extended format
++    total = 0.0
++    i = 0
++    n = len(stripped)
++    # unit to rank (lower rank = larger unit)
++    rank = {'d': 0, 'h': 1, 'm': 2, 's': 3, 'ms': 4}
++    # unit to seconds multiplier
++    mult = {
++        'd': 86400,
++        'h': 3600,
++        'm': 60,
++        's': 1,
++        'ms': 0.001,
++    }
++    seen = set()
++    prev_rank = -1
++    while i < n:
++        # skip whitespace
++        while i < n and stripped[i].isspace():
++            i += 1
++        if i >= n:
++            break
++        # parse number
++        start = i
++        while i < n and stripped[i].isdigit():
++            i += 1
++        if start == i:
++            raise ValueError(f"missing number in duration: {text!r}")
++        num = int(stripped[start:i])
++        # parse unit
++        if i >= n:
++            raise ValueError(f"missing unit in duration: {text!r}")
++        if i + 1 < n and stripped[i:i+2] == 'ms':
++            unit = 'ms'
++            i += 2
++        elif stripped[i] in 'dhms':
++            unit = stripped[i]
++            i += 1
++        else:
++            raise ValueError(f"unknown unit in duration: {text!r}")
++        # validation
++        if unit in seen:
++            raise ValueError(f"repeated unit in duration: {text!r}")
++        seen.add(unit)
++        r = rank[unit]
++        if r <= prev_rank:
++            raise ValueError(f"units out of order in duration: {text!r}")
++        prev_rank = r
++        total += num * mult[unit]
++    # after loop, allow trailing whitespace (already skipped at top of loop)
++    return float(total)

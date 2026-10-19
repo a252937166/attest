@@ -1,0 +1,46 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement roman.core.to_roman(n), available through from roman import to_roman, to convert integers from 1 through 3999 inclusive into canonical uppercase Roman numeral strings using subtractive notation. Reject out-of-range integers with ValueError and non-integer inputs with TypeError. Resolve the ambiguous boolean wording by rejecting bool values; accept other int instances, including int subclasses. Preserve is_roman_numeral and the existing tests.",
+  "interface_contract": [
+    {
+      "name": "roman.to_roman",
+      "signature": "to_roman(n)",
+      "behavior": "For isinstance(n, int) and not isinstance(n, bool), require 1 <= n <= 3999 and return its canonical uppercase Roman numeral as a str. Thousands use '', M, MM, MMM; hundreds use '', C, CC, CCC, CD, D, DC, DCC, DCCC, CM; tens use '', X, XX, XXX, XL, L, LX, LXX, LXXX, XC; units use '', I, II, III, IV, V, VI, VII, VIII, IX. Concatenate the entries selected by the corresponding decimal digits in thousands-to-units order. Do not coerce other types.",
+      "error_cases": [
+        "TypeError: n is not an int instance, or n is a bool; type validation takes precedence over range validation.",
+        "ValueError: n is an accepted integer type but is less than 1 or greater than 3999.",
+        "Exception messages are not prescribed."
+      ]
+    },
+    {
+      "name": "roman.is_roman_numeral",
+      "signature": "is_roman_numeral(s)",
+      "behavior": "Preserve the existing implementation: return True exactly when s is a non-empty str and every character in s.upper() belongs to IVXLCDM. This is a letter-membership check, not canonical Roman numeral validation.",
+      "error_cases": [
+        "Ordinary non-string inputs return False rather than raising an exception."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. Both to_roman and is_roman_numeral remain importable from roman.",
+    "2. For every integer from 1 through 3999, to_roman returns the exact string defined by the decimal-place tables in the interface contract.",
+    "3. to_roman(1) == 'I', to_roman(4) == 'IV', and to_roman(9) == 'IX'.",
+    "4. to_roman(40) == 'XL', to_roman(90) == 'XC', to_roman(400) == 'CD', and to_roman(900) == 'CM'.",
+    "5. to_roman(2024) == 'MMXXIV', to_roman(3999) == 'MMMCMXCIX', and to_roman(1994) == 'MCMXCIV'.",
+    "6. Every valid conversion returns a non-empty str containing only uppercase IVXLCDM letters, with no whitespace.",
+    "7. Integers outside the inclusive range raise ValueError, including 0, -1, 4000, and arbitrarily large positive or negative integers.",
+    "8. Non-int inputs raise TypeError, including '5', 5.0, None, and [1]; neither numeric strings nor integral floats are coerced.",
+    "9. True and False raise TypeError. Instances of an ordinary int subclass follow the same conversion and range rules as int.",
+    "10. Calling to_roman(n=4) returns 'IV', preserving the named parameter n.",
+    "11. is_roman_numeral retains its existing behavior: 'XIV', 'mmxxiv', and 'IIII' return True; '', 'ABC', and 14 return False.",
+    "12. The implementation of is_roman_numeral and all existing test files remain unchanged."
+  ],
+  "out_of_scope": [
+    "Roman numeral parsing or canonical validation in is_roman_numeral.",
+    "Support for zero, negative numerals, values above 3999, lowercase output, or alternative numeral conventions.",
+    "Input coercion or new public APIs.",
+    "Changes to existing tests or is_roman_numeral."
+  ],
+  "external_references_needed": []
+}

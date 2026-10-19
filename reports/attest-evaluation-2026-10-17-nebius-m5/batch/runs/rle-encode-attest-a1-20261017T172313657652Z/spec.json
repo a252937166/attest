@@ -1,0 +1,31 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement the `encode` function in the `rle` package to perform run-length encoding on a string. The function must convert each maximal run of identical characters into the character followed by the decimal count of the run (always including the count, even for runs of length 1). The function must return a string, raise `TypeError` for non-string inputs, and satisfy the round-trip property `decode(encode(x)) == x` for all strings `x`. The existing `decode` function and tests must not be modified.",
+  "interface_contract": [
+    {
+      "name": "encode",
+      "signature": "encode(s: str) -> str",
+      "behavior": "Returns the run-length encoding of the input string `s`. Each maximal run of a single character is replaced by that character followed by the decimal representation of the run length (with no leading zeros). The count is always written, even for runs of length 1. For an empty string, returns an empty string.",
+      "error_cases": [
+        "TypeError: raised when `s` is not a string."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "encode('aaabbc') == 'a3b2c1'",
+    "encode('a') == 'a1'",
+    "encode('') == ''",
+    "encode('abc') == 'a1b1c1' (count written even when 1)",
+    "encode('x' * 12) == 'x12' (multi-digit counts)",
+    "decode(encode(x)) == x for every string x (round-trip property)",
+    "encode returns a str instance",
+    "encode raises TypeError when the argument is not a string"
+  ],
+  "out_of_scope": [
+    "The `decode` function in `rle/core.py` must not be changed.",
+    "The test file `tests/test_basic.py` must not be changed.",
+    "The `__init__.py` files must not be changed."
+  ],
+  "external_references_needed": []
+}

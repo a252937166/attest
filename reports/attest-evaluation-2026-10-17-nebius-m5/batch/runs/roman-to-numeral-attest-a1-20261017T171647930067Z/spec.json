@@ -1,0 +1,41 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement the to_roman(n) function in the roman package to convert an integer n in the range 1..3999 inclusive to its standard Roman numeral string using subtractive notation. The function must raise ValueError for integers outside the range and TypeError for non-integer inputs (including numeric strings, floats, None, lists). Instances of int subclasses (e.g., IntEnum, PlainInt) are accepted and treated as their integer value, including range check. The behavior for bool (True/False) is unspecified; rejecting them with TypeError is permitted but not required. The existing is_roman_numeral function and tests must not be changed.",
+  "interface_contract": [
+    {
+      "name": "to_roman",
+      "signature": "to_roman(n: int) -> str",
+      "behavior": "Converts an integer n in the range 1..3999 inclusive to its standard Roman numeral string using subtractive notation (e.g., 4='IV', 9='IX', 40='XL', 90='XC', 400='CD', 900='CM'). Returns the Roman numeral as a string. Accepts instances of int subclasses (e.g., IntEnum, PlainInt) and treats them as their integer value, including range check.",
+      "error_cases": [
+        "ValueError: raised when n is an int (or int subclass instance) with value outside 1..3999 (e.g., 0, -1, 4000).",
+        "TypeError: raised when n is not an int (or int subclass instance). This includes numeric strings (e.g., '5'), floats (e.g., 5.0), None, lists, etc. Note: bool is a subclass of int; raising TypeError for True/False is permitted but not required, and tests must not depend on either choice."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "to_roman(1) returns 'I'",
+    "to_roman(4) returns 'IV'",
+    "to_roman(9) returns 'IX'",
+    "to_roman(40) returns 'XL'",
+    "to_roman(90) returns 'XC'",
+    "to_roman(400) returns 'CD'",
+    "to_roman(900) returns 'CM'",
+    "to_roman(2024) returns 'MMXXIV'",
+    "to_roman(3999) returns 'MMMCMXCIX'",
+    "to_roman(1994) returns 'MCMXCIV'",
+    "to_roman returns a str for all valid inputs.",
+    "ValueError is raised for ints outside 1..3999 (e.g., 0, -1, 4000), including int subclass instances with such values.",
+    "TypeError is raised for non-int input (e.g., '5', 5.0, None, [1]).",
+    "An int subclass instance with a value in range (e.g., PlainInt(49)) converts like the equal int: PlainInt(49) -> 'XLIX'.",
+    "The function does not modify the existing is_roman_numeral function.",
+    "The function does not change the existing tests."
+  ],
+  "out_of_scope": [
+    "The implementer must not change is_roman_numeral.",
+    "The implementer must not change the existing tests.",
+    "Behavior for int subclasses that override arithmetic or comparison operators is unspecified and not to be tested.",
+    "Whether bool (True/False) is rejected with TypeError is unspecified; tests must not depend on either choice."
+  ],
+  "external_references_needed": []
+}

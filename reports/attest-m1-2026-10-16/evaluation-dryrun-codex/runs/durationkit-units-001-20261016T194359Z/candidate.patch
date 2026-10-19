@@ -1,0 +1,50 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -1,15 +1,42 @@
+ """Duration parsing."""
++
++import re
++
++
++_COMPONENT = re.compile(r"(\d+)(ms|[dhms])")
++_SECONDS = {"d": 86400, "h": 3600, "m": 60, "s": 1, "ms": 0.001}
++_ORDER = {"d": 5, "h": 4, "m": 3, "s": 2, "ms": 1}
+ 
+ 
+ def parse_duration(text: str) -> float:
+-    """Parse a duration string and return the number of seconds as a float.
++    """Parse non-negative integer seconds or ordered duration components.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Components use days, hours, minutes, seconds, or milliseconds. Whitespace
++    is allowed around the duration and between components.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+     stripped = text.strip()
+-    if not stripped.isdigit():
++    if stripped.isdigit():
++        return float(stripped)
++
++    total = 0.0
++    position = 0
++    previous_order = 6
++    while position < len(stripped):
++        match = _COMPONENT.match(stripped, position)
++        if match is None:
++            raise ValueError(f"unsupported duration: {text!r}")
++        amount, unit = match.groups()
++        order = _ORDER[unit]
++        if order >= previous_order:
++            raise ValueError(f"unsupported duration: {text!r}")
++        total += int(amount) * _SECONDS[unit]
++        previous_order = order
++        position = match.end()
++        while position < len(stripped) and stripped[position].isspace():
++            position += 1
++
++    if previous_order == 6:
+         raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    return float(total)

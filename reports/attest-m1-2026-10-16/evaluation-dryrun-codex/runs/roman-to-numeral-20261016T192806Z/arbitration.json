@@ -1,0 +1,54 @@
+{
+  "applied": false,
+  "cleared": false,
+  "counts": {
+    "implementation_bug": 5,
+    "test_defect": 0,
+    "contract_dispute": 0
+  },
+  "headline": "5 failing test(s) indicate a real implementation bug; human review required",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestAdversarialRomanConversion.test_valid_int_subclass_with_overridden_comparisons",
+          "classification": "implementation_bug",
+          "rationale": "The input is an accepted int subclass with integer value 44. Its comparison overrides cause the candidate to raise ValueError instead of returning 'XLIV'.",
+          "contract_basis": "The contract accepts int instances other than bool, including int subclasses, and requires canonical conversion for values 1..3999."
+        },
+        {
+          "test_id": "test_breaker.TestAdversarialRomanConversion.test_zero_int_subclass_with_overridden_comparisons",
+          "classification": "implementation_bug",
+          "rationale": "The input has integer value 0. Its comparison overrides bypass validation, causing the candidate to return an empty string instead of raising ValueError.",
+          "contract_basis": "Accepted integer types with values below 1 must raise ValueError."
+        },
+        {
+          "test_id": "test_breaker.TestAdversarialRomanConversion.test_upper_bound_int_subclass_with_overridden_comparisons",
+          "classification": "implementation_bug",
+          "rationale": "The input has integer value 4000. Its comparison overrides bypass validation, leading to an IndexError from the thousands table instead of the required ValueError.",
+          "contract_basis": "Accepted integer types with values above 3999 must raise ValueError."
+        },
+        {
+          "test_id": "test_breaker.TestAdversarialRomanConversion.test_int_subclass_with_overridden_floor_division",
+          "classification": "implementation_bug",
+          "rationale": "The accepted input has integer value 3888, but the candidate invokes its overridden floor division and raises AssertionError instead of returning 'MMMDCCCLXXXVIII'.",
+          "contract_basis": "The contract requires canonical conversion of int subclasses and does not exclude subclasses that override arithmetic."
+        },
+        {
+          "test_id": "test_breaker.TestAdversarialRomanConversion.test_int_subclass_with_overridden_modulo",
+          "classification": "implementation_bug",
+          "rationale": "The accepted input has integer value 2479, but the candidate invokes its overridden modulo and raises AssertionError instead of returning 'MMCDLXXIX'.",
+          "contract_basis": "The contract requires canonical conversion of int subclasses and does not exclude subclasses that override arithmetic."
+        }
+      ],
+      "corrected_notes": "No tests were corrected because all five failures demonstrate violations of the explicit int-subclass contract. The acceptance criterion mentioning ordinary subclasses does not narrow the broader requirement to accept int instances other than bool.",
+      "corrected_module": null,
+      "candidate_rerun": null,
+      "base_rerun": null,
+      "cleared_module": false,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

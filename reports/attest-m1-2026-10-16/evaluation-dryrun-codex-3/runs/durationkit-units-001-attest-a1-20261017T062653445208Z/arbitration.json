@@ -1,0 +1,35 @@
+{
+  "applied": false,
+  "cleared": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "all 1 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base — candidate not falsified by these tests",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestBreakerDurationParsing.test_mixed_unicode_decimal_scripts",
+          "classification": "test_defect",
+          "rationale": "The mixed-script digits in '١२h３४m' represent 12 hours and 34 minutes, totaling 45240.0 seconds. The test incorrectly expects 58440.0.",
+          "contract_basis": "Unicode decimal digits are accepted using Python numeric conversion. Hours contribute 3600 seconds each and minutes contribute 60 seconds each: 12 * 3600 + 34 * 60 = 45240."
+        }
+      ],
+      "corrected_notes": "Corrected the arithmetic for the Unicode representation of 12h34m to 45240.0 seconds, as required by the contract. All other tests remain unchanged; the corrected test still rejects an implementation lacking component support.",
+      "corrected_module": "arbitration/adversarial_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (10 of 10 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a14896-af60-74bf-9aa1-67b52aaa5443"
+      },
+      "base_rerun": null,
+      "cleared_module": true,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

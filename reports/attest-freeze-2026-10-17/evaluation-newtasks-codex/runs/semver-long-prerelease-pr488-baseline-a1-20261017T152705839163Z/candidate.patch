@@ -1,0 +1,43 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -185,18 +185,30 @@
+ 
+     @classmethod
+     def _nat_cmp(cls, a: Optional[str], b: Optional[str]) -> int:
+-        def cmp_prerelease_tag(a, b):
+-            if isinstance(a, int) and isinstance(b, int):
+-                return _cmp(a, b)
+-            elif isinstance(a, int):
++        def prepare(identifier: str) -> Tuple[bool, str]:
++            if not identifier.isdigit():
++                return False, identifier
++            if identifier.isascii():
++                return True, identifier.lstrip("0") or "0"
++            # Preserve the constructor's legacy handling of Unicode digits,
++            # including ValueError for digits that int() cannot convert.
++            return True, str(int(identifier))
++
++        def cmp_prerelease_tag(left: Tuple[bool, str], right: Tuple[bool, str]) -> int:
++            left_numeric, left_value = left
++            right_numeric, right_value = right
++            if left_numeric and right_numeric:
++                return _cmp(len(left_value), len(right_value)) or _cmp(
++                    left_value, right_value
++                )
++            if left_numeric:
+                 return -1
+-            elif isinstance(b, int):
++            if right_numeric:
+                 return 1
+-            else:
+-                return _cmp(a, b)
+-
+-        a_parts = [int(x) if x.isdigit() else x for x in (a or "").split(".")]
+-        b_parts = [int(x) if x.isdigit() else x for x in (b or "").split(".")]
++            return _cmp(left_value, right_value)
++
++        a_parts = [prepare(x) for x in (a or "").split(".")]
++        b_parts = [prepare(x) for x in (b or "").split(".")]
+ 
+         for sub_a, sub_b in zip(a_parts, b_parts):
+             cmp_result = cmp_prerelease_tag(sub_a, sub_b)

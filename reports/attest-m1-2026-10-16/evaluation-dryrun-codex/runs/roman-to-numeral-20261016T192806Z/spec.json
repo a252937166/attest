@@ -1,0 +1,46 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement roman.to_roman(n) in roman/core.py to return the canonical uppercase Roman numeral string for integers from 1 through 3999 inclusive, using standard subtractive notation. Reject out-of-range integers with ValueError and non-integer inputs with TypeError without coercion. To resolve the wording about booleans, treat bool as invalid; accept other int instances, including int subclasses. Preserve is_roman_numeral, existing exports, and existing tests.",
+  "interface_contract": [
+    {
+      "name": "roman.to_roman",
+      "signature": "to_roman(n)",
+      "behavior": "For an int instance other than bool with 1 <= n <= 3999, return a str containing its canonical uppercase Roman numeral, with no whitespace or separators. Form the result by concatenating thousands, hundreds, tens, and units in descending place order. Thousands use zero to three M characters; each other place uses the standard forms for digits 0 through 9, including IV, IX, XL, XC, CD, and CM. Accept int subclasses other than bool. Remain accessible through both roman.to_roman and roman.core.to_roman.",
+      "error_cases": [
+        "TypeError: n is not an instance of int, or n is a bool; do not coerce strings, floats, or other values.",
+        "ValueError: n is an accepted integer type but is less than 1 or greater than 3999.",
+        "Exception message text is unspecified."
+      ]
+    },
+    {
+      "name": "roman.is_roman_numeral",
+      "signature": "is_roman_numeral(s)",
+      "behavior": "Preserve the existing implementation exactly: return whether s is a non-empty str whose uppercase characters all belong to IVXLCDM. This checks allowed letters, not canonical Roman numeral syntax.",
+      "error_cases": [
+        "Ordinary non-string inputs return False rather than raising an exception."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. from roman import to_roman succeeds, and to_roman is also available from roman.core.",
+    "2. to_roman(1) == 'I', to_roman(4) == 'IV', and to_roman(9) == 'IX'.",
+    "3. to_roman(40) == 'XL', to_roman(90) == 'XC', to_roman(400) == 'CD', and to_roman(900) == 'CM'.",
+    "4. to_roman(5) == 'V', to_roman(10) == 'X', to_roman(50) == 'L', to_roman(100) == 'C', to_roman(500) == 'D', and to_roman(1000) == 'M'.",
+    "5. to_roman(2024) == 'MMXXIV', to_roman(1994) == 'MCMXCIV', and to_roman(3999) == 'MMMCMXCIX'.",
+    "6. For every integer n in 1..3999, the result equals the concatenation of the indexed thousands table ['', 'M', 'MM', 'MMM'], hundreds table ['', 'C', 'CC', 'CCC', 'CD', 'D', 'DC', 'DCC', 'DCCC', 'CM'], tens table ['', 'X', 'XX', 'XXX', 'XL', 'L', 'LX', 'LXX', 'LXXX', 'XC'], and units table ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'], indexed by the corresponding decimal digits of n.",
+    "7. Every valid input returns a non-empty str containing only uppercase Roman numeral letters, with no whitespace or separators.",
+    "8. Integers outside 1..3999 raise ValueError, including 0, -1, 4000, and integers of arbitrarily large positive or negative magnitude.",
+    "9. Non-int inputs raise TypeError, including '5', 5.0, None, [1], True, and False.",
+    "10. Instances of an ordinary int subclass follow the same conversion and range-validation rules as built-in int values.",
+    "11. is_roman_numeral remains unchanged: 'XIV' and 'mmxxiv' return True; '', 'ABC', and 14 return False; noncanonical strings containing only permitted letters, such as 'IIII' and 'VX', continue to return True.",
+    "12. Existing test files remain unchanged and their tests continue to pass."
+  ],
+  "out_of_scope": [
+    "Changing is_roman_numeral or making it validate canonical Roman numeral syntax.",
+    "Changing existing tests or package exports.",
+    "Roman numeral parsing, lowercase output, alternate notation, or support for zero, negative numbers, or values above 3999.",
+    "Input coercion, additional public APIs, or third-party dependencies."
+  ],
+  "external_references_needed": []
+}

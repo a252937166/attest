@@ -1,0 +1,47 @@
+{
+  "id": "roman-to-numeral",
+  "title": "roman-to-numeral",
+  "statement": "The roman package exposes is_roman_numeral (already implemented) and a stub to_roman(n). Implement to_roman(n) so that it converts an integer n in the range 1..3999 inclusive to its standard Roman numeral string using subtractive notation (4='IV', 9='IX', 40='XL', 90='XC', 400='CD', 900='CM'). Return a str. Raise ValueError when n is an int outside 1..3999. Raise TypeError when n is not an int (for example '5', 5.0, None, [1]); numeric strings and integral floats are not coerced. Type discipline is by value: an instance of an int subclass (for example an IntEnum member or `class PlainInt(int)`) is accepted and converted exactly like the int with the same value, including the range check. Int subclasses that override arithmetic or comparison operators are out of scope: their behaviour is unspecified and tests must not depend on it. bool is a subclass of int; rejecting True and False with TypeError is permitted but not required, and tests must not depend on either choice. Do not change is_roman_numeral or the tests.",
+  "acceptance_criteria": [
+    "to_roman(1)=='I', to_roman(4)=='IV', to_roman(9)=='IX'",
+    "to_roman(40)=='XL', to_roman(90)=='XC', to_roman(400)=='CD', to_roman(900)=='CM'",
+    "to_roman(2024)=='MMXXIV', to_roman(3999)=='MMMCMXCIX', to_roman(1994)=='MCMXCIV'",
+    "to_roman returns a str",
+    "ValueError for ints outside 1..3999 (0, -1, 4000), including int subclass instances with such values",
+    "TypeError for non-int input ('5', 5.0, None, [1])",
+    "An int subclass instance with a value in range (for example an IntEnum member or PlainInt(49)) converts like the equal int: PlainInt(49) -> 'XLIX'",
+    "Unspecified, not to be tested: int subclasses that override arithmetic or comparison operators; whether bool is rejected"
+  ],
+  "allowed_write_globs": [
+    "roman/**"
+  ],
+  "protected_globs": [
+    "tests/**"
+  ],
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-t",
+    ".",
+    "-v"
+  ],
+  "base_image": "python:3.12-slim",
+  "language": "python",
+  "import_hint": "from roman import to_roman",
+  "test_runner": "unittest",
+  "install_command": null,
+  "requirements_lock": null,
+  "python_paths": [],
+  "heldout_tests_sha256": {},
+  "repo_files_sha256": {
+    "roman/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+    "roman/core.py": "ecf06262fbb5488a8342614555812ae355e921bc6af6c4ea62b26f06c56a6e6d",
+    "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tests/test_basic.py": "de899bd3b4bf3f6bdd8c55f4d46256450fd0eaf7c89e0609a4c808590649f203"
+  },
+  "spec_sha256": "8e0781e39135d0d1bedc4361e0e17c603e03ecf956bda7cf92bdc1ba5a4d5257"
+}

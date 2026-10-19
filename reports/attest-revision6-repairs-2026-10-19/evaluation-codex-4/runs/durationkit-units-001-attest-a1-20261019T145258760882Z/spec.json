@@ -1,0 +1,50 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Extend durationkit.parse_duration to accept either a plain non-negative integer number of seconds or a sequence of integer-and-unit components using d, h, m, s and ms. Require unique units in strictly descending order, allow whitespace around the input and between complete components, and return total seconds as a float. Preserve the existing public import and tests, reject malformed strings with ValueError, and reject non-string arguments with TypeError.",
+  "interface_contract": [
+    {
+      "name": "durationkit.parse_duration (implemented in durationkit.parse)",
+      "signature": "parse_duration(text: str) -> float",
+      "behavior": "Accept a string after removing surrounding whitespace. The entire remaining string must be either an unsigned integer interpreted as seconds, or one or more components consisting of an unsigned integer immediately followed by a lowercase unit. Required digits are ASCII 0-9. Units and second multipliers are d=86400, h=3600, m=60, s=1 and ms=0.001. Treat ms as one unit. Components may be adjacent or separated by whitespace as recognized by Python str.isspace(). Their units must form a strictly descending subsequence of d, h, m, s, ms. Each integer may contain leading zeros, and component values have no clock-style bounds: for example, 90m is valid. Zero-valued components obey the same ordering and uniqueness rules. Return the sum in seconds as a float, subject to ordinary floating-point rounding. Acceptance of non-ASCII Unicode decimal digits is unspecified; if accepted, interpret them by their decimal values. Exception messages are not part of the contract.",
+      "error_cases": [
+        "TypeError: text is not a string.",
+        "ValueError: text is empty or contains only whitespace.",
+        "ValueError: a number has a sign, decimal point, exponent, separator, or other malformed numeric notation.",
+        "ValueError: a component has an unknown or incorrectly capitalized unit, or a unit lacks a number.",
+        "ValueError: a unit repeats or occurs out of descending order, including when its value is zero.",
+        "ValueError: whitespace separates a number from its unit or splits a number or unit.",
+        "ValueError: bare seconds are mixed with unit components, or any characters remain outside the accepted complete-input syntax.",
+        "ValueError: numeric characters that are not decimal digits, including Roman numerals, fractions and circled numbers, occur in the input."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. Preserve the public import `from durationkit import parse_duration` and the exact callable signature `parse_duration(text: str) -> float`.",
+    "2. All existing tests in tests/ pass without modification.",
+    "3. Plain integer seconds remain supported: '90' returns 90.0, '  42 ' returns 42.0, '0' returns 0.0, and '0007' returns 7.0.",
+    "4. Single components return the expected seconds: '2d' → 172800.0, '3h' → 10800.0, '15m' → 900.0, '45s' → 45.0, and '500ms' → 0.5.",
+    "5. Ordered combinations work: '1h30m' → 5400.0, '2d4h' → 187200.0, '1m1s' → 61.0, '1s500ms' → 1.5, and '1d1h1m1s1ms' → approximately 90061.001. Use floating-point tolerance for fractional totals.",
+    "6. Skipped units and unrestricted component magnitudes are accepted: '1d1s' returns 86401.0, '90m' returns 5400.0, and '1500ms' returns 1.5.",
+    "7. Leading zeros and zero-valued components are accepted: '001h030m' returns 5400.0, '0s' returns 0.0, and '0d0h0m0s0ms' returns 0.0.",
+    "8. Surrounding and inter-component whitespace is accepted, including spaces, tabs and newlines: ' 1h 30m ' and '\\t1h\\n30m\\t' each return 5400.0.",
+    "9. Whitespace inside components is rejected with ValueError, including '1 h', '1m s', and '1 0s'.",
+    "10. Empty and whitespace-only strings raise ValueError, including '', '   ', and '\\t\\n'.",
+    "11. Signed, fractional and other numeric notation raises ValueError, including '-1', '-1h', '+1', '+1h', '1.5h', '1e3s', and '1_000s'.",
+    "12. Unknown units, wrong case and missing numbers raise ValueError, including '1x', '1H', '1sec', 'h', and 'ms'.",
+    "13. Repeated or out-of-order units raise ValueError, including '1h1h', '1ms1ms', '30m1h', '1ms1s', '0s0m', and '0h0h'.",
+    "14. Mixed bare numbers and components, punctuation, and arbitrary malformed text raise ValueError, including '1h30', '30 1h', '1h,30m', and 'abc'.",
+    "15. Non-decimal numeric characters raise ValueError, including 'Ⅳh', '½h', '①h', and '²'. Tests must not require either acceptance or rejection of non-ASCII Unicode decimal digits such as '١٢h' or '１２h'.",
+    "16. Non-string arguments raise TypeError, including 90, None, 1.5, True, b'90', and ['90'].",
+    "17. Every accepted input returns a float, including plain integers, zero, whole-second unit totals and millisecond totals."
+  ],
+  "out_of_scope": [
+    "Modifying existing files under tests/.",
+    "Changing the public function name, signature, or package export.",
+    "Adding units, aliases, case-insensitive matching, signed durations, fractional components, or alternative duration formats.",
+    "Requiring a particular acceptance policy for non-ASCII Unicode decimal digits.",
+    "Requiring exact decimal arithmetic, particular exception messages, or a new policy for values exceeding floating-point range.",
+    "Adding third-party dependencies or unrelated functionality."
+  ],
+  "external_references_needed": []
+}

@@ -1,0 +1,41 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement the `encode` function in the `rle` package to perform run-length encoding on a string. The function must convert each maximal run of identical characters into the character followed by the decimal count of the run (always including the count, even for runs of length 1). The function must return a string, raise `TypeError` for non-string inputs, and satisfy the round-trip property `decode(encode(x)) == x` for all strings `x`, where `decode` is the existing decoding function.",
+  "interface_contract": [
+    {
+      "name": "encode",
+      "signature": "encode(s: str) -> str",
+      "behavior": "Returns the run-length encoding of the input string `s`. Each maximal run of a single character is represented by that character followed by the decimal representation of the run length (with no leading zeros). The count is always included, even for runs of length 1. For an empty string, returns an empty string.",
+      "error_cases": [
+        "TypeError: raised if `s` is not a string."
+      ]
+    },
+    {
+      "name": "decode",
+      "signature": "decode(s: str) -> str",
+      "behavior": "Decodes a run-length encoded string `s` back to the original string. The encoded string must consist of sequences of a single character followed by one or more digits representing the count. The function concatenates each character repeated by its count.",
+      "error_cases": [
+        "TypeError: raised if `s` is not a string.",
+        "ValueError: raised if a character is not followed by at least one digit (missing count)."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "encode('aaabbc') returns 'a3b2c1'.",
+    "encode('a') returns 'a1'.",
+    "encode('') returns ''.",
+    "encode('abc') returns 'a1b1c1'.",
+    "encode('x' * 12) returns 'x12' (multi-digit count).",
+    "For any string x, decode(encode(x)) == x (round-trip property).",
+    "encode returns an instance of str.",
+    "encode raises TypeError when the argument is not a string (e.g., encode(123) raises TypeError)."
+  ],
+  "out_of_scope": [
+    "The decode function in rle/core.py must not be modified.",
+    "The test file tests/test_basic.py must not be modified.",
+    "The rle/__init__.py file must not be modified.",
+    "No other files in the repository may be changed."
+  ],
+  "external_references_needed": []
+}

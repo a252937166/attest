@@ -1,0 +1,23 @@
+--- a/rle/core.py
++++ b/rle/core.py
+@@ -20,4 +20,19 @@
+ 
+ 
+ def encode(s):
+-    raise NotImplementedError("encode is not implemented yet")
++    if not isinstance(s, str):
++        raise TypeError("encode expects a string")
++    if not s:
++        return ""
++    result = []
++    count = 1
++    prev = s[0]
++    for ch in s[1:]:
++        if ch == prev:
++            count += 1
++        else:
++            result.append(prev + str(count))
++            prev = ch
++            count = 1
++    result.append(prev + str(count))
++    return "".join(result)

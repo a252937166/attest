@@ -1,0 +1,43 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Add an instance method `Version.is_compatible(other: Version) -> bool` to the `Version` class in `src/semver/version.py`. The method returns True when `other` (the new version) can replace `self` (the old version) under semantic versioning compatibility rules: majors must match; for major > 0, new.minor >= old.minor and prerelease parts must be identical (both None counts as equal), patch is ignored; for major == 0, versions must be identical in major, minor, patch, and prerelease. If `other` is not a `Version` instance (subclasses allowed), raise `TypeError` with message starting with \"Expected a Version type but got \" followed by the type representation. Include a docstring with at least two doctest examples. Do not modify tests, docs, packaging, or other public behavior; the existing pytest suite must continue to pass.",
+  "interface_contract": [
+    {
+      "name": "Version.is_compatible",
+      "signature": "def is_compatible(self, other: 'Version') -> bool",
+      "behavior": "Returns True when `other` (the candidate replacement version) is compatible with `self` (the reference version). Compatibility rules: (1) `self.major == other.major` must hold. (2) If `self.major == 0`: all of major, minor, patch, and prerelease must be exactly equal between `self` and `other` (build metadata is ignored). (3) If `self.major > 0`: `other.minor >= self.minor` and `self.prerelease == other.prerelease` (both None counts as equal); patch and build are ignored. Subclasses of `Version` are accepted as `other`. Returns a boolean.",
+      "error_cases": [
+        "TypeError: raised when `other` is not an instance of `Version` (or a subclass). Message must start with 'Expected a Version type but got ' followed by the type representation (e.g., \"<class 'str'>\")."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 3)) is True",
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 4)) is True (patch ignored)",
+    "Version(1, 2, 4).is_compatible(Version(1, 2, 3)) is True (patch ignored, minor equal)",
+    "Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) is True (equal prereleases)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 0)) is True (major 0 identical)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 1)) is False (major 0 requires identical patch)",
+    "Version(1, 1, 0).is_compatible(Version(1, 0, 0)) is False (lower minor)",
+    "Version(2, 0, 0).is_compatible(Version(1, 5, 0)) is False (different major)",
+    "Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0')) is False (prerelease differs)",
+    "Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1')) is False (prerelease absent vs present)",
+    "Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0)) is False (prerelease present vs absent)",
+    "Version(1, 2, 3).is_compatible('wrongtype') raises TypeError with message starting with 'Expected a Version type but got <class 'str'>'",
+    "Version(1, 2, 3).is_compatible({'a': 2}) raises TypeError with message starting with 'Expected a Version type but got <class 'dict'>'",
+    "Version(1, 2, 3).is_compatible([]) raises TypeError with message starting with 'Expected a Version type but got <class 'list'>'",
+    "class CustomVersion(Version): pass; CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) is True (subclass accepted)",
+    "The method's docstring contains at least two doctest examples that pass when run with doctest",
+    "The existing pytest test suite (tests/) passes without modification"
+  ],
+  "out_of_scope": [
+    "Do not modify any test files in tests/",
+    "Do not modify documentation files in docs/ or README.rst",
+    "Do not modify packaging files (pyproject.toml, setup.cfg, LICENSE.txt, src/semver/py.typed)",
+    "Do not modify src/semver/__init__.py, src/semver/__about__.py, src/semver/__main__.py, src/semver/_deprecated.py, src/semver/_types.py, src/semver/cli.py",
+    "Do not change any existing public method signatures, behaviors, or attributes of the Version class",
+    "Do not add new public attributes or methods other than Version.is_compatible"
+  ],
+  "external_references_needed": []
+}

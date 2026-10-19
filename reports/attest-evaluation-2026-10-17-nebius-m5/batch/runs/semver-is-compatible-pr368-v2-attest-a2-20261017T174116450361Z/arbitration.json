@@ -1,0 +1,42 @@
+{
+  "applied": false,
+  "cleared": true,
+  "all_corrected": true,
+  "mutation_ran_ok": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "all 1 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base — candidate not falsified by these tests",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestIsCompatibleBreaker.test_subclass_both_directions",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects symmetry: both a.is_compatible(b) and b.is_compatible(a) to be True. However, the contract defines compatibility directionally: old.is_compatible(new) returns True only when new.minor >= old.minor (for major>0). Here a=1.1.0, b=1.2.0, so a.is_compatible(b) is True but b.is_compatible(a) is False. The test's expectation is logically wrong under the contract.",
+          "contract_basis": "Contract: 'Returns True when `other` (the candidate replacement version) is compatible with `self` (the reference version). Compatibility rules: (1) self.major == other.major must hold. (2) If self.major > 0: other.minor >= self.minor and self.prerelease == other.prerelease; patch and build are ignored.'"
+        }
+      ],
+      "corrected_notes": "Corrected the failing test to match the contract's directional compatibility: old.is_compatible(new) is True only when new.minor >= old.minor (for major>0). The test now verifies that subclasses work as both self and other with appropriate version numbers, without expecting symmetry.",
+      "corrected_module": "arbitration/adversarial_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (8 of 8 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a14afc-8255-7755-95a1-7a4cb1685e53"
+      },
+      "base_rerun": {
+        "summary_line": "FAILED (8 of 8 methods: ERROR 8)",
+        "failing": 8,
+        "operation_uuid": "01a14afc-9f0d-7693-a70d-f7e4d7f28d71"
+      },
+      "cleared_module": true,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

@@ -1,0 +1,85 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -2,14 +2,75 @@
+ 
+ 
+ def parse_duration(text: str) -> float:
+-    """Parse a duration string and return the number of seconds as a float.
++    """Parse a duration string and return the total number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts two forms:
++    1. A plain non-negative integer (optionally surrounded by whitespace) representing seconds,
++       e.g., ``"90"`` -> 90.0.
++    2. One or more components, each a non-negative integer immediately followed by a unit
++       (d, h, m, s, ms), with components ordered from largest to smallest unit
++       (d > h > m > s > ms), each unit appearing at most once. Whitespace is allowed
++       around the entire string and between components, but not between a number and its unit.
++
++    The returned float is the sum of each component converted to seconds
++    (1d=86400, 1h=3600, 1m=60, 1s=1, 1ms=0.001).
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+-    stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    s = text.strip()
++    if not s:
++        raise ValueError("empty duration string")
++    # Plain integer form (seconds only)
++    if s.isdigit():
++        return float(s)
++    # Component form
++    total = 0.0
++    i = 0
++    n = len(s)
++    # unit info: order rank (lower = larger unit) and factor to seconds
++    unit_rank = {'d': 0, 'h': 1, 'm': 2, 's': 3, 'ms': 4}
++    unit_factor = {'d': 86400.0, 'h': 3600.0, 'm': 60.0, 's': 1.0, 'ms': 0.001}
++    seen = set()
++    prev_rank = None  # rank of previous unit (larger unit has smaller rank)
++    while i < n:
++        # skip whitespace
++        while i < n and s[i].isspace():
++            i += 1
++        if i >= n:
++            break
++        # parse number (one or more digits)
++        start = i
++        while i < n and s[i].isdigit():
++            i += 1
++        if start == i:
++            raise ValueError(f"missing number in duration at position {start}")
++        num_str = s[start:i]
++        # leading zeros allowed, but ensure non-negative (already)
++        try:
++            value = int(num_str)
++        except ValueError:
++            raise ValueError(f"invalid number {num_str!r}")
++        # parse unit
++        if i + 2 <= n and s[i:i+2] == 'ms':
++            unit = 'ms'
++            i += 2
++        elif i < n and s[i] in 'dhms':
++            unit = s[i]
++            i += 1
++        else:
++            raise ValueError(f"unknown or missing unit after number {num_str!r}")
++        # check unit not repeated
++        if unit in seen:
++            raise ValueError(f"unit {unit!r} appears more than once")
++        # check order
++        rank = unit_rank[unit]
++        if prev_rank is not None and rank <= prev_rank:
++            raise ValueError(f"units not in descending order: {unit!r} after previous")
++        seen.add(unit)
++        prev_rank = rank
++        # add to total
++        total += value * unit_factor[unit]
++        # after unit, loop continues (whitespace will be skipped)
++    if not seen:
++        raise ValueError(f"no valid components found in {text!r}")
++    return total

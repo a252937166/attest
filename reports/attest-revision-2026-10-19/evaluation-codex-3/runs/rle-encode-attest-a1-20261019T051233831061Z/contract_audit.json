@@ -1,0 +1,27 @@
+{
+  "model": "gpt-6-astra",
+  "consistent": false,
+  "notes": "AC10 acknowledges the contradiction rather than resolving it; the task and out-of-scope constraints retain the universal guarantee. The witness calls only the unchanged decoder, not the encode stub.",
+  "conflicts": [
+    {
+      "requirement_ids": [
+        "AC9",
+        "AC10",
+        "AC11"
+      ],
+      "summary": "For input 'a1', the mandated encoding is 'a111', which the unchanged decoder turns into 111 copies of 'a', violating the required universal round trip.",
+      "witness_path": "contract_audit/witness_1.py",
+      "witness_sha256": "bd5d28e0799a830299a83bc8a61e35346a335c89d069ced8c59dd47e0d79da62",
+      "exit_code": 3,
+      "timed_out": false,
+      "stdout_tail": "CONTRADICTION AC9 AC10 AC11: input 'a1' must encode as 'a111', but unchanged decode returns 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', whereas universal round-trip requires 'a1'.\n",
+      "stderr_tail": "",
+      "operation_uuid": "01a15295-04dc-7326-a257-e138328c87c5",
+      "demonstrated": true,
+      "status": "demonstrated"
+    }
+  ],
+  "outcome": "contradiction demonstrated",
+  "error": null,
+  "rule": "a conflict is demonstrated only when its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' and exits with code 3; any other outcome records the conflict as claimed only, which never ends a run"
+}

@@ -1,0 +1,36 @@
+{
+  "applied": false,
+  "cleared": false,
+  "counts": {
+    "implementation_bug": 1,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "1 failing test(s) indicate a real implementation bug; human review required",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestBreaker.test_roundtrip_with_digits",
+          "classification": "implementation_bug",
+          "rationale": "The contract requires the round-trip property decode(encode(x)) == x for every string x. The candidate's encode produces 'a111' for input 'a1', which decode expands to 'a' repeated 111 times, violating round-trip. This is a genuine defect in the candidate.",
+          "contract_basis": "Contract: 'encode must return a str and must round-trip with decode (decode(encode(x)) == x for every string x).'"
+        },
+        {
+          "test_id": "test_breaker.TestBreaker.test_encode_newline_and_tab",
+          "classification": "test_defect",
+          "rationale": "The test uses string literals '\\\\n\\\\n\\\\t' and '\\\\n2\\\\t1', which in Python source represent literal backslash-n sequences (six characters), not newline and tab characters. The contract does not specify this input-output pair; it only requires encode to work for any string, including actual newlines and tabs. The test is defective due to incorrect escaping.",
+          "contract_basis": "Contract: 'each maximal run of one character becomes that character followed by the decimal count of the run' - the test does not faithfully encode this for newline/tab."
+        }
+      ],
+      "corrected_notes": "One failing test (roundtrip) reveals a genuine implementation bug: the candidate's encode does not satisfy the round-trip property for strings containing digits. The other failing test (newline/tab) is defective due to incorrect string literals in the test. Since not all failing tests are test_defects, corrected_module is null.",
+      "corrected_module": null,
+      "candidate_rerun": null,
+      "base_rerun": null,
+      "cleared_module": false,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

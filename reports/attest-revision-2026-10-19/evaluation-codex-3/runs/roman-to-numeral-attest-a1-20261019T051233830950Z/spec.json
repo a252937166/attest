@@ -1,0 +1,46 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement roman.core.to_roman(n), available through from roman import to_roman, to return the canonical uppercase Roman numeral string for integer values from 1 through 3999 inclusive. Use standard subtractive notation, accept int subclass instances by their integer value, reject non-int inputs without coercion, and raise ValueError for out-of-range integers. Preserve is_roman_numeral and existing tests. Boolean handling and behavior of int subclasses overriding arithmetic or comparison operators are excluded from testing.",
+  "interface_contract": [
+    {
+      "name": "roman.to_roman",
+      "signature": "to_roman(n)",
+      "behavior": "Return a str containing the canonical uppercase Roman numeral for n in 1..3999. Canonical output concatenates thousands (empty, M, MM, MMM), hundreds (empty, C, CC, CCC, CD, D, DC, DCC, DCCC, CM), tens (empty, X, XX, XXX, XL, L, LX, LXX, LXXX, XC), and units (empty, I, II, III, IV, V, VI, VII, VIII, IX), selecting each component by the corresponding decimal digit. Accept instances of int subclasses, including IntEnum and PlainInt, by value unless they override arithmetic or comparison operators. Do not coerce other types. Boolean behavior is outside the tested contract.",
+      "error_cases": [
+        "ValueError: n is an int or supported int subclass instance with a value less than 1 or greater than 3999, excluding bool from required assertions.",
+        "TypeError: n is not an instance of int, including numeric strings, integral floats, None, and lists.",
+        "TypeError for bool is permitted but not required; tests must not assert boolean behavior.",
+        "Exception messages are unspecified."
+      ]
+    },
+    {
+      "name": "roman.is_roman_numeral",
+      "signature": "is_roman_numeral(s)",
+      "behavior": "Preserve the existing implementation unchanged: return True exactly when s is a non-empty str and every character of s.upper() belongs to IVXLCDM; otherwise return False. This checks allowed letters, not canonical Roman numeral syntax.",
+      "error_cases": []
+    }
+  ],
+  "acceptance_criteria": [
+    "1. from roman import to_roman and from roman import is_roman_numeral continue to succeed.",
+    "2. For every built-in integer n from 1 through 3999, to_roman(n) returns a str equal to the canonical decimal-place composition specified in the interface contract, with no whitespace or additional characters.",
+    "3. to_roman(1) == 'I', to_roman(4) == 'IV', and to_roman(9) == 'IX'.",
+    "4. to_roman(40) == 'XL', to_roman(90) == 'XC', to_roman(400) == 'CD', and to_roman(900) == 'CM'.",
+    "5. to_roman(1994) == 'MCMXCIV', to_roman(2024) == 'MMXXIV', and to_roman(3999) == 'MMMCMXCIX'.",
+    "6. Out-of-range built-in integers raise ValueError, including 0, -1, and 4000.",
+    "7. Non-int inputs raise TypeError without coercion, including '5', 5.0, None, and [1].",
+    "8. Instances of int subclasses that do not override arithmetic or comparison operators convert identically to equal built-in integers; specifically, PlainInt(49) and an IntEnum member with value 49 return 'XLIX'.",
+    "9. Supported int subclass instances with out-of-range values raise ValueError; cover values 0, -1, and 4000.",
+    "10. is_roman_numeral remains unchanged: 'XIV' and 'mmxxiv' return True; '', 'ABC', and 14 return False; noncanonical strings consisting only of Roman numeral letters, such as 'IIII', continue to return True.",
+    "11. Existing test files remain unchanged and their tests pass."
+  ],
+  "out_of_scope": [
+    "Changing is_roman_numeral or making it validate canonical Roman numeral syntax.",
+    "Changing existing tests or public function signatures.",
+    "Adding Roman-to-integer conversion, coercion, alternate notation, or support for values outside 1..3999.",
+    "Specifying or testing behavior of int subclasses that override arithmetic or comparison operators.",
+    "Requiring or testing any particular behavior for True or False.",
+    "Requiring particular exception messages or a particular conversion algorithm."
+  ],
+  "external_references_needed": []
+}

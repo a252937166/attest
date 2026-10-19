@@ -1,0 +1,44 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -185,22 +185,26 @@
+ 
+     @classmethod
+     def _nat_cmp(cls, a: Optional[str], b: Optional[str]) -> int:
+-        def cmp_prerelease_tag(a, b):
+-            if isinstance(a, int) and isinstance(b, int):
+-                return _cmp(a, b)
+-            elif isinstance(a, int):
+-                return -1
+-            elif isinstance(b, int):
+-                return 1
++        def normalize(identifier):
++            if not identifier.isdigit():
++                return False, identifier
++            if identifier.isascii():
++                return True, identifier.lstrip("0") or "0"
++            return True, str(int(identifier))
++
++        # Convert every digit identifier before comparing, including suffixes that
++        # would otherwise be skipped by an earlier ordering difference.
++        a_parts = [normalize(x) for x in (a or "").split(".")]
++        b_parts = [normalize(x) for x in (b or "").split(".")]
++
++        for (a_numeric, sub_a), (b_numeric, sub_b) in zip(a_parts, b_parts):
++            if a_numeric and b_numeric:
++                cmp_result = _cmp(len(sub_a), len(sub_b)) or _cmp(sub_a, sub_b)
++            elif a_numeric != b_numeric:
++                cmp_result = -1 if a_numeric else 1
+             else:
+-                return _cmp(a, b)
+-
+-        a_parts = [int(x) if x.isdigit() else x for x in (a or "").split(".")]
+-        b_parts = [int(x) if x.isdigit() else x for x in (b or "").split(".")]
+-
+-        for sub_a, sub_b in zip(a_parts, b_parts):
+-            cmp_result = cmp_prerelease_tag(sub_a, sub_b)
+-            if cmp_result != 0:
++                cmp_result = _cmp(sub_a, sub_b)
++            if cmp_result:
+                 return cmp_result
+ 
+         return _cmp(len(a_parts), len(b_parts))

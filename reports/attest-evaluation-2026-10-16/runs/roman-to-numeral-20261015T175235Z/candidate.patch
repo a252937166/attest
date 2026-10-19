@@ -1,0 +1,31 @@
+--- a/roman/core.py
++++ b/roman/core.py
+@@ -7,4 +7,27 @@
+ 
+ 
+ def to_roman(n):
+-    raise NotImplementedError("to_roman is not implemented yet")
++    if not isinstance(n, int):
++        raise TypeError("n must be an integer")
++    if not 1 <= n <= 3999:
++        raise ValueError("n must be between 1 and 3999 inclusive")
++    val = [
++        1000, 900, 500, 400,
++        100, 90, 50, 40,
++        10, 9, 5, 4,
++        1
++    ]
++    syms = [
++        "M", "CM", "D", "CD",
++        "C", "XC", "L", "XL",
++        "X", "IX", "V", "IV",
++        "I"
++    ]
++    roman_num = []
++    i = 0
++    while n > 0:
++        for _ in range(n // val[i]):
++            roman_num.append(syms[i])
++            n -= val[i]
++        i += 1
++    return ''.join(roman_num)

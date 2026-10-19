@@ -1,0 +1,42 @@
+{
+  "model": "gpt-6-astra",
+  "consistent": false,
+  "notes": "The supplied decoder confirms the specification-stage claim. The witness calls only the unchanged decoder, never the encode stub.",
+  "conflicts": [
+    {
+      "requirement_ids": [
+        "AC10",
+        "AC11",
+        "AC13"
+      ],
+      "summary": "For input 'a1', the required encoding is 'a111', which the unchanged decoder maps to 111 copies of 'a', violating universal round-tripping.",
+      "witness_path": "contract_audit/witness_1.py",
+      "witness_sha256": "a37b4aeb01f635af2f2fabfa866ddd5444b9411d6df2958d8eb6be7ee71061ed",
+      "exit_code": 3,
+      "timed_out": false,
+      "stdout_tail": "CONTRADICTION AC10,AC11,AC13: input 'a1' requires encoding 'a111', but the unchanged decode returns 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' (length 111) instead of the required 'a1'.\n",
+      "stderr_tail": "",
+      "operation_uuid": "01a1532e-e54d-7536-a8e8-6676532a35db",
+      "demonstrated": true,
+      "status": "demonstrated"
+    }
+  ],
+  "outcome": "contradiction demonstrated",
+  "error": null,
+  "rule": "a conflict is demonstrated only when it names existing acceptance criteria and its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' that names at least one of them and exits with code 3; any other outcome records the conflict as claimed only, which never ends a run; the witness's reasoning is the model's and its execution is recorded, which is not a formal proof of impossibility",
+  "requirement_ids_known": [
+    "AC1",
+    "AC2",
+    "AC3",
+    "AC4",
+    "AC5",
+    "AC6",
+    "AC7",
+    "AC8",
+    "AC9",
+    "AC10",
+    "AC11",
+    "AC12",
+    "AC13"
+  ]
+}

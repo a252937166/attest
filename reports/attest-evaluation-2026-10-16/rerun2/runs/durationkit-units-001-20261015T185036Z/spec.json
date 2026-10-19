@@ -1,0 +1,50 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Extend parse_duration to accept duration strings composed of one or more components, each a non-negative integer followed by a unit (d, h, m, s, ms) in strictly descending order, with optional whitespace around the whole string and between components. The function returns the total seconds as a float. It must preserve existing behavior for plain integer strings, raise ValueError for all malformed inputs (empty, negative, fractional, unknown unit, repeated unit, out-of-order, missing number, etc.), and raise TypeError for non-string input.",
+  "interface_contract": [
+    {
+      "name": "parse_duration",
+      "signature": "parse_duration(text: str) -> float",
+      "behavior": "Parses a duration string and returns the total number of seconds as a float. Accepts either a plain non-negative integer (seconds) or a sequence of components. A component is a non-negative integer immediately followed by a unit suffix: 'd' (days), 'h' (hours), 'm' (minutes), 's' (seconds), or 'ms' (milliseconds). Components must appear in descending unit order (d > h > m > s > ms), each unit at most once. Whitespace is allowed around the entire string and between components, but not between a number and its unit. The function computes the total seconds (1d = 86400s, 1h = 3600s, 1m = 60s, 1s = 1s, 1ms = 0.001s) and returns the sum as a float.",
+      "error_cases": [
+        "TypeError: if text is not a string.",
+        "ValueError: if text is empty or whitespace-only.",
+        "ValueError: if any component has a negative integer.",
+        "ValueError: if any component has a fractional number (contains a decimal point).",
+        "ValueError: if a unit suffix is not one of d, h, m, s, ms.",
+        "ValueError: if the same unit appears more than once.",
+        "ValueError: if components are not in strictly descending unit order.",
+        "ValueError: if a unit appears without a preceding number (e.g., 'h', '1h30').",
+        "ValueError: if there is whitespace between a number and its unit (e.g., '1 h').",
+        "ValueError: if any other malformed text is encountered (e.g., unknown characters, missing components)."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. parse_duration('90') == 90.0 and surrounding whitespace is still ignored (existing behavior preserved).",
+    "2. parse_duration('0') == 0.0 and parse_duration('0s') == 0.0.",
+    "3. Single components work for every unit: '2d' -> 172800.0, '3h' -> 10800.0, '15m' -> 900.0, '45s' -> 45.0, '500ms' -> 0.5.",
+    "4. Combined components in descending order work: '1h30m' -> 5400.0, '2d4h' -> 187200.0, '1m1s' -> 61.0, '1s500ms' -> 1.5, '1d1h1m1s1ms' -> 90061.001.",
+    "5. Whitespace is accepted around the string and between components: ' 1h 30m ' -> 5400.0; '1 h' raises ValueError.",
+    "6. ValueError for empty string '' and whitespace-only '   '.",
+    "7. ValueError for negative numbers: '-1h'.",
+    "8. ValueError for fractional numbers: '1.5h'.",
+    "9. ValueError for unknown units: '1x'.",
+    "10. ValueError for repeated units: '1h1h'.",
+    "11. ValueError for components out of descending order: '30m1h'.",
+    "12. ValueError for unit without a number: 'h'.",
+    "13. ValueError for number without a unit when other components have units (i.e., trailing number): '1h30'.",
+    "14. ValueError for completely invalid text: 'abc'.",
+    "14. TypeError for non-string input such as 90 or None.",
+    "15. The return type is float for every accepted input."
+  ],
+  "out_of_scope": [
+    "Do not modify the existing tests in tests/test_parse.py; they must continue to pass.",
+    "Do not change the function signature (name, parameters, return type).",
+    "Do not modify durationkit/__init__.py or any other files besides durationkit/parse.py.",
+    "Do not add new public functions or classes.",
+    "Do not introduce external dependencies."
+  ],
+  "external_references_needed": []
+}

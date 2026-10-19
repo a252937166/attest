@@ -1,0 +1,38 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -699,5 +699,35 @@
+             return False
+ 
+ 
++
++    def is_compatible(self, other: 'Version') -> bool:
++        """Return True if `other` (the new version) can replace `self` (the old version) under semantic versioning compatibility rules.
++
++        Majors must match. For major > 0, new.minor >= old.minor and prerelease parts must be identical (both None counts as equal), patch is ignored.
++        For major == 0, versions must be identical in major, minor, patch, and prerelease.
++
++        Examples:
++        >>> Version(1, 2, 3).is_compatible(Version(1, 2, 3))
++        True
++        >>> Version(1, 2, 3).is_compatible(Version(1, 2, 4))
++        True
++        """
++        if not isinstance(other, Version):
++            raise TypeError(f"Expected a Version type but got {type(other)}")
++
++        if self.major != other.major:
++            return False
++
++        if self.major == 0:
++            # For major 0, all components must match exactly (except build, which is ignored per spec? but spec says major, minor, patch, prerelease)
++            return (self.minor == other.minor and
++                    self.patch == other.patch and
++                    self.prerelease == other.prerelease)
++        else:
++            # For major > 0
++            return (other.minor >= self.minor and
++                    self.prerelease == other.prerelease)
++
++
+ #: Keep the VersionInfo name for compatibility
+ VersionInfo = Version

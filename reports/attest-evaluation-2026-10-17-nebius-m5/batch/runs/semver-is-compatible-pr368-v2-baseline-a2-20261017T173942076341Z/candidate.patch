@@ -1,0 +1,65 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -698,6 +698,62 @@
+         except ValueError:
+             return False
+ 
++    def is_compatible(self, other):
++        """Return True if `other` is compatible with `self`.
++
++        Two versions are compatible when their majors are equal, the minor of `other`
++        is greater than or equal to the minor of `self`, and their prerelease parts
++        are equal (both absent counts as equal). The patch part is ignored.
++
++        Versions with major 0 are special: a major-0 version is compatible only
++        with a version that is identical in major, minor, patch and prerelease.
++
++        Parameters
++        ----------
++        other : Version
++            The version to compare with.
++
++        Returns
++        -------
++        bool
++            True if compatible, False otherwise.
++
++        Raises
++        ------
++        TypeError
++            If `other` is not a Version instance (or subclass).
++
++        Examples
++        --------
++        >>> Version(1, 2, 3).is_compatible(Version(1, 2, 3))
++        True
++        >>> Version(1, 2, 3).is_compatible(Version(1, 2, 4))
++        True
++        >>> Version(1, 2, 4).is_compatible(Version(1, 2, 3))
++        True
++        >>> Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0'))
++        True
++        >>> Version(0, 1, 0).is_compatible(Version(0, 1, 0))
++        True
++        >>> Version(0, 1, 0).is_compatible(Version(0, 1, 1))
++        False
++        """
++        if not isinstance(other, Version):
++            raise TypeError(f"Expected a Version type but got {type(other)}")
++
++        # Major 0 special case
++        if self.major == 0:
++            return (self.major, self.minor, self.patch, self.prerelease) == \
++                   (other.major, other.minor, other.patch, other.prerelease)
++
++        # For major >= 1
++        if self.major != other.major:
++            return False
++        if other.minor < self.minor:
++            return False
++        # Prerelease must be equal
++        return self.prerelease == other.prerelease
++
+ 
+ #: Keep the VersionInfo name for compatibility
+ VersionInfo = Version

@@ -1,0 +1,1145 @@
+{
+  "run_id": "kvparse-refactor-001-attest-a1-20261019T144354722873Z",
+  "started_at_utc": "2026-10-19T14:43:54.725064+00:00",
+  "finished_at_utc": "2026-10-19T14:51:36.928194+00:00",
+  "profile": {
+    "label": "eval-attest-a1",
+    "provider": {
+      "provider": "codex_gateway",
+      "base_url": null,
+      "base_url_sha256": "68e25b464500800e",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "structured_endpoint": "/run",
+      "native_tools": false,
+      "streaming": false,
+      "auto_retry": false,
+      "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+      "pacing": {
+        "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+        "policy_source": "gateway status: hourly request counting not enforced",
+        "hourly_limit_assumed": null,
+        "budget": null,
+        "max_concurrency": 2,
+        "max_wait_s": 3900.0,
+        "state_shared_across_processes": true
+      }
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "provenance": {
+    "attest_version": "0.7.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "f836cfd0154faa878214976dab4fcc0a982dde38343e3944afceb8fc7f3336d3",
+      "files": 37,
+      "git_commit": null,
+      "version": "0.7.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/7",
+      "sha256": "97d3d47d1d5b4fed68c3349da14c0cdb06091ec61afa61699eac5b27315b1415"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "db8e2a76834b83ac69a3d5ecad722e712693ecb982f2a2ec3b2e4d5dde6de00f",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/reports/attest-revision6-repairs-2026-10-19/evaluation-codex-3/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "codex_gateway",
+      "temperature": null,
+      "max_tokens": null,
+      "note": "sampling is controlled by the gateway; the reasoning effort requested per role is recorded",
+      "roles": {
+        "spec": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "seal": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "implement": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "break": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "audit": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "arbitrate": {
+          "model": "gpt-6-astra",
+          "effort": "medium"
+        },
+        "summary": {
+          "model": "gpt-6-luna",
+          "effort": "low"
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 14,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": true,
+      "arbitration_apply": true,
+      "max_corrected_tests": 3,
+      "max_mutants_for_discrimination": 3,
+      "max_breaker_attempts": 3,
+      "max_witnesses": 3,
+      "witness_timeout_s": 60
+    },
+    "pacing": {
+      "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+      "policy_source": "gateway status: hourly request counting not enforced",
+      "hourly_limit_assumed": null,
+      "budget": null,
+      "max_concurrency": 2,
+      "max_wait_s": 3900.0,
+      "state_shared_across_processes": true
+    },
+    "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+    "upstream": null
+  },
+  "task": {
+    "id": "kvparse-refactor-001",
+    "title": "Behaviour-preserving refactor of kvparse.parser",
+    "statement": "Refactor kvparse/parser.py without changing any behaviour. Two changes are requested. (1) parse_line(line) must be rewritten without the hand-rolled index loops: split the line at the first '=' with str.partition, strip the key and the value, raise ValueError when there is no '=' or the stripped key is empty, and remove one pair of matching surrounding quotes (both ends '\"' or both ends \"'\") from a stripped value of length two or more; the function must not contain a 'while' loop. (2) Extract the detection of ignorable lines into a module-level function _is_ignorable(line) -> bool in kvparse/parser.py that returns True exactly when the stripped line is empty or starts with '#' or ';', and make parse use it. The observable behaviour of parse and parse_line must stay byte-for-byte identical for every str input: the same return values, the same exception types in the same situations (TypeError for non-string input to parse, ValueError for a malformed line), later duplicate keys still win, and quotes are removed only when the stripped value starts and ends with the same quote character (a value like '\"x\\'' keeps both characters; a lone '\"' is kept). Exception messages are not prescribed. parse keeps raising TypeError for non-string input; what parse_line does with a non-string argument (for example a list or a mapping) is unspecified and must not be tested, because the required use of str.partition changes it. Keep the public names parse and parse_line exported from kvparse, do not modify the tests, and keep the existing suite passing.",
+    "acceptance_criteria": [
+      "parse_line behaviour unchanged: 'a=b' -> ('a','b'); ' a = b ' -> ('a','b'); 'a==b' -> ('a','=b'); 'a = b = c' -> ('a','b = c'); 'a=' -> ('a',''); 'q = \"x\"' -> ('q','x'); \"q = 'x'\" -> ('q','x'); 'q = \"x\\'' -> ('q','\"x\\''); 'q = \"' -> ('q','\"'); \"q = ''\" -> ('q',''); 'q = \" spaced \"' -> ('q',' spaced '); 'k e y = v' -> ('k e y','v'); 'u = \"a\" \"b\"' -> ('u','a\" \"b').",
+      "parse_line raises ValueError for '', 'novalue', ' = v', '   ', '=' and '\\t= 1'.",
+      "parse behaviour unchanged: comments ('#' or ';' as the first non-blank character), blank lines and Windows line endings are handled as before; later duplicate keys win; parse('') == {}; parse('k = v') == {'k': 'v'}.",
+      "parse raises ValueError for a malformed line anywhere in the text and TypeError for non-string input (None, 3, a list, bytes).",
+      "kvparse.parser._is_ignorable exists, returns True for '   # c', '' and '\\t; c', and False for 'a = 1' and 'a = # not a comment'.",
+      "The source of parse_line contains no 'while' loop and uses str.partition.",
+      "The existing tests in tests/ pass unchanged.",
+      "Unspecified, not to be tested: parse_line with a non-string argument."
+    ],
+    "allowed_write_globs": [
+      "kvparse/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from kvparse import parse, parse_line   (module kvparse.parser)",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "kvparse/__init__.py": "cd38643fed984c07101a236bab864a64236c9b5c864a93b200d334a0615620d8",
+      "kvparse/parser.py": "47a1afb046098aa52b49f375e5622a5694e4678b0e1f111c92d49e5947d19753",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_parser.py": "b6fe9dd3b69a51824949aeab6187ef22e2b4423b2b794ed0b18059343cc786df"
+    },
+    "spec_sha256": "4c9587b9205c67694afee4df03fb99814ed1602348c1a6c53430347db6bfddd2"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a1549e-9c03-749a-bdef-fb5c6943bde5",
+    "checkpoint_image_uuid": "344ed4d5-fee4-4482-b6ad-214165157a9f",
+    "checkpoint_chain": [],
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 4,
+      "tests": [
+        {
+          "id": "tests.test_parser.TestParse.test_basic",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_parser.TestParse.test_comments_and_blank_lines",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_parser.TestParse.test_errors",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_parser.TestParse.test_quotes_removed",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_parser.TestParse.test_basic",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parser.TestParse.test_comments_and_blank_lines",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parser.TestParse.test_errors",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_parser.TestParse.test_quotes_removed",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 4,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a1549e-9c03-749a-bdef-fb5c6943bde5",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.252,
+      "stderr_tail": "test_basic (tests.test_parser.TestParse.test_basic) ... ok\ntest_comments_and_blank_lines (tests.test_parser.TestParse.test_comments_and_blank_lines) ... ok\ntest_errors (tests.test_parser.TestParse.test_errors) ... ok\ntest_quotes_removed (tests.test_parser.TestParse.test_quotes_removed) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "suite_binding": {
+      "mode": "bound",
+      "reason": "4 statically discovered test ids in 1 module(s) match the baseline run",
+      "modules": [
+        {
+          "name": "tests.test_parser",
+          "path": "tests/test_parser.py",
+          "sha256": "b6fe9dd3b69a51824949aeab6187ef22e2b4423b2b794ed0b18059343cc786df",
+          "tests": 4
+        }
+      ]
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Refactor kvparse/parser.py while preserving its string-input parsing behavior: replace parse_line's manual index loops with splitting at the first '=' using str.partition, retain whitespace stripping and removal of exactly one matching surrounding quote pair, and extract blank/comment-line detection into a module-level _is_ignorable helper used by parse. Preserve public exports, duplicate-key handling, input validation, and the existing tests without modification.",
+    "interface_contract": [
+      {
+        "name": "kvparse.parser.parse_line (also exported as kvparse.parse_line)",
+        "signature": "parse_line(line)",
+        "behavior": "For a str input, partition at the first '='. Strip surrounding whitespace from the key and value using Python str.strip semantics. If the stripped value has length at least two and its first and last characters are both single quotes or both double quotes, remove exactly those two characters, without further stripping or interpreting the interior. Return a two-element tuple (key, value) of strings. Use str.partition and no while loop.",
+        "error_cases": [
+          "ValueError: the input string contains no '='.",
+          "ValueError: the portion before the first '=' is empty after stripping.",
+          "Behavior for non-string arguments is unspecified and must not be tested.",
+          "Exception messages are unspecified."
+        ]
+      },
+      {
+        "name": "kvparse.parser.parse (also exported as kvparse.parse)",
+        "signature": "parse(text)",
+        "behavior": "Validate input with isinstance(text, str), then process lines in text.splitlines() order. Use _is_ignorable to skip blank and comment lines. Pass each remaining raw line to parse_line and collect its key and value in a dict. Later occurrences of a key overwrite its value without changing its original dictionary insertion position. Return the resulting dict; empty or entirely ignorable text returns {}.",
+        "error_cases": [
+          "TypeError: text is not an instance of str, including None, integers, lists, mappings, and bytes.",
+          "ValueError: any non-ignorable line lacks '=' or has an empty stripped key; propagate the failure instead of returning a partial dict.",
+          "Exception messages are unspecified."
+        ]
+      },
+      {
+        "name": "kvparse.parser._is_ignorable",
+        "signature": "_is_ignorable(line) -> bool",
+        "behavior": "Module-level helper for string lines. Return True exactly when line.strip() is empty or begins with '#' or ';'; otherwise return False. Return a bool. parse must use this helper to determine whether to skip a line. No package-level export is required.",
+        "error_cases": [
+          "Behavior for non-string arguments is unspecified and must not be tested."
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "1. parse_line returns the exact tuples for these inputs: 'a=b' → ('a', 'b'); ' a = b ' → ('a', 'b'); 'a==b' → ('a', '=b'); 'a = b = c' → ('a', 'b = c'); 'a=' → ('a', ''); 'k e y = v' → ('k e y', 'v').",
+      "2. parse_line removes exactly one matching outer quote pair: \"q = \\\"x\\\"\" → ('q', 'x'); \"q = 'x'\" → ('q', 'x'); \"q = ''\" → ('q', ''); 'q = \"\"' → ('q', ''); 'q = \" spaced \"' → ('q', ' spaced '); 'u = \"a\" \"b\"' → ('u', 'a\" \"b').",
+      "3. parse_line preserves unmatched, mismatched, and lone quotes: a value consisting of double quote, x, single quote remains those exact three characters; a value consisting of a lone double quote or lone single quote remains unchanged. Nested matching quote pairs lose only the outermost pair.",
+      "4. parse_line strips whitespace according to str.strip, including tabs and Unicode whitespace, while preserving all interior key/value characters, additional '=' characters, backslashes, and quote contents. It performs no escape decoding or inline-comment removal.",
+      "5. parse_line raises ValueError for each of '', 'novalue', ' = v', '   ', '=', and '\\t= 1', and generally for every string with no '=' or an empty stripped key.",
+      "6. parse_line treats '#' and ';' as ordinary characters: '#k=v' and ';k=v' produce key/value tuples, while '# comment' without '=' raises ValueError.",
+      "7. _is_ignorable returns True for '', whitespace-only strings, '   # c', and '\\t; c'; it returns False for 'a = 1', 'a = # not a comment', and 'a = ; not a comment'. Its result follows the stated strip-and-prefix rule for all string inputs.",
+      "8. parse('') == {} and parse('k = v') == {'k': 'v'}. Text containing only blank lines and full-line comments returns {}. Comment lines are ignored even when they contain no '='.",
+      "9. parse retains text.splitlines() semantics for all supported line boundaries, including LF, CRLF, CR, and Unicode line separators. Leading/trailing blank lines and trailing line endings do not create malformed lines.",
+      "10. parse processes non-ignorable lines in order, preserves inline '#' and ';' in values, and lets later duplicate keys win. For 'a=1\\nb=2\\na=3', the result is {'a': '3', 'b': '2'} with key iteration order ['a', 'b'].",
+      "11. parse raises ValueError for a malformed non-ignorable line at the beginning, middle, or end of otherwise valid text, including lines without '=' and lines with an empty stripped key.",
+      "12. parse raises TypeError for None, 3, a list, a mapping, and bytes, retaining its isinstance(text, str) input validation.",
+      "13. Structural inspection confirms that parse_line uses str.partition with '=' to split at the first separator, replaces the manual index loops, and contains no while loop.",
+      "14. Structural inspection confirms that _is_ignorable is defined at module scope in kvparse/parser.py and that parse calls it to decide which lines to skip.",
+      "15. Both 'from kvparse import parse, parse_line' and imports from kvparse.parser continue to work with the existing public signatures.",
+      "16. The existing tests under tests/ remain unchanged and pass. Added verification must not assert behavior for non-string arguments to parse_line or assert exception-message text."
+    ],
+    "out_of_scope": [
+      "Writing implementation code during this specification stage.",
+      "Modifying the existing tests.",
+      "Changing public names, signatures, exports, return shapes, parsing rules, or prescribed exception types.",
+      "Adding escape processing, inline comments, multiline quoted values, quote validation, or other parser features.",
+      "Defining or testing non-string input behavior for parse_line or _is_ignorable.",
+      "Preserving or prescribing exception messages.",
+      "Adding dependencies or unrelated repository changes."
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": {
+    "path": "sealed/test_sealed.py",
+    "sha256": "83ead5a8a03a1a9fa35e00d05e61e537f2597fa1fc2ffad3b4371e16dad05e36",
+    "test_count": 20,
+    "declared_test_count": 20,
+    "expected_ids": [
+      "test_sealed.TestParseLine.test_first_separator_and_surrounding_spaces",
+      "test_sealed.TestParseLine.test_one_matching_outer_quote_pair_is_removed",
+      "test_sealed.TestParseLine.test_unmatched_mismatched_and_nested_quotes",
+      "test_sealed.TestParseLine.test_strip_uses_python_whitespace_semantics",
+      "test_sealed.TestParseLine.test_literal_value_content_is_preserved",
+      "test_sealed.TestParseLine.test_missing_separator_raises_value_error",
+      "test_sealed.TestParseLine.test_empty_stripped_key_raises_value_error",
+      "test_sealed.TestParseLine.test_comment_markers_are_ordinary_line_characters",
+      "test_sealed.TestParseLine.test_partition_is_used_without_index_loops",
+      "test_sealed.TestParse.test_empty_and_single_line_text",
+      "test_sealed.TestParse.test_blank_and_full_line_comments_are_ignored",
+      "test_sealed.TestParse.test_all_splitlines_boundaries_are_processed",
+      "test_sealed.TestParse.test_duplicate_key_overwrites_without_moving_its_position",
+      "test_sealed.TestParse.test_inline_comment_markers_remain_in_values",
+      "test_sealed.TestParse.test_malformed_non_ignorable_lines_raise_at_every_position",
+      "test_sealed.TestParse.test_non_string_text_raises_type_error",
+      "test_sealed.TestParse.test_str_subclass_is_accepted",
+      "test_sealed.TestParse.test_module_level_helper_follows_strip_and_prefix_rule",
+      "test_sealed.TestParse.test_parse_calls_helper_for_each_input_line",
+      "test_sealed.TestParse.test_package_and_parser_module_exports_match"
+    ],
+    "escapes_repaired": false,
+    "sealed_at_utc": "2026-10-19T14:48:41.821014+00:00",
+    "author_model": "gpt-6-sol",
+    "attempts": 1,
+    "rejected_attempts": [],
+    "notes": "Bytecode checks cover the required refactor without reading source; existing-suite file immutability must be checked by the runner.",
+    "coverage": [
+      {
+        "criterion": 1,
+        "tests": [
+          "test_first_separator_and_surrounding_spaces"
+        ]
+      },
+      {
+        "criterion": 2,
+        "tests": [
+          "test_one_matching_outer_quote_pair_is_removed"
+        ]
+      },
+      {
+        "criterion": 3,
+        "tests": [
+          "test_unmatched_mismatched_and_nested_quotes"
+        ]
+      },
+      {
+        "criterion": 4,
+        "tests": [
+          "test_strip_uses_python_whitespace_semantics",
+          "test_literal_value_content_is_preserved"
+        ]
+      },
+      {
+        "criterion": 5,
+        "tests": [
+          "test_missing_separator_raises_value_error",
+          "test_empty_stripped_key_raises_value_error"
+        ]
+      },
+      {
+        "criterion": 6,
+        "tests": [
+          "test_comment_markers_are_ordinary_line_characters"
+        ]
+      },
+      {
+        "criterion": 7,
+        "tests": [
+          "test_module_level_helper_follows_strip_and_prefix_rule"
+        ]
+      },
+      {
+        "criterion": 8,
+        "tests": [
+          "test_empty_and_single_line_text",
+          "test_blank_and_full_line_comments_are_ignored"
+        ]
+      },
+      {
+        "criterion": 9,
+        "tests": [
+          "test_all_splitlines_boundaries_are_processed"
+        ]
+      },
+      {
+        "criterion": 10,
+        "tests": [
+          "test_duplicate_key_overwrites_without_moving_its_position",
+          "test_inline_comment_markers_remain_in_values"
+        ]
+      },
+      {
+        "criterion": 11,
+        "tests": [
+          "test_malformed_non_ignorable_lines_raise_at_every_position"
+        ]
+      },
+      {
+        "criterion": 12,
+        "tests": [
+          "test_non_string_text_raises_type_error",
+          "test_str_subclass_is_accepted"
+        ]
+      },
+      {
+        "criterion": 13,
+        "tests": [
+          "test_partition_is_used_without_index_loops"
+        ]
+      },
+      {
+        "criterion": 14,
+        "tests": [
+          "test_module_level_helper_follows_strip_and_prefix_rule",
+          "test_parse_calls_helper_for_each_input_line"
+        ]
+      },
+      {
+        "criterion": 15,
+        "tests": [
+          "test_package_and_parser_module_exports_match"
+        ]
+      },
+      {
+        "criterion": 16,
+        "tests": [
+          "test_empty_and_single_line_text",
+          "test_blank_and_full_line_comments_are_ignored",
+          "test_one_matching_outer_quote_pair_is_removed",
+          "test_missing_separator_raises_value_error",
+          "test_non_string_text_raises_type_error"
+        ]
+      }
+    ],
+    "coverage_gaps": [],
+    "coverage_note": "the map is the sealer's own claim of which test checks which criterion; gaps are criteria no test claims"
+  },
+  "red_run": {
+    "ran": 20,
+    "tests": [
+      {
+        "id": "test_sealed.TestParseLine.test_first_separator_and_surrounding_spaces",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.339,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParseLine.test_one_matching_outer_quote_pair_is_removed",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.319,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParseLine.test_unmatched_mismatched_and_nested_quotes",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.315,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParseLine.test_strip_uses_python_whitespace_semantics",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.315,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParseLine.test_literal_value_content_is_preserved",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.321,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParseLine.test_missing_separator_raises_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.328,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParseLine.test_empty_stripped_key_raises_value_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.316,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParseLine.test_comment_markers_are_ordinary_line_characters",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.314,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParseLine.test_partition_is_used_without_index_loops",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.315,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 79, in test_partition_is_used_without_index_loops\n    self.assertTrue(any(i.argval == 'partition' and i.opname in ('LOAD_ATTR', 'LOAD_METHOD') for i in instructions))\nAssertionError: False is not true\n"
+      },
+      {
+        "id": "test_sealed.TestParse.test_empty_and_single_line_text",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.312,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParse.test_blank_and_full_line_comments_are_ignored",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.314,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParse.test_all_splitlines_boundaries_are_processed",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.315,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParse.test_duplicate_key_overwrites_without_moving_its_position",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.315,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParse.test_inline_comment_markers_remain_in_values",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.318,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParse.test_malformed_non_ignorable_lines_raise_at_every_position",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.314,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParse.test_non_string_text_raises_type_error",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.312,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParse.test_str_subclass_is_accepted",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.316,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestParse.test_module_level_helper_follows_strip_and_prefix_rule",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.312,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 129, in test_module_level_helper_follows_strip_and_prefix_rule\n    self.assertTrue(callable(helper))\nAssertionError: False is not true\n"
+      },
+      {
+        "id": "test_sealed.TestParse.test_parse_calls_helper_for_each_input_line",
+        "outcome": "FAIL",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.317,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 153, in test_parse_calls_helper_for_each_input_line\n    self.assertEqual(seen, ['  # comment', 'a=1', ' ', 'b=; literal'])\nAssertionError: Lists differ: [] != ['  # comment', 'a=1', ' ', 'b=; literal']\n\nSecond list contains 4 additional elements.\nFirst extra element 0:\n'  # comment'\n\n- []\n+ ['  # comment', 'a=1', ' ', 'b=; literal']\n"
+      },
+      {
+        "id": "test_sealed.TestParse.test_package_and_parser_module_exports_match",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.316,
+        "captured_tail": "",
+        "failure_tail": ""
+      }
+    ],
+    "passed": 17,
+    "failing": 3,
+    "subtest_events": 0,
+    "import_error": null,
+    "all_passed": false,
+    "canary_ok": true,
+    "summary_line": "FAILED (3 of 20 methods: FAIL 3)",
+    "operation_uuid": "01a154a2-c638-775b-b126-9d20ac47bb5d",
+    "nonce": "13a66ca80d8b542735bd9362140d539f",
+    "supervisor_exit_code": 1,
+    "runner_error": null
+  },
+  "trajectory": {
+    "turns": 0,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "read_file",
+        "path": "kvparse/parser.py",
+        "reason": "I’ll inspect the current parser so the refactor preserves its existing behavior and exports.",
+        "observation_head": "[lines 1-57 of 57]\n\"\"\"A small key = value configuration parser.\"\"\"\n\n\ndef parse_line(line):\n    \"\"\"Parse one `key = value` line into a (key, value) tuple.\n\n    K"
+      },
+      {
+        "turn": 2,
+        "action": "write_file",
+        "path": "kvparse/parser.py",
+        "reason": "Replace the index loops with partition and extract the shared blank/comment check into a module-level helper used by parse.",
+        "observation_head": "wrote kvparse/parser.py (1468 bytes)"
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": false
+  },
+  "candidate": {
+    "changed_paths": [],
+    "deleted_paths": [],
+    "scope_ok": null,
+    "violations": [],
+    "diff": "",
+    "sha256": {}
+  },
+  "contract_audit": {
+    "model": "gpt-6-astra",
+    "consistent": true,
+    "notes": "For plain string inputs, partitioning at the first '=' preserves the existing parser's behavior, including whitespace stripping, quote handling, and malformed-line errors. Extracting the ignorable-line check is compatible with all criteria, unchanged exports, existing tests, and the write scope.",
+    "conflicts": [],
+    "outcome": "consistent",
+    "error": null,
+    "rule": "a conflict is demonstrated only when it names existing criteria and its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' that names at least one of them and exits with code 3; it is GROUNDED, and may end the run as infeasible, only when every named requirement is an authoritative task criterion (TC) and the witness conforms to the constrained witness language attest-witness/1 (a positive grammar: literal inputs, allowed built-ins and standard-library functions, and functions or classes the frozen repository defines, every call origin resolved statically; enforced mechanically here and again by attest check); a demonstrated conflict that involves a derived criterion (AC) or a witness outside the language is held for a human; a claimed-only conflict never ends a run; whether the witness's inputs and comparison demonstrate that the criteria cannot all hold is the model's reasoning, recorded with its execution, not a formal proof of impossibility",
+    "requirement_ids_known": {
+      "task": [
+        "TC1",
+        "TC2",
+        "TC3",
+        "TC4",
+        "TC5",
+        "TC6",
+        "TC7",
+        "TC8"
+      ],
+      "derived": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC5",
+        "AC6",
+        "AC7",
+        "AC8",
+        "AC9",
+        "AC10",
+        "AC11",
+        "AC12",
+        "AC13",
+        "AC14",
+        "AC15",
+        "AC16"
+      ]
+    },
+    "input_domain": "the input domain of a witness is the set of values the task names or implies: literals of the built-in types the task's statement and criteria use (plain str, int, list, dict, bytes, None and so on) and values computed from them by the unchanged repository code; instances of subclasses of built-in types, objects with overridden special methods and other adversarial values are OUTSIDE the domain unless the task names them explicitly",
+    "witness_language": "attest-witness/1"
+  },
+  "verification": null,
+  "breaker": null,
+  "drift": null,
+  "arbitration": null,
+  "gates": {},
+  "verdict": {
+    "verdict": "ERROR",
+    "reasons": [
+      "a sandbox operation's outcome is uncertain; it was not replayed [ref 5b49d539]"
+    ],
+    "warnings": []
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "codex_gateway",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T14:44:03.300077+00:00",
+        "elapsed_ms": 61777,
+        "gateway_duration_ms": 58072,
+        "prompt_chars": 6960,
+        "tokens_in": 11113,
+        "tokens_out": 1548,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 11113,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1548,
+          "reasoning_output_tokens": 0
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "audit",
+        "stage": "contract-audit",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T14:45:05.140153+00:00",
+        "elapsed_ms": 69205,
+        "gateway_duration_ms": 17759,
+        "prompt_chars": 17805,
+        "tokens_in": 13497,
+        "tokens_out": 103,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 13497,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 103,
+          "reasoning_output_tokens": 25
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T14:46:14.352834+00:00",
+        "elapsed_ms": 135060,
+        "gateway_duration_ms": 116030,
+        "prompt_chars": 11121,
+        "tokens_in": 11485,
+        "tokens_out": 5135,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11485,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5135,
+          "reasoning_output_tokens": 2623
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T14:48:41.825836+00:00",
+        "elapsed_ms": 60251,
+        "gateway_duration_ms": 25039,
+        "prompt_chars": 9404,
+        "tokens_in": 11087,
+        "tokens_out": 115,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11087,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 115,
+          "reasoning_output_tokens": 41
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T14:49:42.092392+00:00",
+        "elapsed_ms": 31192,
+        "gateway_duration_ms": 22846,
+        "prompt_chars": 11531,
+        "tokens_in": 11633,
+        "tokens_out": 559,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 11633,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 559,
+          "reasoning_output_tokens": 52
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T14:50:13.302387+00:00",
+        "elapsed_ms": 23603,
+        "gateway_duration_ms": 18656,
+        "prompt_chars": 11970,
+        "tokens_in": 11760,
+        "tokens_out": 144,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11760,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 144,
+          "reasoning_output_tokens": 74
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a1549e-9c03-749a-bdef-fb5c6943bde5",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "344ed4d5-fee4-4482-b6ad-214165157a9f",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.763,
+        "raw_cost_diag": 0.00295559,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T14:43:56.587925+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": "01a154a2-c638-775b-b126-9d20ac47bb5d",
+        "image_uuid": "344ed4d5-fee4-4482-b6ad-214165157a9f",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 7.793,
+        "raw_cost_diag": 0.0677284,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T14:48:29.433430+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-3",
+        "operation_uuid": null,
+        "image_uuid": "344ed4d5-fee4-4482-b6ad-214165157a9f",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "UNCERTAIN",
+        "exit_code": null,
+        "timed_out": null,
+        "signal": null,
+        "duration_s": null,
+        "raw_cost_diag": null,
+        "stdout_truncated": null,
+        "started_at_utc": "2026-10-19T14:50:36.915668+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "open_reservations": [],
+    "journal_failures": [],
+    "journal_repairs": [],
+    "journal_degraded": null,
+    "totals": {
+      "model_calls": 6,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 70575,
+      "tokens_out": 7604,
+      "tokens_cached": 21504,
+      "model_elapsed_ms": 381088,
+      "cost_usd": null,
+      "cost_usd_committed": 0.0,
+      "uncertain_unpriced_calls": 0,
+      "open_reservations": 0,
+      "open_reserved_usd": 0,
+      "journal_failures": 0,
+      "journal_repairs": 0,
+      "journal_degraded": null,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "codex_gateway:gpt-6-astra": {
+          "calls": 2,
+          "tokens_in": 24610,
+          "tokens_out": 1651,
+          "tokens_cached": 0,
+          "cost_usd": null,
+          "elapsed_ms": 130982,
+          "failed": 0
+        },
+        "codex_gateway:gpt-6-sol": {
+          "calls": 4,
+          "tokens_in": 45965,
+          "tokens_out": 5953,
+          "tokens_cached": 21504,
+          "cost_usd": null,
+          "elapsed_ms": 250106,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 3,
+      "sandbox_duration_s": 8.556,
+      "sandbox_retained_images": [
+        "344ed4d5-fee4-4482-b6ad-214165157a9f"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.07068399
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest-a1': inference provider codex_gateway; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, offers a corrected module. The correction counts only after mechanical validation (same test methods, only the failing tests' bodies changed, passes on the candidate, still fails on the unmodified base or is caught by a mutant, with every result structurally sound and bound to its nonce); the corrected gate is then re-run and the verdict re-derived from the gates. A sealed test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected). The classification itself remains a model judgement.",
+    "A mutant counts as killed only when a sealed test failed with an authentic child result under a structurally sound supervisor run; lost, forged, incomplete, non-isolated, crashed or timed-out runs are unknown and excluded from the mutation score, and `attest check` recomputes the classification from the raw results.",
+    "INFEASIBLE is recorded only when a witness program written by the contract auditor demonstrated the contradiction by running on the unmodified repository (exit code and output recorded); the witness's logic is the model's, its execution is not.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "implement",
+  "evidence_protocol": {
+    "version": 4,
+    "supervisor": "attest-sealed-supervisor/7",
+    "note": "a VERIFIED bundle of this protocol carries every gate with its raw supervisor result, every evaluated mutant's raw result, the base and mutant evidence of any validated correction, the contract audit and the ledger; an INFEASIBLE bundle carries the executed witness, its digest, output and operation, its analysis in the constrained witness language and copies of the repository files that analysis resolved call origins through; a bundle without this field is historical and is checked for internal consistency only",
+    "witness_language": "attest-witness/1"
+  }
+}

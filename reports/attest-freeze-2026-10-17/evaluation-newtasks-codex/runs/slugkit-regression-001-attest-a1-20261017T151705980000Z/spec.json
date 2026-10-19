@@ -1,0 +1,34 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Fix slugkit/core.py so slugify produces lowercase ASCII slugs by preserving ASCII letters and digits, replacing each maximal run of all other characters with one hyphen, and removing edge hyphens. Inputs containing no ASCII letters or digits must produce an empty string. Preserve the public import, string return type, rejection of non-string inputs, and all existing tests without modifying them.",
+  "interface_contract": [
+    {
+      "name": "slugkit.slugify",
+      "signature": "slugify(text)",
+      "behavior": "Accept a str, including str subclasses, and return a str. Retain original ASCII letters A-Z and a-z and digits 0-9, converting A-Z to lowercase. Treat every other character, including existing hyphens, underscores, whitespace, punctuation, and non-ASCII characters, as a separator. Replace each maximal separator run with exactly one hyphen and remove leading and trailing hyphens. Return '' when no retained characters remain. To resolve Unicode casing ambiguity, determine ASCII eligibility from the original characters: non-ASCII characters remain separators even if Unicode lowercasing could map them to ASCII. The function remains accessible through both slugkit.slugify and slugkit.core.slugify.",
+      "error_cases": [
+        "TypeError when text is not an instance of str; preserve the existing message 'text must be a str'."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. Separator runs collapse: slugify('Hello--World') == 'hello-world', slugify('a -- b') == 'a-b', slugify('one , two ; three') == 'one-two-three', and slugify('x___y') == 'x-y'.",
+    "2. Edge separators disappear: slugify('end!') == 'end', slugify('  padded  ') == 'padded', slugify('--both--') == 'both', and slugify('(parens)') == 'parens'.",
+    "3. Inputs without ASCII letters or digits return '': verify '', '!!!', '   ', '--', and '日本語'.",
+    "4. Existing normal behavior remains: slugify('Hello World') == 'hello-world', slugify('already-a-slug') == 'already-a-slug', slugify('Python 3') == 'python-3', and slugify('MiXeD CaSe 42') == 'mixed-case-42'.",
+    "5. Non-ASCII characters separate retained text: slugify('café crème') == 'caf-cr-me'. Original non-ASCII characters are never converted into retained ASCII letters; slugify('K') == '' and slugify('aKb') == 'a-b'.",
+    "6. ASCII letters and digits remain in their original order, with uppercase ASCII letters lowercased: slugify('AZaz09') == 'azaz09'.",
+    "7. Tabs and line breaks are separators: slugify('\\tA\\n\\r B\\t') == 'a-b'.",
+    "8. Every successful result is a str and is either empty or matches the entire pattern [a-z0-9]+(?:-[a-z0-9]+)*.",
+    "9. None, 3, 2.5, ['a'], and b'bytes' each raise TypeError with message 'text must be a str'. Instances of str subclasses are accepted and follow the same transformation rules.",
+    "10. Both existing import paths expose the function, and all existing tests in tests/ pass unchanged."
+  ],
+  "out_of_scope": [
+    "Modifying existing tests or slugkit/__init__.py.",
+    "Changing the public function name or parameter signature.",
+    "Adding Unicode transliteration, accent removal, configurable separators, or coercion of non-string inputs.",
+    "Adding dependencies or changing unrelated repository behavior."
+  ],
+  "external_references_needed": []
+}

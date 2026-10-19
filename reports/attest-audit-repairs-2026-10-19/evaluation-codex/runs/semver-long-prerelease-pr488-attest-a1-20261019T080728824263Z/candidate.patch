@@ -1,0 +1,38 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -185,21 +185,22 @@
+ 
+     @classmethod
+     def _nat_cmp(cls, a: Optional[str], b: Optional[str]) -> int:
+-        def cmp_prerelease_tag(a, b):
+-            if isinstance(a, int) and isinstance(b, int):
+-                return _cmp(a, b)
+-            elif isinstance(a, int):
+-                return -1
+-            elif isinstance(b, int):
+-                return 1
+-            else:
+-                return _cmp(a, b)
+-
+-        a_parts = [int(x) if x.isdigit() else x for x in (a or "").split(".")]
+-        b_parts = [int(x) if x.isdigit() else x for x in (b or "").split(".")]
++        def comparison_key(identifier: str):
++            if identifier and all("0" <= digit <= "9" for digit in identifier):
++                normalized = identifier.lstrip("0") or "0"
++                return (0, len(normalized), normalized)
++            if identifier.isdigit():
++                # Keep the legacy conversion (and its errors) for Unicode digits.
++                normalized = str(int(identifier))
++                return (0, len(normalized), normalized)
++            return (1, identifier)
++
++        # Build both lists before comparing so every Unicode conversion is eager.
++        a_parts = [comparison_key(x) for x in (a or "").split(".")]
++        b_parts = [comparison_key(x) for x in (b or "").split(".")]
+ 
+         for sub_a, sub_b in zip(a_parts, b_parts):
+-            cmp_result = cmp_prerelease_tag(sub_a, sub_b)
++            cmp_result = _cmp(sub_a, sub_b)
+             if cmp_result != 0:
+                 return cmp_result
+ 

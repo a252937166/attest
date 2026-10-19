@@ -1,0 +1,380 @@
+{
+  "run_id": "roman-to-numeral-20261015T183250Z",
+  "started_at_utc": "2026-10-15T18:32:50.594794+00:00",
+  "finished_at_utc": "2026-10-15T18:33:44.208158+00:00",
+  "profile": {
+    "label": "eval-attest",
+    "provider": {
+      "provider": "nebius_tokenfactory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "roles": {
+        "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "seal": "nvidia/nemotron-3-super-120b-a12b",
+        "implement": "nvidia/nemotron-3-super-120b-a12b",
+        "break": "nvidia/nemotron-3-super-120b-a12b",
+        "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "summary": "nvidia/Nemotron-3_5-Lightning"
+      },
+      "usd_cap": 0.5,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
+      "schema_in_prompt": true,
+      "auto_retry": false,
+      "pre_request_reservation": true,
+      "max_prompt_chars": 120000,
+      "max_tokens": 16000
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "task": {
+    "id": "roman-to-numeral",
+    "title": "roman-to-numeral",
+    "statement": "The roman package exposes is_roman_numeral (already implemented) and a stub to_roman(n). Implement to_roman(n) so that it converts an integer n in the range 1..3999 inclusive to its standard Roman numeral string using subtractive notation (4='IV', 9='IX', 40='XL', 90='XC', 400='CD', 900='CM'). Return a str. Raise ValueError when n is an int outside 1..3999. Raise TypeError when n is not an int (bool counts as non-int for this task is not required; treat only real ints as valid). Do not change is_roman_numeral or the tests.",
+    "acceptance_criteria": [
+      "to_roman(1)=='I', to_roman(4)=='IV', to_roman(9)=='IX'",
+      "to_roman(40)=='XL', to_roman(90)=='XC', to_roman(400)=='CD', to_roman(900)=='CM'",
+      "to_roman(2024)=='MMXXIV', to_roman(3999)=='MMMCMXCIX', to_roman(1994)=='MCMXCIV'",
+      "to_roman returns a str",
+      "ValueError for ints outside 1..3999 (0, -1, 4000)",
+      "TypeError for non-int input ('5', 5.0, None, [1])"
+    ],
+    "allowed_write_globs": [
+      "roman/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from roman import to_roman",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {
+      "tests/test_heldout.py": "df3d6510f741f0439b0c5ae26ee9a30411b0ebe3cc3805e95b5216b32ed83200"
+    },
+    "repo_files_sha256": {
+      "roman/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "roman/core.py": "ecf06262fbb5488a8342614555812ae355e921bc6af6c4ea62b26f06c56a6e6d",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "de899bd3b4bf3f6bdd8c55f4d46256450fd0eaf7c89e0609a4c808590649f203"
+    },
+    "spec_sha256": "4260759688c40bae278a4a6262c5bdc320c4a49fc026af98ea5bb6d9fde5b0f6"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a140d6-ba87-71fe-b32b-a638d49ee3dd",
+    "checkpoint_image_uuid": "07298a32-02de-48a3-a511-f376c606b202",
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a140d6-ba87-71fe-b32b-a638d49ee3dd",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.221,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Implement the `to_roman` function in the `roman.core` module to convert an integer between 1 and 3999 inclusive into its standard Roman numeral representation using subtractive notation (e.g., 4 -> 'IV', 9 -> 'IX', 40 -> 'XL', 90 -> 'XC', 400 -> 'CD', 900 -> 'CM'). The function must return a string. It must raise `ValueError` if the input is an integer outside the valid range, and `TypeError` if the input is not an integer (with `bool` considered non-integer). The existing `is_roman_numeral` function and the test suite must remain unchanged.",
+    "interface_contract": [
+      {
+        "name": "to_roman",
+        "signature": "def to_roman(n: int) -> str",
+        "behavior": "For an integer n in the range 1..3999 inclusive, return the standard Roman numeral string using subtractive notation. The mapping follows the conventional rules: I=1, V=5, X=10, L=50, C=100, D=500, M=1000, with subtractive pairs IV=4, IX=9, XL=40, XC=90, CD=400, CM=900. The result is a non-empty string composed only of the characters I, V, X, L, C, D, M.",
+        "error_cases": [
+          "TypeError: raised when n is not of type int (i.e., type(n) is not int). This includes bool, str, float, None, list, etc.",
+          "ValueError: raised when n is an int but not in the range 1..3999 inclusive (e.g., 0, -1, 4000)."
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "to_roman(1) returns 'I', to_roman(4) returns 'IV', to_roman(9) returns 'IX'.",
+      "to_roman(40) returns 'XL', to_roman(90) returns 'XC', to_roman(400) returns 'CD', to_roman(900) returns 'CM'.",
+      "to_roman(2024) returns 'MMXXIV', to_roman(3999) returns 'MMMCMXCIX', to_roman(1994) returns 'MCMXCIV'.",
+      "to_roman returns a value of type str for all valid inputs.",
+      "to_roman raises ValueError for integer inputs outside 1..3999, such as 0, -1, 4000.",
+      "to_roman raises TypeError for non-int inputs, such as '5', 5.0, None, [1].",
+      "The existing function is_roman_numeral remains unchanged and passes its current tests."
+    ],
+    "out_of_scope": [
+      "Do not modify the is_roman_numeral function.",
+      "Do not modify the test file tests/test_basic.py or any other test files.",
+      "Do not change the public interface of the roman package (i.e., the exported names in roman/__init__.py).",
+      "Do not add new dependencies or external libraries."
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": null,
+  "red_run": null,
+  "trajectory": {
+    "turns": 0,
+    "actions": [],
+    "path": "trajectory.jsonl",
+    "finished": false
+  },
+  "candidate": {
+    "changed_paths": [],
+    "deleted_paths": [],
+    "scope_ok": null,
+    "violations": [],
+    "diff": "",
+    "sha256": {}
+  },
+  "verification": null,
+  "breaker": null,
+  "drift": null,
+  "arbitration": null,
+  "gates": {},
+  "verdict": {
+    "verdict": "ERROR",
+    "reasons": [
+      "SandboxError: spawn outcome uncertain (URLError: <urlopen error [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1000)>); inspect account operations, do not replay"
+    ],
+    "warnings": []
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:32:55.396986+00:00",
+        "elapsed_ms": 7044,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3242,
+        "tokens_in": 1181,
+        "tokens_out": 2091,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 2091,
+          "prompt_tokens": 1181,
+          "total_tokens": 3272,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 1313,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1181
+        },
+        "cost_usd": 0.007454,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.050081
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-15T18:33:02.458562+00:00",
+        "elapsed_ms": 36728,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4590,
+        "tokens_in": 1410,
+        "tokens_out": 8297,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 8297,
+          "prompt_tokens": 1410,
+          "total_tokens": 9707,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 7505,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1410
+        },
+        "cost_usd": 0.00789,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015159
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a140d6-ba87-71fe-b32b-a638d49ee3dd",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "07298a32-02de-48a3-a511-f376c606b202",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.749,
+        "raw_cost_diag": 0.00274737,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-15T18:32:52.195251+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": null,
+        "image_uuid": "07298a32-02de-48a3-a511-f376c606b202",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "UNCERTAIN",
+        "exit_code": null,
+        "timed_out": null,
+        "signal": null,
+        "duration_s": null,
+        "raw_cost_diag": null,
+        "stdout_truncated": null,
+        "started_at_utc": "2026-10-15T18:33:39.194494+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "totals": {
+      "model_calls": 2,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 2591,
+      "tokens_out": 10388,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 43772,
+      "cost_usd": 0.015344,
+      "cost_usd_committed": 0.015344,
+      "uncertain_unpriced_calls": 0,
+      "by_model": {
+        "nebius_tokenfactory:nvidia/Nemotron-3-Ultra-550b-a55b": {
+          "calls": 1,
+          "tokens_in": 1181,
+          "tokens_out": 2091,
+          "tokens_cached": 0,
+          "cost_usd": 0.007454,
+          "elapsed_ms": 7044,
+          "failed": 0
+        },
+        "nebius_tokenfactory:nvidia/nemotron-3-super-120b-a12b": {
+          "calls": 1,
+          "tokens_in": 1410,
+          "tokens_out": 8297,
+          "tokens_cached": 0,
+          "cost_usd": 0.00789,
+          "elapsed_ms": 36728,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 2,
+      "sandbox_duration_s": 0.749,
+      "sandbox_retained_images": [
+        "07298a32-02de-48a3-a511-f376c606b202"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.00274737
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest': inference provider nebius_tokenfactory; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code; a candidate can still tamper from inside a child after the nonce was read (the mutation gate and held-out tests are the structural detectors).",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter then classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, corrects and re-verifies them (must pass on the candidate and still fail on the base). Arbitration is advisory by default and never clears an implementation bug or a contract dispute; it changes the verdict only in explicit apply mode.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API."
+  ],
+  "stage": "seal"
+}

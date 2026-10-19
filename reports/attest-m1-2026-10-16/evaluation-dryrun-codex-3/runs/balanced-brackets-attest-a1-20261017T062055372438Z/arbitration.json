@@ -1,0 +1,35 @@
+{
+  "applied": false,
+  "cleared": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "all 1 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base — candidate not falsified by these tests",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.BreakerTests.test_exhaustive_short_bracket_streams",
+          "classification": "test_defect",
+          "rationale": "The reduction oracle correctly checks bracket matching, but the reported failure is a timeout, not a wrong result. The test performs 9,331 subtests, and the contract imposes no execution-time requirement. This timeout does not demonstrate a contract violation by the candidate.",
+          "contract_basis": "The contract requires correct matching, nesting, and bool results for strings; it does not require completing exhaustive enumeration within a test runner's deadline."
+        }
+      ],
+      "corrected_notes": "Reduced exhaustive enumeration to lengths zero through three (259 cases), preserving the contract-derived oracle and all other tests unchanged. The corrected test still rejects the unimplemented stub without imposing the original enumeration workload.",
+      "corrected_module": "arbitration/adversarial_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (9 of 9 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a1488e-a438-7373-a8e9-3f7faddc5ce6"
+      },
+      "base_rerun": null,
+      "cleared_module": true,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

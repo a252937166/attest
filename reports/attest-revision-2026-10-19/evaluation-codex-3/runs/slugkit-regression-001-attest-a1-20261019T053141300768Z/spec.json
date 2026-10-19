@@ -1,0 +1,36 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Fix slugkit/core.py so slugify lowercases its string input, replaces each maximal run of characters outside ASCII a-z and 0-9 with one hyphen, and removes leading and trailing hyphens. Return an empty string when nothing remains, preserve the public import and string return type, continue rejecting non-string inputs with TypeError, and keep all existing tests passing without modifying them.",
+  "interface_contract": [
+    {
+      "name": "slugkit.slugify",
+      "signature": "slugify(text)",
+      "behavior": "Accept a str, including str subclasses, and return a str. Apply Python str.lower() first. In the resulting text, retain only ASCII a-z and 0-9; replace each maximal nonempty run of other characters with exactly one ASCII hyphen, then remove all edge hyphens. Classification occurs after lowercasing, preserving the existing operation order; Unicode lowercase mappings that produce ASCII characters therefore retain those characters. Do not perform transliteration or Unicode normalization. The function remains available through both slugkit.slugify and slugkit.core.slugify.",
+      "error_cases": [
+        "TypeError when text is not an instance of str, including None, 3, 2.5, ['a'], and b'bytes'; preserve the existing message 'text must be a str'.",
+        "TypeError for missing text or additional unsupported arguments, consistent with the signature."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. Separator runs collapse: slugify('Hello--World') == 'hello-world', slugify('a -- b') == 'a-b', slugify('one , two ; three') == 'one-two-three', and slugify('x___y') == 'x-y'.",
+    "2. Edge separators disappear: slugify('end!') == 'end', slugify('  padded  ') == 'padded', slugify('--both--') == 'both', and slugify('(parens)') == 'parens'.",
+    "3. Empty or separator-only inputs return '': verify '', '!!!', '   ', '--', and '\\t\\n'.",
+    "4. Existing outputs remain unchanged: 'Hello World' becomes 'hello-world', 'already-a-slug' remains 'already-a-slug', 'Python 3' becomes 'python-3', and 'MiXeD CaSe 42' becomes 'mixed-case-42'.",
+    "5. Non-ASCII characters remaining after lowercasing are separators: slugify('café crème') == 'caf-cr-me', slugify('日本語') == '', and slugify('a１２b') == 'a-b'.",
+    "6. Lowercasing precedes ASCII classification: slugify('K') == 'k' and slugify('İ') == 'i', following Python str.lower() mappings without additional normalization.",
+    "7. ASCII letters and digits are preserved in order after lowercasing: slugify('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') == 'abcdefghijklmnopqrstuvwxyz0123456789'.",
+    "8. Mixed separator types form a single run: slugify('a \\t\\n_!é--b') == 'a-b'.",
+    "9. Every successful result is a str and is either empty or consists of nonempty ASCII lowercase alphanumeric groups separated by single hyphens, with no edge hyphens.",
+    "10. Each of None, 3, 2.5, ['a'], and b'bytes' raises TypeError with message 'text must be a str'; string subclass instances are accepted.",
+    "11. Both public import paths remain usable, and slugify(text='Hello World') returns 'hello-world'.",
+    "12. All existing tests in tests/ pass unchanged."
+  ],
+  "out_of_scope": [
+    "Modifying existing tests or files other than slugkit/core.py.",
+    "Changing the function signature, public import paths, or non-string input policy.",
+    "Adding transliteration, Unicode normalization, configurable separators, or dependencies."
+  ],
+  "external_references_needed": []
+}

@@ -1,0 +1,47 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Fix the regression in slugkit.slugify so that it lowercases the input, replaces each maximal run of non-ASCII-alphanumeric characters (i.e., characters not in a-z or 0-9) with a single hyphen, strips leading and trailing hyphens, and returns an empty string when the input contains no ASCII letters or digits. Non-ASCII letters (e.g., é, 日) are treated as separators. The function must continue to raise TypeError for non-string inputs and return a string. All existing tests in tests/test_basic.py must pass without modification.",
+  "interface_contract": [
+    {
+      "name": "slugify",
+      "signature": "slugify(text: str) -> str",
+      "behavior": "Returns a lowercase ASCII slug derived from `text`. The algorithm: (1) Convert `text` to lowercase. (2) Replace every maximal contiguous sequence of characters that are not ASCII letters (a-z) or ASCII digits (0-9) with a single hyphen ('-'). (3) Remove any leading or trailing hyphens. (4) If the result is empty (i.e., the input contained no ASCII letters or digits), return the empty string. Non-ASCII letters (e.g., accented characters, CJK characters) are considered separators and are not retained.",
+      "error_cases": [
+        "TypeError: raised if `text` is not an instance of str (e.g., None, int, float, list, bytes)."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. slugify('Hello--World') == 'hello-world' (runs of hyphens collapse to one).",
+    "2. slugify('a -- b') == 'a-b' (spaces and hyphens collapse to one hyphen).",
+    "3. slugify('one , two ; three') == 'one-two-three' (punctuation and spaces collapse).",
+    "4. slugify('x___y') == 'x-y' (underscore runs collapse).",
+    "5. slugify('end!') == 'end' (trailing separator removed).",
+    "6. slugify('  padded  ') == 'padded' (leading/trailing whitespace removed).",
+    "7. slugify('--both--') == 'both' (leading/trailing hyphens removed).",
+    "8. slugify('(parens)') == 'parens' (parentheses removed, no leading/trailing hyphen).",
+    "9. slugify('') == '' (empty string returns empty).",
+    "10. slugify('!!!') == '' (only separators returns empty).",
+    "11. slugify('   ') == '' (whitespace-only returns empty).",
+    "12. slugify('Hello World') == 'hello-world' (existing basic behavior preserved).",
+    "13. slugify('already-a-slug') == 'already-a-slug' (existing slug unchanged).",
+    "14. slugify('Python 3') == 'python-3' (digits kept).",
+    "15. slugify('MiXeD CaSe 42') == 'mixed-case-42' (mixed case lowercased).",
+    "16. slugify('café crème') == 'caf-cr-me' (non-ASCII letters treated as separators).",
+    "17. slugify('日本語') == '' (CJK characters are separators, no alphanumerics yields empty).",
+    "18. slugify(None) raises TypeError.",
+    "19. slugify(3) raises TypeError.",
+    "20. slugify(2.5) raises TypeError.",
+    "21. slugify(['a']) raises TypeError.",
+    "22. slugify(b'bytes') raises TypeError.",
+    "23. The return value is always a str instance."
+  ],
+  "out_of_scope": [
+    "Do not modify the existing tests in tests/test_basic.py.",
+    "Do not change the function signature or public interface of slugkit (only slugify is public).",
+    "Do not add new dependencies or imports beyond what is already used (re module).",
+    "Do not alter the behavior for valid string inputs beyond the specified regression fix."
+  ],
+  "external_references_needed": []
+}

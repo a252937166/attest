@@ -1,0 +1,2061 @@
+{
+  "run_id": "roman-to-numeral-attest-a1-20261019T041712703144Z",
+  "started_at_utc": "2026-10-19T04:17:12.703747+00:00",
+  "finished_at_utc": "2026-10-19T04:31:16.799836+00:00",
+  "profile": {
+    "label": "eval-attest-a1",
+    "provider": {
+      "provider": "codex_gateway",
+      "base_url": null,
+      "base_url_sha256": "68e25b464500800e",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "structured_endpoint": "/run",
+      "native_tools": false,
+      "streaming": false,
+      "auto_retry": false,
+      "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+      "pacing": {
+        "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+        "policy_source": "gateway status: hourly request counting not enforced",
+        "hourly_limit_assumed": null,
+        "budget": null,
+        "max_concurrency": 2,
+        "max_wait_s": 3900.0,
+        "state_shared_across_processes": true
+      }
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false
+    }
+  },
+  "provenance": {
+    "attest_version": "0.4.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "87aa03b95d6e6e33707d14479bdb0f38c9e9fd1a58bc72613ed8c124ff72e856",
+      "files": 35,
+      "git_commit": null,
+      "version": "0.4.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/6",
+      "sha256": "93e8c9edacca93fc4b8a8c2cf86b44374aab3a9a752dc35b7af5e3dfdc935211"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "80999537285bacafdd86e7faad72792e2a7a25f87d691231e76f3905a1aa91b6",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/reports/attest-revision-2026-10-19/evaluation-codex-2/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "codex_gateway",
+      "temperature": null,
+      "max_tokens": null,
+      "note": "sampling is controlled by the gateway; the reasoning effort requested per role is recorded",
+      "roles": {
+        "spec": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "seal": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "implement": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "break": {
+          "model": "gpt-6-sol",
+          "effort": "medium"
+        },
+        "audit": {
+          "model": "gpt-6-astra",
+          "effort": "low"
+        },
+        "arbitrate": {
+          "model": "gpt-6-astra",
+          "effort": "medium"
+        },
+        "summary": {
+          "model": "gpt-6-luna",
+          "effort": "low"
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 14,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": true,
+      "arbitration_apply": true,
+      "max_corrected_tests": 3,
+      "max_mutants_for_discrimination": 3,
+      "max_breaker_attempts": 3,
+      "max_witnesses": 3,
+      "witness_timeout_s": 60
+    },
+    "pacing": {
+      "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+      "policy_source": "gateway status: hourly request counting not enforced",
+      "hourly_limit_assumed": null,
+      "budget": null,
+      "max_concurrency": 2,
+      "max_wait_s": 3900.0,
+      "state_shared_across_processes": true
+    },
+    "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; transport-uncertain failures never retried",
+    "upstream": null
+  },
+  "task": {
+    "id": "roman-to-numeral",
+    "title": "roman-to-numeral",
+    "statement": "The roman package exposes is_roman_numeral (already implemented) and a stub to_roman(n). Implement to_roman(n) so that it converts an integer n in the range 1..3999 inclusive to its standard Roman numeral string using subtractive notation (4='IV', 9='IX', 40='XL', 90='XC', 400='CD', 900='CM'). Return a str. Raise ValueError when n is an int outside 1..3999. Raise TypeError when n is not an int (for example '5', 5.0, None, [1]); numeric strings and integral floats are not coerced. Type discipline is by value: an instance of an int subclass (for example an IntEnum member or `class PlainInt(int)`) is accepted and converted exactly like the int with the same value, including the range check. Int subclasses that override arithmetic or comparison operators are out of scope: their behaviour is unspecified and tests must not depend on it. bool is a subclass of int; rejecting True and False with TypeError is permitted but not required, and tests must not depend on either choice. Do not change is_roman_numeral or the tests.",
+    "acceptance_criteria": [
+      "to_roman(1)=='I', to_roman(4)=='IV', to_roman(9)=='IX'",
+      "to_roman(40)=='XL', to_roman(90)=='XC', to_roman(400)=='CD', to_roman(900)=='CM'",
+      "to_roman(2024)=='MMXXIV', to_roman(3999)=='MMMCMXCIX', to_roman(1994)=='MCMXCIV'",
+      "to_roman returns a str",
+      "ValueError for ints outside 1..3999 (0, -1, 4000), including int subclass instances with such values",
+      "TypeError for non-int input ('5', 5.0, None, [1])",
+      "An int subclass instance with a value in range (for example an IntEnum member or PlainInt(49)) converts like the equal int: PlainInt(49) -> 'XLIX'",
+      "Unspecified, not to be tested: int subclasses that override arithmetic or comparison operators; whether bool is rejected"
+    ],
+    "allowed_write_globs": [
+      "roman/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from roman import to_roman",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "roman/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "roman/core.py": "ecf06262fbb5488a8342614555812ae355e921bc6af6c4ea62b26f06c56a6e6d",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "de899bd3b4bf3f6bdd8c55f4d46256450fd0eaf7c89e0609a4c808590649f203"
+    },
+    "spec_sha256": "8e0781e39135d0d1bedc4361e0e17c603e03ecf956bda7cf92bdc1ba5a4d5257"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a15260-d7b4-775b-91bc-6547a615589a",
+    "checkpoint_image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+    "checkpoint_chain": [],
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a15260-d7b4-775b-91bc-6547a615589a",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.225,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "suite_binding": {
+      "mode": "bound",
+      "reason": "2 statically discovered test ids in 1 module(s) match the baseline run",
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "path": "tests/test_basic.py",
+          "sha256": "de899bd3b4bf3f6bdd8c55f4d46256450fd0eaf7c89e0609a4c808590649f203",
+          "tests": 2
+        }
+      ]
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Implement roman.core.to_roman(n), available through from roman import to_roman, to return the canonical uppercase Roman numeral string for integer values from 1 through 3999 using standard subtractive notation. Accept ordinary int subclasses by value, reject non-int inputs without coercion, and raise ValueError for out-of-range integers. Preserve is_roman_numeral and existing tests. Boolean handling and behavior for int subclasses overriding arithmetic or comparison operators are excluded from testing.",
+    "interface_contract": [
+      {
+        "name": "roman.to_roman",
+        "signature": "to_roman(n)",
+        "behavior": "Return a str representing n in canonical uppercase Roman notation for 1 <= n <= 3999. Canonical notation concatenates thousands, hundreds, tens, and units in descending order, using IV, IX, XL, XC, CD, and CM for subtractive forms. Accept instances of int subclasses, including IntEnum and PlainInt, exactly like the int of the same value, provided they do not override arithmetic or comparison operators. Do not coerce other types. Bool handling is unspecified for testing.",
+        "error_cases": [
+          "ValueError: an int or supported int subclass instance has value less than 1 or greater than 3999, excluding bool from required assertions.",
+          "TypeError: input is not an instance of int; this includes strings, floats, None, and lists.",
+          "Exception messages are unspecified."
+        ]
+      },
+      {
+        "name": "roman.is_roman_numeral",
+        "signature": "is_roman_numeral(s)",
+        "behavior": "Preserve the existing implementation: return True exactly when s is a nonempty str and every character in s.upper() belongs to IVXLCDM. This checks letters, not canonical Roman numeral syntax.",
+        "error_cases": [
+          "Ordinary non-string inputs return False without raising an exception."
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "1. from roman import to_roman and from roman import is_roman_numeral continue to work, with their existing one-argument signatures.",
+      "2. For every integer n from 1 through 3999, to_roman(n) returns a str equal to the concatenation of the canonical representations of its decimal places: thousands ['', 'M', 'MM', 'MMM']; hundreds ['', 'C', 'CC', 'CCC', 'CD', 'D', 'DC', 'DCC', 'DCCC', 'CM']; tens ['', 'X', 'XX', 'XXX', 'XL', 'L', 'LX', 'LXX', 'LXXX', 'XC']; units ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']. Each table is indexed by the corresponding decimal digit.",
+      "3. to_roman(1) == 'I', to_roman(4) == 'IV', to_roman(9) == 'IX', to_roman(40) == 'XL', to_roman(90) == 'XC', to_roman(400) == 'CD', and to_roman(900) == 'CM'.",
+      "4. to_roman(2024) == 'MMXXIV', to_roman(1994) == 'MCMXCIV', and to_roman(3999) == 'MMMCMXCIX'.",
+      "5. Integer values outside 1..3999 raise ValueError, including 0, -1, and 4000.",
+      "6. Non-int inputs raise TypeError without coercion, including '5', 5.0, None, and [1].",
+      "7. Instances of int subclasses that do not override arithmetic or comparison operators convert identically to equal ints throughout the supported range; specifically, PlainInt(49) and an IntEnum member with value 49 return 'XLIX'.",
+      "8. Supported int subclass instances outside the range raise ValueError, including PlainInt and IntEnum values of 0, -1, and 4000.",
+      "9. is_roman_numeral retains its letter-only validation behavior: 'XIV', 'mmxxiv', and 'IIII' return True; '', 'ABC', and 14 return False. Its implementation remains unchanged.",
+      "10. Existing test files remain unchanged and existing tests continue to pass.",
+      "11. Tests make no assertions about True or False inputs, or int subclasses that override arithmetic or comparison operators."
+    ],
+    "out_of_scope": [
+      "Changing is_roman_numeral or making it validate canonical Roman numeral syntax.",
+      "Changing existing tests or public signatures.",
+      "Roman numeral parsing, lowercase output, alternative notation, or support for values outside 1..3999.",
+      "Coercing numeric strings, floats, or other non-int inputs.",
+      "Specifying or testing boolean handling.",
+      "Specifying or testing int subclasses that override arithmetic or comparison operators.",
+      "Requiring particular exception messages or a particular conversion algorithm."
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": {
+    "path": "sealed/test_sealed.py",
+    "sha256": "e7715a21ecd7f9ba63c5679b0b522ae90c7bdee3ad5def60773e71b15476a73d",
+    "test_count": 13,
+    "declared_test_count": 13,
+    "expected_ids": [
+      "test_sealed.TestToRoman.test_to_roman_has_one_argument_signature",
+      "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+      "test_sealed.TestToRoman.test_subtractive_boundary_values",
+      "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+      "test_sealed.TestToRoman.test_out_of_range_integers_raise_value_error",
+      "test_sealed.TestToRoman.test_non_int_inputs_raise_type_error_without_coercion",
+      "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range",
+      "test_sealed.TestToRoman.test_int_enum_member_converts_by_integer_value",
+      "test_sealed.TestToRoman.test_out_of_range_plain_int_subclasses_raise_value_error",
+      "test_sealed.TestToRoman.test_out_of_range_int_enum_members_raise_value_error",
+      "test_sealed.TestRomanNumeralHelper.test_helper_has_one_argument_signature",
+      "test_sealed.TestRomanNumeralHelper.test_helper_accepts_roman_letters_without_requiring_canonical_syntax",
+      "test_sealed.TestRomanNumeralHelper.test_helper_rejects_empty_foreign_letters_and_nonstrings"
+    ],
+    "escapes_repaired": false,
+    "sealed_at_utc": "2026-10-19T04:22:27.322154+00:00",
+    "author_model": "gpt-6-sol",
+    "attempts": 1,
+    "rejected_attempts": [],
+    "notes": "The exhaustive place-value test covers 1..3999; helper tests repeat existing behavior. File preservation itself requires runner review because the public API cannot reveal file changes.",
+    "coverage": [
+      {
+        "criterion": 1,
+        "tests": [
+          "test_to_roman_has_one_argument_signature",
+          "test_helper_has_one_argument_signature"
+        ]
+      },
+      {
+        "criterion": 2,
+        "tests": [
+          "test_every_supported_integer_matches_canonical_place_value_tables"
+        ]
+      },
+      {
+        "criterion": 3,
+        "tests": [
+          "test_subtractive_boundary_values"
+        ]
+      },
+      {
+        "criterion": 4,
+        "tests": [
+          "test_mixed_place_values_and_maximum"
+        ]
+      },
+      {
+        "criterion": 5,
+        "tests": [
+          "test_out_of_range_integers_raise_value_error"
+        ]
+      },
+      {
+        "criterion": 6,
+        "tests": [
+          "test_non_int_inputs_raise_type_error_without_coercion"
+        ]
+      },
+      {
+        "criterion": 7,
+        "tests": [
+          "test_plain_int_subclass_matches_int_throughout_supported_range",
+          "test_int_enum_member_converts_by_integer_value"
+        ]
+      },
+      {
+        "criterion": 8,
+        "tests": [
+          "test_out_of_range_plain_int_subclasses_raise_value_error",
+          "test_out_of_range_int_enum_members_raise_value_error"
+        ]
+      },
+      {
+        "criterion": 9,
+        "tests": [
+          "test_helper_accepts_roman_letters_without_requiring_canonical_syntax",
+          "test_helper_rejects_empty_foreign_letters_and_nonstrings"
+        ]
+      },
+      {
+        "criterion": 10,
+        "tests": [
+          "test_helper_accepts_roman_letters_without_requiring_canonical_syntax",
+          "test_helper_rejects_empty_foreign_letters_and_nonstrings"
+        ]
+      },
+      {
+        "criterion": 11,
+        "tests": [
+          "test_plain_int_subclass_matches_int_throughout_supported_range",
+          "test_int_enum_member_converts_by_integer_value",
+          "test_out_of_range_plain_int_subclasses_raise_value_error",
+          "test_out_of_range_int_enum_members_raise_value_error"
+        ]
+      }
+    ],
+    "coverage_gaps": [],
+    "coverage_note": "the map is the sealer's own claim of which test checks which criterion; gaps are criteria no test claims"
+  },
+  "red_run": {
+    "ran": 13,
+    "tests": [
+      {
+        "id": "test_sealed.TestToRoman.test_to_roman_has_one_argument_signature",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.184,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.403,
+        "captured_tail": "",
+        "failure_tail": "to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 43, in test_every_supported_integer_matches_canonical_place_value_tables\n    result = to_roman(n)\n             ^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 43, in test_every_supported_integer_matches_canonical_place_value_tables\n    result = to_roman(n)\n             ^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 43, in test_every_supported_integer_matches_canonical_place_value_tables\n    result = to_roman(n)\n             ^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_subtractive_boundary_values",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "ImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 52, in test_subtractive_boundary_values\n    self.assertEqual(to_roman(n), expected)\n                     ^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 52, in test_subtractive_boundary_values\n    self.assertEqual(to_roman(n), expected)\n                     ^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 52, in test_subtractive_boundary_values\n    self.assertEqual(to_roman(n), expected)\n                     ^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.182,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 58, in test_mixed_place_values_and_maximum\n    self.assertEqual(to_roman(n), expected)\n                     ^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 58, in test_mixed_place_values_and_maximum\n    self.assertEqual(to_roman(n), expected)\n                     ^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 58, in test_mixed_place_values_and_maximum\n    self.assertEqual(to_roman(n), expected)\n                     ^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_out_of_range_integers_raise_value_error",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": "led.py\", line 64, in test_out_of_range_integers_raise_value_error\n    to_roman(n)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 64, in test_out_of_range_integers_raise_value_error\n    to_roman(n)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 64, in test_out_of_range_integers_raise_value_error\n    to_roman(n)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 64, in test_out_of_range_integers_raise_value_error\n    to_roman(n)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_non_int_inputs_raise_type_error_without_coercion",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.183,
+        "captured_tail": "",
+        "failure_tail": "error_without_coercion\n    to_roman(value)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 71, in test_non_int_inputs_raise_type_error_without_coercion\n    to_roman(value)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 71, in test_non_int_inputs_raise_type_error_without_coercion\n    to_roman(value)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 71, in test_non_int_inputs_raise_type_error_without_coercion\n    to_roman(value)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.403,
+        "captured_tail": "",
+        "failure_tail": "aled/test_sealed.py\", line 77, in test_plain_int_subclass_matches_int_throughout_supported_range\n    self.assertEqual(to_roman(PlainInt(n)), to_roman(n))\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 77, in test_plain_int_subclass_matches_int_throughout_supported_range\n    self.assertEqual(to_roman(PlainInt(n)), to_roman(n))\n                     ^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 78, in test_plain_int_subclass_matches_int_throughout_supported_range\n    self.assertEqual(to_roman(PlainInt(49)), 'XLIX')\n                     ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_int_enum_member_converts_by_integer_value",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.177,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 81, in test_int_enum_member_converts_by_integer_value\n    self.assertEqual(to_roman(Number.FORTY_NINE), 'XLIX')\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_out_of_range_plain_int_subclasses_raise_value_error",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 87, in test_out_of_range_plain_int_subclasses_raise_value_error\n    to_roman(PlainInt(n))\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 87, in test_out_of_range_plain_int_subclasses_raise_value_error\n    to_roman(PlainInt(n))\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 87, in test_out_of_range_plain_int_subclasses_raise_value_error\n    to_roman(PlainInt(n))\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestToRoman.test_out_of_range_int_enum_members_raise_value_error",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 94, in test_out_of_range_int_enum_members_raise_value_error\n    to_roman(member)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 94, in test_out_of_range_int_enum_members_raise_value_error\n    to_roman(member)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n\nTraceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 94, in test_out_of_range_int_enum_members_raise_value_error\n    to_roman(member)\n  File \"/tmp/w/roman/core.py\", line 10, in to_roman\n    raise NotImplementedError(\"to_roman is not implemented yet\")\nNotImplementedError: to_roman is not implemented yet\n"
+      },
+      {
+        "id": "test_sealed.TestRomanNumeralHelper.test_helper_has_one_argument_signature",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestRomanNumeralHelper.test_helper_accepts_roman_letters_without_requiring_canonical_syntax",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.173,
+        "captured_tail": "",
+        "failure_tail": ""
+      },
+      {
+        "id": "test_sealed.TestRomanNumeralHelper.test_helper_rejects_empty_foreign_letters_and_nonstrings",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.174,
+        "captured_tail": "",
+        "failure_tail": ""
+      }
+    ],
+    "passed": 4,
+    "failing": 9,
+    "subtest_events": 0,
+    "import_error": null,
+    "all_passed": false,
+    "canary_ok": true,
+    "summary_line": "FAILED (9 of 13 methods: ERROR 9)",
+    "operation_uuid": "01a15265-833f-71ed-a21d-b40909f73f12",
+    "nonce": "83e9dd5917922d8507f6601a7b5c08ac",
+    "supervisor_exit_code": 1,
+    "runner_error": null
+  },
+  "trajectory": {
+    "turns": 5,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "read_file",
+        "path": "roman/core.py",
+        "reason": "I need the current conversion stub and surrounding code so I can edit only to_roman while preserving is_roman_numeral.",
+        "observation_head": "[lines 1-10 of 10]\n\"\"\"Roman numerals.\"\"\"\n\n\ndef is_roman_numeral(s):\n    \"\"\"True when s is a non-empty string of Roman numeral letters (case-insensitive). Alread"
+      },
+      {
+        "turn": 2,
+        "action": "replace_in_file",
+        "path": "roman/core.py",
+        "reason": "Implement canonical numeral conversion with explicit integer and range validation while leaving is_roman_numeral unchanged.",
+        "observation_head": "replaced one occurrence in roman/core.py; the file is now 785 bytes"
+      },
+      {
+        "turn": 3,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Run the existing test suite after the implementation edit to check compatibility before finishing.",
+        "observation_head": "existing test suite: OK (ran 2, passed 2, exit 0)\ntest_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ."
+      },
+      {
+        "turn": 4,
+        "action": "run_python",
+        "path": null,
+        "reason": "Check every supported integer and the specified subclass and error cases before finishing.",
+        "observation_head": "exit 0\nstdout:\nExhaustive conversion and error checks passed\n\nstderr:\n"
+      },
+      {
+        "turn": 5,
+        "action": "finish",
+        "path": null,
+        "reason": "The implementation passes the existing tests and exhaustive checks for all supported values and specified errors.",
+        "observation_head": "finished: Implemented canonical uppercase Roman numeral conversion for integers 1–3999, including int subclasses, with the required TypeError and ValueError beh"
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": true
+  },
+  "candidate": {
+    "changed_paths": [
+      "roman/core.py"
+    ],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "--- a/roman/core.py\n+++ b/roman/core.py\n@@ -7,4 +7,13 @@\n \n \n def to_roman(n):\n-    raise NotImplementedError(\"to_roman is not implemented yet\")\n+    if not isinstance(n, int):\n+        raise TypeError(\"n must be an integer\")\n+    if not 1 <= n <= 3999:\n+        raise ValueError(\"n must be between 1 and 3999\")\n+\n+    thousands = (\"\", \"M\", \"MM\", \"MMM\")\n+    hundreds = (\"\", \"C\", \"CC\", \"CCC\", \"CD\", \"D\", \"DC\", \"DCC\", \"DCCC\", \"CM\")\n+    tens = (\"\", \"X\", \"XX\", \"XXX\", \"XL\", \"L\", \"LX\", \"LXX\", \"LXXX\", \"XC\")\n+    units = (\"\", \"I\", \"II\", \"III\", \"IV\", \"V\", \"VI\", \"VII\", \"VIII\", \"IX\")\n+    return thousands[n // 1000] + hundreds[n // 100 % 10] + tens[n // 10 % 10] + units[n % 10]\n",
+    "sha256": {
+      "roman/core.py": "e9d10b7309e492a9f94d8c7df53b38f282c84e0ca30ab5dc91e8797b2937db52"
+    },
+    "implementer_finished": true,
+    "tamper_scan": {
+      "added_lines": 10,
+      "flagged": [],
+      "labels": [],
+      "patterns_checked": 19,
+      "summary": "no suspicious constructs on the added lines"
+    }
+  },
+  "contract_audit": {
+    "model": "gpt-6-astra",
+    "consistent": true,
+    "notes": "The contract is satisfiable by implementing only roman/core.py's to_roman stub with integer type and range checks followed by canonical decimal-place lookup. The existing exports, unchanged letter-only validator, and existing tests impose no conflicting requirements.",
+    "conflicts": [],
+    "outcome": "consistent",
+    "error": null,
+    "rule": "a conflict is demonstrated only when its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' and exits with code 3; any other outcome records the conflict as claimed only, which never ends a run"
+  },
+  "verification": {
+    "operation_uuid": "01a1526b-5b1c-7712-81f0-a2b730767e70",
+    "status": "SUCCESS",
+    "order": [
+      "verify: sealed supervisor is the only step of its branch (nothing imports candidate code before it)",
+      "existing: the repository's own suite runs afterwards in its own disposable branch",
+      "heldout: held-out modules run afterwards in their own disposable branch"
+    ],
+    "sealed_sha256_injected": "e7715a21ecd7f9ba63c5679b0b522ae90c7bdee3ad5def60773e71b15476a73d",
+    "expected_ids": [
+      "test_sealed.TestToRoman.test_to_roman_has_one_argument_signature",
+      "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+      "test_sealed.TestToRoman.test_subtractive_boundary_values",
+      "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+      "test_sealed.TestToRoman.test_out_of_range_integers_raise_value_error",
+      "test_sealed.TestToRoman.test_non_int_inputs_raise_type_error_without_coercion",
+      "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range",
+      "test_sealed.TestToRoman.test_int_enum_member_converts_by_integer_value",
+      "test_sealed.TestToRoman.test_out_of_range_plain_int_subclasses_raise_value_error",
+      "test_sealed.TestToRoman.test_out_of_range_int_enum_members_raise_value_error",
+      "test_sealed.TestRomanNumeralHelper.test_helper_has_one_argument_signature",
+      "test_sealed.TestRomanNumeralHelper.test_helper_accepts_roman_letters_without_requiring_canonical_syntax",
+      "test_sealed.TestRomanNumeralHelper.test_helper_rejects_empty_foreign_letters_and_nonstrings"
+    ],
+    "existing": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.182,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "all_passed": true,
+      "summary_line": "OK (2 of 2 methods, each in its own process)",
+      "module_error": false,
+      "operation_uuid": "01a1526b-72f5-7043-a827-04da3e481dae",
+      "runner_error": null,
+      "evidence_class": "bound",
+      "evidence_note": "2 statically discovered test ids in 1 module(s) match the baseline run",
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "module_set_matches": true,
+          "module_digests_unchanged": true,
+          "static_ids_match_expected": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "nonce": "0de73f091f22b8a7e5052bd2e298f52e",
+      "canary_ok": true,
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "sha256": "de899bd3b4bf3f6bdd8c55f4d46256450fd0eaf7c89e0609a4c808590649f203",
+          "tests": 2,
+          "ids": [
+            "tests.test_basic.TestHelper.test_true",
+            "tests.test_basic.TestHelper.test_false"
+          ]
+        }
+      ]
+    },
+    "sealed": {
+      "ran": 13,
+      "tests": [
+        {
+          "id": "test_sealed.TestToRoman.test_to_roman_has_one_argument_signature",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.183,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.202,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_subtractive_boundary_values",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_out_of_range_integers_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_non_int_inputs_raise_type_error_without_coercion",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.174,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.202,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_int_enum_member_converts_by_integer_value",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_out_of_range_plain_int_subclasses_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.174,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestToRoman.test_out_of_range_int_enum_members_raise_value_error",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestRomanNumeralHelper.test_helper_has_one_argument_signature",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.177,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestRomanNumeralHelper.test_helper_accepts_roman_letters_without_requiring_canonical_syntax",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_sealed.TestRomanNumeralHelper.test_helper_rejects_empty_foreign_letters_and_nonstrings",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 13,
+      "failing": 0,
+      "subtest_events": 0,
+      "import_error": null,
+      "all_passed": true,
+      "canary_ok": true,
+      "summary_line": "OK (13 of 13 methods, each in its own process)",
+      "operation_uuid": "01a1526b-5b1c-7712-81f0-a2b730767e70",
+      "nonce": "552716ca70ba2f70a99d97705627c223",
+      "supervisor_exit_code": 0,
+      "runner_error": null
+    },
+    "binding": {
+      "ok": true,
+      "checks": {
+        "result_file_present": true,
+        "sealed_file_unchanged_before": true,
+        "sealed_file_unchanged_after": true,
+        "static_ids_match_red": true,
+        "supervisor_completed": true,
+        "verifier_isolation_active": true,
+        "nonce_matches": true,
+        "no_discovery_error": true,
+        "expected_test_ids_present": true,
+        "no_unexpected_test_ids": true,
+        "no_nonzero_exit": true,
+        "no_signal": true,
+        "no_timeout": true,
+        "no_missing_or_forged_result": true,
+        "all_expected_pass": true,
+        "no_startup_hooks_on_import_path": true,
+        "canary_must_pass_ok": true,
+        "canary_must_fail_failed": true
+      },
+      "reasons": []
+    },
+    "heldout": null,
+    "corrected": null
+  },
+  "breaker": {
+    "mutation": {
+      "generated": 12,
+      "evaluated": 12,
+      "killed": 11,
+      "survived": 1,
+      "unknown": 0,
+      "score": 0.917,
+      "threshold": 0.5,
+      "mutants": [
+        {
+          "id": "m01-87afd84a52",
+          "path": "roman/core.py",
+          "lineno": 10,
+          "operator": "not",
+          "description": "remove `not`",
+          "status": "killed",
+          "operation_uuid": "01a1526b-810b-75a8-8fb9-bd623284bcec",
+          "failing_methods": 8,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+            "test_sealed.TestToRoman.test_subtractive_boundary_values",
+            "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+            "test_sealed.TestToRoman.test_out_of_range_integers_raise_value_error",
+            "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range"
+          ]
+        },
+        {
+          "id": "m02-130fe74269",
+          "path": "roman/core.py",
+          "lineno": 11,
+          "operator": "raise",
+          "description": "raise -> pass",
+          "status": "survived",
+          "operation_uuid": "01a1526b-8111-7149-9298-19892a7641da",
+          "failing_methods": 0,
+          "killed_by": []
+        },
+        {
+          "id": "m03-f05f697a13",
+          "path": "roman/core.py",
+          "lineno": 12,
+          "operator": "int",
+          "description": "3999 -> 4000",
+          "status": "killed",
+          "operation_uuid": "01a1526b-81a7-7468-9826-0ee58fba3bac",
+          "failing_methods": 3,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_out_of_range_integers_raise_value_error",
+            "test_sealed.TestToRoman.test_out_of_range_plain_int_subclasses_raise_value_error",
+            "test_sealed.TestToRoman.test_out_of_range_int_enum_members_raise_value_error"
+          ]
+        },
+        {
+          "id": "m04-c8342a0eb2",
+          "path": "roman/core.py",
+          "lineno": 12,
+          "operator": "compare",
+          "description": "LtE -> Lt",
+          "status": "killed",
+          "operation_uuid": "01a1526b-80e7-76ed-92f4-bca9dc3cc031",
+          "failing_methods": 3,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+            "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+            "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range"
+          ]
+        },
+        {
+          "id": "m05-48504acece",
+          "path": "roman/core.py",
+          "lineno": 13,
+          "operator": "raise",
+          "description": "raise -> pass",
+          "status": "killed",
+          "operation_uuid": "01a1526b-80ea-76dd-9b2b-62c74848b6cf",
+          "failing_methods": 3,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_out_of_range_integers_raise_value_error",
+            "test_sealed.TestToRoman.test_out_of_range_plain_int_subclasses_raise_value_error",
+            "test_sealed.TestToRoman.test_out_of_range_int_enum_members_raise_value_error"
+          ]
+        },
+        {
+          "id": "m06-fa01a535be",
+          "path": "roman/core.py",
+          "lineno": 19,
+          "operator": "binop",
+          "description": "FloorDiv -> Mult",
+          "status": "killed",
+          "operation_uuid": "01a1526b-812d-7471-ad92-7dbb14b12ca3",
+          "failing_methods": 5,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+            "test_sealed.TestToRoman.test_subtractive_boundary_values",
+            "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+            "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range",
+            "test_sealed.TestToRoman.test_int_enum_member_converts_by_integer_value"
+          ]
+        },
+        {
+          "id": "m07-448e6e34ab",
+          "path": "roman/core.py",
+          "lineno": 19,
+          "operator": "binop",
+          "description": "FloorDiv -> Mult",
+          "status": "killed",
+          "operation_uuid": "01a1526b-80f2-7593-8815-04607bd0e142",
+          "failing_methods": 3,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+            "test_sealed.TestToRoman.test_subtractive_boundary_values",
+            "test_sealed.TestToRoman.test_mixed_place_values_and_maximum"
+          ]
+        },
+        {
+          "id": "m08-f7831d6fc5",
+          "path": "roman/core.py",
+          "lineno": 19,
+          "operator": "binop",
+          "description": "Mod -> Sub",
+          "status": "killed",
+          "operation_uuid": "01a1526b-8107-726e-bbd5-fe3e82a5212c",
+          "failing_methods": 3,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+            "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+            "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range"
+          ]
+        },
+        {
+          "id": "m09-7a0f5af280",
+          "path": "roman/core.py",
+          "lineno": 19,
+          "operator": "int",
+          "description": "10 -> 11",
+          "status": "killed",
+          "operation_uuid": "01a1526b-9918-72a1-8244-18b26b5bda2b",
+          "failing_methods": 3,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+            "test_sealed.TestToRoman.test_subtractive_boundary_values",
+            "test_sealed.TestToRoman.test_mixed_place_values_and_maximum"
+          ]
+        },
+        {
+          "id": "m10-e563251b42",
+          "path": "roman/core.py",
+          "lineno": 19,
+          "operator": "int",
+          "description": "10 -> 11",
+          "status": "killed",
+          "operation_uuid": "01a1526b-9ae5-73fe-837b-e91d547ef749",
+          "failing_methods": 4,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+            "test_sealed.TestToRoman.test_subtractive_boundary_values",
+            "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+            "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range"
+          ]
+        },
+        {
+          "id": "m11-8a5ef4ff26",
+          "path": "roman/core.py",
+          "lineno": 19,
+          "operator": "binop",
+          "description": "Add -> Sub",
+          "status": "killed",
+          "operation_uuid": "01a1526b-9ae3-72a8-9bcb-43024b5b7743",
+          "failing_methods": 5,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+            "test_sealed.TestToRoman.test_subtractive_boundary_values",
+            "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+            "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range",
+            "test_sealed.TestToRoman.test_int_enum_member_converts_by_integer_value"
+          ]
+        },
+        {
+          "id": "m12-b58ab80b9c",
+          "path": "roman/core.py",
+          "lineno": 19,
+          "operator": "binop",
+          "description": "Mod -> Sub",
+          "status": "killed",
+          "operation_uuid": "01a1526b-9ae0-7643-b547-24a0f98d7325",
+          "failing_methods": 5,
+          "killed_by": [
+            "test_sealed.TestToRoman.test_every_supported_integer_matches_canonical_place_value_tables",
+            "test_sealed.TestToRoman.test_subtractive_boundary_values",
+            "test_sealed.TestToRoman.test_mixed_place_values_and_maximum",
+            "test_sealed.TestToRoman.test_plain_int_subclass_matches_int_throughout_supported_range",
+            "test_sealed.TestToRoman.test_int_enum_member_converts_by_integer_value"
+          ]
+        }
+      ]
+    },
+    "adversarial": {
+      "sha256": "f33f821cbf25699e6cea6ba2521eeb5ef5825b895b0254ba9478cd20db5cdb5b",
+      "author_model": "gpt-6-sol",
+      "author_role": "break",
+      "attempts": 1,
+      "escalated": false,
+      "expected_ids": [
+        "test_breaker.TestBreaker.test_non_int_numeric_values_are_not_coerced",
+        "test_breaker.TestBreaker.test_other_non_int_values_are_rejected",
+        "test_breaker.TestBreaker.test_int_enum_values_with_multiple_subtractive_places",
+        "test_breaker.TestBreaker.test_helper_uses_uppercase_result_for_unicode_input",
+        "test_breaker.TestBreaker.test_helper_accepts_noncanonical_letter_sequences",
+        "test_breaker.TestBreaker.test_helper_rejects_intruders_at_any_position",
+        "test_breaker.TestBreaker.test_helper_rejects_other_ordinary_types",
+        "test_breaker.TestBreaker.test_helper_accepts_plain_str_subclass",
+        "test_breaker.TestBreaker.test_conversion_outputs_pass_helper_with_subtractive_letters"
+      ],
+      "summary": {
+        "ran": 9,
+        "tests": [
+          {
+            "id": "test_breaker.TestBreaker.test_non_int_numeric_values_are_not_coerced",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.191,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_other_non_int_values_are_rejected",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.179,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_int_enum_values_with_multiple_subtractive_places",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.18,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_helper_uses_uppercase_result_for_unicode_input",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.18,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_helper_accepts_noncanonical_letter_sequences",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.18,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_helper_rejects_intruders_at_any_position",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.182,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_helper_rejects_other_ordinary_types",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.181,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_helper_accepts_plain_str_subclass",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.182,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestBreaker.test_conversion_outputs_pass_helper_with_subtractive_letters",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.18,
+            "captured_tail": "",
+            "failure_tail": ""
+          }
+        ],
+        "passed": 9,
+        "failing": 0,
+        "subtest_events": 0,
+        "import_error": null,
+        "all_passed": true,
+        "canary_ok": true,
+        "summary_line": "OK (9 of 9 methods, each in its own process)",
+        "operation_uuid": "01a1526c-cb4e-762f-9b97-11c432bac482",
+        "nonce": "c3c3f709b52dba32a09ec0776d7e2294",
+        "supervisor_exit_code": 0,
+        "runner_error": null
+      },
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "sealed_file_unchanged_before": true,
+          "sealed_file_unchanged_after": true,
+          "static_ids_match_red": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "notes": "Targets non-coercion, IntEnum combinations, Unicode uppercase behavior, letter-only validation, and consistency between conversion and validation.",
+      "operation_uuid": "01a1526c-cb4e-762f-9b97-11c432bac482"
+    }
+  },
+  "drift": {
+    "drift_score": 0,
+    "assessment": "aligned",
+    "scope_narrowed": [],
+    "scope_widened": [],
+    "unsupported_claims": [],
+    "summary": "The diff solves the task: `isinstance(n, int)` accepts supported int subclasses, `if not 1 <= n <= 3999` enforces the range, and the decimal-place tables produce canonical subtractive notation. Only to_roman changes, preserving is_roman_numeral and tests; observed outputs report two existing tests passing and successful exhaustive conversion and error checks, though the check script itself is not shown.",
+    "threshold": 0.6
+  },
+  "arbitration": null,
+  "gates": {
+    "existing_suite": {
+      "ok": true,
+      "detail": "OK (2 of 2 methods, each in its own process)",
+      "evidence_class": "bound"
+    },
+    "sealed_binding": {
+      "ok": true,
+      "detail": "all checks pass",
+      "evidence_class": "bound"
+    },
+    "mutation": {
+      "ok": true,
+      "detail": "score 0.917 on 12 mutants",
+      "evidence_class": "bound"
+    },
+    "adversarial_tests": {
+      "ok": true,
+      "detail": "OK (9 of 9 methods, each in its own process)",
+      "evidence_class": "bound"
+    },
+    "drift_audit": {
+      "ok": true,
+      "detail": "score 0.0 (aligned)",
+      "evidence_class": "model"
+    }
+  },
+  "verdict": {
+    "verdict": "VERIFIED",
+    "reasons": [],
+    "warnings": [],
+    "derivation": {
+      "verdict": "VERIFIED",
+      "gates_failed": [],
+      "gates_skipped": [],
+      "blocking": [],
+      "cleared_by_arbitration": false,
+      "corrected_gates": [],
+      "rule": "VERIFIED only when every recorded gate passes (a skipped gate never counts as a pass), the implementer finished and the scope policy held; otherwise NEEDS HUMAN. A gate passes on a corrected generated-test module only when the correction was validated by execution (same test methods, only the failing ones changed, passes on the candidate, still discriminates on the base or a mutant) and the gate was re-run; the arbiter's classification alone never changes a gate."
+    }
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "codex_gateway",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T04:17:21.555331+00:00",
+        "elapsed_ms": 98245,
+        "gateway_duration_ms": 34928,
+        "prompt_chars": 4072,
+        "tokens_in": 10403,
+        "tokens_out": 1099,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10403,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1099,
+          "reasoning_output_tokens": 0
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "audit",
+        "stage": "contract-audit",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T04:18:59.813906+00:00",
+        "elapsed_ms": 79416,
+        "gateway_duration_ms": 15730,
+        "prompt_chars": 8652,
+        "tokens_in": 11399,
+        "tokens_out": 107,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 11399,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 107,
+          "reasoning_output_tokens": 37
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:20:19.238279+00:00",
+        "elapsed_ms": 120672,
+        "gateway_duration_ms": 52043,
+        "prompt_chars": 6998,
+        "tokens_in": 10581,
+        "tokens_out": 2823,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10581,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2823,
+          "reasoning_output_tokens": 1034
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:22:27.327199+00:00",
+        "elapsed_ms": 161421,
+        "gateway_duration_ms": 11734,
+        "prompt_chars": 6970,
+        "tokens_in": 10584,
+        "tokens_out": 106,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 10584,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 106,
+          "reasoning_output_tokens": 24
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:25:08.762762+00:00",
+        "elapsed_ms": 61309,
+        "gateway_duration_ms": 18354,
+        "prompt_chars": 7622,
+        "tokens_in": 10768,
+        "tokens_out": 394,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10768,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 394,
+          "reasoning_output_tokens": 72
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:26:10.087667+00:00",
+        "elapsed_ms": 71316,
+        "gateway_duration_ms": 13934,
+        "prompt_chars": 8724,
+        "tokens_in": 11121,
+        "tokens_out": 77,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11121,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 77,
+          "reasoning_output_tokens": 8
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:27:24.821969+00:00",
+        "elapsed_ms": 35029,
+        "gateway_duration_ms": 17485,
+        "prompt_chars": 9284,
+        "tokens_in": 11257,
+        "tokens_out": 499,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11257,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 499,
+          "reasoning_output_tokens": 42
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "implement",
+        "stage": "implement-5",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:28:03.764474+00:00",
+        "elapsed_ms": 39625,
+        "gateway_duration_ms": 20016,
+        "prompt_chars": 10707,
+        "tokens_in": 11740,
+        "tokens_out": 148,
+        "tokens_cached": 7168,
+        "usage_raw": {
+          "input_tokens": 11740,
+          "cached_input_tokens": 7168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 148,
+          "reasoning_output_tokens": 34
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "break",
+        "stage": "break-tests-1",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "medium",
+        "returned_model": "gpt-6-sol",
+        "returned_effort": "medium",
+        "started_at_utc": "2026-10-19T04:29:06.070307+00:00",
+        "elapsed_ms": 71393,
+        "gateway_duration_ms": 49640,
+        "prompt_chars": 7469,
+        "tokens_in": 10710,
+        "tokens_out": 2188,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 10710,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2188,
+          "reasoning_output_tokens": 1298
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      },
+      {
+        "provider": "codex_gateway",
+        "role": "audit",
+        "stage": "drift-audit",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "low",
+        "returned_model": "gpt-6-astra",
+        "returned_effort": "low",
+        "started_at_utc": "2026-10-19T04:30:23.834001+00:00",
+        "elapsed_ms": 52959,
+        "gateway_duration_ms": 17208,
+        "prompt_chars": 8184,
+        "tokens_in": 11399,
+        "tokens_out": 183,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "input_tokens": 11399,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 183,
+          "reasoning_output_tokens": 37
+        },
+        "cost_usd": null,
+        "cost_note": "ChatGPT allowance via Codex gateway; not USD",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": null,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "none"
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a15260-d7b4-775b-91bc-6547a615589a",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.781,
+        "raw_cost_diag": 0.00288054,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:17:14.505848+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": "01a15265-833f-71ed-a21d-b40909f73f12",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.836,
+        "raw_cost_diag": 0.03145743,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:22:19.923521+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-tests-3",
+        "operation_uuid": "01a1526a-1a74-76b8-ad28-516e09e5fadd",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.758,
+        "raw_cost_diag": 0.0028642499999999996,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:27:21.410138+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "impl-python-4",
+        "operation_uuid": "01a1526a-b08f-763c-9a90-c67ea6996598",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.59,
+        "raw_cost_diag": 0.00151864,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:27:59.857565+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "verify",
+        "operation_uuid": "01a1526b-5b1c-7712-81f0-a2b730767e70",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.389,
+        "raw_cost_diag": 0.02727877,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:43.401285+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "existing",
+        "operation_uuid": "01a1526b-72f5-7043-a827-04da3e481dae",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.419,
+        "raw_cost_diag": 0.008783349999999999,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:49.674468+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m02-130fe74269",
+        "operation_uuid": "01a1526b-8111-7149-9298-19892a7641da",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.088,
+        "raw_cost_diag": 0.02395403,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:53.115174+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m03-f05f697a13",
+        "operation_uuid": "01a1526b-81a7-7468-9826-0ee58fba3bac",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.106,
+        "raw_cost_diag": 0.02424758,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:53.115276+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m01-87afd84a52",
+        "operation_uuid": "01a1526b-810b-75a8-8fb9-bd623284bcec",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.482,
+        "raw_cost_diag": 0.028493789999999998,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:53.115321+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m04-c8342a0eb2",
+        "operation_uuid": "01a1526b-80e7-76ed-92f4-bca9dc3cc031",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.092,
+        "raw_cost_diag": 0.02399685,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:53.115481+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m06-fa01a535be",
+        "operation_uuid": "01a1526b-812d-7471-ad92-7dbb14b12ca3",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.623,
+        "raw_cost_diag": 0.029251020000000003,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:53.116055+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m05-48504acece",
+        "operation_uuid": "01a1526b-80ea-76dd-9b2b-62c74848b6cf",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.091,
+        "raw_cost_diag": 0.02401915,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:53.116079+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m07-448e6e34ab",
+        "operation_uuid": "01a1526b-80f2-7593-8815-04607bd0e142",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.359,
+        "raw_cost_diag": 0.026932189999999998,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:53.116470+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m08-f7831d6fc5",
+        "operation_uuid": "01a1526b-8107-726e-bbd5-fe3e82a5212c",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.314,
+        "raw_cost_diag": 0.02638884,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:53.116628+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m09-7a0f5af280",
+        "operation_uuid": "01a1526b-9918-72a1-8244-18b26b5bda2b",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.413,
+        "raw_cost_diag": 0.0272519,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:59.334689+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m10-e563251b42",
+        "operation_uuid": "01a1526b-9ae5-73fe-837b-e91d547ef749",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.536,
+        "raw_cost_diag": 0.02762566,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:59.776375+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m11-8a5ef4ff26",
+        "operation_uuid": "01a1526b-9ae3-72a8-9bcb-43024b5b7743",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.69,
+        "raw_cost_diag": 0.03002083,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:59.795991+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "mutant-m12-b58ab80b9c",
+        "operation_uuid": "01a1526b-9ae0-7643-b547-24a0f98d7325",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.617,
+        "raw_cost_diag": 0.02906433,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:28:59.799675+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      },
+      {
+        "stage": "breaker-tests",
+        "operation_uuid": "01a1526c-cb4e-762f-9b97-11c432bac482",
+        "image_uuid": "edb43393-63cd-49a4-ba63-2342c46f4233",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.755,
+        "raw_cost_diag": 0.02091118,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-19T04:30:17.477766+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge"
+      }
+    ],
+    "open_reservations": [],
+    "totals": {
+      "model_calls": 10,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 109962,
+      "tokens_out": 7624,
+      "tokens_cached": 28672,
+      "model_elapsed_ms": 791385,
+      "cost_usd": null,
+      "cost_usd_committed": 0.0,
+      "uncertain_unpriced_calls": 0,
+      "open_reservations": 0,
+      "open_reserved_usd": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "codex_gateway:gpt-6-astra": {
+          "calls": 3,
+          "tokens_in": 33201,
+          "tokens_out": 1389,
+          "tokens_cached": 0,
+          "cost_usd": null,
+          "elapsed_ms": 230620,
+          "failed": 0
+        },
+        "codex_gateway:gpt-6-sol": {
+          "calls": 7,
+          "tokens_in": 76761,
+          "tokens_out": 6235,
+          "tokens_cached": 28672,
+          "cost_usd": null,
+          "elapsed_ms": 560765,
+          "failed": 0
+        }
+      },
+      "sandbox_operations": 19,
+      "sandbox_duration_s": 53.939,
+      "sandbox_retained_images": [
+        "edb43393-63cd-49a4-ba63-2342c46f4233"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.41694033
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest-a1': inference provider codex_gateway; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, offers a corrected module. The correction counts only after mechanical validation (same test methods, only the failing ones changed, passes on the candidate, still fails on the unmodified base or is caught by a mutant); the corrected gate is then re-run and the verdict re-derived from the gates. A sealed test that failed by assertion is never overridden. The classification itself remains a model judgement.",
+    "INFEASIBLE is recorded only when a witness program written by the contract auditor demonstrated the contradiction by running on the unmodified repository (exit code and output recorded); the witness's logic is the model's, its execution is not.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "audit"
+}

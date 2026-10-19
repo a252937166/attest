@@ -1,0 +1,48 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement roman.core.to_roman(n), available through from roman import to_roman, to return the canonical uppercase Roman numeral string for integer values from 1 through 3999 using standard subtractive notation. Accept ordinary int subclasses by value, reject non-int inputs without coercion, and raise ValueError for out-of-range integers. Preserve is_roman_numeral and existing tests. Boolean handling and behavior for int subclasses overriding arithmetic or comparison operators are excluded from testing.",
+  "interface_contract": [
+    {
+      "name": "roman.to_roman",
+      "signature": "to_roman(n)",
+      "behavior": "Return a str representing n in canonical uppercase Roman notation for 1 <= n <= 3999. Canonical notation concatenates thousands, hundreds, tens, and units in descending order, using IV, IX, XL, XC, CD, and CM for subtractive forms. Accept instances of int subclasses, including IntEnum and PlainInt, exactly like the int of the same value, provided they do not override arithmetic or comparison operators. Do not coerce other types. Bool handling is unspecified for testing.",
+      "error_cases": [
+        "ValueError: an int or supported int subclass instance has value less than 1 or greater than 3999, excluding bool from required assertions.",
+        "TypeError: input is not an instance of int; this includes strings, floats, None, and lists.",
+        "Exception messages are unspecified."
+      ]
+    },
+    {
+      "name": "roman.is_roman_numeral",
+      "signature": "is_roman_numeral(s)",
+      "behavior": "Preserve the existing implementation: return True exactly when s is a nonempty str and every character in s.upper() belongs to IVXLCDM. This checks letters, not canonical Roman numeral syntax.",
+      "error_cases": [
+        "Ordinary non-string inputs return False without raising an exception."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. from roman import to_roman and from roman import is_roman_numeral continue to work, with their existing one-argument signatures.",
+    "2. For every integer n from 1 through 3999, to_roman(n) returns a str equal to the concatenation of the canonical representations of its decimal places: thousands ['', 'M', 'MM', 'MMM']; hundreds ['', 'C', 'CC', 'CCC', 'CD', 'D', 'DC', 'DCC', 'DCCC', 'CM']; tens ['', 'X', 'XX', 'XXX', 'XL', 'L', 'LX', 'LXX', 'LXXX', 'XC']; units ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']. Each table is indexed by the corresponding decimal digit.",
+    "3. to_roman(1) == 'I', to_roman(4) == 'IV', to_roman(9) == 'IX', to_roman(40) == 'XL', to_roman(90) == 'XC', to_roman(400) == 'CD', and to_roman(900) == 'CM'.",
+    "4. to_roman(2024) == 'MMXXIV', to_roman(1994) == 'MCMXCIV', and to_roman(3999) == 'MMMCMXCIX'.",
+    "5. Integer values outside 1..3999 raise ValueError, including 0, -1, and 4000.",
+    "6. Non-int inputs raise TypeError without coercion, including '5', 5.0, None, and [1].",
+    "7. Instances of int subclasses that do not override arithmetic or comparison operators convert identically to equal ints throughout the supported range; specifically, PlainInt(49) and an IntEnum member with value 49 return 'XLIX'.",
+    "8. Supported int subclass instances outside the range raise ValueError, including PlainInt and IntEnum values of 0, -1, and 4000.",
+    "9. is_roman_numeral retains its letter-only validation behavior: 'XIV', 'mmxxiv', and 'IIII' return True; '', 'ABC', and 14 return False. Its implementation remains unchanged.",
+    "10. Existing test files remain unchanged and existing tests continue to pass.",
+    "11. Tests make no assertions about True or False inputs, or int subclasses that override arithmetic or comparison operators."
+  ],
+  "out_of_scope": [
+    "Changing is_roman_numeral or making it validate canonical Roman numeral syntax.",
+    "Changing existing tests or public signatures.",
+    "Roman numeral parsing, lowercase output, alternative notation, or support for values outside 1..3999.",
+    "Coercing numeric strings, floats, or other non-int inputs.",
+    "Specifying or testing boolean handling.",
+    "Specifying or testing int subclasses that override arithmetic or comparison operators.",
+    "Requiring particular exception messages or a particular conversion algorithm."
+  ],
+  "external_references_needed": []
+}

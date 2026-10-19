@@ -1,0 +1,428 @@
+{
+  "applied": true,
+  "validated_modules": [
+    "sealed"
+  ],
+  "cleared": true,
+  "all_corrected": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "all 1 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (every corrected sealed test fails on the unmodified base (red check preserved)); the affected gate(s) are re-run on the corrected modules",
+  "modules": [
+    {
+      "module": "sealed",
+      "classifications": [
+        {
+          "test_id": "test_sealed.TestCompatibility.test_public_aliases_and_subclass_parse",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test assumes a subclass instance must accept a base Version instance as its comparison operand. The preserved class check requires a Derived instance in this case, as the TypeError indicates. Subclass parsing itself succeeded.",
+          "contract_basis": "Version.compare preserves Version operands compatible with the existing class check and existing TypeError behavior. Version.parse preserves subclass construction; it does not broaden comparison operand compatibility."
+        }
+      ],
+      "corrected_notes": "Only the failing method changed: it compares compatible Derived instances and checks the preserved rejection of a base-class operand. It also exercises long numeric prerelease comparison through subclass parsing with the conversion limit enabled, preserving discrimination against the original implementation.",
+      "corrected_module": "arbitration/sealed_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (25 of 25 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a1528e-fa51-75c6-ae94-e39347bd77ec"
+      },
+      "base_rerun": {
+        "summary_line": "FAILED (9 of 25 methods: ERROR 9)",
+        "failing": 9,
+        "corrected_tests_failing_on_base": [
+          "test_sealed.TestCompatibility.test_public_aliases_and_subclass_parse"
+        ],
+        "operation_uuid": "01a1528f-1e2f-715e-a469-df1664a35616"
+      },
+      "mutant_reruns": [],
+      "cleared_module": true,
+      "validated": true,
+      "corrected": {
+        "path": "arbitration/sealed_corrected.py",
+        "sha256": "5d0a5ac569de78f7897dfc61d3fee8a95339489419b651e9e8675b43e54c201a",
+        "expected_ids": [
+          "test_sealed.TestLongAsciiPrereleases.test_long_canonical_prerelease_parses_and_compares_equal",
+          "test_sealed.TestLongAsciiPrereleases.test_deprecated_compare_orders_long_prerelease_and_warns",
+          "test_sealed.TestLongAsciiPrereleases.test_long_identifier_precedence_and_sorting",
+          "test_sealed.TestLongAsciiPrereleases.test_long_prerelease_ignores_build_and_precedes_release",
+          "test_sealed.TestLongAsciiPrereleases.test_comparison_preserves_all_stored_parts",
+          "test_sealed.TestLongAsciiPrereleases.test_long_leading_zeros_normalize_without_changing_storage",
+          "test_sealed.TestLongAsciiPrereleases.test_long_ascii_number_compares_above_unicode_number",
+          "test_sealed.TestLongAsciiPrereleases.test_ascii_comparison_preserves_integer_string_limit",
+          "test_sealed.TestIdentifierSemantics.test_constructor_preserves_unvalidated_prerelease_and_build",
+          "test_sealed.TestIdentifierSemantics.test_constructor_prerelease_comparison_matrix",
+          "test_sealed.TestIdentifierSemantics.test_nat_cmp_retains_empty_identifiers",
+          "test_sealed.TestIdentifierSemantics.test_empty_and_none_prereleases_have_release_precedence",
+          "test_sealed.TestIdentifierSemantics.test_parser_rejects_leading_zeros_and_unicode_digits",
+          "test_sealed.TestIdentifierSemantics.test_unicode_conversion_is_eager_after_decisive_pair_or_in_suffix",
+          "test_sealed.TestIdentifierSemantics.test_unicode_conversion_is_eager_against_release",
+          "test_sealed.TestIdentifierSemantics.test_unicode_integer_limit_failure_remains_eager",
+          "test_sealed.TestIdentifierSemantics.test_core_precedence_bypasses_bad_prerelease",
+          "test_sealed.TestIdentifierSemantics.test_operator_propagates_unicode_conversion_error",
+          "test_sealed.TestCompatibility.test_public_aliases_and_subclass_parse",
+          "test_sealed.TestCompatibility.test_compare_accepts_supported_operand_forms",
+          "test_sealed.TestCompatibility.test_invalid_compare_and_operator_operands",
+          "test_sealed.TestCompatibility.test_parse_bytes_optional_parts_and_input_errors",
+          "test_sealed.TestCompatibility.test_constructor_core_conversion_and_negative_error",
+          "test_sealed.TestCompatibility.test_replace_preserves_original_and_rejects_unknown_part",
+          "test_sealed.TestCompatibility.test_all_comparison_operators_follow_compare"
+        ],
+        "changed_tests": [
+          "test_sealed.TestCompatibility.test_public_aliases_and_subclass_parse"
+        ],
+        "summary": {
+          "ran": 25,
+          "tests": [
+            {
+              "id": "test_sealed.TestLongAsciiPrereleases.test_long_canonical_prerelease_parses_and_compares_equal",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.207,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestLongAsciiPrereleases.test_deprecated_compare_orders_long_prerelease_and_warns",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestLongAsciiPrereleases.test_long_identifier_precedence_and_sorting",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestLongAsciiPrereleases.test_long_prerelease_ignores_build_and_precedes_release",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestLongAsciiPrereleases.test_comparison_preserves_all_stored_parts",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestLongAsciiPrereleases.test_long_leading_zeros_normalize_without_changing_storage",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.197,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestLongAsciiPrereleases.test_long_ascii_number_compares_above_unicode_number",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestLongAsciiPrereleases.test_ascii_comparison_preserves_integer_string_limit",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_constructor_preserves_unvalidated_prerelease_and_build",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_constructor_prerelease_comparison_matrix",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_nat_cmp_retains_empty_identifiers",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_empty_and_none_prereleases_have_release_precedence",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_parser_rejects_leading_zeros_and_unicode_digits",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_unicode_conversion_is_eager_after_decisive_pair_or_in_suffix",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_unicode_conversion_is_eager_against_release",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_unicode_integer_limit_failure_remains_eager",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.199,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_core_precedence_bypasses_bad_prerelease",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.2,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestIdentifierSemantics.test_operator_propagates_unicode_conversion_error",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestCompatibility.test_public_aliases_and_subclass_parse",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestCompatibility.test_compare_accepts_supported_operand_forms",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestCompatibility.test_invalid_compare_and_operator_operands",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestCompatibility.test_parse_bytes_optional_parts_and_input_errors",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestCompatibility.test_constructor_core_conversion_and_negative_error",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestCompatibility.test_replace_preserves_original_and_rejects_unknown_part",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.196,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_sealed.TestCompatibility.test_all_comparison_operators_follow_compare",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.2,
+              "captured_tail": "",
+              "failure_tail": ""
+            }
+          ],
+          "passed": 25,
+          "failing": 0,
+          "subtest_events": 0,
+          "import_error": null,
+          "all_passed": true,
+          "canary_ok": true,
+          "summary_line": "OK (25 of 25 methods, each in its own process)",
+          "operation_uuid": "01a1528e-fa51-75c6-ae94-e39347bd77ec",
+          "nonce": "9931f705270793e21faff9ddfc9e3b77",
+          "supervisor_exit_code": 0,
+          "runner_error": null
+        },
+        "binding": {
+          "ok": true,
+          "checks": {
+            "result_file_present": true,
+            "sealed_file_unchanged_before": true,
+            "sealed_file_unchanged_after": true,
+            "static_ids_match_red": true,
+            "supervisor_completed": true,
+            "verifier_isolation_active": true,
+            "nonce_matches": true,
+            "no_discovery_error": true,
+            "expected_test_ids_present": true,
+            "no_unexpected_test_ids": true,
+            "no_nonzero_exit": true,
+            "no_signal": true,
+            "no_timeout": true,
+            "no_missing_or_forged_result": true,
+            "all_expected_pass": true,
+            "no_startup_hooks_on_import_path": true,
+            "canary_must_pass_ok": true,
+            "canary_must_fail_failed": true
+          },
+          "reasons": []
+        },
+        "nonce": "9931f705270793e21faff9ddfc9e3b77",
+        "operation_uuid": "01a1528e-fa51-75c6-ae94-e39347bd77ec",
+        "discrimination": "every corrected sealed test fails on the unmodified base (red check preserved)",
+        "base_rerun": {
+          "summary_line": "FAILED (9 of 25 methods: ERROR 9)",
+          "failing": 9,
+          "corrected_tests_failing_on_base": [
+            "test_sealed.TestCompatibility.test_public_aliases_and_subclass_parse"
+          ],
+          "operation_uuid": "01a1528f-1e2f-715e-a469-df1664a35616"
+        },
+        "mutant_reruns": [],
+        "original_sha256": "edabc51c926a834de237a17b67a822be7f345b1cd341b3f8d1f739350114b0ff",
+        "original_failing": [
+          "test_sealed.TestCompatibility.test_public_aliases_and_subclass_parse"
+        ]
+      },
+      "sealed_assertion_hold": false,
+      "error": null
+    }
+  ],
+  "rule": "a correction counts only when it keeps every test method, changes only the failing ones, passes on the candidate and still discriminates (fails on the unmodified base, or is caught by a mutant of the patch); a sealed test that failed by assertion is never overridden; a validated correction re-runs its gate and the verdict is derived from the gates",
+  "note": "original tests, results and reasons are preserved unchanged; the arbiter's classification alone never changes a gate",
+  "applied_to_gates": [
+    {
+      "gate": "sealed_binding",
+      "module": "sealed",
+      "corrected_sha256": "5d0a5ac569de78f7897dfc61d3fee8a95339489419b651e9e8675b43e54c201a",
+      "changed_tests": [
+        "test_sealed.TestCompatibility.test_public_aliases_and_subclass_parse"
+      ],
+      "discrimination": "every corrected sealed test fails on the unmodified base (red check preserved)",
+      "breaker_rerun": true
+    }
+  ]
+}

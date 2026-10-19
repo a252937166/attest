@@ -1,0 +1,36 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -374,6 +374,33 @@
+         build = cls._increment_string(build)
+         return cls(self._major, self._minor, self._patch, self._prerelease, build)
+ 
++    def is_compatible(self, other: "Version") -> bool:
++        """Return whether ``other`` can replace this version.
++
++        Compatibility is directional. Both versions must have the same major
++        and exactly equal prerelease values. For a nonzero major, the candidate
++        may have an equal or higher minor; patch values are ignored. For major
++        zero, minor and patch must both match. Build metadata is always ignored.
++
++        ``other`` must be a :class:`Version` instance (subclasses are accepted).
++        A different type raises :class:`TypeError`.
++
++        >>> Version(1, 2, 9).is_compatible(Version(1, 3, 0))
++        True
++        >>> Version(1, 3, 0).is_compatible(Version(1, 2, 9))
++        False
++        >>> Version(0, 1, 0).is_compatible(Version(0, 1, 1))
++        False
++        """
++        if not isinstance(other, Version):
++            raise TypeError("Expected a Version type but got " + str(type(other)))
++
++        if self.major != other.major or self.prerelease != other.prerelease:
++            return False
++        if self.major == 0:
++            return self.minor == other.minor and self.patch == other.patch
++        return other.minor >= self.minor
++
+     def compare(self, other: Comparable) -> int:
+         """
+         Compare self with other.

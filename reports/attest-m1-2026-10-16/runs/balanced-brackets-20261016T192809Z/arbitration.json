@@ -1,0 +1,35 @@
+{
+  "applied": false,
+  "cleared": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "all 1 failing generated test(s) classified as test defects; corrected tests pass on the candidate and still fail on the base — candidate not falsified by these tests",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestBreaker.test_all_short_ascii_bracket_sequences",
+          "classification": "test_defect",
+          "rationale": "The reduction oracle is correct, but the reported failure is a timeout across 9,331 generated cases, with no incorrect result identified. The candidate performs a linear scan with a bracket stack. This timeout does not establish a contract violation; the generated test's workload should be bounded for the test environment.",
+          "contract_basis": "The contract requires correct bracket matching and built-in bool results but specifies no execution deadline or exhaustive enumeration requirement."
+        }
+      ],
+      "corrected_notes": "Bounded exhaustive enumeration to lengths zero through three and added explicit longer cases from the acceptance criteria, preserving the independent reduction oracle and all other tests. The corrected test still rejects the unimplemented stub; no expected result was changed to accommodate the candidate.",
+      "corrected_module": "arbitration/adversarial_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (9 of 9 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a1463b-a7d1-7364-8b9c-ed39e240f165"
+      },
+      "base_rerun": null,
+      "cleared_module": true,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

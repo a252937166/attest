@@ -1,0 +1,42 @@
+{
+  "applied": false,
+  "cleared": false,
+  "counts": {
+    "implementation_bug": 3,
+    "test_defect": 0,
+    "contract_dispute": 0
+  },
+  "headline": "3 failing test(s) indicate a real implementation bug; human review required",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.BreakerTests.test_int_subclass_with_overridden_arithmetic",
+          "classification": "implementation_bug",
+          "rationale": "The input is an accepted int instance with value 49. The candidate invokes its overridden arithmetic and raises AssertionError instead of returning 'XLIX'.",
+          "contract_basis": "The interface accepts int instances other than bool, including int subclasses, and requires the canonical numeral for their integer value. It does not exclude subclasses that override arithmetic."
+        },
+        {
+          "test_id": "test_breaker.BreakerTests.test_int_subclass_with_overridden_comparisons",
+          "classification": "implementation_bug",
+          "rationale": "The input is an accepted int instance with value 58. The candidate lets overridden comparisons reject that valid value, raising ValueError instead of returning 'LVIII'.",
+          "contract_basis": "Accepted int instances from 1 through 3999 must produce the specified canonical numeral. The interface does not restrict subclass acceptance to those with inherited comparison methods."
+        },
+        {
+          "test_id": "test_breaker.BreakerTests.test_out_of_range_subclass_with_misleading_comparisons",
+          "classification": "implementation_bug",
+          "rationale": "Overridden comparisons bypass the candidate's range check. The value 4000 then causes IndexError, and the value 0 would return an empty string; both require ValueError.",
+          "contract_basis": "An accepted integer type whose value is below 1 or above 3999 must raise ValueError, including int subclasses."
+        }
+      ],
+      "corrected_notes": "No tests were corrected because all three failures expose violations of the interface's explicit int-instance acceptance and value-based conversion rules.",
+      "corrected_module": null,
+      "candidate_rerun": null,
+      "base_rerun": null,
+      "cleared_module": false,
+      "error": null
+    }
+  ],
+  "note": "original tests, results and reasons are preserved unchanged; arbitration is advisory unless apply mode is on, and never flips an implementation bug or contract dispute"
+}

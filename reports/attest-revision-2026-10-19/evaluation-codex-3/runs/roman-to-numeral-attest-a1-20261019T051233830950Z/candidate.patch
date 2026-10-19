@@ -1,0 +1,18 @@
+--- a/roman/core.py
++++ b/roman/core.py
+@@ -7,4 +7,14 @@
+ 
+ 
+ def to_roman(n):
+-    raise NotImplementedError("to_roman is not implemented yet")
++    """Return the canonical Roman numeral for an integer from 1 through 3999."""
++    if not isinstance(n, int):
++        raise TypeError("n must be an integer")
++    if not 1 <= n <= 3999:
++        raise ValueError("n must be between 1 and 3999")
++
++    thousands = ("", "M", "MM", "MMM")
++    hundreds = ("", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM")
++    tens = ("", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC")
++    units = ("", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX")
++    return thousands[n // 1000] + hundreds[n // 100 % 10] + tens[n // 10 % 10] + units[n % 10]

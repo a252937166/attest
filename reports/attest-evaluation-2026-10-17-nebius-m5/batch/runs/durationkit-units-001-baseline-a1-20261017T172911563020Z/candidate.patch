@@ -1,0 +1,89 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -4,12 +4,82 @@
+ def parse_duration(text: str) -> float:
+     """Parse a duration string and return the number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts a plain non-negative integer number of seconds (e.g. ``"90"")
++    or one or more components made of a non-negative integer followed by a unit:
++    d (days), h (hours), m (minutes), s (seconds) or ms (milliseconds).
++    Components must appear in descending unit order (e.g. ``"2d4h"``,
++    ``"1h30m"``), each unit may appear at most once, and whitespace is allowed
++    around the whole string and between components (but not between a number
++    and its unit). Returns the total number of seconds as a float.
++
++    Raises:
++        TypeError: if ``text`` is not a string.
++        ValueError: for empty or whitespace-only input, negative numbers,
++                    fractional numbers, unknown units, repeated units,
++                    components out of descending order, a unit without a
++                    number, or any other malformed text.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+     stripped = text.strip()
+-    if not stripped.isdigit():
++    if not stripped:
+         raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    # Plain integer seconds (no whitespace allowed inside)
++    if stripped.isdigit():
++        return float(stripped)
++    # Otherwise parse as sequence of components
++    import sys
++    pos = 0
++    n = len(stripped)
++    total = 0.0
++    seen_units = set()
++    # order: d > h > m > s > ms
++    order = {'d': 0, 'h': 1, 'm': 2, 's': 3, 'ms': 4}
++    prev_order = -1
++    while pos < n:
++        # Skip whitespace between components
++        while pos < n and stripped[pos].isspace():
++            pos += 1
++        if pos >= n:
++            break
++        # Parse number
++        start_num = pos
++        while pos < n and stripped[pos].isdigit():
++            pos += 1
++        if start_num == pos:
++            raise ValueError(f"unsupported duration: {text!r}")
++        number = int(stripped[start_num:pos])
++        # Parse unit
++        if pos >= n:
++            raise ValueError(f"unsupported duration: {text!r}")
++        # Check for ms first (two letters)
++        if stripped[pos:pos+2] == 'ms':
++            unit = 'ms'
++            pos += 2
++        elif stripped[pos] in 'dhms':
++            unit = stripped[pos]
++            pos += 1
++        else:
++            raise ValueError(f"unsupported duration: {text!r}")
++        # Validate unit constraints
++        if unit in seen_units:
++            raise ValueError(f"unsupported duration: {text!r}")
++        cur_order = order[unit]
++        if cur_order <= prev_order:
++            raise ValueError(f"unsupported duration: {text!r}")
++        seen_units.add(unit)
++        prev_order = cur_order
++        # Convert to seconds
++        if unit == 'd':
++            total += number * 86400
++        elif unit == 'h':
++            total += number * 3600
++        elif unit == 'm':
++            total += number * 60
++        elif unit == 's':
++            total += number
++        elif unit == 'ms':
++            total += number * 0.001
++        # Loop continues to parse next component (if any)
++    return total
++

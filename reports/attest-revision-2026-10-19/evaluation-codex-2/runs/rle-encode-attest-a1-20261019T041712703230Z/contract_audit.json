@@ -1,0 +1,26 @@
+{
+  "model": "gpt-6-astra",
+  "consistent": false,
+  "notes": "The supplied decoder confirms the specification-stage claim by inspection; the witness directly evaluates it without calling the encode stub. Satisfying all requirements requires relaxing the input domain or changing the format and decoder.",
+  "conflicts": [
+    {
+      "requirement_ids": [
+        "AC10",
+        "AC12"
+      ],
+      "summary": "For input 'a1', the mandated format produces 'a111', which the unchanged decoder interprets as 111 copies of 'a', violating the required round trip.",
+      "witness_path": "contract_audit/witness_1.py",
+      "witness_sha256": "96c426f99d95b567d9d1cd372123a2320ca2a05ead6dab4cb9ef31ad6fb6c8dc",
+      "exit_code": 3,
+      "timed_out": false,
+      "stdout_tail": "CONTRADICTION AC10 AC12: input 'a1' requires encoding 'a111', but unchanged decode returns 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' (111 copies of a) instead of 'a1'.\n",
+      "stderr_tail": "",
+      "operation_uuid": "01a15263-6b60-71df-9762-ac5d7d3bad32",
+      "demonstrated": true,
+      "status": "demonstrated"
+    }
+  ],
+  "outcome": "contradiction demonstrated",
+  "error": null,
+  "rule": "a conflict is demonstrated only when its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' and exits with code 3; any other outcome records the conflict as claimed only, which never ends a run"
+}

@@ -1,0 +1,19 @@
+--- a/brackets/core.py
++++ b/brackets/core.py
+@@ -11,4 +11,15 @@
+ 
+ 
+ def is_balanced(s):
+-    raise NotImplementedError("is_balanced is not implemented yet")
++    """Return whether the brackets in s are correctly matched and nested."""
++    if not isinstance(s, str):
++        raise TypeError("s must be a string")
++
++    stack = []
++    for char in s:
++        if char in OPEN:
++            stack.append(char)
++        elif char in CLOSE:
++            if not stack or stack.pop() != PAIRS[char]:
++                return False
++    return not stack

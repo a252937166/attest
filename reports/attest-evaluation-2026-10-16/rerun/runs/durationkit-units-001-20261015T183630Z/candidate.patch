@@ -1,0 +1,78 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -4,12 +4,70 @@
+ def parse_duration(text: str) -> float:
+     """Parse a duration string and return the number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    The string can be a plain non-negative integer representing seconds,
++    or a sequence of components with units d (days), h (hours), m (minutes),
++    s (seconds), ms (milliseconds). Components must be in descending order
++    of units and each unit may appear at most once. Whitespace is allowed
++    around the string and between components.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+     stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if not stripped:
++        raise ValueError(f"empty duration: {text!r}")
++
++    # If it's just a plain number of seconds (old format)
++    if stripped.isdigit():
++        return float(stripped)
++
++    # Otherwise parse the new format
++    total = 0.0
++    i = 0
++    n = len(stripped)
++    seen_units = set()
++    # order index: d=0, h=1, m=2, s=3, ms=4
++    order_index = {'d':0, 'h':1, 'm':2, 's':3, 'ms':4}
++    last_index = -1  # to ensure descending order
++
++    while i < n:
++        # Parse number (must be at least one digit)
++        if not stripped[i].isdigit():
++            raise ValueError(f"invalid duration: {text!r}")
++        start = i
++        while i < n and stripped[i].isdigit():
++            i += 1
++        num_str = stripped[start:i]
++        # After number, we must have a unit
++        if i >= n:
++            raise ValueError(f"missing unit in duration: {text!r}")
++        # Check for two-letter unit 'ms'
++        if stripped[i:i+2] == 'ms':
++            unit = 'ms'
++            i += 2
++        elif stripped[i] in 'dhms':
++            unit = stripped[i]
++            i += 1
++        else:
++            raise ValueError(f"unknown unit in duration: {text!r}")
++
++        # Check for repeated unit
++        if unit in seen_units:
++            raise ValueError(f"repeated unit in duration: {text!r}")
++        seen_units.add(unit)
++
++        # Check descending order
++        cur_index = order_index[unit]
++        if cur_index <= last_index:
++            raise ValueError(f"units out of order in duration: {text!r}")
++        last_index = cur_index
++
++        # Convert number to float and add
++        value = int(num_str)
++        factors = {'d':86400, 'h':3600, 'm':60, 's':1, 'ms':0.001}
++        total += value * factors[unit]
++
++        # Skip any whitespace after unit (allowed between components)
++        while i < n and stripped[i].isspace():
++            i += 1
++
++    return total

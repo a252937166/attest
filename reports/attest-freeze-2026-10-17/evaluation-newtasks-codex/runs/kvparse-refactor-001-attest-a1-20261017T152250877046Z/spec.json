@@ -1,0 +1,69 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Refactor kvparse/parser.py to split string lines at the first '=' using str.partition, remove the hand-written index loops from parse_line, and extract blank/comment-line detection into _is_ignorable(line) -> bool, which parse must use. Preserve existing parsing results and exception types, including whitespace handling, matching outer quote removal, duplicate-key precedence, and package exports. Exception messages may change; existing tests must remain unchanged.",
+  "interface_contract": [
+    {
+      "name": "kvparse.parser.parse_line",
+      "signature": "parse_line(line)",
+      "behavior": "For string input, partition at the first '=' and strip both resulting fields with Python's default str.strip semantics. Return a two-string tuple (key, value). If the stripped value has length at least two and its first and last characters are the same single or double quote, remove exactly those two characters. Preserve everything inside those quotes, including whitespace, equals signs, and other quotes. Do not interpret escapes or comments. Preserve legacy behavior for non-string inputs as well; the task does not authorize a new string-only validation rule.",
+      "error_cases": [
+        "ValueError: a string line contains no '='.",
+        "ValueError: the key before the first '=' is empty after stripping.",
+        "For non-string inputs, preserve baseline outcomes and exception types. In particular, None and integers raise TypeError; bytes inputs raise ValueError; character sequences such as ['a', '=', 'b'] currently return ('a', 'b'). Exception messages are not prescribed."
+      ]
+    },
+    {
+      "name": "kvparse.parser.parse",
+      "signature": "parse(text)",
+      "behavior": "Accept input satisfying isinstance(text, str). Iterate over text.splitlines() in order. Use _is_ignorable on each line to skip blank lines and full-line comments. Pass each remaining original line to parse_line and assign its result into a dictionary. Later occurrences of an identical key overwrite earlier values. Return the dictionary, preserving existing insertion order.",
+      "error_cases": [
+        "TypeError: text is not an instance of str, including None, integers, lists, and bytes.",
+        "ValueError: any non-ignored line is malformed according to parse_line; propagate the error rather than returning a partial dictionary."
+      ]
+    },
+    {
+      "name": "kvparse.parser._is_ignorable",
+      "signature": "_is_ignorable(line) -> bool",
+      "behavior": "For a string line, return True exactly when line.strip() is empty or starts with '#' or ';'; otherwise return False. This is a module-level helper accessible from kvparse.parser. No package-level export is required.",
+      "error_cases": [
+        "Non-string inputs are outside this new helper's specified input domain; no particular exception behavior is required."
+      ]
+    },
+    {
+      "name": "kvparse package exports",
+      "signature": "from kvparse import parse, parse_line",
+      "behavior": "Both imports continue to resolve to the corresponding functions in kvparse.parser.",
+      "error_cases": []
+    }
+  ],
+  "acceptance_criteria": [
+    "1. parse_line uses str.partition with '=' to split string input at the first separator. Its source contains no while statement and no hand-written index loops for extracting the key or value.",
+    "2. parse_line('a=b') returns ('a', 'b'); parse_line(' a = b ') returns ('a', 'b'); parse_line('a==b') returns ('a', '=b'); parse_line('a = b = c') returns ('a', 'b = c'); parse_line('a=') returns ('a', '').",
+    "3. parse_line('k e y = v') returns ('k e y', 'v'). Leading and trailing whitespace follows default str.strip semantics, including tabs and Unicode whitespace; interior key and unquoted value whitespace remains unchanged.",
+    "4. parse_line('q = \"x\"') and parse_line(\"q = 'x'\") both return ('q', 'x'); parse_line(\"q = ''\") and parse_line('q = \"\"') both return ('q', '').",
+    "5. parse_line('q = \"x\\'') returns ('q', '\"x\\''); parse_line('q = \"') returns ('q', '\"'); a lone single quote is also preserved.",
+    "6. parse_line('q = \" spaced \"') returns ('q', ' spaced '); parse_line('u = \"a\" \"b\"') returns ('u', 'a\" \"b'). Remove only one matching outer quote pair, without recursively unquoting or interpreting escapes.",
+    "7. Each of '', 'novalue', ' = v', '   ', '=', and '\\t= 1' raises ValueError when passed to parse_line.",
+    "8. parse_line does not ignore comments: '# c' raises ValueError, '#=v' returns ('#', 'v'), and 'a = # not a comment' returns ('a', '# not a comment').",
+    "9. _is_ignorable is defined at module level with a bool return annotation. It returns True for '', whitespace-only strings, '   # c', and '\\t; c'; it returns False for 'a = 1', 'a = # not a comment', and 'a = ; not a comment'.",
+    "10. parse delegates line-ignore decisions to _is_ignorable and passes original non-ignored lines to parse_line. This integration is verifiable by source inspection or instrumentation.",
+    "11. parse('') returns {}; parse('k = v') returns {'k': 'v'}; text consisting entirely of blank lines and full-line comments returns {}.",
+    "12. parse preserves str.splitlines semantics, including LF, CRLF, lone CR, and other line boundaries recognized by str.splitlines. Leading whitespace before full-line '#' and ';' comments is accepted.",
+    "13. parse('a=1\\nb=2\\na=3') returns {'a': '3', 'b': '2'}, with iteration order ['a', 'b']. Key comparison remains case-sensitive and uses the stripped key.",
+    "14. A malformed non-ignored line at the beginning, middle, or end of otherwise valid text causes parse to raise ValueError. Malformed-looking content on a full-line comment is ignored.",
+    "15. parse raises TypeError for None, 3, a list, and bytes, including empty bytes. Ordinary str subclasses remain accepted.",
+    "16. The universal behavior-preservation requirement also covers legacy non-string parse_line inputs. Regression checks include None and 3 raising TypeError, b'a=b' raising ValueError, and ['a', '=', 'b'] and ('a', '=', 'b') returning ('a', 'b'). A direct partition rewrite must retain compatibility where needed.",
+    "17. Both public functions remain importable from kvparse and kvparse.parser. All existing tests in tests/ pass without modification.",
+    "18. Return values and exception types remain identical to the supplied baseline; exception-message text is excluded from equivalence requirements."
+  ],
+  "out_of_scope": [
+    "Changing existing tests.",
+    "Adding parsing features, inline comments, escape processing, recursive quote removal, key normalization, or alternate duplicate-key policies.",
+    "Restricting previously accepted parse_line inputs without preserving their baseline behavior.",
+    "Renaming or removing parse or parse_line, or requiring callers to change imports.",
+    "Adding dependencies or changing unrelated repository behavior.",
+    "Preserving exact exception messages."
+  ],
+  "external_references_needed": []
+}
