@@ -336,3 +336,60 @@ revision-6 proposal. Credit: the last verified reading of the Token Factory bill
 journal-accounted Nebius spend since then is about $1.49 plus the unapproved $0.055226 of the 19 Oct verification incident
 (`reports/attest-deployment-2026-10-19c/README.md`); none of these figures is a billing-page reading. The account is never
 recharged by the project.
+
+## What changed in the method (revision 7 to revision 8)
+
+| Stage | Revision 7 | Revision 8 |
+| --- | --- | --- |
+| Transport | every transport failure of a POST was uncertain; GET polls retried three times | each request records how far it got; a request that failed before any byte of it was written is sent again at most twice (after 2 s and 6 s), each attempt recorded (`request_sent` false, a Token Factory reservation closed at a known $0); reads and cancels are retried on any failure (at most four times); a written request stays uncertain and is never sent again |
+| Sandboxes operations | the accepted id was journaled with the final status only | the accepted id is journaled before polling starts; an accepted operation whose outcome cannot be read is `ACCEPTED_UNREAD`, kept for reconciliation and never spawned again; restart recovery names such operations |
+| Harness | stop on any uncertain operation | the same stop, plus a reconciliation list per cell, a per-service record (inference, Sandboxes, Tavily, never added up) and the harness's peak memory |
+| Admission | 422 for a malformed body | additionally 428 without `X-Attest-Confirm: start-run`, before anything exists; the console sends it only from its confirmation step |
+| Checker | ledger totals recomputed | additionally the transport counters (`calls_not_sent`, `sandbox_spawn_retries`, `sandbox_uncertain`) and no cost on a never-sent attempt |
+| Deployment | `MemoryMax=` only (ignored by systemd 219) | `MemoryLimit=` and a memory-plus-swap limit, read back by the installer |
+
+Evidence protocol (4), witness language, examples, task suite, method, guest programs, models and sampling are unchanged from
+revision 7. The harness changed (reconciliation and services records).
+
+## The pin (revision 8)
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `35248d0a4b0ad5bec142fd14c197cc59a31b2aef` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 37 files) | `68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4` |
+| Harness `scripts/run_evaluation.py` sha256 | `9f9e4bc2ebfee8ec6fbf2504d510fdaf71b137197fbf192dd20be16a9cb70c0f` (changed: the reconciliation list, the per-service record and the peak memory) |
+| `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` (unchanged) |
+| Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
+| Method `METHOD.md` sha256 | `ec415afcf1649040a219968d49a469553058d8299a1dfd3ad557bafe71c138dc` (unchanged) |
+| Guest programs | unchanged: supervisor `attest-sealed-supervisor/7` `97d3d47d1d5b4fed…`; per-test child `e4e7b0b294a2004c…`; canary `9cdc57c1348fae5c…`; sandbox runner `attest-guest/3` `db8e2a76834b83ac…` (equal to the revision-7 registration) |
+| Evidence protocol and witness language | version 4 and `attest-witness/1`, unchanged; manifest version 2 |
+| Effective provider configuration, proposed paid run (`reports/attest-revision7-repairs-2026-10-19/nemotron-effective-profile.json`, computed offline from the pinned package with a placeholder key and blocked sockets) | the compared profile is identical to revision 7's (provider `nebius_tokenfactory`; roles spec, audit, arbitrate `nvidia/Nemotron-3-Ultra-550b-a55b`, seal, implement, break `nvidia/nemotron-3-super-120b-a12b`, summary `nvidia/Nemotron-3_5-Lightning`; reasoning effort break low, implement medium, seal low, summary low; temperature 0.2; max_tokens 16000; no thinking flag; per-run USD cap 0.50; per-run call cap 22); the provider's description adds the transport retry policy |
+| Effective provider configuration, development batches (registered in each `schedule.json` of `reports/attest-revision7-repairs-2026-10-19/evaluation-codex*/`) | unchanged from revision 7 (`base_url_sha256` `68e25b464500800e`) |
+| Limits | revision-7 limits; deployment memory limit 200M (memory and memory plus swap) |
+| Offline suite on the final tree | **397 tests, 0 failures, 0 errors, 0 skips** on a clean checkout (`git worktree`) of the pinned commit `35248d0` (`reports/attest-revision7-repairs-2026-10-19/corpus/final-tree-suite-1-clean-35248d0.log`); the private working tree passes the same 397 |
+
+Development-gateway reliability batches of this revision (Attest only, one attempt per task, no paid inference call):
+`reports/attest-revision7-repairs-2026-10-19/evaluation-codex/`, `-2/`, `-3/`. Nine cells: `durationkit-units-001` VERIFIED
+(`true_accept`), `rle-encode` NEEDS HUMAN (`true_reject`; a demonstrated conflict on mixed task and derived criteria is held, not
+INFEASIBLE), `kvparse-refactor-001` NEEDS HUMAN (`false_reject`; a sealed test failed by assertion and is never overridden, although
+the arbiter classified it a test defect; its contract audit was consistent), three transport ERRORs (two requests executed whose
+answers the gateway host's network outage lost, one body stalled in transit and never executed) and three cells not run under the
+stop rule. All six bundles check `OK, EVIDENCE COMPLETE` under protocol 4. Record checking, not correct patches: the held-out
+judge establishes the judged outcomes.
+
+## The exact command (revision 8)
+
+```bash
+git clone <repository> attest-eval && cd attest-eval && git checkout 35248d0a4b0ad5bec142fd14c197cc59a31b2aef
+export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
+python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
+    --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r8-final \
+    --out reports/attest-evaluation-2026-10-XX-nebius-r8
+```
+
+## Proposed paid work (awaiting the owner's approval; nothing runs before it)
+
+Unchanged in scope and budget, re-pinned to revision 8: the two-run Nemotron smoke test through the CLI (about $0.15, at most
+$1.00) and the revised 32-cell evaluation with the command above (about $3.00 to $4.00, at most $9.00 through `--approve-usd`).
+Total maximum **$10.00**; stop rules as before. No paid Nebius call was made in revision 8. The credit reading and the
+journal-accounted spend are as stated in the revision-7 proposal; none of these figures is a billing-page reading.
