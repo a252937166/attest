@@ -87,6 +87,8 @@ class Host:
             "MEMORY_MAX": "200M", "TMPDIR": str(self.rehearsal / "tmp"), "PYTHON": sys.executable,
             "REHEARSAL_DIR": str(self.rehearsal), "REHEARSAL_SHIMS": str(SHIMS), "REHEARSAL_REAL_PYTHON": sys.executable,
             "REHEARSAL_HEALTH_PORT": str(port), "REHEARSAL_APP_LINK": str(self.attest / "app"),
+            # revision 8: the fake host's cgroup v1 memory hierarchy and /proc, written by the systemctl shim the way systemd 219 would
+            "CGROUP_MEMORY_DIR": str(self.root / "sys/fs/cgroup/memory"), "PROC_DIR": str(self.rehearsal / "proc"),
         })
 
     @property
@@ -246,7 +248,16 @@ class AuditOpsTests(unittest.TestCase):
         installed = json.loads((release / "INSTALLED.json").read_text(encoding="utf-8"))
         self.assertEqual(installed["package_digest"], self.manifests["a"]["package_digest"]["digest"])
         self.assertIn("ExecStart=/opt/attest/app/venv/bin/python", self.host.unit.read_text(encoding="utf-8"))
-        self.assertIn("MemoryMax=200M", self.host.unit.read_text(encoding="utf-8"))
+        unit = self.host.unit.read_text(encoding="utf-8")
+        self.assertIn("MemoryMax=200M", unit)
+        self.assertIn("MemoryLimit=200M", unit, "the directive systemd 219 honours")
+        self.assertIn("echo 209715200 > ", unit)
+        self.assertIn("/system.slice/attest.service/memory.memsw.limit_in_bytes", unit, "memory plus swap bounded as well")
+        self.assertNotIn("__", unit, "no placeholder is left in the rendered unit")
+        self.assertIn("systemd and the kernel enforce 209715200 bytes for memory and for memory+swap", proc.stdout)
+        cgroup = Path(self.host.env["CGROUP_MEMORY_DIR"]) / "system.slice" / "attest.service"
+        self.assertEqual((cgroup / "memory.limit_in_bytes").read_text().strip(), "209715200")
+        self.assertEqual((cgroup / "memory.memsw.limit_in_bytes").read_text().strip(), "209715200")
         vhost = self.host.vhost.read_text(encoding="utf-8")
         self.assertIn("proxy_pass http://127.0.0.1:4070;", vhost)
         self.assertNotIn("ssl_certificate", vhost, "http-only fallback while no certificate exists")
@@ -281,6 +292,32 @@ class AuditOpsTests(unittest.TestCase):
         self.assertEqual(self.host.active(), self.label("a"))
         self.assertIsNone(self.host.previous())
         self.assert_serving(VERSIONS["a"])
+
+    def test_scenario_9_a_memory_limit_that_is_not_in_force_fails_the_install(self):
+        """Revision 8: before this revision the unit carried only MemoryMax=, which systemd 219 ignores, and every deployment record
+        stated a limit that was never applied. The installer now reads the limit back from systemd and the cgroup: a unit whose
+        limit is not in force fails the install, and the previous release keeps serving with its unit."""
+        self.install("a")
+        unit_before = self.host.unit.read_bytes()
+        staged = self.host.deploy / "attest.service"
+        lines = staged.read_text(encoding="utf-8").splitlines()
+        staged.write_text("\n".join(l for l in lines if not l.startswith(("MemoryLimit=", "ExecStartPre=", "PermissionsStartOnly="))) + "\n", encoding="utf-8")
+        proc = self.install("b", expect_ok=False)
+        self.assertIn("the memory limit is not in force for attest.service", proc.stdout + proc.stderr)
+        self.assertIn("memory.limit_in_bytes=9223372036854771712", proc.stdout, "the readback shows the ignored directive")
+        self.assertEqual(self.host.active(), self.label("a"))
+        self.assertEqual(self.host.unit.read_bytes(), unit_before, "the previous unit is restored")
+        self.assert_serving(VERSIONS["a"])
+
+    def test_scenario_10_a_failing_memory_swap_write_fails_the_start_and_the_install(self):
+        self.install("a")
+        cgroup = Path(self.host.env["CGROUP_MEMORY_DIR"]) / "system.slice" / "attest.service"
+        # a host without swap accounting (the memory+swap file cannot be written): ExecStartPre fails, so the start and the install fail,
+        # and the previous release is started again with its unit (whose ExecStartPre fails the same way only on such a host)
+        proc = self.install("b", expect_ok=False, REHEARSAL_NO_SWAP_ACCOUNTING="1")
+        self.assertIn("restart of attest.service failed", proc.stdout + proc.stderr)
+        self.assertEqual(self.host.active(), self.label("a"))
+        self.assertTrue(cgroup.is_dir())
 
     def test_scenario_5_nginx_test_failure_restores_vhost_and_previous_release(self):
         self.install("a")
@@ -329,7 +366,8 @@ class AuditOpsTests(unittest.TestCase):
         subprocess.run([str(SHIMS / "python3.12"), "-m", "venv", str(attest / "venv")], env=self.host.env, check=True)
         subprocess.run([str(attest / "venv" / "bin" / "python"), "-m", "pip", "install", "-r", str(self.trees["a"] / "deploy" / "yungou" / "requirements.txt")],
                        env=self.host.env, check=True)
-        unit = (DEPLOY / "attest.service").read_text(encoding="utf-8").replace("__MEMORY_MAX__", "200M").replace("/opt/attest/app/venv/", "/opt/attest/venv/")
+        unit = (DEPLOY / "attest.service").read_text(encoding="utf-8").replace("__MEMORY_MAX_BYTES__", "209715200").replace("__MEMORY_MAX__", "200M")
+        unit = unit.replace("__CGROUP_MEMORY_DIR__", self.host.env["CGROUP_MEMORY_DIR"]).replace("/opt/attest/app/venv/", "/opt/attest/venv/")
         self.host.unit.write_text(unit, encoding="utf-8")
         shutil.copy(self.host.deploy / "attest.env", self.host.root / "etc" / "attest" / "attest.env")
         subprocess.run([str(SHIMS / "systemctl"), "restart", "attest.service"], env=self.host.env, check=True)

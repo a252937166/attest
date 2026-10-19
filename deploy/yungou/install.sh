@@ -18,7 +18,8 @@
 # dependencies; compile, dependency-import and package-import checks with the release interpreter (version and digest must equal
 # RELEASE.json); nginx -t with the new vhost swapped in on disk (the running nginx is untouched until the reload at the end);
 # then the switch: symlink, unit, daemon-reload, restart; strict health (HTTP 200, JSON, expected version, worker alive, deadline);
-# readback of every RELEASE.json entry and of the package digest through $ATTEST_ROOT/app; nginx reload when the vhost changed.
+# readback of every RELEASE.json entry and of the package digest through $ATTEST_ROOT/app; the effective memory limit (systemd's
+# MemoryLimit, the cgroup's memory and memory+swap limits, the main process inside that cgroup); nginx reload when the vhost changed.
 # Any failure exits non-zero, re-selects the previous release (symlink, unit, vhost), restarts it, confirms its health and never
 # prints "install complete". Nothing but attest.service, its unit, its vhost and $ATTEST_ROOT is touched.
 #
@@ -59,9 +60,40 @@ HEALTH_URL=${HEALTH_URL:-http://127.0.0.1:4070/api/health}
 HEALTH_DEADLINE_SECONDS=${HEALTH_DEADLINE_SECONDS:-60}
 HEALTH_POLL_SECONDS=${HEALTH_POLL_SECONDS:-1}
 MEMORY_MAX=${MEMORY_MAX:-220M}
+CGROUP_MEMORY_DIR=${CGROUP_MEMORY_DIR:-/sys/fs/cgroup/memory}   # the cgroup v1 memory hierarchy (systemd 219 on this host)
+PROC_DIR=${PROC_DIR:-/proc}
 KEEP_RELEASES=${KEEP_RELEASES:-3}
 IMPORT_CHECK=${IMPORT_CHECK:-fastapi uvicorn jsonschema certifi}
 DEFAULT_PINS="fastapi==0.115.5 uvicorn[standard]==0.32.1 jsonschema==4.23.0 certifi"
+
+# systemd's size suffixes are powers of 1024: 200M -> 209715200
+memory_bytes() {
+  local value=$1 number unit
+  number=${value%[KMGTkmgt]}; unit=${value#"$number"}
+  case "$number" in ''|*[!0-9]*) return 1 ;; esac
+  case "$unit" in
+    '') echo "$number" ;;
+    K|k) echo $((number * 1024)) ;;
+    M|m) echo $((number * 1024 * 1024)) ;;
+    G|g) echo $((number * 1024 * 1024 * 1024)) ;;
+    T|t) echo $((number * 1024 * 1024 * 1024 * 1024)) ;;
+    *) return 1 ;;
+  esac
+}
+MEMORY_BYTES=$(memory_bytes "$MEMORY_MAX") || { echo "MEMORY_MAX=$MEMORY_MAX is not a size such as 200M" >&2; exit 2; }
+
+# The limit in force, read from the running system rather than from the unit file (systemd 219 ignored MemoryMax= for weeks while
+# the unit carried it): systemd's MemoryLimit, the cgroup's memory and memory+swap limits, and the main process in that cgroup.
+verify_memory_limit() {
+  local expected=$1 shown limit memsw pid cgroup
+  shown=$($SYSTEMCTL show "$UNIT_NAME" -p MemoryLimit 2>/dev/null | sed -n 's/^MemoryLimit=//p')
+  limit=$(cat "$CGROUP_MEMORY_DIR/system.slice/$UNIT_NAME/memory.limit_in_bytes" 2>/dev/null || echo missing)
+  memsw=$(cat "$CGROUP_MEMORY_DIR/system.slice/$UNIT_NAME/memory.memsw.limit_in_bytes" 2>/dev/null || echo missing)
+  pid=$($SYSTEMCTL show "$UNIT_NAME" -p MainPID 2>/dev/null | sed -n 's/^MainPID=//p')
+  cgroup=$(grep -E '^[0-9]+:memory:' "$PROC_DIR/${pid:-0}/cgroup" 2>/dev/null | cut -d: -f3 || true)
+  say "     systemd MemoryLimit=${shown:-unknown}; memory.limit_in_bytes=$limit; memory.memsw.limit_in_bytes=$memsw; main PID ${pid:-unknown} in memory cgroup ${cgroup:-none}"
+  [ "$shown" = "$expected" ] && [ "$limit" = "$expected" ] && [ "$memsw" = "$expected" ] && [ "$cgroup" = "/system.slice/$UNIT_NAME" ]
+}
 
 # ---- state for the failure path ------------------------------------------------------------------------------------------
 STEP=0; CURRENT_STEP=start; COMPLETED=0
@@ -427,7 +459,7 @@ on_exit() {
 trap on_exit EXIT
 
 # ---- 1. preflight --------------------------------------------------------------------------------------------------------
-say "== install.sh $STAMP: bundle $BUNDLE, root $ATTEST_ROOT, MemoryMax $MEMORY_MAX"
+say "== install.sh $STAMP: bundle $BUNDLE, root $ATTEST_ROOT, memory limit $MEMORY_MAX ($MEMORY_BYTES bytes, memory+swap the same)"
 step "preflight"
 [ -f "$BUNDLE" ] || fail "bundle not found: $HERE/$BUNDLE"
 if [ "$(id -u)" != 0 ] && [ "$ATTEST_ROOT" = /opt/attest ]; then fail "run as root (or point ATTEST_ROOT and the other paths at a rehearsal root)"; fi
@@ -534,9 +566,10 @@ ok "import attest, attest.core.provenance: version $REV_VERSION, attest_revision
 step "render the unit and the vhost"
 UNIT_SRC="$HERE/attest.service"; [ -f "$UNIT_SRC" ] || UNIT_SRC="$TARGET/deploy/yungou/attest.service"
 [ -f "$UNIT_SRC" ] || fail "no attest.service next to install.sh or in the release"
-sed "s/__MEMORY_MAX__/$MEMORY_MAX/" "$UNIT_SRC" > "$WORK/unit.new"
+sed -e "s/__MEMORY_MAX_BYTES__/$MEMORY_BYTES/g" -e "s/__MEMORY_MAX__/$MEMORY_MAX/g" -e "s#__CGROUP_MEMORY_DIR__#$CGROUP_MEMORY_DIR#g" "$UNIT_SRC" > "$WORK/unit.new"
+if grep -q '__[A-Z_]*__' "$WORK/unit.new"; then fail "the rendered unit still contains a placeholder: $(grep -o '__[A-Z_]*__' "$WORK/unit.new" | sort -u | tr '\n' ' ')"; fi
 if grep -q 'ExecStart=.*/app/venv/bin/python' "$WORK/unit.new"; then
-  ok "unit from $UNIT_SRC (MemoryMax=$MEMORY_MAX; ExecStart uses the active release's interpreter through the app link)"
+  ok "unit from $UNIT_SRC (MemoryLimit and MemoryMax $MEMORY_MAX = $MEMORY_BYTES bytes, memory+swap the same; ExecStart uses the active release's interpreter through the app link)"
 else
   note "warning: the unit's ExecStart does not use <root>/app/venv/bin/python; a rollback will not flip the interpreter"
 fi
@@ -609,6 +642,10 @@ ok "restarted"
 
 step "health (strict: HTTP 200, JSON, version $VERSION, worker alive; deadline ${HEALTH_DEADLINE_SECONDS}s) at $HEALTH_URL"
 wait_health "$VERSION" || fail "the restarted service is not healthy with version $VERSION"
+
+step "memory limit in force (memory and memory+swap $MEMORY_MAX = $MEMORY_BYTES bytes)"
+verify_memory_limit "$MEMORY_BYTES" || fail "the memory limit is not in force for $UNIT_NAME (expected $MEMORY_BYTES bytes for memory and for memory+swap, and the main process in the unit's cgroup)"
+ok "systemd and the kernel enforce $MEMORY_BYTES bytes for memory and for memory+swap on the running service"
 
 step "read back the installed release through $APP_LINK"
 if ! info=$(tree_info manifest "$APP_LINK"); then say "$info" | sed 's/^/     /'; fail "RELEASE.json readback failed on $APP_LINK"; fi

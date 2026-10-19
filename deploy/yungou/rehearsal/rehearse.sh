@@ -44,6 +44,7 @@ PORT=$("$REAL_PYTHON" -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1
 export REHEARSAL_DIR="$ROOT" REHEARSAL_SHIMS="$SHIMS" REHEARSAL_REAL_PYTHON="$REAL_PYTHON" REHEARSAL_HEALTH_PORT="$PORT"
 export PYTHON_BIN="$SHIMS/python3.12" SYSTEMCTL="$SHIMS/systemctl" NGINX_BIN="$SHIMS/nginx-modern" USERADD="$SHIMS/useradd" CHOWN="$SHIMS/chown" INSTALL="$SHIMS/install"
 export HEALTH_URL="http://127.0.0.1:$PORT/api/health" HEALTH_DEADLINE_SECONDS=15 HEALTH_POLL_SECONDS=0.5 MEMORY_MAX=200M TMPDIR="$ROOT/tmp" PYTHON="$REAL_PYTHON"
+export CGROUP_MEMORY_DIR="$ROOT/fake-cgroup/memory" PROC_DIR="$ROOT/fake-proc"   # revision 8: written by the systemctl shim as systemd 219 would
 
 {
   echo "rehearsal $STAMP"

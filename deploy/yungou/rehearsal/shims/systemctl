@@ -2,6 +2,11 @@
 # Rehearsal shim for systemctl. Logs every call; "restart <unit>" (re)starts the fake health server on REHEARSAL_HEALTH_PORT
 # serving the version of the tree REHEARSAL_APP_LINK points at; stop / disable --now stop it; is-active reports its state;
 # daemon-reload, enable and reload are no-ops (REHEARSAL_RELOAD_FAIL=1 makes "reload" fail).
+# Memory (revision 8): when CGROUP_MEMORY_DIR is set, a (re)start does what systemd 219 does on cgroup v1: memory.limit_in_bytes
+# from the unit's MemoryLimit= (MemoryMax= is ignored, as systemd 219 ignores it), memory.memsw.limit_in_bytes unlimited, then the
+# unit's ExecStartPre shell command, whose failure fails the start; PROC_DIR/<pid>/cgroup places the fake server in the unit's
+# memory cgroup; "show <unit> -p MemoryLimit|MainPID" answers like systemd. REHEARSAL_NO_SWAP_ACCOUNTING=1 makes the memory+swap file
+# unwritable (a kernel without swap accounting), so the ExecStartPre write fails.
 . "$(dirname "$0")/_log.sh"
 shim_log systemctl "$*"
 state="${REHEARSAL_DIR:-/tmp}/state"; mkdir -p "$state"
@@ -23,9 +28,43 @@ start_server() {
     --app-link "${REHEARSAL_APP_LINK:?}" $extra >> "${REHEARSAL_DIR:-/tmp}/logs/fake-health.log" 2>&1 < /dev/null &
   echo $! > "$pidfile"
 }
+UNLIMITED=9223372036854771712
+to_bytes() {
+  local value=$1 number unit
+  number=${value%[KMGTkmgt]}; unit=${value#"$number"}
+  case "$number" in ''|*[!0-9]*) echo "$UNLIMITED"; return ;; esac
+  case "$unit" in
+    '') echo "$number" ;; K|k) echo $((number * 1024)) ;; M|m) echo $((number * 1048576)) ;; G|g) echo $((number * 1073741824)) ;;
+    *) echo "$UNLIMITED" ;;
+  esac
+}
+apply_cgroup() {  # systemd 219 realizing the unit's cgroup, then ExecStartPre (returns non-zero when ExecStartPre fails)
+  [ -n "${CGROUP_MEMORY_DIR:-}" ] || return 0
+  local unit_file="${SYSTEMD_UNIT_DIR:-/etc/systemd/system}/${1:-attest.service}" dir limit pre
+  dir="$CGROUP_MEMORY_DIR/system.slice/${1:-attest.service}"; mkdir -p "$dir"
+  limit=$(sed -n 's/^MemoryLimit=//p' "$unit_file" 2>/dev/null | tail -1)
+  if [ -n "$limit" ]; then to_bytes "$limit" > "$dir/memory.limit_in_bytes"; echo "$(to_bytes "$limit")" > "$state/memory-limit"
+  else echo "$UNLIMITED" > "$dir/memory.limit_in_bytes"; echo 18446744073709551615 > "$state/memory-limit"; fi
+  if [ "${REHEARSAL_NO_SWAP_ACCOUNTING:-0}" = 1 ]; then rm -f "$dir/memory.memsw.limit_in_bytes"; mkdir -p "$dir/memory.memsw.limit_in_bytes"  # not writable, even by root
+  else rmdir "$dir/memory.memsw.limit_in_bytes" 2>/dev/null || true; echo "$UNLIMITED" > "$dir/memory.memsw.limit_in_bytes"; fi
+  pre=$(sed -n "s/^ExecStartPre=\/bin\/sh -c '\(.*\)'\$/\1/p" "$unit_file" 2>/dev/null | tail -1)
+  [ -z "$pre" ] || sh -c "$pre" || { echo "ExecStartPre failed (rehearsal)" >&2; return 1; }
+}
+place_in_cgroup() {
+  [ -n "${PROC_DIR:-}" ] && [ -f "$pidfile" ] || return 0
+  mkdir -p "$PROC_DIR/$(cat "$pidfile")"
+  printf '11:memory:/system.slice/%s\n1:name=systemd:/system.slice/%s\n' "${1:-attest.service}" "${1:-attest.service}" > "$PROC_DIR/$(cat "$pidfile")/cgroup"
+}
 case "${1:-}" in
-  restart) stop_server; start_server; exit 0 ;;
-  start) [ -f "$pidfile" ] || start_server; exit 0 ;;
+  restart) stop_server; apply_cgroup "${2:-attest.service}" || exit 1; start_server; place_in_cgroup "${2:-attest.service}"; exit 0 ;;
+  start) [ -f "$pidfile" ] || { apply_cgroup "${2:-attest.service}" || exit 1; start_server; place_in_cgroup "${2:-attest.service}"; }; exit 0 ;;
+  show)
+    prop=""; while [ $# -gt 0 ]; do [ "$1" = "-p" ] && prop=${2:-}; shift; done
+    case "$prop" in
+      MemoryLimit) echo "MemoryLimit=$(cat "$state/memory-limit" 2>/dev/null || echo 18446744073709551615)" ;;
+      MainPID) echo "MainPID=$(cat "$pidfile" 2>/dev/null || echo 0)" ;;
+    esac
+    exit 0 ;;
   stop) stop_server; exit 0 ;;
   disable) if [ "${2:-}" = "--now" ]; then stop_server; fi; exit 0 ;;
   is-active) if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then echo active; exit 0; else echo inactive; exit 3; fi ;;

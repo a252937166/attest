@@ -20,7 +20,17 @@ Environment=SSL_CERT_FILE=/opt/attest/app/venv/lib/python3.12/site-packages/cert
 ExecStart=/opt/attest/app/venv/bin/python -m uvicorn attest.app.server:app --host 127.0.0.1 --port 4070 --workers 1 --log-level info --no-access-log
 Restart=on-failure
 RestartSec=5
+# Memory (revision 8, 19 Oct 2026). yungou runs systemd 219 on cgroup v1: it ignores MemoryMax= (kept for newer systemd) and
+# applies MemoryLimit= as memory.limit_in_bytes. That limit alone lets the service page its excess out to the host's swap instead
+# of failing, so ExecStartPre also sets memory.memsw.limit_in_bytes (memory plus swap) to the same value, before the service
+# process exists. At the limit the kernel's memory-cgroup OOM killer ends the process, Restart=on-failure starts it again, and the
+# start settles a run that was in flight as interrupted. ExecStartPre runs as root (PermissionsStartOnly; the cgroup files belong
+# to root) and fails the start if the write fails. install.sh reads the effective values back after the restart.
+MemoryAccounting=yes
+MemoryLimit=__MEMORY_MAX__
 MemoryMax=__MEMORY_MAX__
+PermissionsStartOnly=true
+ExecStartPre=/bin/sh -c 'echo __MEMORY_MAX_BYTES__ > __CGROUP_MEMORY_DIR__/system.slice/attest.service/memory.memsw.limit_in_bytes'
 CPUQuota=60%
 TasksMax=128
 Nice=5
