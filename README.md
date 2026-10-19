@@ -133,6 +133,14 @@ wrap, grid columns shrink), checked in Chrome with mobile emulation on every tab
 in the revision-7 390 px screenshot came from the screenshot method, not the page. Export: the public tree no longer contains the
 development gateway's host in any spelling (the exporter's own redaction patterns had carried it), and
 `scripts/check_export_provenance.py` checks every exported bundle against its source and its batch's registration.
+Revision 8 was deployed at https://attest.axiqo.xyz on 19 Oct 20:42 UTC (`reports/attest-deployment-2026-10-19e/README.md`): on
+the running service systemd and the kernel report 200M for memory and for memory plus swap, and a drill of the deployed release in
+a temporary unit showed the OOM kill at the limit, the restart, and the run in flight settled as interrupted with its committed
+cost and its unread Sandboxes operation on record.
+The browser checks of the deployed console then found five console defects outside the overflow measure (at 1024 px the Guide
+covered two of the case file's tabs, the decision card's text was squeezed to about 80 px and the overview's evidence table into a
+sideways scroll; two error states were wrong); version 0.8.1 repairs them in the console's static files, with the pipeline
+unchanged.
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,

@@ -1,0 +1,87 @@
+== 1. digests of the uploaded files
+app.tar.gz: OK
+install.sh: OK
+rollback.sh: OK
+decommission.sh: OK
+snapshot.sh: OK
+attest.service: OK
+attest.axiqo.xyz.conf: OK
+deploy-r8-server.sh: OK
+== 2. snapshot before
+/var/tmp/attest-deploy/before-20261019e-20261019T204229Z.txt
+== 3. idle check
+version 0.7.0 busy False queue 0 current None
+== 4. store backup (SQLite backup API) and a copy of the data directory
+backup rows 40
+data archive 409139 bytes
+== 5. install
+== install.sh 20261019T204234Z: bundle app.tar.gz, root /opt/attest, memory limit 200M (209715200 bytes, memory+swap the same)
+
+[01] preflight
+     ok: interpreter: /opt/attest/python/bin/python3.12 (Python 3.12.15)
+     ok: bundle sha256 474cd4d97c697597eee83c372d061ca8eb4c5684f34afa1d7734f6ecda8633a2
+     ok: user attest exists
+     ok: secrets: /etc/attest/attest.env installed from the staged attest.env (root:attest 0640)
+     ok: current layout: /opt/attest/app -> /opt/attest/releases/0.7.0-f836cfd0154f; previous: /opt/attest/releases/0.6.0-b11ec0658845
+
+[02] extract the bundle into a staging directory
+     tar reported 4350 macOS extended-attribute headers (ignored, harmless)
+     ok: extracted into /opt/attest/releases/.staging-20261019T204234Z
+
+[03] verify RELEASE.json against the extracted tree
+     ok: version 0.8.0, package digest ed41f4c95bd1708d47aa8af46421acf4e82a27f31bbb612fe60bb7ab2738ea98 (37 sources), 3862 files verified (sha256 and size), no unlisted file, no env file
+     ok: release label 0.8.0-ed41f4c95bd1
+
+[04] release directory
+     ok: /opt/attest/releases/0.8.0-ed41f4c95bd1 (not active until the switch)
+
+[05] per-release virtualenv and pinned dependencies
+     ok: pins from deploy/yungou/requirements.txt installed into /opt/attest/releases/0.8.0-ed41f4c95bd1/venv
+
+[06] validate the release with its own interpreter (before switching)
+     ok: compileall attest/
+     ok: import fastapi uvicorn jsonschema certifi
+     ok: import attest, attest.core.provenance: version 0.8.0, attest_revision() digest ed41f4c95bd1708d47aa8af46421acf4e82a27f31bbb612fe60bb7ab2738ea98 over 37 files (equal to RELEASE.json)
+
+[07] render the unit and the vhost
+     ok: unit from /var/tmp/attest-deploy/attest.service (MemoryLimit and MemoryMax 200M = 209715200 bytes, memory+swap the same; ExecStart uses the active release's interpreter through the app link)
+     ok: vhost from /var/tmp/attest-deploy/attest.axiqo.xyz.conf: https vhost (certificate present)
+
+[08] nginx configuration test with the new vhost in place (nginx is not reloaded yet)
+     ok: vhost unchanged; nginx is not touched by this install
+
+[09] switch /opt/attest/app to 0.8.0-ed41f4c95bd1
+     ok: /opt/attest/app -> /opt/attest/releases/0.8.0-ed41f4c95bd1; /opt/attest/app.prev -> /opt/attest/releases/0.7.0-f836cfd0154f
+
+[10] systemd unit
+     ok: unit written to /etc/systemd/system/attest.service
+     ok: daemon-reload, enabled
+
+[11] restart attest.service
+     ok: restarted
+
+[12] health (strict: HTTP 200, JSON, version 0.8.0, worker alive; deadline 60s) at http://127.0.0.1:4070/api/health
+     health: HTTP 200, version 0.8.0, worker alive, queue 0, free 998 MB
+
+[13] memory limit in force (memory and memory+swap 200M = 209715200 bytes)
+     systemd MemoryLimit=209715200; memory.limit_in_bytes=209715200; memory.memsw.limit_in_bytes=209715200; main PID 2241 in memory cgroup /system.slice/attest.service
+     ok: systemd and the kernel enforce 209715200 bytes for memory and for memory+swap on the running service
+
+[14] read back the installed release through /opt/attest/app
+     ok: 3862 RELEASE.json entries verified in place (version 0.8.0, digest ed41f4c95bd1708d47aa8af46421acf4e82a27f31bbb612fe60bb7ab2738ea98)
+     ok: /opt/attest/app/venv/bin/python reports version 0.8.0, attest_revision() digest ed41f4c95bd1708d47aa8af46421acf4e82a27f31bbb612fe60bb7ab2738ea98 (37 files)
+
+[15] nginx reload
+     ok: not needed (vhost unchanged)
+
+[16] prune old releases (keeping 3, never the active or previous one)
+     pruned old release legacy-0.4.0-b27a1c070a85
+     ok: releases now: 0.6.0-b11ec0658845 0.7.0-f836cfd0154f 0.8.0-ed41f4c95bd1 
+
+install complete: 0.8.0-ed41f4c95bd1 active at /opt/attest/app (version 0.8.0, package digest ed41f4c95bd1708d47aa8af46421acf4e82a27f31bbb612fe60bb7ab2738ea98)
+     previous release: /opt/attest/releases/0.7.0-f836cfd0154f
+     rollback: bash rollback.sh (re-selects the previous release and restarts only attest.service); list: bash rollback.sh --list
+     store: /var/lib/attest/attest.db is not modified by the installer; the service migrates its schema forward at start
+== 6. snapshot after
+/var/tmp/attest-deploy/after-20261019e-20261019T204250Z.txt
+{"ok":true,"version":"0.8.0","worker_alive":true,"worker_restarts":0,"ready":true,"queue":0,"busy":false,"current":null,"time_utc":"2026-10-19T20:42:57.146586+00:00","disk":{"free_mb":1045,"free_frac":0.0757,"low":false,"accepting_runs":true},"budget":{"daily_cap_usd":2.0,"per_run_cap_usd":0.5,"nebius_ok":true,"detail":"$0.0552 committed + 0 active reservation(s) within $2.00","remaining_usd":1.94

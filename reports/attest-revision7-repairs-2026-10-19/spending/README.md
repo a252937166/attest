@@ -14,6 +14,15 @@ costs apart.
 | Automated checks | Every browser check of the live console in this pass (and the video recording) blocks every request that is not a GET inside the browser, before it is sent, with service workers blocked so nothing bypasses the block, and counts what it blocked. Curl checks of production use GET only. | `scripts/console_layout_audit.py`; the counts in each audit report |
 | Harness | The evaluation harness runs on the development gateway by default and refuses a Nebius batch without an explicit `--approve-usd` budget and call cap. Unchanged since revision 4. | `scripts/run_evaluation.py --help` |
 
+On the deployed console (0.8.0, after the deployment of 19 Oct 20:42 UTC; `reports/attest-deployment-2026-10-19e/`): at every
+width from 320 to 1440 px, in a visible Chrome window and in headless sweeps, the Run button in live mode opened the confirmation
+and sent nothing, and the confirmation's own button was refused by the page ("Live runs are not started from an automated browser
+on this host. Open the console in a regular browser to start one.") before any request existed. In the window and the full sweep
+2,572 GET requests left the browser and no other request; the browser's guard, which aborts every other method, had nothing to
+abort. The other browser runs against production in this pass used the same guard, and those that wrote a record (two repeats at
+414 px and the evidence screenshots) show no other request either. The
+428 answer to a request without the header is verified by the local tests only; no POST was sent to production.
+
 No new paid Nebius inference, smoke test, evaluation or demo run was started in this pass; the $10 proposal in `FREEZE.md`
 remains unapproved.
 

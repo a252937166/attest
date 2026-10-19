@@ -40,9 +40,30 @@ written fails the start and the install).
 
 ## On the service (after the deployment)
 
-To be recorded after the deployment of revision 8: the limit read back by the installer and by hand (systemd, both cgroup files,
-the main process's cgroup), and a drill of the application itself (the deployed release, in a temporary unit with a scratch store:
-a run in flight is ended by the OOM killer, and the restarted process settles it as interrupted with its reservation committed).
+Revision 8 was installed on 19 Oct at 20:42 UTC (`reports/attest-deployment-2026-10-19e/`) with `MEMORY_MAX=200M`.
+
+- The installer's readback (`install-20261019e.log`, step 13, right after the restart): systemd `MemoryLimit=209715200`,
+  `memory.limit_in_bytes=209715200`, `memory.memsw.limit_in_bytes=209715200`, main PID 2241 in the memory cgroup
+  `/system.slice/attest.service`.
+- The readback by hand, 20:49 UTC (`readback-after-deploy.txt`, produced by `readback.sh`, read-only): the same three limits;
+  `MemoryAccounting=yes`; usage 41.8 MB (memory and memory plus swap), peak 43.5 MB, both fail counters 0, `oom_kill 0`; the main
+  process 48.9 MB resident with no swap. Before the deployment (`readback-before-deploy.txt`) all of these read "no limit".
+- The application drill, 20:50:53 UTC (`drill-app-run-1.txt`; `drill/drill_app.py`, `drill/attest-app-oom-drill.service`,
+  `drill/run-app-drill.sh`): the deployed interpreter and code (`/opt/attest/app`) in a temporary unit with the same mechanism at
+  128M (`MemoryLimit=128M` and the memory-plus-swap `ExecStartPre`, `Restart=on-failure`), a scratch store and no credentials. The
+  first process imported the console application, recorded a run of the Nemotron profile in flight the way the worker does (its row
+  `running`; its ledger journal with an open $0.0175 reservation and a Sandboxes operation accepted but not yet read; no request was
+  sent anywhere) and allocated 8 MiB steps. At 96 MiB of allocations (137 MB resident) the kernel's memory-cgroup OOM killer ended
+  it: `memory+swap: usage 131072kB, limit 131072kB`, `oom-kill:constraint=CONSTRAINT_MEMCG ...
+  oom_memcg=/system.slice/attest-app-oom-drill.service`, `Killed process 2684 (python)`. systemd restarted the unit 3 s later; the
+  new process's start-up settled the run: status `error`, stage and code `interrupted`, $0.0175 committed (the reservation kept at
+  its bound), and the accepted operation `00000000-0000-0000-0000-00000000d311` named as never read. `attest.service` kept MainPID
+  2241 and stayed healthy; the temporary unit, its directory and the uploaded files were removed by the script.
+
+So the limit is enforced on the running service (configuration, systemd and kernel agree), the kernel ends the process at the limit
+instead of letting it swap, systemd brings it back, and a run cut short this way is settled as interrupted with its committed cost
+and its unread operation on record. The drill did not run `attest.service` itself out of memory: that would have interrupted the
+public console.
 
 ## Sizing
 

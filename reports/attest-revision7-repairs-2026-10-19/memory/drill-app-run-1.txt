@@ -1,0 +1,23 @@
+== before: attest.service active, MainPID 2241
+== drill started 20:50:53Z
+final state: Result=success ExecMainStatus=0 ActiveState=inactive SubState=dead 
+-- drill log (allocation lines shortened to the last three)
+2026-10-19T20:50:54Z pid=2684 first start: attest 0.8.0; rows settled at start-up 0; 13:devices:/system.slice/attest-app-oom-drill.service
+2026-10-19T20:50:54Z pid=2684 a run is in flight: its row is running, its journal holds an open $0.0175 reservation and one accepted operation; allocating
+2026-10-19T20:50:57Z pid=2709 second start after the previous process ended: attest 0.8.0; rows settled at start-up: [{"run_id": "oom-drill-run-001", "action": "interrupted", "cost_committed_usd": 0.0175, "journal": true, "operations_unread": ["00000000-0000-0000-0000-00000000d311"]}]
+2026-10-19T20:50:57Z pid=2709 the run now: {"status": "error", "stage": "interrupted", "error_code": "interrupted", "cost_committed_usd": 0.0175, "error": "interrupted by a service restart before completion; committed cost $0.0175 read from the run's ledger journal (0 call record(s), 1 open reservation(s) kept at their bound); 1 sandbox operation(s) were accepted but their outcome was never read (00000000-0000-0000-0000-00000000d311); reconcile with GET /operations/<id>; nothing is replayed"}
+2026-10-19T20:50:54Z pid=2684 allocated 80 MiB; VmRSS 120800 kB
+2026-10-19T20:50:54Z pid=2684 allocated 88 MiB; VmRSS 128872 kB
+2026-10-19T20:50:54Z pid=2684 allocated 96 MiB; VmRSS 137048 kB
+-- unit journal
+2026-10-20T04:50:53+0800 vm118035 systemd[1]: Started Attest application OOM drill: the deployed release at a 128M limit with a scratch store (temporary, revision 8).
+2026-10-20T04:50:54+0800 vm118035 systemd[1]: attest-app-oom-drill.service: main process exited, code=killed, status=9/KILL
+2026-10-20T04:50:57+0800 vm118035 systemd[1]: attest-app-oom-drill.service holdoff time over, scheduling restart.
+2026-10-20T04:50:57+0800 vm118035 systemd[1]: Started Attest application OOM drill: the deployed release at a 128M limit with a scratch store (temporary, revision 8).
+2026-10-20T04:50:57+0800 vm118035 python[2709]: run oom-drill-run-001 failed [interrupted] reference 027b667c797f: interrupted by a service restart before completion; committed cost $0.0175 read from the run's ledger journal (0 call record(s), 1 open reservation(s) kept at their bound); 1 sandbox operation(s) were accepted but their outcome was never read (00000000-0000-0000-0000-00000000d311); reconcile with GET /operations/<id>; nothing is replayed
+-- kernel
+2026-10-20T04:50:54+0800 vm118035 kernel: memory: usage 131044kB, limit 131072kB, failcnt 0
+2026-10-20T04:50:54+0800 vm118035 kernel: memory+swap: usage 131072kB, limit 131072kB, failcnt 455
+2026-10-20T04:50:54+0800 vm118035 kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/system.slice/attest-app-oom-drill.service,task_memcg=/system.slice/attest-app-oom-drill.service,task=python,pid=2684,uid=993
+2026-10-20T04:50:54+0800 vm118035 kernel: Memory cgroup out of memory: Killed process 2684 (python) total-vm:358264kB, anon-rss:130352kB, file-rss:13656kB, shmem-rss:0kB, UID:993 pgtables:404kB oom_score_adj:0
+== after: attest.service active, MainPID 2241

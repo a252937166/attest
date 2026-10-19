@@ -54,6 +54,23 @@ form with the confirmation open), `after-320-decision.png` (stacked decision but
 
 The deployed console is audited the same way after the deployment (below).
 
+## On the deployed console (0.8.0, 19 Oct 2026, after 20:42 UTC)
+
+The same audit against https://attest.axiqo.xyz (`reports/attest-deployment-2026-10-19e/`, `browser-production-*.json`; every
+request that is not a GET is aborted inside the browser): a visible Chrome window at 390 and 1440 px (182 states) and a headless
+sweep at all eight widths (726 states), 14 runs. No offender, no sideways-scrolling document and no page error at any width; 2,051
+GET requests in the sweep and no other request. The repaired overflow therefore holds on the live console.
+
+The live checks found what the local ones had not, all outside the overflow measure: at 1024 px the Guide (open by itself on
+windows wider than 900 px) covered the case file's Activity and Files tabs, so two tab presses failed; the decision card's text was
+squeezed to about 80 px between its seal and its buttons, and the overview's evidence table into a sideways scroll; with every API
+call failing the start form claimed that no sample tasks were configured; and on phones the collapsed workspace rail stretched into
+an empty band on short pages. Version 0.8.1 repairs all of them (the Guide opens by itself only from 1320 px; the decision's buttons
+take their own row below 1320 px; the overview stacks below 1180 px; the failed task list says so; the rail no longer stretches),
+and the audit now records a control that cannot be pressed together with what covers it, waits for finite animations before
+measuring, and reads the viewport width the page itself sees. The 0.8.1 console is audited in
+`reports/attest-deployment-2026-10-19f/`.
+
 ## The confirmation step and cost labels
 
 See `../spending/README.md`. In live mode the Run button opens a confirmation; only its own button sends the request. The cost
