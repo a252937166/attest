@@ -766,25 +766,102 @@ class WitnessValidation(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+# The recorded evidence under reports/ is classified EXPLICITLY (revision-6 review, item 3): the historical corpus is the frozen set of
+# report folders recorded before the evidence protocol existed, the modern corpus names every folder recorded under a protocol with
+# that protocol, and every run directory must belong to exactly one class, so that new evidence can never silently join (or be
+# tested as) the historical corpus. A new batch folder fails RecordedCorpusInventory until it is added to MODERN_CORPUS.
+HISTORICAL_CORPUS = (  # recorded before Attest 0.5.0 (19 Oct 2026 07:58 UTC); frozen
+    "attest-first-slice-2026-10-15", "attest-verification-2026-10-15", "attest-evaluation-2026-10-16", "attest-m1-2026-10-16",
+    "attest-m4-2026-10-17", "attest-reliability-2026-10-17", "attest-freeze-2026-10-17", "attest-evaluation-2026-10-17-nebius-m5",
+    "attest-revision-2026-10-19/evaluation-codex-2", "attest-revision-2026-10-19/evaluation-codex-3",
+    "attest-revision-2026-10-19/evaluation-codex-semver", "attest-revision-2026-10-19/evaluation-codex-slugkit",
+    "attest-revision-2026-10-19/runs-luna")
+MODERN_CORPUS = {  # folder -> the evidence protocol every bundle in it declares
+    "attest-audit-repairs-2026-10-19/evaluation-codex": 2,
+    "attest-audit-repairs-2026-10-19/evaluation-codex-2": 2,
+    "attest-revision5-repairs-2026-10-19/evaluation-codex": 3,
+    "attest-revision6-repairs-2026-10-19/evaluation-codex": 4,
+    "attest-revision6-repairs-2026-10-19/evaluation-codex-2": 4,
+    "attest-revision6-repairs-2026-10-19/evaluation-codex-3": 4,
+    "attest-revision6-repairs-2026-10-19/evaluation-codex-4": 4,
+}
+KNOWN_DEFECTIVE = (  # partial copies or a stopped batch; they fail attest check by construction and are not exported
+    "attest-hardening-2026-10-16/semver-v2-codex-verified", "attest-hardening-2026-10-16/smoke-run-durationkit-codex",
+    "attest-revision-2026-10-19/evaluation-codex")
+SYNTHETIC_DEFECTIVE = ("attest-audit-2026-10-19/synthetic-bundles",)  # the 19 Oct audit's deliberately defective bundles
+
+
+def _recorded_run_dirs() -> list[tuple[str, Path]]:
+    found = []
+    for bundle in sorted(ROOT.glob("reports/*/**/proof_bundle.json")):
+        run_dir = bundle.parent
+        if "snapshot" in run_dir.parts:
+            continue
+        found.append((run_dir.relative_to(ROOT / "reports").as_posix(), run_dir))
+    return found
+
+
+def _within(rel: str, folder: str) -> bool:
+    return rel == folder or rel.startswith(folder.rstrip("/") + "/")
+
+
+def _classes(rel: str) -> list[str]:
+    classes = [f"historical:{f}" for f in HISTORICAL_CORPUS if _within(rel, f)]
+    classes += [f"modern:{f}" for f in MODERN_CORPUS if _within(rel, f)]
+    classes += [f"defective:{f}" for f in KNOWN_DEFECTIVE + SYNTHETIC_DEFECTIVE if _within(rel, f)]
+    return classes
+
+
+class RecordedCorpusInventory(unittest.TestCase):
+    def test_every_recorded_run_directory_belongs_to_exactly_one_class(self):
+        unclassified, ambiguous = [], []
+        for rel, _ in _recorded_run_dirs():
+            classes = _classes(rel)
+            if not classes:
+                unclassified.append(rel)
+            elif len(classes) > 1:
+                ambiguous.append((rel, classes))
+        self.assertEqual(unclassified, [], "classify new evidence folders in HISTORICAL_CORPUS (never for new runs) or MODERN_CORPUS")
+        self.assertEqual(ambiguous, [])
+
+
 class RecordedCorpusHistorical(unittest.TestCase):
-    def test_every_recorded_bundle_outside_the_known_defective_sets_still_checks_as_historical(self):
-        known_defective = ("attest-hardening-2026-10-16/semver-v2-codex-verified", "attest-hardening-2026-10-16/smoke-run-durationkit-codex",
-                           "attest-revision-2026-10-19/evaluation-codex/")
+    def test_the_frozen_historical_corpus_still_checks_as_historical(self):
         checked = 0
         failures = []
-        for manifest in sorted(ROOT.glob("reports/*/**/proof_bundle.json")):
-            run_dir = manifest.parent
-            rel = run_dir.relative_to(ROOT / "reports").as_posix()
-            if "snapshot" in run_dir.parts or any(part.startswith("attest-audit-") for part in run_dir.parts) or any(rel.startswith(k) for k in known_defective):
+        for rel, run_dir in _recorded_run_dirs():
+            if not any(c.startswith("historical:") for c in _classes(rel)):
                 continue
+            declared = json.loads((run_dir / "proof_bundle.json").read_text(encoding="utf-8")).get("evidence_protocol")
+            self.assertIsNone(declared, f"{rel} declares an evidence protocol, so it is not historical: classify it in MODERN_CORPUS")
             report = check_bundle(run_dir)
             checked += 1
             self.assertTrue(report["historical"], rel)
+            self.assertIsNone(report["protocol"], rel)
             self.assertFalse(report["fully_verified"], rel)
+            self.assertIsNone(report["evidence_complete"], rel)
             if not report["ok"]:
                 failures.append((rel, list(failed_checks(report))))
         self.assertGreater(checked, 100)
         self.assertEqual(failures, [])
+
+
+class RecordedCorpusModern(unittest.TestCase):
+    def test_every_modern_bundle_checks_complete_under_its_declared_protocol(self):
+        checked = {folder: 0 for folder in MODERN_CORPUS}
+        failures = []
+        for rel, run_dir in _recorded_run_dirs():
+            folder = next((f for f in MODERN_CORPUS if _within(rel, f)), None)
+            if folder is None:
+                continue
+            report = check_bundle(run_dir)
+            checked[folder] += 1
+            self.assertEqual(report["protocol"], MODERN_CORPUS[folder], rel)
+            self.assertFalse(report["historical"], rel)
+            if not (report["ok"] and report["evidence_complete"] and report["fully_verified"]):
+                failures.append((rel, failed_checks(report)))
+        self.assertEqual(failures, [])
+        self.assertEqual([f for f, n in checked.items() if n == 0], [], "every modern folder must contain bundles")
 
 
 if __name__ == "__main__":
