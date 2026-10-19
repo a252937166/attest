@@ -255,6 +255,10 @@ class RedactedExport(unittest.TestCase):
             self.assertTrue(check_bundle(run_dir)["ok"])
             dest = tmp / "public"
             stats = {"files": 0, "redactions": 0, "redacted_files": [], "skipped_large": [], "redacted_pairs": []}
+            host = ".".join(("codex", "axiqo", "xyz"))  # the private host comes from the exporter's configuration, set here for the test
+            hosts = mock.patch.object(export_public, "PRIVATE_HOSTS", [host])
+            hosts.start()
+            self.addCleanup(hosts.stop)
             with mock.patch.object(export_public, "ROOT", tmp):
                 export_public.copy_tree(tmp / "orig", dest / "orig", stats)
                 traced = export_public.trace_redacted_runs(stats, dest)
@@ -283,6 +287,17 @@ class RedactedExport(unittest.TestCase):
             self.assertNotIn(private, (copy / "proof_bundle.json").read_text())
             self.assertEqual({p.name: hashlib_sha(p) for p in run_dir.iterdir() if p.is_file()}, original_digests)  # original untouched
             self.assertEqual(export_public.scan(dest), [])
+            # revision 8: the redaction record names its rules by label, never by pattern, so it cannot spell the private host
+            redaction_text = (copy / "REDACTION.json").read_text()
+            self.assertNotRegex(redaction_text, export_public.host_pattern(host))
+            self.assertTrue(all(" " in rule and "\\" not in rule for rule in record["rules"]), record["rules"])
+            # an escaped spelling (as a regex or inside JSON) is a scan hit, reported without printing the host
+            for spelling in (host.replace(".", "\\."), host.replace(".", "\\\\.")):
+                (dest / "planted.txt").write_text(f"pattern {spelling}\n", encoding="utf-8")
+                hits = export_public.scan(dest)
+                self.assertTrue(hits and "private host" in hits[0], hits)
+                self.assertNotIn("axiqo", " ".join(hits))
+            (dest / "planted.txt").unlink()
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 

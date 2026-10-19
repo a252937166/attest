@@ -14,6 +14,13 @@ Redaction (public copies only; the originals under reports/ are never modified):
 API key prefix, the key label, the local home directory of the author, and the project-local absolute paths in bundles
 and logs. The export ends with a scan of the result for the redacted strings and for secret-like tokens; any hit fails.
 
+Private host names (revision 8, 19 Oct 2026): the development gateway's host comes from the exporter's private configuration
+(ATTEST_CODEX_BASE_URL or ~/.config/attest/notes.json, plus ATTEST_EXPORT_PRIVATE_HOSTS), never from this file, so the public
+copy of this script names no private host. Each host is matched with any number of backslashes before its dots, so its
+regex-escaped and JSON-escaped spellings are redacted and scanned for too; REDACTION.json records rule labels, never the patterns.
+Until revision 8 this file carried the gateway's host as a regex and every REDACTION.json listed that regex: the earlier commits
+of the review repository contain it, which is why the review repository's history must not be published as it is.
+
 Release boundary (REL-01 and REL-02 of the audit of 19 Oct 2026): environment and credential files, keys, archives, databases
 and compiled binaries are excluded at every depth (`attest.env.example`, whose values are empty, is the documented exception);
 every exported file is scanned whatever its name, by decoding it as UTF-8 (only a file that fails to decode AND holds NUL bytes
@@ -54,7 +61,8 @@ ALLOW_REPORTS = ["attest-first-slice-2026-10-15", "attest-verification-2026-10-1
                  "attest-ui-2026-10-18", "attest-deployment-2026-10-18", "attest-revision-2026-10-19",
                  "attest-deployment-2026-10-19", "attest-audit-2026-10-19", "attest-audit-repairs-2026-10-19", "attest-revision5-review-2026-10-19", "attest-revision5-repairs-2026-10-19",
                  "attest-deployment-2026-10-19b", "attest-deployment-2026-10-19c",
-                 "attest-revision6-review-2026-10-19", "attest-revision6-repairs-2026-10-19", "attest-deployment-2026-10-19d"]  # the gateway operations report stays private (internal infrastructure)
+                 "attest-revision6-review-2026-10-19", "attest-revision6-repairs-2026-10-19", "attest-deployment-2026-10-19d",
+                 "attest-revision7-repairs-2026-10-19", "attest-deployment-2026-10-19e"]  # the gateway operations report stays private (internal infrastructure)
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".venv", "snapshot", "screens", "refresh-sequence", "runs-private",
                 # the 19 Oct audit's synthetic bundles are deliberately defective (they fail `attest check` by design) and its
                 # synthetic work directory is scratch; the audit report describes both
@@ -85,18 +93,49 @@ ZIP_MAX_MEMBERS = 2_000
 ZIP_MEMBER_BYTES = MAX_FILE_BYTES
 ZIP_TOTAL_BYTES = 20_000_000
 
-# (pattern, replacement): the gateway host and key shapes are never allowed to appear in public copies
-REDACTIONS = [
-    (re.compile(r"https?://development-gateway\.invalid(/v1)?"), "https://development-gateway.invalid"),
-    (re.compile(r"development-gateway\.invalid"), "development-gateway.invalid"),
-    (re.compile(r"cxk_[A-Za-z0-9_\-]{6,}"), "[REDACTED-KEY]"),
-    (re.compile(r"tvly-[A-Za-z0-9_\-]{6,}"), "[REDACTED-KEY]"),
-    (re.compile(r"/Users/[A-Za-z0-9_.\-]+/Documents/project/interesting/devpost/nebiusAi"), "/work/attest"),
-    (re.compile(r"/Users/[A-Za-z0-9_.\-]+/"), "/home/author/"),
-    (re.compile(r"private vault"), "private vault"),
+def private_hosts() -> list[str]:
+    """Host names that must never appear in a public copy, from the exporter's private configuration only."""
+    from urllib.parse import urlparse
+    try:
+        from attest.secrets import config_value
+        url = config_value("CODEX_BASE_URL")
+    except Exception:  # noqa: BLE001 - no private configuration on this machine: nothing private to redact
+        url = None
+    hosts = [urlparse(url).hostname] if url else []
+    hosts += [h.strip() for h in os.environ.get("ATTEST_EXPORT_PRIVATE_HOSTS", "").split(",")]
+    return sorted({h.lower() for h in hosts if h})
+
+
+PRIVATE_HOSTS = private_hosts()
+
+
+def host_pattern(host: str) -> str:
+    """The host with any number of backslashes before each dot: plain, regex-escaped and JSON-escaped spellings all match."""
+    return r"\\*\.".join(re.escape(label) for label in host.split("."))
+
+
+# (label, pattern, replacement): private hosts and key shapes never appear in public copies; REDACTION.json records the labels
+STATIC_REDACTIONS = [
+    ("development-gateway API key shape", re.compile(r"cxk_[A-Za-z0-9_\-]{6,}"), "[REDACTED-KEY]"),
+    ("Tavily API key shape", re.compile(r"tvly-[A-Za-z0-9_\-]{6,}"), "[REDACTED-KEY]"),
+    ("the author's local project path", re.compile(r"/Users/[A-Za-z0-9_.\-]+/Documents/project/interesting/devpost/nebiusAi"), "/work/attest"),
+    ("the author's home directory", re.compile(r"/Users/[A-Za-z0-9_.\-]+/"), "/home/author/"),
+    ("the author's private notes vault name", re.compile(r"private vault"), "private vault"),
 ]
+
+
+def redactions() -> list[tuple[str, re.Pattern, str]]:
+    rules = []
+    for host in PRIVATE_HOSTS:
+        rules.append(("private development-gateway URL (from the exporter's private configuration)",
+                      re.compile(rf"https?://{host_pattern(host)}(/v1)?", re.I), "https://development-gateway.invalid"))
+        rules.append(("private development-gateway host (from the exporter's private configuration)", re.compile(host_pattern(host), re.I),
+                      "development-gateway.invalid"))
+    return rules + STATIC_REDACTIONS
+
+
 SCAN_PATTERNS = [re.compile(p) for p in (
-    r"codex\.axiqo", r"cxk_[A-Za-z0-9_\-]{6,}", r"tvly-[A-Za-z0-9_\-]{6,}", r"/Users/[A-Za-z0-9_.\-]+/",
+    r"cxk_[A-Za-z0-9_\-]{6,}", r"tvly-[A-Za-z0-9_\-]{6,}", r"/Users/[A-Za-z0-9_.\-]+/",
     r"(?i)api[_-]?key\s*[:=]\s*['\"][A-Za-z0-9_\-]{16,}", r"eyJ[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{10,}",
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----",                                   # PEM private keys of any kind
     r"(?i)authorization['\"]?[ \t]*:[ \t]*['\"]?bearer[ \t]+[A-Za-z0-9._\-]{16,}",       # a bearer token written out, not the header name alone
@@ -106,7 +145,7 @@ SCAN_PATTERNS = [re.compile(p) for p in (
 
 def redact_text(text: str) -> tuple[str, int]:
     count = 0
-    for pattern, replacement in REDACTIONS:
+    for _, pattern, replacement in redactions():
         text, n = pattern.subn(replacement, text)
         count += n
     return text, count
@@ -232,7 +271,7 @@ def trace_redacted_runs(stats: dict, dest: Path) -> list[dict]:
         record = {"note": "redacted public copy; the original run directory is kept privately and was not modified",
                   "source_run_id": run_id, "source_relative_path": run_original.relative_to(ROOT).as_posix(),
                   "source_manifest_sha256": _sha256(original_manifest) if original_manifest.is_file() else None,
-                  "rules": [pattern.pattern for pattern, _ in REDACTIONS],
+                  "rules": [label for label, _, _ in redactions()],
                   "files": [{"path": copy.relative_to(run_copy).as_posix(), "original_sha256": _sha256(original), "original_bytes": original.stat().st_size,
                              "redacted_sha256": _sha256(copy), "redacted_bytes": copy.stat().st_size} for original, copy in sorted(pairs, key=lambda x: x[1])]}
         (run_copy / "REDACTION.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
@@ -282,6 +321,9 @@ SCAN_SENTINELS = ("[REDACTED-KEY]", "synthetic-team-token")
 
 def _pattern_hits(text: str) -> list[str]:
     hits = []
+    for host in PRIVATE_HOSTS:  # reported by label: the hit itself must not print the private host
+        if re.search(host_pattern(host), text, re.I):
+            hits.append("a private host name (plain or escaped spelling) from the exporter's private configuration")
     for pattern in SCAN_PATTERNS:
         for match in pattern.finditer(text):
             if any(sentinel in match.group(0) for sentinel in SCAN_SENTINELS):
