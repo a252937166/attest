@@ -25,7 +25,9 @@ No paid Nebius inference, smoke test, evaluation or demo run was started; the $1
 Three batches, Attest only, one attempt per cell, all on package `68e9de49df5b…` (37 sources), harness `9f9e4bc2ebfe…`, examples
 `6db7a2e937d6…`, the development gateway for inference (the revision-7 profile: spec and audit `gpt-6-astra:low`, arbitrate
 `gpt-6-astra:medium`, seal, implement and break `gpt-6-sol:medium`, summary `gpt-6-luna:low`) and Token Factory Sandboxes for
-execution. Every scheduled cell is reported; nothing was merged or selected; no uncertain request was sent again.
+execution. Every scheduled cell is reported; nothing was merged or selected; no uncertain request was sent again. The pinned package
+(`ed41f4c95bd1…`) differs from the batches' package only by the stop fix of `5177cf4` (the run stops at the first uncertain call in
+every stage); none of the batches' failures was in a stage that fix changes.
 
 | Batch | Task | Verdict | Label | What happened |
 | --- | --- | --- | --- | --- |
@@ -62,11 +64,14 @@ Run after the batches, the reports and the export, on the exact trees that are p
 
 | Run | Tree | Tests | Failures | Errors | Skips |
 | --- | --- | --- | --- | --- | --- |
-| 1 | clean checkout (`git worktree`) of the code commit `35248d0` | 397 | 0 | 0 | 0 |
-| 2 | clean checkout of the pin record `6eca557` (the tree the release was built from) | 397 | 0 | 0 | 0 |
+| 1 | clean checkout (`git worktree`) of the first pinned code commit `35248d0` | 397 | 0 | 0 | 0 |
+| 2 | clean checkout of its pin record `6eca557` | 397 | 0 | 0 | 0 |
 | 3 | private working tree, same code | 397 | 0 | 0 | 0 |
+| 4 | clean checkout of `5177cf4` (the stop fix; the pinned code commit) | 402 | 0 | 0 | 0 |
+| 5 | private working tree after the stop fix | 402 | 0 | 0 | 0 |
+| 6 | clean checkout of the pin record the release is built from | see the deployment record | | | |
 
-The count grew from 367 (revision 7) by the 23 tests of `tests/test_transport.py`, the five explicit-start tests and two
+The count grew from 367 (revision 7) by the 28 tests of `tests/test_transport.py`, the five explicit-start tests and two
 installer scenarios; the console's confirmation check and the escaped-host checks of the export were added inside existing tests. A high count is not evidence that the deployment, billing or external services are correct; those
 are checked separately below and in the folders above.
 
@@ -78,5 +83,6 @@ are checked separately below and in the folders above.
 | `be503dd` | transport phases, bounded resends of never-sent requests, accepted-operation journaling, reconciliation and services records, checker counters, `tests/test_transport.py` |
 | `2183c03` | console: explicit start (428 without the confirmation header, the confirmation step, automated browsers refused), cost labels by service, the phone layout, the layout audit script |
 | `21d5310` | export privacy (private hosts from private configuration, every spelling, rule labels in `REDACTION.json`), the provenance check |
-| `35248d0` | documentation, this folder's evidence, dated corrections of earlier records, version 0.8.0 (the pinned code commit) |
-| `6eca557` | the revision-8 pin in `FREEZE.md` (package `68e9de49…`, harness `9f9e4bc2…`) and the clean-checkout log |
+| `35248d0` | documentation, this folder's evidence, dated corrections of earlier records, version 0.8.0 (the first pinned code commit, package `68e9de49…`) |
+| `6eca557` | the first revision-8 pin record (superseded before any deployment) |
+| `5177cf4` | the run stops at the first uncertain model call in every stage (sealing no longer sends the same prompt again); the pinned code commit, package `ed41f4c9…` |

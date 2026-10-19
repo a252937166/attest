@@ -355,8 +355,8 @@ revision 7. The harness changed (reconciliation and services records).
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `35248d0a4b0ad5bec142fd14c197cc59a31b2aef` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
-| `attest/` package digest (sha256 over path and content of every source, 37 files) | `68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4` |
+| Repository commit (code) | `5177cf48e15fa983403bc8f185705d5bc759e76f` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 37 files) | `ed41f4c95bd1708d47aa8af46421acf4e82a27f31bbb612fe60bb7ab2738ea98` |
 | Harness `scripts/run_evaluation.py` sha256 | `9f9e4bc2ebfee8ec6fbf2504d510fdaf71b137197fbf192dd20be16a9cb70c0f` (changed: the reconciliation list, the per-service record and the peak memory) |
 | `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` (unchanged) |
 | Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
@@ -366,9 +366,16 @@ revision 7. The harness changed (reconciliation and services records).
 | Effective provider configuration, proposed paid run (`reports/attest-revision7-repairs-2026-10-19/nemotron-effective-profile.json`, computed offline from the pinned package with a placeholder key and blocked sockets) | the compared profile is identical to revision 7's (provider `nebius_tokenfactory`; roles spec, audit, arbitrate `nvidia/Nemotron-3-Ultra-550b-a55b`, seal, implement, break `nvidia/nemotron-3-super-120b-a12b`, summary `nvidia/Nemotron-3_5-Lightning`; reasoning effort break low, implement medium, seal low, summary low; temperature 0.2; max_tokens 16000; no thinking flag; per-run USD cap 0.50; per-run call cap 22); the provider's description adds the transport retry policy |
 | Effective provider configuration, development batches (registered in each `schedule.json` of `reports/attest-revision7-repairs-2026-10-19/evaluation-codex*/`) | unchanged from revision 7 (`base_url_sha256` `68e25b464500800e`) |
 | Limits | revision-7 limits; deployment memory limit 200M (memory and memory plus swap) |
-| Offline suite on the final tree | **397 tests, 0 failures, 0 errors, 0 skips** on a clean checkout (`git worktree`) of the pinned commit `35248d0` (`reports/attest-revision7-repairs-2026-10-19/corpus/final-tree-suite-1-clean-35248d0.log`); the private working tree passes the same 397 |
+| Offline suite on the final tree | **402 tests, 0 failures, 0 errors, 0 skips** on a clean checkout (`git worktree`) of the pinned commit `5177cf4` (`reports/attest-revision7-repairs-2026-10-19/corpus/final-tree-suite-4-clean-5177cf4.log`); the private working tree passes the same 402 |
 
-Development-gateway reliability batches of this revision (Attest only, one attempt per task, no paid inference call):
+History of this pin (19 Oct 2026, before any deployment of revision 8): the pin first named commit `35248d0` (package
+`68e9de49df5b…`, pin record `6eca557`; 397 tests on clean checkouts of both). A review of the transport paths then found that the
+sealing stage took an uncertain call as an unusable attempt and sent its next attempt with the same prompt, and that three later
+stages went on to further calls after an uncertain one; `5177cf4` stops the run at the first uncertain call in every stage. The pin
+names `5177cf4`; the harness, examples, suite, method, guest programs and the compared provider profiles are unchanged.
+
+Development-gateway reliability batches of this revision (Attest only, one attempt per task, no paid inference call; they ran on
+package `68e9de49df5b…`, before the stop fix, and none of their failures was in a stage that fix changed):
 `reports/attest-revision7-repairs-2026-10-19/evaluation-codex/`, `-2/`, `-3/`. Nine cells: `durationkit-units-001` VERIFIED
 (`true_accept`), `rle-encode` NEEDS HUMAN (`true_reject`; a demonstrated conflict on mixed task and derived criteria is held, not
 INFEASIBLE), `kvparse-refactor-001` NEEDS HUMAN (`false_reject`; a sealed test failed by assertion and is never overridden, although
@@ -380,7 +387,7 @@ judge establishes the judged outcomes.
 ## The exact command (revision 8)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout 35248d0a4b0ad5bec142fd14c197cc59a31b2aef
+git clone <repository> attest-eval && cd attest-eval && git checkout 5177cf48e15fa983403bc8f185705d5bc759e76f
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r8-final \
