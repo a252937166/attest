@@ -137,7 +137,7 @@ and the escalated breaker attempt may add another.
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `REVISION5_COMMIT` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| Repository commit (code) | `320651d3bd4011538fe2f6d240a1e5769b019051` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
 | `attest/` package digest (sha256 over path and content of every source, 35 files) | `1e12d46217fb6b8a27a08b4463f42f361e7309257b211103c08777c91cb10ce5` |
 | Harness `scripts/run_evaluation.py` sha256 | `2aa28413a1ccfe425c400a085a18e3e3625aa11f7170b3f655de7bab53e8816c` (the two development-gateway batches below ran `6e77617bcc8a66cc…`, which differs only in the confusion labels: it had no `false_refusal` label for an INFEASIBLE verdict on a satisfiable task; execution, budget and resume logic are identical) |
 | `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` in the working tree and the exported tree (the python-semver `docs/make.bat` keeps CRLF line endings there; a clean git clone normalises it and computes `e95a28aa363366160062107128950e9ff4c1888d52dccfdf578299e14e341b78`, the M5 value; no task, repository source or held-out suite differs) |
@@ -164,7 +164,7 @@ so the correction path is covered by the offline acceptance tests only.
 ## The exact command (revision 5)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout <revision-5 commit from the pin above>
+git clone <repository> attest-eval && cd attest-eval && git checkout 320651d3bd4011538fe2f6d240a1e5769b019051
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r5-final \
