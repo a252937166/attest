@@ -65,7 +65,29 @@ judge above does that for the two VERIFIED cells; for the held cell there is not
 
 ## Frozen and deployed
 
-REV6-DEPLOY-SECTION
+Pinned in `FREEZE.md` (revision-6 section): code commit `da00f41a5542a1c114c2ba1a57a6f0ee7e7ff906` of the review repository,
+package digest `b11ec0658845e54d8917ac7a1cdbb32dddd1d16232fa0f377b08971a711837e9` (36 sources), harness `5af2b4989b2b…`, examples
+`6db7a2e937d6…`, evidence protocol 3, manifest 2, 352 offline tests; pin commit `25dd5f6`. The M5 and revision-5 pins are untouched
+(one bracketed correction of the revision-5 narrative).
+
+Deployed to yungou (DogYun 206.237.18.80) at 11:03 UTC on 19 Oct 2026 with the transactional installer
+(`reports/attest-deployment-2026-10-19c/README.md`): release `0.6.0-b11ec0658845` active at `/opt/attest/app`, previous
+`0.5.0-1e12d46217fb` selectable by `rollback.sh`; the installer verified 3,519 `RELEASE.json` entries, built the release's own
+virtualenv, read the package digest back through the active link, and reloaded nginx once with the new vhost (the access log
+format of this host no longer records query strings, so download tickets never sit in it). Health after the switch: version
+0.6.0, worker alive, ready, queue 0, 1,129 MB free; served `index.html` carries asset stamp `20261019c`; the public row keys
+carry no requester, path or raw error; the public surfaces carry no gateway name; the ticket route refuses a mint without the
+header token (403) and ignores a query token; a public run's bundle downloads without any credential.
+
+Incident during the post-deployment checks, recorded in full in the deployment record: one of the verification requests was
+a `POST /api/runs` with a bogus body meant to show that a query token grants nothing. The request model ignores unknown
+fields and defaults the provider to the public Nemotron profile, so the console admitted an ordinary anonymous visitor run
+(its documented purpose). It ran for 2 min 35 s and committed **$0.0552** of Nebius inference (16 call records, 0 open
+reservations) before it was stopped at 11:08:24 UTC by restarting only `attest.service`; the restart reconciliation finalised the
+row as `interrupted` with the cost read from its ledger journal. This was unapproved paid spend caused by the verification
+step, not by a user or a defect; the row stays in the public history as recorded. Follow-up (not deployed): make
+`RunRequest` reject unknown fields and require the provider explicitly, so a malformed client request answers 422 instead of
+starting a paid run.
 
 ## Remaining limitations (summary)
 
