@@ -53,7 +53,7 @@
   const PROV_TEXT = { live: "Live run started from this console", imported: "Recorded evidence", synthetic: "Synthetic fixture: replayed from a recorded run, not a live execution" };
 
   const state = { view: "home", runId: null, tab: "overview", filter: "all", mode: "browse", task: null, profiles: [], profile: null, token: "", team: false,
-    ticket: null, tasks: [], runs: [], health: null, detail: null, expanded: new Set(), onlyRed: false, revealed: false, spot: null,
+    ticket: null, tasks: [], tasksFailed: false, runs: [], health: null, detail: null, expanded: new Set(), onlyRed: false, revealed: false, spot: null,
     live: { timer: null, lastSeq: 0, events: [], status: null, stage: null, meters: {}, polls: 0 } };
   const guide = { ctx: null, steps: [], i: 0 };
   window.attestDebug = { polls: 0, renders: 0, panelRenders: 0 };
@@ -212,7 +212,7 @@
   function renderEstimate() {
     const t = currentTask();
     const box = $("#estimate"), go = $("#go"), brief = $("#task-brief"), price = $("#mode-live-price");
-    if (!t) { box.innerHTML = "No sample tasks are configured."; go.disabled = true; brief.textContent = ""; return; }
+    if (!t) { box.innerHTML = state.tasksFailed ? "The sample tasks could not be loaded: the service did not answer. Reload the page in a minute." : "No sample tasks are configured."; go.disabled = true; brief.textContent = ""; return; }
     const e = t.estimate || {};
     const h = state.health || {};
     const b = h.budget || {};
@@ -237,7 +237,7 @@
   }
 
   async function loadTasks() {
-    try { state.tasks = (await api("/api/tasks")).tasks || []; } catch (e) { state.tasks = []; }
+    try { state.tasks = (await api("/api/tasks")).tasks || []; state.tasksFailed = false; } catch (e) { state.tasks = []; state.tasksFailed = true; }
     renderTasks();
     if (state.view === "home") renderHome();
   }
@@ -882,9 +882,10 @@
     const g = $("#guide"), launch = $("#guide-launch");
     const on = state.view === "console" && guide.steps.length > 0;
     if (!on) { g.hidden = true; launch.hidden = true; clearSpot(); return; }
-    // dismissed for this browser, or not yet asked for on a small screen where the panel would cover the case file
+    // dismissed for this browser, or not yet asked for on a screen narrower than 1320 px, where the 360 px panel would lie over
+    // the case file's tabs (at 1024 px it covered Activity and Files; 0.8.1)
     const pref = prefs.get("attest.guide");
-    const dismissed = pref === "off" || (pref !== "on" && window.innerWidth <= 900);
+    const dismissed = pref === "off" || (pref !== "on" && window.innerWidth < 1320);
     launch.hidden = !dismissed; g.hidden = dismissed;
     if (dismissed) { clearSpot(); return; }
     const s = guide.steps[guide.i];

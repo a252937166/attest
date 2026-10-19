@@ -81,7 +81,10 @@ AUDIT_JS = r"""() => {
   const set = new Set(out.map(o => o.el));
   const outer = out.filter(o => !set.has(o.el.parentElement)).map(({el, ...rest}) => rest);
   return {vw, docScroll: document.documentElement.scrollWidth, bodyScroll: document.body.scrollWidth, offenders: outer.slice(0, 25), clipped: clipped.slice(0, 10),
-          count: outer.length + clipped.length + (document.documentElement.scrollWidth > vw + 1 ? 1 : 0), pageScrollsSideways: document.documentElement.scrollWidth > vw + 1};
+          count: outer.length + clipped.length + (document.documentElement.scrollWidth > vw + 1 ? 1 : 0), pageScrollsSideways: document.documentElement.scrollWidth > vw + 1,
+          // what the page's own breakpoints see (the Guide and the compact decision bar are desktop-only above 900 px)
+          innerWidth: window.innerWidth, scale: window.visualViewport ? Math.round(window.visualViewport.scale * 1000) / 1000 : null,
+          guideOpen: !!(document.querySelector('#guide') && !document.querySelector('#guide').hidden), compact: !!document.querySelector('.decision.compact')};
 }"""
 
 
@@ -181,6 +184,10 @@ def main():
 
             def audit(label, shot=None):
                 page.wait_for_timeout(350)
+                # measure the settled layout: wait (bounded) for finite animations such as the seal's 0.55 s stamp, whose first frames
+                # scale the seal past its card; infinite ones (the running pulse) are left alone
+                page.evaluate("""() => Promise.race([new Promise(r => setTimeout(r, 2000)), Promise.all(document.getAnimations()
+                    .filter(a => a.effect && a.effect.getComputedTiming().iterations !== Infinity).map(a => a.finished.catch(() => null)))])""")
                 res = page.evaluate(AUDIT_JS)
                 res["label"] = label
                 entry["pages"].append(res)
@@ -225,7 +232,19 @@ def main():
                 tabs = page.locator("[role=tab]:not([disabled])")
                 for i in range(tabs.count()):
                     name = tabs.nth(i).inner_text().strip().split("\n")[0][:20]
-                    tabs.nth(i).click(); page.wait_for_timeout(400)
+                    try:
+                        tabs.nth(i).click(timeout=8000)
+                    except Exception as error:  # a tab a person could not press either: record it with what covered it, go on
+                        box = tabs.nth(i).bounding_box() or {}
+                        cover = page.evaluate("""([x, y]) => { const e = document.elementFromPoint(x, y); if (!e) return null;
+                            const c = e.closest('aside,section,header,nav,div'); return (c ? c.tagName.toLowerCase() + (c.id ? '#' + c.id : '') + '.' + [...c.classList].join('.') : e.tagName); }""",
+                                              [box.get("x", 0) + box.get("width", 0) / 2, box.get("y", 0) + box.get("height", 0) / 2])
+                        state_now = page.evaluate("() => ({innerWidth: innerWidth, scale: visualViewport ? visualViewport.scale : null, scrollY: Math.round(scrollY), guideOpen: !document.querySelector('#guide').hidden})")
+                        entry.setdefault("blocked_clicks", []).append({"run": rid, "tab": name, "covered_by": cover, "box": box, **state_now,
+                                                                       "error": str(error).split("\n")[0][:160]})
+                        page.screenshot(path=str(out / f"blocked-{tag}-{i}-{width}.png"))
+                        continue
+                    page.wait_for_timeout(400)
                     page.evaluate("() => document.querySelectorAll('details').forEach(d => d.open = true)")
                     audit(f"run {rid} tab {name}, details open", f"run-{tag}-{name.lower().replace(' ', '-')}")
             page.goto(base + "/runs/no-such-run-00000000T000000000000Z", wait_until="domcontentloaded"); page.wait_for_timeout(1500)
@@ -250,7 +269,11 @@ def main():
         server.terminate()
     summary = []
     for entry in report["widths"]:
+        for b in entry.get("blocked_clicks", []):
+            summary.append(f"{entry['width']:>5} run {b['run'][:50]} tab {b['tab']!r} NOT CLICKABLE: covered by {b['covered_by']} (innerWidth {b['innerWidth']}, scale {b['scale']}, guide open {b['guideOpen']})")
         for pg in entry["pages"]:
+            if pg.get("guideOpen") and entry["width"] <= 900:
+                summary.append(f"{entry['width']:>5} {pg['label'][:70]:70} GUIDE OPEN on a small screen (innerWidth {pg.get('innerWidth')}, scale {pg.get('scale')})")
             for c in pg.get("clipped", []):
                 summary.append(f"{entry['width']:>5} {pg['label'][:70]:70} CLIPPED {c['sel'][:60]} right={c['right']} box={c['boxRight']} {c['text']!r}")
             if pg["offenders"] or pg.get("pageScrollsSideways"):

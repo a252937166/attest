@@ -463,7 +463,16 @@ details[open]>summary{margin-bottom:6px}
 @keyframes spot{0%{box-shadow:0 0 0 0 rgba(224,255,79,.45)}100%{box-shadow:0 0 0 18px rgba(224,255,79,0)}}
 
 /* ---- layout breakpoints ---- */
-@media (max-width:1180px){.links{display:none}.nav{grid-template-columns:auto 1fr auto auto}.status{justify-self:end}}
+/* narrow desktop windows (0.8.1): at 1024 px the seal and the buttons left the decision's text about 80 px, so the buttons move to
+   their own row below 1320 px (the compact bar keeps one row); the overview's two columns squeezed the evidence table, so they
+   stack below 1180 px */
+@media (max-width:1319px){
+  .decision{grid-template-columns:auto minmax(0,1fr)}
+  .decision .actions{grid-column:1/-1;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));min-width:0}
+  .decision.compact{grid-template-columns:auto minmax(0,1fr) auto}
+  .decision.compact .actions{grid-column:auto;grid-template-columns:none}
+}
+@media (max-width:1180px){.links{display:none}.nav{grid-template-columns:auto 1fr auto auto}.status{justify-self:end}.overview,.proves{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:1040px){
   .hero-grid{grid-template-columns:minmax(0,1fr);gap:32px}
   .startband .workspace{grid-template-columns:minmax(0,1fr);gap:18px}
@@ -474,7 +483,7 @@ details[open]>summary{margin-bottom:6px}
   .console{grid-template-columns:280px minmax(0,1fr)}
 }
 @media (max-width:900px){
-  .console{grid-template-columns:minmax(0,1fr)}
+  .console{grid-template-columns:minmax(0,1fr);align-content:start}
   .rail{border-right:0;border-bottom:1px solid var(--line);padding:12px 16px}
   .rail-summary{display:block;font-weight:600;font-size:14px;color:var(--ink);padding:8px 0;cursor:pointer}
   #rail-details:not([open]) .rail-summary{padding:6px 0}
