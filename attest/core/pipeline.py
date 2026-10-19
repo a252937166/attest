@@ -44,6 +44,7 @@ from .tamper import scan_diff
 from .task import GUEST_PYTHON, GUEST_REPO, GUEST_SEALED_DIR, TaskSpec
 from .testparse import parse_test_output
 from .verdict import EVIDENCE_PROTOCOL_VERSION, derive
+from .witness import REPOSITORY_COPY_DIR, WITNESS_LANGUAGE, Repository, analyze_witness
 from .workspace import PolicyViolation, Workspace, snapshot_repo
 
 GUEST_BREAKER_DIR = "/tmp/breaker"
@@ -249,33 +250,11 @@ def coverage_gaps(coverage, criteria: list[str], test_ids: list[str]) -> list[st
     return [f"AC{i}" for i in range(1, len(criteria) + 1) if i not in covered]
 
 
-WITNESS_FORBIDDEN_CALLS = ("exec", "eval", "compile", "__import__", "globals", "locals", "vars", "setattr", "getattr")
-
-
-def witness_constraint_problems(source: str) -> list[str]:
-    """Why a witness program is not CONSTRAINED (follow-up review R5-03): a constrained witness builds values of the input domain,
-    calls the unchanged code and compares; it defines no function, class or lambda (so it cannot implement its own version of the
-    function under change, nor build a subclass of a built-in type), creates no type dynamically and runs no dynamic code.
-    Returns the problems found (empty when the program is constrained); a module that does not parse is one problem."""
-    try:
-        tree = ast.parse(source)
-    except SyntaxError as error:
-        return [f"does not parse: {error.msg} at line {error.lineno}"]
-    problems: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            problems.append(f"defines a function ({node.name}) at line {node.lineno}")
-        elif isinstance(node, ast.ClassDef):
-            problems.append(f"defines a class ({node.name}) at line {node.lineno}")
-        elif isinstance(node, ast.Lambda):
-            problems.append(f"defines a lambda at line {node.lineno}")
-        elif isinstance(node, ast.Call):
-            name = node.func.id if isinstance(node.func, ast.Name) else (node.func.attr if isinstance(node.func, ast.Attribute) else None)
-            if name == "type" and len(node.args) + len(node.keywords) > 1:
-                problems.append(f"creates a type dynamically at line {node.lineno}")
-            elif name in WITNESS_FORBIDDEN_CALLS:
-                problems.append(f"calls {name}() at line {node.lineno}")
-    return problems
+def witness_constraint_problems(source: str, repository: Repository | None = None) -> list[str]:
+    """Why a witness program is outside the constrained witness language (attest.core.witness, WITNESS_LANGUAGE; review findings
+    R5-03 and R6-1). Empty when it conforms. The language is a positive grammar with statically resolved call origins: without a
+    `repository` every repository import is unresolved, so only a witness that imports nothing from the repository can conform."""
+    return analyze_witness(source, repository)["problems"]
 
 
 def requirement_provenance(ids: list[str], task_ids: set[str], derived_ids: set[str]) -> str:
@@ -428,8 +407,10 @@ class Pipeline:
             "evidence_protocol": {"version": EVIDENCE_PROTOCOL_VERSION, "supervisor": SUPERVISOR_VERSION,
                                   "note": ("a VERIFIED bundle of this protocol carries every gate with its raw supervisor result, every evaluated mutant's raw "
                                            "result, the base and mutant evidence of any validated correction, the contract audit and the ledger; an INFEASIBLE "
-                                           "bundle carries the executed witness, its digest, output and operation; a bundle without this field is historical "
-                                           "and is checked for internal consistency only")}}
+                                           "bundle carries the executed witness, its digest, output and operation, its analysis in the constrained witness "
+                                           "language and copies of the repository files that analysis resolved call origins through; a bundle without this "
+                                           "field is historical and is checked for internal consistency only"),
+                                  "witness_language": WITNESS_LANGUAGE}}
         self.bundle["provenance"] = build_provenance(provider.describe(), self.limits(), task.upstream)
 
     def limits(self) -> dict:
@@ -852,7 +833,7 @@ class Pipeline:
         self.log(f"contract audit: {audit.get('outcome')} ({len(grounded)} grounded, {len(demonstrated)} demonstrated but not grounded, {len(claimed)} claimed only)")
         if grounded:
             first = grounded[0]
-            raise PipelineAbort("INFEASIBLE", f"contract contradiction demonstrated by an executed, constrained witness on the task's own criteria "
+            raise PipelineAbort("INFEASIBLE", f"contract contradiction demonstrated by an executed witness in {WITNESS_LANGUAGE} on the task's own criteria "
                                               f"(requirements {', '.join(first['requirement_ids'])}): {first['summary'][:200]}; witness output: "
                                               f"{(first.get('stdout_tail') or '').strip()[:200]}")
         if demonstrated:
@@ -861,7 +842,7 @@ class Pipeline:
             first = demonstrated[0]
             raise PipelineAbort("NEEDS HUMAN", f"contract conflict demonstrated but not grounded ({first.get('provenance')} criteria "
                                                f"{', '.join(first['requirement_ids'])}"
-                                               + ("" if first.get("witness_constrained") else "; unconstrained witness") + f"): {first['summary'][:200]}; "
+                                               + ("" if first.get("witness_constrained") else f"; witness outside {WITNESS_LANGUAGE}") + f"): {first['summary'][:200]}; "
                                                "a model's restatement of the task cannot establish that the task is impossible, so a human decides whether "
                                                "the requirement conflict is real")
         if not spec["feasible"]:
@@ -1242,10 +1223,12 @@ class Pipeline:
                   "rule": (f"a conflict is demonstrated only when it names existing criteria and its witness program, run on the unmodified "
                            f"repository in a disposable sandbox branch, prints a line starting with {WITNESS_MARKER!r} that names at least one of "
                            f"them and exits with code {WITNESS_EXIT_CODE}; it is GROUNDED, and may end the run as infeasible, only when every named "
-                           "requirement is an authoritative task criterion (TC) and the witness is constrained (no function, class, lambda or dynamic "
-                           "type, no dynamic code; values of the input domain and the unchanged code only); a demonstrated conflict that involves a "
-                           "derived criterion (AC) or an unconstrained witness is held for a human; a claimed-only conflict never ends a run; the "
-                           "witness's reasoning is the model's and its execution is recorded, which is not a formal proof of impossibility")}
+                           f"requirement is an authoritative task criterion (TC) and the witness conforms to the constrained witness language "
+                           f"{WITNESS_LANGUAGE} (a positive grammar: literal inputs, allowed built-ins and standard-library functions, and functions "
+                           "or classes the frozen repository defines, every call origin resolved statically; enforced mechanically here and again by "
+                           "attest check); a demonstrated conflict that involves a derived criterion (AC) or a witness outside the language is held "
+                           "for a human; a claimed-only conflict never ends a run; whether the witness's inputs and comparison demonstrate that the "
+                           "criteria cannot all hold is the model's reasoning, recorded with its execution, not a formal proof of impossibility")}
         try:
             answer = self.ask("audit", contract_audit_prompt(self.task, spec, snapshot), CONTRACT_AUDIT_SCHEMA, "contract-audit")
         except ModelError as error:
@@ -1261,12 +1244,14 @@ class Pipeline:
         derived_ids = {f"AC{i}" for i in range(1, len(spec.get("acceptance_criteria") or []) + 1)}
         record["requirement_ids_known"] = {"task": sorted(task_ids, key=lambda s: int(s[2:])), "derived": sorted(derived_ids, key=lambda s: int(s[2:]))}
         record["input_domain"] = WITNESS_INPUT_DOMAIN
+        record["witness_language"] = WITNESS_LANGUAGE
+        copied: set[str] = set()
         for index, conflict in enumerate(conflicts, 1):
             witness, _ = repair_escapes(conflict.get("witness") or "")
             ids = [str(i).strip() for i in (conflict.get("requirement_ids") or []) if str(i).strip()]
             provenance = requirement_provenance(ids, task_ids, derived_ids)
             entry = {"requirement_ids": ids, "provenance": provenance, "summary": (conflict.get("summary") or "")[:500],
-                     "witness_path": None, "witness_sha256": None, "witness_constrained": None, "constraint_problems": [],
+                     "witness_path": None, "witness_sha256": None, "witness_constrained": None, "constraint_problems": [], "witness_language": None,
                      "exit_code": None, "timed_out": None, "stdout_tail": "", "stderr_tail": "",
                      "operation_uuid": None, "demonstrated": False, "grounded": False, "status": "no witness"}
             if provenance == "unknown":
@@ -1279,8 +1264,16 @@ class Pipeline:
                 self.log(f"contract audit: conflict {index}: {entry['status']}")
                 continue
             if witness.strip():
-                entry["constraint_problems"] = witness_constraint_problems(witness)
-                entry["witness_constrained"] = not entry["constraint_problems"]
+                # the constrained witness language (R6-1): a positive grammar whose call origins are resolved against the frozen
+                # repository; the repository files the resolution read are kept in the bundle so that attest check repeats it offline
+                analysis = analyze_witness(witness, Repository.from_snapshot(snapshot, self.task.python_paths))
+                entry["witness_language"] = analysis
+                entry["constraint_problems"] = analysis["problems"]
+                entry["witness_constrained"] = bool(analysis["conforms"])
+                for path in analysis["repository_files"]:
+                    if path not in copied and path in snapshot:
+                        self.save(f"{REPOSITORY_COPY_DIR}/{path}", snapshot[path])
+                        copied.add(path)
                 try:
                     compile(witness, f"witness_{index}.py", "exec")
                 except SyntaxError as error:
@@ -1320,12 +1313,12 @@ class Pipeline:
                         # and the unchanged code; only a grounded conflict may end the run as infeasible, anything else is a hold
                         entry["grounded"] = provenance == "task" and bool(entry["witness_constrained"])
                         if entry["grounded"]:
-                            entry["status"] = "demonstrated and grounded (authoritative criteria, constrained witness)"
+                            entry["status"] = f"demonstrated and grounded (authoritative criteria, witness in {WITNESS_LANGUAGE})"
                         elif provenance != "task":
                             entry["status"] = f"demonstrated on {provenance} criteria (a model's restatement is involved); held for a human, not infeasible"
                         else:
-                            entry["status"] = ("demonstrated by an unconstrained witness (" + "; ".join(entry["constraint_problems"])[:200]
-                                               + "); held for a human, not infeasible")
+                            entry["status"] = (f"demonstrated by a witness outside the constrained witness language {WITNESS_LANGUAGE} ("
+                                               + "; ".join(entry["constraint_problems"])[:200] + "); held for a human, not infeasible")
                     elif step.exit_code == WITNESS_EXIT_CODE and marker:
                         entry["status"] = "marker line does not name any of the claimed requirements; recorded as claimed only"
                     elif step.exit_code == 0:

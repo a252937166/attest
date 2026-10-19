@@ -79,7 +79,14 @@ CANDIDATE_SRC = '''def parse_duration(text: str) -> float:
 '''
 TAMPERING_CANDIDATE_SRC = "import sys, os\nsys.modules['unittest'] = sys.modules.get('unittest')\n" + CANDIDATE_SRC
 # witness programs the fake contract auditor returns; the fake executor "runs" them by their exit marker and echoes the ids they name
-WITNESS_DEMONSTRATES = "import sys\nprint('CONTRADICTION TC1,TC2: for input \"1h\" TC1 demands 3600 and TC2 demands 60')\nsys.exit(3)\n"  # grounded: task criteria, constrained
+# grounded: task criteria, and a literal-input witness in attest-witness/1 that calls the repository's own function (its origin
+# resolves through durationkit/__init__.py to the definition in durationkit/parse.py)
+WITNESS_DEMONSTRATES = ("import sys\nfrom durationkit import parse_duration\n\nseconds = parse_duration('90')\nif seconds == 90:\n"
+                        "    print('CONTRADICTION TC1,TC2: for input \"1h\" TC1 demands 3600 and TC2 demands 60')\n    sys.exit(3)\n"
+                        "print('NOT DEMONSTRATED: the reference value differs')\nsys.exit(0)\n")
+# the revision-6 review's bypass of the old blacklist (an import alias of type builds a str subclass), verbatim but for the ids
+WITNESS_ALIAS_BYPASS = ("from builtins import type as make_type\nimport sys\nZ = make_type('Z', (str,), {'__len__': (0).__int__})\nx = Z('a=b')\n"
+                        "print('CONTRADICTION TC1: this value is a custom str subclass')\nsys.exit(3)\n")
 WITNESS_DEMONSTRATES_DERIVED = "import sys\nprint('CONTRADICTION AC1,AC2: for input \"1h\" AC1 demands 3600 and AC2 demands 60')\nsys.exit(3)\n"  # specification criteria
 WITNESS_UNCONSTRAINED = ("import sys\ndef required(x):\n    return 60\nprint('CONTRADICTION TC1,TC2: my own implementation returns 60 for \"1h\"')\nsys.exit(3)\n")
 WITNESS_NOT_SHOWN = "import sys\nprint('NOT DEMONSTRATED: no input found up to length 6')\nsys.exit(0)\n"
@@ -145,7 +152,7 @@ class FakeProvider:
         if role == "spec":
             infeasible = self.scenario in ("spec_infeasible_unproven", "spec_infeasible_demonstrated")
             two = ("coverage_gap", "contract_conflict", "spec_infeasible_demonstrated", "contract_claim_unproven", "spec_infeasible_unproven",
-                   "contract_conflict_derived", "contract_conflict_mixed", "contract_conflict_unconstrained")
+                   "contract_conflict_derived", "contract_conflict_mixed", "contract_conflict_unconstrained", "contract_conflict_alias_bypass")
             criteria = ["units work", "errors raise ValueError"] if self.scenario in two else ["units work"]
             payload = {"feasible": not infeasible, "infeasibility_reason": "fake: the criteria contradict" if infeasible else None,
                        "restated_task": "add units",
@@ -172,6 +179,9 @@ class FakeProvider:
             elif self.scenario == "contract_conflict_unconstrained":
                 payload = {"consistent": False, "notes": "fake unconstrained conflict", "conflicts": [
                     {"requirement_ids": ["TC1", "TC2"], "summary": "my own implementation disagrees with the original", "witness": WITNESS_UNCONSTRAINED}]}
+            elif self.scenario == "contract_conflict_alias_bypass":
+                payload = {"consistent": False, "notes": "fake bypass of the old blacklist", "conflicts": [
+                    {"requirement_ids": ["TC1"], "summary": "a custom str subclass built through an import alias of type", "witness": WITNESS_ALIAS_BYPASS}]}
             elif self.scenario in ("contract_claim_unproven", "spec_infeasible_unproven"):
                 payload = {"consistent": False, "notes": "fake suspicion", "conflicts": [
                     {"requirement_ids": ["AC1"], "summary": "AC1 may be impossible", "witness": WITNESS_NOT_SHOWN}]}
@@ -629,7 +639,7 @@ class VerificationBinding(unittest.TestCase):
         self.assertEqual(conflict["witness_path"], "contract_audit/witness_1.py")
         self.assertIn("CONTRADICTION", conflict["stdout_tail"])
         self.assertIsNone(bundle["sealed_tests"], "no sealing after a demonstrated contradiction")
-        self.assertIn("executed, constrained witness on the task's own criteria", bundle["verdict"]["reasons"][0])
+        self.assertIn("executed witness in attest-witness/1 on the task's own criteria", bundle["verdict"]["reasons"][0])
         self.assertTrue(conflict["grounded"] and conflict["provenance"] == "task" and conflict["witness_constrained"])
 
     def test_claimed_conflict_without_a_demonstration_does_not_stop_the_run(self):

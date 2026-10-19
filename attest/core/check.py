@@ -40,10 +40,11 @@ from .manifest import MANIFEST_FILE, build_manifest, list_symlinks, verify_manif
 from .proof import render_markdown
 from .provenance import attest_revision
 from .pipeline import (base_discrimination, classification_problems, classify_mutant_run, correction_problems, mutant_rerun_discrimination,
-                       requirement_provenance, witness_constraint_problems)
+                       requirement_provenance)
 from .prompts import WITNESS_EXIT_CODE, WITNESS_MARKER
 from .sealed import bind_modules, bind_verification, static_test_ids, summarize
 from .verdict import EVIDENCE_PROTOCOL_VERSION, expected_verdict, legacy_clearing_allowed, protocol_version
+from .witness import WITNESS_LANGUAGE, Repository, analyze_witness
 
 RAW_FILE = "verify_raw.json"
 REDACTION_FILE = "REDACTION.json"  # written by scripts/export_public.py next to a redacted copy of a run directory
@@ -159,18 +160,29 @@ def required_evidence_problems(bundle: dict, run_dir: Path, raw: dict | None, pr
         if protocol >= 3:
             grounded = [c for c in demonstrated if c.get("grounded")]
             if not grounded:
-                problems.append("INFEASIBLE without a grounded conflict (authoritative task criteria only, constrained witness)")
+                problems.append(f"INFEASIBLE without a grounded conflict (authoritative task criteria only, witness in {WITNESS_LANGUAGE})")
             task_ids = {f"TC{i}" for i in range(1, len(task.get("acceptance_criteria") or []) + 1)}
             derived_ids = {f"AC{i}" for i in range(1, len((bundle.get("spec") or {}).get("acceptance_criteria") or []) + 1)}
             for conflict in grounded:
                 if requirement_provenance(conflict.get("requirement_ids") or [], task_ids, derived_ids) != "task":
                     problems.append("a grounded conflict names criteria that are not all the task's own")
                 path = conflict.get("witness_path")
-                if path and (run_dir / path).is_file():
-                    if witness_constraint_problems((run_dir / path).read_text(encoding="utf-8")):
-                        problems.append("a grounded conflict's witness is not constrained")
-                elif not conflict.get("witness_constrained"):
-                    problems.append("a grounded conflict without a constrained witness record")
+                if not path or not (run_dir / path).is_file():
+                    problems.append("a grounded conflict without its witness program file")
+                    continue
+                # the recorded flag is never trusted: the language analysis is repeated from the witness file and the copies of the
+                # repository files kept in the bundle (a copy counts only when its digest equals the frozen task's; review R6-1). A
+                # protocol-3 bundle keeps no copies, so a protocol-3 witness that imports repository code cannot be re-established.
+                analysis = analyze_witness((run_dir / path).read_text(encoding="utf-8"), Repository.from_bundle(run_dir, task))
+                if not analysis["conforms"]:
+                    problems.append(f"a grounded conflict's witness is outside the constrained witness language {WITNESS_LANGUAGE}: "
+                                    + "; ".join(analysis["problems"][:2])[:300])
+                if protocol >= 4:
+                    recorded = conflict.get("witness_language") or {}
+                    if recorded.get("version") != WITNESS_LANGUAGE or not recorded.get("conforms"):
+                        problems.append(f"a grounded conflict without a conforming {WITNESS_LANGUAGE} analysis record")
+                    elif (recorded.get("repository_files") or {}) != analysis["repository_files"]:
+                        problems.append("a grounded conflict's recorded repository files differ from the files its origin resolution reads")
         for conflict in demonstrated:
             path = conflict.get("witness_path")
             if not path or not (run_dir / path).is_file():
@@ -479,6 +491,18 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
                 report.add("witness_digest", digest == conflict.get("witness_sha256"), f"{conflict['witness_path']} sha256 {digest[:16]} vs recorded {str(conflict.get('witness_sha256'))[:16]}")
             else:
                 report.add("witness_digest", False, f"{conflict['witness_path']} missing from the run directory")
+            if protocol is not None and protocol >= 4 and witness_path.is_file():
+                fresh = analyze_witness(witness_path.read_text(encoding="utf-8"), Repository.from_bundle(run_dir, bundle.get("task") or {}))
+                recorded = conflict.get("witness_language") or {}
+                agrees = (recorded.get("version") == WITNESS_LANGUAGE and bool(recorded.get("conforms")) == fresh["conforms"]
+                          and bool(conflict.get("witness_constrained")) == fresh["conforms"]
+                          and (recorded.get("repository_files") or {}) == fresh["repository_files"])
+                report.add("witness_language_rederived", agrees,
+                           f"{conflict['witness_path']}: {WITNESS_LANGUAGE} analysis repeated from the witness and {len(fresh['repository_files'])} "
+                           f"repository cop{'y' if len(fresh['repository_files']) == 1 else 'ies'}: "
+                           + ("conforms" if fresh["conforms"] else "outside the language (" + "; ".join(fresh["problems"][:1])[:160] + ")")
+                           + ("" if agrees else f"; the recorded analysis says conforms={recorded.get('conforms')!r}, witness_constrained="
+                                                f"{conflict.get('witness_constrained')!r}, files {sorted(recorded.get('repository_files') or {})}"))
             if conflict.get("demonstrated"):
                 lines = [line for line in (conflict.get("stdout_tail") or "").splitlines() if line.startswith(WITNESS_MARKER)]
                 names_claim = any(i in line for line in lines for i in (conflict.get("requirement_ids") or []))

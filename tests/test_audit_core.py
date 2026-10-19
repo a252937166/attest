@@ -29,6 +29,7 @@ from attest.core.proof import write_bundle
 from attest.core.sealed import (CLEANUP_GRACE_S, SUPERVISOR_VERSION, bind_verification, guest_files_for, new_nonce, outcome_class,
                                 sealed_steps, static_test_ids, structural_problems)
 from attest.core.task import TaskSpec
+from attest.core.workspace import snapshot_repo
 from attest.core.verdict import EVIDENCE_PROTOCOL_VERSION, expected_verdict, legacy_clearing_allowed
 from attest.ledger import Ledger
 from tests.test_verification import TASK, FakeExecutor, FakeProvider, run_scenario
@@ -745,12 +746,13 @@ class WitnessValidation(unittest.TestCase):
                 {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["TC1"], "summary": "real", "witness": WITNESS_DEMONSTRATES}]},
             ])
             pipeline.ask = lambda *args: SimpleNamespace(json=next(answers), call=SimpleNamespace(requested_model="fake"))
+            snapshot = snapshot_repo(TaskSpec.load(TASK).repo_dir)
             with contextlib.redirect_stdout(io.StringIO()):
-                ghost = pipeline.contract_audit(spec, {}, "ckpt")
-                nothing = pipeline.contract_audit(spec, {}, "ckpt")
-                real = pipeline.contract_audit(spec, {}, "ckpt")
+                ghost = pipeline.contract_audit(spec, snapshot, "ckpt")
+                nothing = pipeline.contract_audit(spec, snapshot, "ckpt")
+                real = pipeline.contract_audit(spec, snapshot, "ckpt")
                 executor.stdout = "CONTRADICTION TC2: the marker names a requirement the conflict did not claim\n"
-                unnamed = pipeline.contract_audit(spec, {}, "ckpt")
+                unnamed = pipeline.contract_audit(spec, snapshot, "ckpt")
             self.assertFalse(ghost["conflicts"][0]["demonstrated"])
             self.assertIn("unknown requirement", ghost["conflicts"][0]["status"])
             self.assertIsNone(ghost["conflicts"][0]["operation_uuid"], "a witness for a nonexistent requirement is not executed")
@@ -831,7 +833,7 @@ class R502MandatoryStagesDerivedFromTheTask(unittest.TestCase):
         for run_dir in (self.run_dir, self.held_run_dir):
             report = check_bundle(run_dir)
             self.assertTrue(report["ok"] and report["fully_verified"] and report["evidence_complete"], failed_checks(report))
-            self.assertEqual(report["protocol"], 3)
+            self.assertEqual(report["protocol"], EVIDENCE_PROTOCOL_VERSION)
         self.assertEqual(self.held_bundle["gates"]["heldout_suite"]["ok"], True)
         self.assertTrue(self.held_bundle["task"]["heldout_tests_sha256"])
 
@@ -887,15 +889,23 @@ class R503GroundedInfeasibility(unittest.TestCase):
     """R5-03: only a demonstrated conflict grounded in the requester's own criteria, with a constrained witness inside the input
     domain, may end a run as INFEASIBLE; derived, mixed or unconstrained demonstrations are held for a human."""
 
-    def test_grounded_conflict_ends_infeasible_and_checks_complete_under_protocol_three(self):
+    def test_grounded_conflict_ends_infeasible_and_checks_complete_under_the_current_protocol(self):
         bundle, run_dir, tmp = kept_run("contract_conflict")
         try:
             self.assertEqual(bundle["verdict"]["verdict"], "INFEASIBLE")
             conflict = bundle["contract_audit"]["conflicts"][0]
             self.assertEqual((conflict["provenance"], conflict["witness_constrained"], conflict["grounded"]), ("task", True, True))
             self.assertIn("input_domain", bundle["contract_audit"])
+            self.assertEqual(bundle["contract_audit"]["witness_language"], "attest-witness/1")
+            self.assertTrue(conflict["witness_language"]["conforms"])
+            self.assertEqual(sorted(conflict["witness_language"]["repository_files"]), ["durationkit/__init__.py", "durationkit/parse.py"])
+            for path in conflict["witness_language"]["repository_files"]:
+                self.assertTrue((run_dir / "contract_audit/repository" / path).is_file(), path)
             report = check_bundle(run_dir)
             self.assertTrue(report["ok"] and report["fully_verified"], failed_checks(report))
+            self.assertEqual(report["protocol"], EVIDENCE_PROTOCOL_VERSION)
+            self.assertGreaterEqual(EVIDENCE_PROTOCOL_VERSION, 4)
+            self.assertTrue(any(c["name"] == "witness_language_rederived" and c["ok"] for c in report["checks"]))
             # forging the grounded flag on a conflict that names derived criteria is caught offline
             rewrite_bundle(run_dir, lambda b: b["contract_audit"]["conflicts"][0].update({"requirement_ids": ["AC1", "AC2"]}))
             forged = check_bundle(run_dir)
@@ -934,24 +944,36 @@ class R503GroundedInfeasibility(unittest.TestCase):
 
     def test_recorded_witnesses_classify_as_the_review_argued(self):
         from attest.core.pipeline import requirement_provenance, witness_constraint_problems
+        from attest.core.witness import Repository
         repairs = ROOT / "reports/attest-audit-repairs-2026-10-19"
         kvparse = next(repairs.glob("evaluation-codex-2/runs/kvparse-refactor-001-*/contract_audit/witness_1.py"), None)
-        rle = next(repairs.glob("evaluation-codex/runs/rle-encode-*/contract_audit/witness_1.py"), None)
-        if kvparse is None or rle is None:
-            self.skipTest("recorded witnesses not present")
-        problems = witness_constraint_problems(kvparse.read_text(encoding="utf-8"))
+        rle_old = next(repairs.glob("evaluation-codex/runs/rle-encode-*/contract_audit/witness_1.py"), None)
+        rle_new = next((ROOT / "reports/attest-revision5-repairs-2026-10-19").glob("evaluation-codex/runs/rle-encode-*/contract_audit/witness_1.py"), None)
+        self.assertIsNotNone(kvparse, "recorded kvparse witness")
+        self.assertIsNotNone(rle_old, "recorded revision-5 rle witness")
+        self.assertIsNotNone(rle_new, "recorded revision-6 rle witness")
+        kv_repo = Repository.from_snapshot(snapshot_repo(ROOT / "examples/eval/kvparse-refactor/repo"))
+        rle_repo = lambda: Repository.from_snapshot(snapshot_repo(ROOT / "examples/eval/rle-encode/repo"))  # noqa: E731
+        problems = witness_constraint_problems(kvparse.read_text(encoding="utf-8"), kv_repo)
         self.assertTrue(any("defines a class" in p for p in problems) and any("defines a function" in p for p in problems), problems)
-        self.assertEqual(witness_constraint_problems(rle.read_text(encoding="utf-8")), [])
+        # the revision-5 rle witness passed the old blacklist; it calls type() and reads __name__, so it is outside the positive language
+        old_problems = witness_constraint_problems(rle_old.read_text(encoding="utf-8"), rle_repo())
+        self.assertTrue(any("calls type" in p for p in old_problems) and any("__name__" in p for p in old_problems), old_problems)
+        # positive control from recorded evidence: the revision-6 witness is literal inputs plus the repository's own decode
+        self.assertEqual(witness_constraint_problems(rle_new.read_text(encoding="utf-8"), rle_repo()), [])
         # the recorded kvparse conflict named only derived criteria of the specification, never the task's own
         self.assertEqual(requirement_provenance(["AC1", "AC2", "AC16"], {"TC1", "TC2"}, {f"AC{i}" for i in range(1, 19)}), "derived")
         self.assertEqual(requirement_provenance(["TC1", "AC2"], {"TC1"}, {"AC2"}), "mixed")
         self.assertEqual(requirement_provenance(["TC1"], {"TC1"}, {"AC2"}), "task")
         self.assertEqual(requirement_provenance(["ZZ1"], {"TC1"}, {"AC2"}), "unknown")
-        # the constraint checker's vocabulary
-        for source, needle in (("x = lambda v: v\n", "lambda"), ("Z = type('Z', (str,), {})\n", "type dynamically"), ("exec('1')\n", "exec()"),
+        # the language's vocabulary for the constructs the blacklist named
+        for source, needle in (("x = lambda v: v\n", "defines a lambda"), ("Z = type('Z', (str,), {})\n", "calls type"), ("exec('1')\n", "calls exec"),
                                ("class Q(str):\n    pass\n", "defines a class"), ("def f():\n    pass\n", "defines a function")):
             self.assertTrue(any(needle in p for p in witness_constraint_problems(source)), source)
-        self.assertEqual(witness_constraint_problems("import sys\nfrom pkg import f\nprint(f('a'))\nsys.exit(0)\n"), [])
+        pkg = Repository.from_snapshot({"pkg/__init__.py": b"def f(x):\n    return x\n"})
+        self.assertEqual(witness_constraint_problems("import sys\nfrom pkg import f\nprint(f('a'))\nsys.exit(0)\n", pkg), [])
+        self.assertTrue(witness_constraint_problems("import sys\nfrom pkg import f\nprint(f('a'))\nsys.exit(0)\n"),
+                        "without the repository the import cannot be resolved, so the witness cannot conform")
 
     def test_recorded_protocol_two_infeasible_bundle_still_checks_under_its_own_protocol(self):
         run_dir = next((ROOT / "reports/attest-audit-repairs-2026-10-19/evaluation-codex/runs").glob("rle-encode-*"), None)
@@ -1131,3 +1153,226 @@ class R504CallRecordsStayPublic(unittest.TestCase):
         ledger = Ledger()
         text = ledger.public_error("spec-http", HttpError(503, {"error": PRIVATE_MARKER}, "https://x.invalid/" + PRIVATE_MARKER))
         self.assertEqual(text, "the model provider returned HTTP 503")
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Revision-6 independent review (19 Oct 2026), item 1 (R5-03 continued): the constrained witness language attest-witness/1.
+# The old rule was a list of forbidden spellings; the review bypassed it with an import alias of type. The language is a positive
+# grammar whose call origins are resolved statically; anything outside it can only hold a run for a person.
+from tests.test_verification import WITNESS_ALIAS_BYPASS, WITNESS_DEMONSTRATES  # noqa: E402
+
+_EXIT = "print('CONTRADICTION TC1: demonstrated')\nimport sys\nsys.exit(3)\n"
+BYPASS_PROGRAMS = {
+    # imported aliases
+    "imported alias of type (the review's program)": (WITNESS_ALIAS_BYPASS, "from the module builtins"),
+    "imported builtins module": ("import builtins as b\nZ = b.type('Z', (str,), {})\n" + _EXIT, "the module builtins"),
+    "imported alias of exec": ("from builtins import exec as run\nrun('x = 1')\n" + _EXIT, "from the module builtins"),
+    "imported alias of eval": ("from builtins import eval as ev\nx = ev('1')\n" + _EXIT, "from the module builtins"),
+    "imported types.new_class": ("from types import new_class as nc\nZ = nc('Z', (str,))\n" + _EXIT, "from the module types"),
+    "imported types module": ("import types\nZ = types.new_class('Z', (str,))\n" + _EXIT, "the module types"),
+    "imported operator.attrgetter": ("from operator import attrgetter\nT = attrgetter('real')\n" + _EXIT, "from the module operator"),
+    "imported collections.namedtuple": ("from collections import namedtuple\nP = namedtuple('P', 'a')\n" + _EXIT, "from the module collections"),
+    "imported typing.NamedTuple": ("from typing import NamedTuple\nP = NamedTuple('P', [('a', str)])\n" + _EXIT, "from the module typing"),
+    "imported enum.Enum": ("from enum import Enum\nE = Enum('E', 'a b')\n" + _EXIT, "from the module enum"),
+    # assigned aliases
+    "assigned alias of type": ("make = type\nZ = make('Z', (str,), {})\n" + _EXIT, "uses the name type"),
+    "assigned alias of eval": ("ev = eval\nx = ev('1')\n" + _EXIT, "uses the name eval"),
+    "assigned alias of a repository function": ("from durationkit import parse_duration\nf = parse_duration\nx = f('1')\n" + _EXIT, "bound by an assignment"),
+    "reassigned imported repository name": ("from durationkit import parse_duration\nparse_duration = str\nx = parse_duration('1')\n" + _EXIT, "bound by"),
+    "alias held in a container": ("fs = {'f': str}\nx = fs['f']('a')\n" + _EXIT, "computed value (Subscript)"),
+    # indirect factories and indirect calls
+    "type through a dunder chain": ("T = (0).__class__.__class__\nZ = T('Z', (str,), {})\n" + _EXIT, "__class__"),
+    "type through a call result": ("Z = str('x').__class__('Z', (str,), {})\n" + _EXIT, "__class__"),
+    "builtins through a generator frame": ("g = (v for v in [1])\nb = g.gi_frame.f_builtins\n" + _EXIT, "gi_frame"),
+    "builtins through sys.modules": ("import sys\nb = sys.modules['builtins']\n" + _EXIT, "sys.modules"),
+    "getattr": ("t = getattr(str, 'mro')\n" + _EXIT, "calls getattr"),
+    "vars": ("v = vars()\n" + _EXIT, "calls vars"),
+    "__builtins__": ("t = __builtins__\n" + _EXIT, "uses the name __builtins__"),
+    "__import__": ("b = __import__('builtins')\n" + _EXIT, "calls __import__"),
+    "map over a value-held callable": ("f = str\nx = list(map(f, ['a']))\n" + _EXIT, "passes to builtins.map"),
+    "sorted with a lambda key": ("x = sorted([1], key=lambda v: v)\n" + _EXIT, "computed callable (Lambda)"),
+    # definitions
+    "class definition (a str subclass)": ("class Z(str):\n    pass\nx = Z('a')\n" + _EXIT, "defines a class"),
+    "function definition": ("def f():\n    return 1\nx = f()\n" + _EXIT, "defines a function"),
+}
+SYNTHETIC_REPOSITORY = {
+    "pkg/__init__.py": b"from .core import *\n",
+    "pkg/core.py": (b"from typing import NamedTuple\nimport collections\n\n\ndef good(x):\n    return x\n\n\nmake = type\n\n\ndef get_factory():\n"
+                    b"    return type\n\n\nif True:\n    def maybe(x):\n        return x\n"),
+}
+REPOSITORY_ORIGIN_CASES = {
+    "re-export of typing.NamedTuple": ("from pkg import NamedTuple\n" + _EXIT, "re-exported"),
+    "re-export of the collections module": ("from pkg.core import collections\n" + _EXIT, "not part of the frozen repository"),
+    "repository alias of type": ("from pkg import make\nZ = make('Z', (str,), {})\n" + _EXIT, "does not resolve"),
+    "conditionally defined repository name": ("from pkg import maybe\n" + _EXIT, "conditionally"),
+    "factory returned by the repository, called": ("from pkg import get_factory\nZ = get_factory()('Z', (str,), {})\n" + _EXIT, "computed value (Call)"),
+    "factory returned by the repository, passed to map": ("from pkg import get_factory\nf = get_factory()\nZ = list(map(f, ['Z'], [(str,)], [{}]))\n" + _EXIT,
+                                                           "passes to builtins.map"),
+}
+LITERAL_WITNESSES = {
+    "the fake auditor's grounded witness": (WITNESS_DEMONSTRATES, "durationkit"),
+    "standard library, comprehensions, try/except and value methods": (
+        "import sys\nfrom itertools import groupby\nfrom durationkit import parse_duration\n\ncases = ['90', '1h', '2m']\nseen = []\n"
+        "for text in cases:\n    try:\n        seen.append(parse_duration(text))\n    except ValueError as exc:\n        print('NOT DEMONSTRATED: ' + repr(exc))\n"
+        "        sys.exit(0)\nruns = ''.join(k + str(sum(1 for _ in g)) for k, g in groupby('aab'))\nkey, sep, rest = str.partition('a=b', '=')\n"
+        "names = sorted({t.lower() for t in cases}, key=str.lower)\nif seen and runs == 'a2b1' and sep:\n"
+        "    print(f'CONTRADICTION TC1: {names[0]!r} gives {seen[0]!r}')\n    sys.exit(3)\nsys.exit(0)\n", "durationkit"),
+}
+
+
+def _durationkit() -> "Repository":
+    from attest.core.witness import Repository
+    return Repository.from_snapshot(snapshot_repo(TaskSpec.load(TASK).repo_dir))
+
+
+class R61WitnessLanguage(unittest.TestCase):
+    """Mechanical enforcement of the witness language: every bypass is outside it, every literal-input witness is inside it, and
+    the pipeline and the offline checker both act on the analysis, never on a spelling or a recorded flag."""
+
+    def test_every_bypass_program_is_outside_the_language_with_a_named_reason(self):
+        from attest.core.witness import analyze_witness
+        for name, (source, needle) in BYPASS_PROGRAMS.items():
+            analysis = analyze_witness(source, _durationkit())
+            self.assertFalse(analysis["conforms"], name)
+            self.assertTrue(any(needle in problem for problem in analysis["problems"]), (name, analysis["problems"]))
+
+    def test_repository_names_resolve_only_to_definitions_of_the_repository(self):
+        from attest.core.witness import Repository, analyze_witness
+        for name, (source, needle) in REPOSITORY_ORIGIN_CASES.items():
+            analysis = analyze_witness(source, Repository.from_snapshot(SYNTHETIC_REPOSITORY))
+            self.assertFalse(analysis["conforms"], name)
+            self.assertTrue(any(needle in problem for problem in analysis["problems"]), (name, analysis["problems"]))
+        resolved = analyze_witness("from pkg import good\nx = good('a')\n" + _EXIT, Repository.from_snapshot(SYNTHETIC_REPOSITORY))
+        self.assertTrue(resolved["conforms"], resolved["problems"])
+        self.assertEqual([o.get("file") for o in resolved["origins"] if o["origin"].startswith("repository")], ["pkg/core.py"])
+        self.assertEqual(sorted(resolved["repository_files"]), ["pkg/__init__.py", "pkg/core.py"])
+        shadowed = analyze_witness("import json\nx = json.loads('1')\n" + _EXIT, Repository.from_snapshot({"json.py": b"def loads(s):\n    return s\n"}))
+        self.assertFalse(shadowed["conforms"])
+        self.assertIn("shadows the standard-library module", shadowed["problems"][0])
+        # origins, not spellings: a name that spells type but is bound to itertools.groupby is analysed as groupby
+        spelled = analyze_witness("from itertools import groupby as type\nx = list(type('aab'))\n" + _EXIT, None)
+        self.assertTrue(spelled["conforms"], spelled["problems"])
+
+    def test_literal_input_witnesses_conform_and_record_their_origins(self):
+        from attest.core.witness import analyze_witness
+        for name, (source, package) in LITERAL_WITNESSES.items():
+            analysis = analyze_witness(source, _durationkit())
+            self.assertTrue(analysis["conforms"], (name, analysis["problems"]))
+            origins = [o for o in analysis["origins"] if o["origin"] == "repository function"]
+            self.assertEqual([(o["file"], o["via"]) for o in origins], [("durationkit/parse.py", ["durationkit/__init__.py"])], name)
+
+    def _audit(self, witness: str, ids: list[str]) -> dict:
+        from types import SimpleNamespace
+        from attest.sandbox.base import RunResult, StepResult
+
+        class WitnessExecutor(FakeExecutor):
+            def run_branch(self, image, files, steps, stage, deletes=None, timeout=120, networking=False):
+                step = steps[0]
+                stdout = f"CONTRADICTION {','.join(ids)}: executed by the controlled fake\n"
+                return RunResult(stage=stage, operation_uuid="op-w", status="SUCCESS", exit_code=0, timed_out=False, signal=None, duration_s=0.1,
+                                 image_uuid=image, result_image_uuid=None, steps=[StepResult(step["name"], step["cmd"], 3, False, 0.1, stdout, "")])
+        tmp = Path(tempfile.mkdtemp(prefix="attest-r61-audit-"))
+        try:
+            ledger = Ledger()
+            pipeline = Pipeline(task=TaskSpec.load(TASK), provider=FakeProvider(ledger, "honest"), executor=WitnessExecutor(ledger, "honest"),
+                                ledger=ledger, out_dir=tmp, max_turns=2, tavily=None, profile_label="t")
+            pipeline.ask = lambda *args: SimpleNamespace(json={"consistent": False, "notes": "", "conflicts": [
+                {"requirement_ids": ids, "summary": "controlled", "witness": witness}]}, call=SimpleNamespace(requested_model="fake"))
+            with contextlib.redirect_stdout(io.StringIO()):
+                record = pipeline.contract_audit({"acceptance_criteria": ["one", "two"], "restated_task": "r", "interface_contract": []},
+                                                 snapshot_repo(TaskSpec.load(TASK).repo_dir), "ckpt")
+            copies = sorted(str(p.relative_to(pipeline.out_dir)) for p in (pipeline.out_dir / "contract_audit/repository").rglob("*") if p.is_file()) \
+                if (pipeline.out_dir / "contract_audit/repository").is_dir() else []
+            return record, copies
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_the_contract_audit_holds_every_bypass_and_grounds_only_the_literal_witness(self):
+        for name, (source, _) in BYPASS_PROGRAMS.items():
+            record, _ = self._audit(source, ["TC1"])
+            conflict = record["conflicts"][0]
+            self.assertTrue(conflict["demonstrated"], name)
+            self.assertEqual(conflict["provenance"], "task", name)
+            self.assertFalse(conflict["witness_constrained"], name)
+            self.assertFalse(conflict["grounded"], name)
+            self.assertIn("outside the constrained witness language", conflict["status"], name)
+            self.assertNotEqual(record["outcome"], "contradiction demonstrated", name)
+        record, copies = self._audit(WITNESS_DEMONSTRATES, ["TC1", "TC2"])
+        conflict = record["conflicts"][0]
+        self.assertTrue(conflict["grounded"] and conflict["witness_constrained"], conflict["status"])
+        self.assertEqual(record["outcome"], "contradiction demonstrated")
+        self.assertEqual(copies, ["contract_audit/repository/durationkit/__init__.py", "contract_audit/repository/durationkit/parse.py"])
+
+    def test_the_reviews_program_end_to_end_is_held_and_never_checks_as_infeasible(self):
+        bundle, run_dir, tmp = kept_run("contract_conflict_alias_bypass")
+        try:
+            self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN")
+            conflict = bundle["contract_audit"]["conflicts"][0]
+            self.assertEqual((conflict["provenance"], conflict["demonstrated"], conflict["witness_constrained"], conflict["grounded"]),
+                             ("task", True, False, False))
+            self.assertIn("witness outside attest-witness/1", bundle["verdict"]["reasons"][0])
+            decision = exhibits_module.decision(bundle)
+            self.assertEqual(decision["reason_class"], "contract_conflict_held")
+            self.assertIn("attest-witness/1", decision["explanation"])
+            report = check_bundle(run_dir)
+            self.assertTrue(report["ok"] and report["fully_verified"], failed_checks(report))
+            # a forger who flips the verdict and the flags still fails: the checker repeats the analysis from the witness file
+            rewrite_bundle(run_dir, lambda b: (b["verdict"].update({"verdict": "INFEASIBLE"}),
+                                               b["contract_audit"]["conflicts"][0].update({"grounded": True, "witness_constrained": True}),
+                                               b["contract_audit"]["conflicts"][0]["witness_language"].update({"conforms": True, "problems": []})))
+            forged = check_bundle(run_dir)
+            self.assertFalse(forged["ok"])
+            self.assertIn("outside the constrained witness language attest-witness/1", failed_checks(forged).get("required_evidence", ""))
+            self.assertIn("witness_language_rederived", failed_checks(forged))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_the_checker_re_derives_grounding_from_the_witness_and_the_repository_copies(self):
+        bundle, run_dir, tmp = kept_run("contract_conflict")
+        try:
+            self.assertEqual(bundle["verdict"]["verdict"], "INFEASIBLE")
+            self.assertTrue(check_bundle(run_dir)["fully_verified"], "positive control")
+            copy = _copy_run(run_dir)
+            try:  # (a) the witness file swapped for the review's program, every record left claiming conformance
+                (copy / "contract_audit/witness_1.py").write_text(WITNESS_ALIAS_BYPASS, encoding="utf-8")
+                import hashlib
+                rewrite_bundle(copy, lambda b: b["contract_audit"]["conflicts"][0].update(
+                    {"witness_sha256": hashlib.sha256(WITNESS_ALIAS_BYPASS.encode("utf-8")).hexdigest()}))
+                report = check_bundle(copy)
+                self.assertFalse(report["ok"])
+                self.assertIn("outside the constrained witness language", failed_checks(report).get("required_evidence", ""))
+                self.assertIn("witness_language_rederived", failed_checks(report))
+                # (d) the same bypass in a copy downgraded to protocol 3 is refused as well
+                rewrite_bundle(copy, lambda b: b["evidence_protocol"].update({"version": 3}))
+                self.assertIn("outside the constrained witness language", failed_checks(check_bundle(copy)).get("required_evidence", ""))
+            finally:
+                shutil.rmtree(copy.parent, ignore_errors=True)
+            copy = _copy_run(run_dir)
+            try:  # (b) a repository copy that differs from the frozen file cannot be read by the resolution
+                parse = copy / "contract_audit/repository/durationkit/parse.py"
+                parse.write_text(parse.read_text(encoding="utf-8") + "\nparse_duration = type\n", encoding="utf-8")
+                rewrite_bundle(copy, lambda b: None)
+                report = check_bundle(copy)
+                self.assertFalse(report["ok"])
+                self.assertIn("is not available", failed_checks(report).get("required_evidence", ""))
+            finally:
+                shutil.rmtree(copy.parent, ignore_errors=True)
+            copy = _copy_run(run_dir)
+            try:  # (c) without the copies the repository import cannot be resolved offline
+                shutil.rmtree(copy / "contract_audit/repository")
+                rewrite_bundle(copy, lambda b: None)
+                report = check_bundle(copy)
+                self.assertFalse(report["ok"])
+                self.assertIn("outside the constrained witness language", failed_checks(report).get("required_evidence", ""))
+            finally:
+                shutil.rmtree(copy.parent, ignore_errors=True)
+            copy = _copy_run(run_dir)
+            try:  # (e) a recorded file list that hides a file the resolution reads
+                rewrite_bundle(copy, lambda b: b["contract_audit"]["conflicts"][0]["witness_language"]["repository_files"].pop("durationkit/__init__.py"))
+                report = check_bundle(copy)
+                self.assertFalse(report["ok"])
+                self.assertIn("recorded repository files differ", failed_checks(report).get("required_evidence", ""))
+            finally:
+                shutil.rmtree(copy.parent, ignore_errors=True)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

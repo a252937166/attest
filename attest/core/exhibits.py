@@ -596,7 +596,8 @@ def decision(bundle: dict) -> dict:
             audit = bundle.get("contract_audit") or {}
             shown = next((c for c in audit.get("conflicts") or [] if c.get("demonstrated")), {})
             why = ("it rests on criteria the specification model derived, not only on the requester's own" if shown.get("provenance") != "task"
-                   else "its witness was not constrained (it defined its own code or values outside the input domain)")
+                   else "its witness is outside the constrained witness language attest-witness/1 ("
+                        + "; ".join((shown.get("constraint_problems") or [])[:2])[:240] + ")")
             explanation = (f"The contract auditor's witness program demonstrated a conflict between requirements {', '.join(shown.get('requirement_ids') or [])} "
                            f"when Attest ran it on the unmodified repository, but the conflict is not grounded: {why}. A model's restatement of the task, "
                            "or a witness that compares one implementation of its own choosing, cannot establish that the task itself is impossible, so the "

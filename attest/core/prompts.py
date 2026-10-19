@@ -216,6 +216,8 @@ def numbered_criteria(criteria: list[str], prefix: str = "AC") -> str:
     return "\n".join(f"{prefix}{i}: {text}" for i, text in enumerate(criteria, 1)) or "(none)"
 
 
+from .witness import language_summary  # noqa: E402 - the witness language states itself in the audit prompt
+
 WITNESS_INPUT_DOMAIN = ("the input domain of a witness is the set of values the task names or implies: literals of the built-in types the "
                         "task's statement and criteria use (plain str, int, list, dict, bytes, None and so on) and values computed from them "
                         "by the unchanged repository code; instances of subclasses of built-in types, objects with overridden special methods "
@@ -268,11 +270,10 @@ For EVERY conflict you report you must supply a WITNESS PROGRAM, because a claim
 as a suspicion and does not stop the run. The witness is a standalone Python 3.12 program (standard library only, no network,
 no file writes, under 20 seconds) that will be executed in the repository root of the UNMODIFIED repository (the write-scope
 files are still in their original state, so a function to be implemented may be a stub or missing: do not call it). It must:
-- be CONSTRAINED: it may not define any function, class or lambda, may not create types with type(name, bases, dict), may not
-  use exec, eval, compile or __import__; it may only import the standard library and the repository's unchanged modules, build
-  values of the input domain, call the unchanged code and compare. In particular it must not implement its own version of the
-  function the task asks for and treat that version's output as "required": a required value must follow from a criterion's
-  stated rule or example (a literal the criterion states, or the unchanged inverse/reference function the criterion names);
+- be written in the constrained witness language below (a witness outside it can only hold the run for a human). In particular
+  it must not implement its own version of the function the task asks for and treat that version's output as "required": a
+  required value must follow from a criterion's stated rule or example (a literal the criterion states, or the unchanged
+  inverse/reference function the criterion names);
 - compute something from the fixed code or the contract itself (for example call the unchanged inverse function on candidate
   outputs, enumerate every possible output up to a stated bound, or evaluate the two criteria on the same concrete input) that
   shows the requirements cannot all hold for a concrete input it names;
@@ -281,6 +282,7 @@ files are still in their original state, so a function to be implemented may be 
   it could not demonstrate it (an exit code other than 0 or {WITNESS_EXIT_CODE}, or a traceback, counts as a broken witness);
 - never fake the demonstration: the printed line must follow from the computation (an exhaustive bounded search must state its
   bound; a direct evaluation must show both values).
+{language_summary()}.
 Report at most 3 conflicts. If the contract is consistent, return consistent=true and an empty conflicts list.
 Return JSON: consistent, conflicts (requirement_ids, summary, witness = the complete program source), notes (one or two sentences).
 """
