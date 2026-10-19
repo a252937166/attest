@@ -1,0 +1,65 @@
+[05:40:49] snapshot /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-slugkit/snapshot: attest revision b27a1c070a85 (35 sources), eval script 0b7056a05512, examples 6db7a2e937d6 (196 files)
+[05:40:49] fresh process from the snapshot: /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-slugkit/snapshot/scripts/run_evaluation.py --provider ...
+[05:40:52] codex pacing policy: gateway status: hourly request counting not enforced
+[05:40:52] pre-registered 1 cells (1 tasks x ['attest'] x 1 attempt(s)) on provider=codex; per-run cap $0.5, batch approval None, max calls None; schedule -> /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-slugkit/schedule.json
+[05:40:52] frozen task slugkit-regression-001 with 4 files, spec sha256 a3f86579452e
+[05:40:54] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[05:40:57] checkpoint 9fca4148-18cd-4da1-9c53-67df1c4725b4 ready; baseline OK (4 tests)
+[05:40:57] suite binding: bound (4 statically discovered test ids in 1 module(s) match the baseline run)
+[05:40:57] specification
+[05:41:47] spec: feasible=True, 12 criteria, 1 contract entries, 0 external references
+[05:41:47] contract audit
+[05:43:12] contract audit: consistent (0 demonstrated, 0 claimed only)
+[05:43:12] sealing acceptance tests (attempt 1)
+[05:44:18] sealed 12 test methods (sha256 93b02d824349); red check: 9 of 12 failing on base, 3 passing
+[05:44:18] implementation
+[05:45:41] turn 1: read_file slugkit/core.py -> [lines 1-12 of 12]
+[05:46:36] turn 2: replace_in_file slugkit/core.py -> replaced one occurrence in slugkit/core.py; the file is now 334 bytes
+[05:47:25] turn 3: run_tests  -> existing test suite: OK (ran 4, passed 4, exit 0)
+[05:48:20] turn 4: run_python  -> exit 0
+[05:48:56] turn 5: finish  -> finished: Updated slugify to lowercase ASCII letters, collapse separator runs, and trim edge hyphens
+[05:48:56] tamper scan: 1 flagged line(s): dynamic code or decoded payload
+[05:48:56] verification
+[05:49:03] verify: sealed OK (12 of 12 methods, each in its own process); binding ok
+[05:49:09] existing suite (bound): OK (4 of 4 methods, each in its own process) (4/4)
+[05:49:09] breaker pass
+[05:49:09] breaker: 0 mutants of changed lines; running in parallel branches (workers=8)
+[05:49:09] breaker: killed 0, survived 0, unknown 0, mutation score None
+[05:50:18] breaker tests: OK (9 of 9 methods, each in its own process); binding ok
+[05:50:18] drift audit
+[05:50:50] drift audit: score 0.0 (aligned)
+[05:50:50] verdict VERIFIED -> /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-slugkit/runs/slugkit-regression-001-attest-a1-20261019T054052323841Z
+  [ 0] slugkit-regression-001       attest    a1 completed verdict=VERIFIED     correct=True  -> true_accept  $0.0 598.4s rev=b27a1c07 paced=0.0s
+
+=== SUMMARY (all scheduled cells) ===
+{
+  "attest": {
+    "scheduled": 1,
+    "completed": 1,
+    "not_run": 0,
+    "confusion": {
+      "true_accept": 1,
+      "false_accept": 0,
+      "false_reject": 0,
+      "true_reject": 0,
+      "no_patch": 0,
+      "infra_error": 0,
+      "unknown": 0,
+      "not_run": 0
+    },
+    "shipped_broken_code": 0,
+    "needs_human": 0,
+    "no_patch": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_s": 0.0,
+    "cells_in_invalid_comparisons": 0,
+    "total_cost_committed_usd": 0.0,
+    "mean_wall_s": 598.4
+  }
+}
+budget: {"approve_usd": null, "per_run_cap_usd": 0.5, "committed_usd": 0.0, "peak_projected_usd": 0.0, "stopped": null}
+provenance: {"registered_revision": "b27a1c070a852ae2f0f2776c59cebe09cea87307a014ca80a1c37f7e66e68b49", "snapshot_intact_at_end": true, "working_tree_revision_now": "b27a1c070a852ae2f0f2776c59cebe09cea87307a014ca80a1c37f7e66e68b49", "working_tree_changed_since_launch": false, "invalid_tasks": []}
+pacing: {"model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only", "policy_source": "gateway status: hourly request counting not enforced", "policy_checked_at_epoch": 1792388452.31517, "hourly_limit_assumed": null, "budget": null, "max_concurrency": 2, "max_wait_s": 3900.0, "used_in_window": 115, "blocked_until_epoch": null, "rejections_seen": 0, "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json", "state_shared_across_processes": true, "state_error": null} waits=0
+
+wrote /work/attest/reports/attest-revision-2026-10-19/evaluation-codex-slugkit/evaluation.json
+exit 0

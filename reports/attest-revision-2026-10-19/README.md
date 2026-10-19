@@ -172,8 +172,64 @@ have been a hold with the arbiter's validated correction recorded for the human;
 principle, and the judge's agreement with the patch is exactly the kind of evidence a human would use to lift it.
 `evaluation-codex-3` ran the eight tasks again on the final tree:
 
-(results of evaluation-codex-3 follow)
+| Task | Verdict | Judge | What happened |
+| --- | --- | --- | --- |
+| roman-to-numeral | VERIFIED | correct | 5 turns, all gates passed |
+| rle-encode (unsatisfiable) | INFEASIBLE | no patch counts as correct | a third independent witness (requirements AC9 to AC11 this time; the criteria are numbered by each run's specification) computed `'a1'` to `'a111'` and ran the unchanged decoder: 111 copies of `'a'`; exit 3 |
+| balanced-brackets | VERIFIED | correct | 5 turns |
+| durationkit-units-001 | VERIFIED | correct | 5 turns; no adversarial failure this time, so no arbitration |
+| semver-is-compatible-pr368-v2 | VERIFIED | correct | 4 turns |
+| slugkit-regression-001 | ERROR | not judged | a transport-uncertain sandbox spawn (TLS EOF on the POST) in the implementer's `run_tests`; never replayed; the batch stopped by rule; registered again as `evaluation-codex-slugkit` (result below) |
+| kvparse-refactor-001 | VERIFIED | correct | 7 turns |
+| semver-long-prerelease-pr488 | not run in the stopped batch; resumed (`evaluation-codex-3-resume1.log`, result below) | | |
 
-## 8. Deployment, freeze and what is still open
+Results of the two re-runs on the final tree: slugkit-regression-001 (`evaluation-codex-slugkit/`, registered 05:43 UTC)
+VERIFIED and judged correct; semver-long-prerelease-pr488 (resumed 05:44 UTC into `evaluation-codex-3/`) VERIFIED and judged
+correct (held-out 450 of 450) in 6 implementer turns with two outline-guided ranged reads, one edit and no arbitration
+needed, mutation 1.0 on 12 mutants, 9 adversarial tests pass, drift 0.0. Final tally of `evaluation-codex-3` after the
+resumption: 6 true accepts, 1 true reject (rle-encode INFEASIBLE), 1 infrastructure error (slugkit's uncertain spawn,
+re-registered and VERIFIED), 0 false holds, 0 false accepts, every bundle checked.
 
-(filled in at the end of the day)
+Three batches, three independent witnesses, and one external task that the weaker implementer solved in six turns are
+development-gateway evidence of the mechanisms, not Nemotron results. The transport-uncertain stops (two inference calls
+and one sandbox spawn across the day) are the never-replay rule working as specified; the resumptions ran only the cells
+never executed and the re-registered single-task batches are reported as their own schedules.
+
+## 8. Freeze, deployment and what is still open
+
+Frozen: review-repository commit `4437b29a233603bf8a0523a6c0092493a92d2aa3` (code and documentation of the revision; the pin
+commit `ac2dc04…` and the record commits that follow carry an identical `attest/` digest), package digest
+`b27a1c070a852ae2f0f2776c59cebe09cea87307a014ca80a1c37f7e66e68b49` (35 sources), harness
+`0b7056a05512f569…`, suite `a43da6c3…` (unchanged), examples `6db7a2e9…` in the exported tree (a clean clone computes the
+M5 value `e95a28aa…` because git normalises one Windows batch file's line endings; FREEZE.md explains it). Models, sampling
+and per-run limits are the M5 pin's; the revision's new limits are recorded in every bundle. The exact paid command is in
+FREEZE.md; the revised evaluation has not run on Nemotron. The review repository is local only; publishing it is the
+owner's step.
+
+Deployed: revision 4 is live at https://attest.axiqo.xyz since 05:42 UTC (version 0.4.0, server package digest equal to the
+pin, 39 recorded runs untouched, store backed up, before/after snapshots, rollback tree kept):
+`reports/attest-deployment-2026-10-19/README.md`.
+
+Preserved: the M5 results folder is unchanged apart from a pointer to `CORRECTIONS.md`; no bundle of any earlier run was
+modified; the three bundles of the stopped first batch are kept privately with the defect they exposed.
+
+Still open, in the owner's hands:
+
+- The paid validation on Nemotron (FREEZE.md, "Proposed paid work": smoke tests about $0.15, revised 32-cell evaluation
+  about $3.50, maximum $10.00 in total, call and stop limits as listed). Nothing paid runs before approval.
+- The credit balance and its expiry were not re-read: the Token Factory console needs the owner's signed-in browser, and
+  the debugging session would have closed the running Chrome. Last verified reading $25.00 on 17 Oct 16:55 UTC; committed
+  spend since then about $1.49 (plus at most $0.03 unrecorded).
+- Publishing the review repository, the demo video (its reels show the console before the redesign) and the Devpost
+  submission text (updated for this revision, still pointing at local artifacts for the repository and the video).
+
+Known limitations of this revision, stated plainly:
+
+- A witness program's reasoning is the model's; Attest guarantees its execution and records its output. A wrong witness
+  that exits 3 yields a false INFEASIBLE (a hold-type verdict, nothing shipped) that a reader can catch from the program.
+- Which side of a generated-test disagreement is wrong remains the arbiter's judgement even when the correction is validated;
+  for adversarial tests that judgement can now change a verdict (with the correction, the original failure and the
+  discrimination evidence recorded). For sealed tests it never does.
+- The sealer's coverage map is self-reported; the check only enforces completeness and real test names.
+- The transport flakiness of the gateway and the Sandboxes API (three uncertain operations today) still costs cells; the
+  never-replay rule stays.

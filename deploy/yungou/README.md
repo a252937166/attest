@@ -25,6 +25,14 @@ macOS `tar` also stores extended attributes as `LIBARCHIVE.xattr.com.apple.prove
 prints "Ignoring unknown extended header keyword" for each and extracts the files unchanged (seen on the 18 Oct 15:03 UTC
 deployment). Harmless; `COPYFILE_DISABLE=1` in `build_bundle.sh` is what keeps AppleDouble `._*` files out.
 
+## 19 Oct 2026 (revision 4): same procedure, one scripting note
+
+Revision 4 (version 0.4.0, package digest `b27a1c07…`) was deployed at 05:42 UTC with the 18 Oct procedure (export, bundle
+from `dist/public`, upload, digest check, SQLite backup API from the service venv, `snapshot.sh` before, `install.sh` with
+`MEMORY_MAX=200M`, health, `snapshot.sh` after, diff, checks): `reports/attest-deployment-2026-10-19/README.md`. When the
+checks are scripted, remember that `grep -c` exits 1 on a zero count, which ends a `set -e -o pipefail` script before the
+remaining checks run; use `grep -c ... || true`.
+
 ## 17 Oct 2026 procedure (reliability round, M3 console, M4 import)
 
 1. Local: `python3 scripts/export_public.py --out dist/public --force` (allowlisted copy, gateway host and key shapes

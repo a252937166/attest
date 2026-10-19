@@ -47,6 +47,8 @@ implementer has `search`, a def/class outline and a navigation warning, and an e
 unfinished task (`NO CHANGE`, harness label `no_patch`), never as a correct refusal (`reports/attest-evaluation-2026-10-17-nebius-m5/CORRECTIONS.md`);
 every run keeps an append-only ledger journal with reservations written before each request, the console reconciles an
 interrupted run from it, and an idle service no longer reports a phantom reservation. The frozen M5 results are unchanged.
+Revision 4 is deployed at https://attest.axiqo.xyz since 19 Oct 05:42 UTC (`reports/attest-deployment-2026-10-19/README.md`); its
+validation on Nemotron is a proposal awaiting the owner's approval (FREEZE.md, revised version).
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
