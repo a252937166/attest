@@ -277,7 +277,7 @@ Harness, examples, task suite, method, guest programs, models and sampling are u
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `REV7-CODE-COMMIT` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| Repository commit (code) | `dd361b50e03691f9b16752a4c7eec68d7b441489` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
 | `attest/` package digest (sha256 over path and content of every source, 37 files) | `f836cfd0154faa878214976dab4fcc0a982dde38343e3944afceb8fc7f3336d3` |
 | Harness `scripts/run_evaluation.py` sha256 | `5af2b4989b2b93db7a9c37b4e1d654cb1e8b703bba47c8cfcf3a0e0c36bec5a3` (unchanged since revision 6) |
 | `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` (unchanged; a clean git clone computes `e95a28aa…`, see revision 5) |
@@ -301,7 +301,7 @@ checking, not correct patches: the held-out judge establishes the two judged out
 ## The exact command (revision 7)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout REV7-CODE-COMMIT
+git clone <repository> attest-eval && cd attest-eval && git checkout dd361b50e03691f9b16752a4c7eec68d7b441489
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r7-final \
