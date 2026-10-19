@@ -99,7 +99,7 @@ const TOKEN = "synthetic-" + "team-token";
 {
   const q = {
     state: { detail: { run: { run_id: "B" } }, live: { events: [], lastSeq: 0, status: "queued", meters: {} } },
-    $: () => null, $$: () => [], reachedIndex: () => 0, dur: String, secsBetween: () => 0, usd: String, vclass: (v) => v,
+    $: () => null, $$: () => [], reachedIndex: () => 0, dur: String, secsBetween: () => 0, usd: String, inferenceCost: (provider, v) => String(v), vclass: (v) => v,
     liveHeaderText: () => ({ evidence: {} }), guide: { ctx: "queued" }, guideRefresh: () => {}, guideSet: () => {},
   };
   vm.createContext(q);
@@ -158,6 +158,55 @@ const TOKEN = "synthetic-" + "team-token";
   assert.equal(rendered.length, 1);
   assert.equal(t.state.detail.run.verdict, "NEEDS HUMAN");
   results.terminal_detail_retried = "ok";
+}
+
+// Revision 8: a live run starts only from the confirmation step. The Run button sends nothing; the confirmation's own button sends
+// the request with X-Attest-Confirm; a hidden (closed or lapsed) confirmation sends nothing; and on a public host an automated
+// browser (navigator.webdriver) is refused before any request exists.
+{
+  const elements = {};
+  const el = (id) => (elements[id] = elements[id] || { id, hidden: true, disabled: false, textContent: "", className: "", value: "",
+    focus() {}, scrollIntoView() {} });
+  const sent = [];
+  const c = {
+    state: { mode: "live", profile: "nebius", profiles: [{ id: "nebius", public: true, short: "Nemotron" }], token: "", health: { budget: { per_run_cap_usd: 0.5, daily_cap_usd: 2, remaining_usd: 1.94 } } },
+    $: (sel) => el(sel.replace(/^#/, "")), currentTask: () => ({ task_id: "durationkit-units-001", title: "Accept unit suffixes" }),
+    currentProfile: () => ({ id: "nebius", public: true }), usd: (v) => "$" + Number(v).toFixed(3), REDUCED: true,
+    api: async (path, opts) => { sent.push({ path, opts }); return { run_id: "r1", position: 0 }; },
+    loadRuns: async () => {}, openRun: async () => {}, loadHealth: () => {}, renderEstimate: () => {},
+    setTimeout: (fn, ms) => { c.timers.push([fn, ms]); return c.timers.length; }, clearTimeout: () => {}, timers: [],
+    AUTOMATED: false, LOCAL_HOST: false,
+  };
+  vm.createContext(c);
+  vm.runInContext(extract("const CONFIRM_MS = ", "async function signIn("), c);
+  await vm.runInContext("startRun()", c);
+  assert.equal(sent.length, 0, "the Run button sends nothing in live mode");
+  assert.equal(el("confirm").hidden, false, "it opens the confirmation instead");
+  assert.match(el("confirm-text").textContent, /billed to this project/);
+  assert.match(el("confirm-text").textContent, /Sandboxes/);
+  assert.match(el("confirm-text").textContent, /Tavily/);
+  assert.equal(el("confirm-go").disabled, true, "the confirm button is briefly disabled, so a double click never passes through");
+  await vm.runInContext("confirmStart()", c);
+  assert.equal(sent.length, 0, "a press while the confirm button is still disabled sends nothing");
+  c.timers.find(([, ms]) => ms === 700)[0]();  // the short disable lapses
+  vm.runInContext("confirmClose()", c);
+  await vm.runInContext("confirmStart()", c);
+  assert.equal(sent.length, 0, "a closed (cancelled or lapsed) confirmation sends nothing");
+  await vm.runInContext("startRun()", c); c.timers.filter(([, ms]) => ms === 700).pop()[0]();
+  c.AUTOMATED = true;
+  vm.runInContext("AUTOMATED = true", c);
+  await vm.runInContext("confirmStart()", c);
+  assert.equal(sent.length, 0, "an automated browser on a public host sends nothing");
+  assert.match(el("start-note").textContent, /not started from an automated browser/);
+  vm.runInContext("AUTOMATED = false", c);
+  await vm.runInContext("startRun()", c); c.timers.filter(([, ms]) => ms === 700).pop()[0]();
+  await vm.runInContext("confirmStart()", c);
+  assert.equal(sent.length, 1, "the confirmed press sends exactly one request");
+  assert.equal(sent[0].path, "/api/runs");
+  assert.equal(sent[0].opts.method, "POST");
+  assert.equal(sent[0].opts.headers["X-Attest-Confirm"], "start-run", "with the confirmation header the server requires");
+  assert.deepEqual(JSON.parse(sent[0].opts.body), { task_id: "durationkit-units-001", provider: "nebius", admin_token: null });
+  results.live_run_needs_confirmation = "ok";
 }
 
 console.log(JSON.stringify({ ok: true, checks: results }));

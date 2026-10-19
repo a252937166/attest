@@ -14,6 +14,14 @@
   const REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const usd = (v) => (v == null ? "allowance" : "$" + Number(v).toFixed(3));
   const usdOrNa = (v) => (v == null ? "not billed in USD (team allowance)" : "$" + Number(v).toFixed(4));
+  // Inference money only (revision 8): Sandboxes execution and Tavily search are metered by their own services and are never folded
+  // into this figure, and a team run spends the development gateway's allowance, which is not USD and is never shown as $0.
+  const inferenceCost = (provider, v) => (provider && provider !== "nebius" ? "team allowance" : v == null ? "unpriced" : "$" + Number(v).toFixed(3));
+  const bundleProvider = (b) => { const p = String((((b || {}).profile || {}).provider || {}).provider || ""); return p ? (p.startsWith("nebius") ? "nebius" : "team") : null; };
+  // A live run is started only from the confirmation step, and never from an automated browser on the public host: an automated
+  // check that clicks through the console cannot start a paid run (the server also refuses a request without the confirmation).
+  const LOCAL_HOST = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
+  const AUTOMATED = !!navigator.webdriver;
   const when = (iso) => (iso ? iso.slice(0, 16).replace("T", " ") + " UTC" : "");
   const secsBetween = (a, b) => (a && b ? Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000)) : null);
   const dur = (s) => (s == null ? "" : s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${Math.round(s)} s`);
@@ -163,6 +171,7 @@
     $("#chip-budget-text").textContent = b.remaining_usd != null ? `$${Number(b.remaining_usd).toFixed(2)} of $${Number(b.daily_cap_usd).toFixed(2)} left today` : "unknown";
     $("#chip-runs-text").textContent = h.disk && h.disk.accepting_runs === false ? "paused, low disk" : "accepted";
     $("#foot-version").textContent = h.version ? `Attest ${h.version}` : "";
+    const ev = $("#eval-version"); if (ev && h.version) ev.textContent = `Attest ${h.version}`;
   }
 
   async function loadHealth() {
@@ -217,7 +226,7 @@
       go.textContent = "Open the latest recorded run";
       go.disabled = !e.latest_run_id;
     } else {
-      const range = e.runs ? `Recorded runs of this task cost <strong>${e.cost_min_usd != null ? `${usd(e.cost_min_usd)} to ${usd(e.cost_max_usd)}` : "an allowance, not USD"}</strong>, <strong>${dur(e.duration_min_s)} to ${dur(e.duration_max_s)}</strong> (${e.runs} run${e.runs === 1 ? "" : "s"}).`
+      const range = e.runs ? `Recorded runs of this task: <strong>${e.cost_min_usd != null ? `${usd(e.cost_min_usd)} to ${usd(e.cost_max_usd)}` : "team allowance"}</strong> of inference, <strong>${dur(e.duration_min_s)} to ${dur(e.duration_max_s)}</strong> (${e.runs} run${e.runs === 1 ? "" : "s"}).`
         : "No recorded runs of this task yet, so there is no estimate.";
       const budget = b.remaining_usd != null ? ` Up to ${usd(b.per_run_cap_usd)} is reserved against today's cap while the run is queued or running; <strong>$${Number(b.remaining_usd).toFixed(2)}</strong> remains.` : "";
       box.innerHTML = range + budget;
@@ -256,7 +265,8 @@
     const prov = s.provenance || "imported";
     const label = prov === "synthetic" ? "synthetic fixture" : prov === "live" ? "live" : "recorded";
     const stage = r.status === "running" || r.status === "queued" ? (r.stage && r.stage !== r.status ? `stage ${r.stage}` : "") : "";
-    const cost = s.cost_committed_usd != null || s.cost_usd != null ? usd(s.cost_committed_usd ?? s.cost_usd) : "";
+    const cost = r.provider && r.provider !== "nebius" ? "team allowance"
+      : s.cost_committed_usd != null || s.cost_usd != null ? `${usd(s.cost_committed_usd ?? s.cost_usd)} inference` : "";
     return `<span class="meta"><span class="prov"><span class="dot ${prov === "synthetic" ? "synthetic" : prov === "live" ? "live" : ""}"></span>${label}</span><span>${esc(when(r.created_at))}</span>${cost ? `<span class="num">${esc(cost)}</span>` : ""}${s.duration_s != null ? `<span class="num">${esc(dur(s.duration_s))}</span>` : ""}${stage ? `<span>${esc(stage)}</span>` : ""}</span>`;
   }
   function historyRowHtml(r) {
@@ -427,6 +437,7 @@
     const strip = $(".tabs"), on = $("[role=tab][aria-selected=true]"), ink = strip && strip.querySelector(".tab-ink");
     if (!strip || !on || !ink) return;
     ink.style.left = on.offsetLeft + "px"; ink.style.width = on.offsetWidth + "px";
+    ink.style.top = (on.offsetTop + on.offsetHeight - 1) + "px"; ink.style.bottom = "auto";  // under the selected tab, also when the strip wraps
   }
   function det(id, summary, body) {
     return `<details data-id="${esc(id)}" ${state.expanded.has(id) ? "open" : ""}><summary data-focus="det-${esc(id)}">${summary}</summary>${body}</details>`;
@@ -559,7 +570,7 @@
     if (e7.shown) {
       html += `<section class="exhibit" aria-labelledby="e7-h"><header><span class="exref">E7</span><h3 id="e7-h">${esc(e7.title)}</h3><span class="sum">infrastructure, not the patch</span></header>
         <p class="why">${esc(e7.why)}</p>
-        <div class="counter error"><div><span class="k">component</span>${esc(d7.component)}</div><div><span class="k">stage</span>${esc(d7.stage || "unknown")}</div><div><span class="k">model calls</span>${d7.model_calls ?? 0}, ${d7.model_calls_failed ?? 0} failed, ${d7.uncertain_unpriced_calls ?? 0} uncertain</div><div><span class="k">sandbox operations</span>${d7.sandbox_operations ?? 0}</div><div><span class="k">committed cost</span>${esc(usd(d7.cost_usd_committed))}${d7.uncertain_unpriced_calls ? " (uncertain calls counted at their reservation)" : ""}</div><div><span class="k">retried</span>no: Attest never replays an uncertain request</div></div>
+        <div class="counter error"><div><span class="k">component</span>${esc(d7.component)}</div><div><span class="k">stage</span>${esc(d7.stage || "unknown")}</div><div><span class="k">model calls</span>${d7.model_calls ?? 0}, ${d7.model_calls_failed ?? 0} failed, ${d7.uncertain_unpriced_calls ?? 0} uncertain</div><div><span class="k">sandbox operations</span>${d7.sandbox_operations ?? 0}</div><div><span class="k">committed inference</span>${esc(inferenceCost(bundleProvider(d.bundle), d7.cost_usd_committed))}${d7.uncertain_unpriced_calls ? " (uncertain calls counted at their reservation)" : ""}</div><div><span class="k">retried</span>no: Attest never replays an uncertain request</div></div>
         <ul class="plain">${(d7.reasons || []).map((r) => `<li>${esc(r)}</li>`).join("")}</ul></section>`;
     }
     return html;
@@ -586,7 +597,7 @@
     const roles = ((b.profile || {}).provider || {}).roles || {};
     return `<div class="block"><h3>Timeline</h3>
       ${stepperHtml(reachedIndex(b, events), false)}
-      <div class="meter"><div>Wall clock<strong>${esc(dur(secsBetween(b.started_at_utc, b.finished_at_utc)))}</strong></div><div>Model calls<strong>${t.model_calls ?? "-"}</strong></div><div>Sandbox operations<strong>${t.sandbox_operations ?? "-"}</strong></div><div>Committed cost<strong>${esc(usd(t.cost_usd_committed ?? t.cost_usd))}</strong></div></div>
+      <div class="meter"><div>Wall clock<strong>${esc(dur(secsBetween(b.started_at_utc, b.finished_at_utc)))}</strong></div><div>Model calls<strong>${t.model_calls ?? "-"}</strong></div><div>Sandbox operations<strong>${t.sandbox_operations ?? "-"}</strong></div><div>Inference, committed<strong>${esc(inferenceCost(bundleProvider(b), t.cost_usd_committed ?? t.cost_usd))}</strong></div></div>
       <ul class="log" aria-label="${events.length ? "Event log" : "Implementer action trail"}">${rows.map(logRow).join("") || `<li class="empty-row">No events were recorded for this run.</li>`}</ul>
       ${!events.length && trail.length ? `<p class="note">This recorded run has no progress events; the implementer's action trail is shown instead.</p>` : ""}
       ${det("calls", `Model calls (${(b.ledger.model_calls || []).length})`, `<div class="tablewrap"><table><thead><tr><th>Stage</th><th>Role</th><th>Model</th><th>Effort</th><th>Tokens in</th><th>Tokens out</th><th>Cost</th><th>Time</th><th>Status</th></tr></thead><tbody>${(b.ledger.model_calls || []).map((c) => `<tr><td>${esc(c.stage)}</td><td>${esc(c.role)}</td><td class="mono">${esc((c.returned_model || c.requested_model || "").split("/").pop())}</td><td>${esc(c.returned_effort || c.requested_effort || "-")}</td><td>${c.tokens_in ?? "-"}</td><td>${c.tokens_out ?? "-"}</td><td>${c.cost_usd != null ? "$" + Number(c.cost_usd).toFixed(5) : "-"}</td><td>${(c.elapsed_ms / 1000).toFixed(1)} s</td><td class="${c.ok ? "ok" : "fail"}">${c.ok ? "ok" : c.malformed_output ? "malformed" : "error"}</td></tr>`).join("")}</tbody></table></div><p class="note">Roles: ${esc(Object.entries(roles).map(([r, m]) => `${r} ${Array.isArray(m) ? m.filter(Boolean).join(":") : String(m).split("/").pop()}`).join(", "))}. Inference cost ${esc(usdOrNa(t.cost_usd))}; tokens in/out/cached ${t.tokens_in}/${t.tokens_out}/${t.tokens_cached}.</p>`)}
@@ -618,7 +629,7 @@
     if (!b) {  // a run that errored before any bundle was written (queue full, budget, disk, interrupted)
       const reason = run.error_public || "no record was written";
       main().innerHTML = caseBar(run) + decisionHeader("ERROR", "This run did not complete.", `${reason}. Nothing was certified and no Proof Bundle exists for this run.`,
-        { ref: "E7", text: `Failed at stage ${run.stage || "unknown"}; not retried.` }, provenanceLine(run, d), actionsHtml(run, d))
+        { ref: "E7", text: `Failed at stage ${run.stage || "unknown"}; no request that may have run was sent again.` }, provenanceLine(run, d), actionsHtml(run, d))
         + tabsHtml({ patch: "No patch exists", tests: "No verification ran", files: "No bundle was written" })
         + `<div class="panel" role="tabpanel" id="panel" aria-labelledby="tab-${state.tab}" tabindex="0"></div>`;
       renderPanel();
@@ -679,7 +690,7 @@
     const requested = `<div class="block"><h3>What was requested</h3><p><strong>${esc(run.task_title)}</strong></p><p>${esc(statement)}${statement.length >= 400 ? "…" : ""}</p></div>`;
     const next = `<div class="block"><h3>What happens next</h3><ol class="plain">${STAGE_HELP.map((s) => `<li>${esc(s)}</li>`).join("")}</ol><p class="note">You can leave this page. The run keeps its place and appears in History with its verdict.</p></div>`;
     const timeline = `<div class="block"><h3>Timeline</h3>${stepperHtml(reachedIndex(null, events), true)}
-      <div class="meter"><div>Elapsed<strong id="m-elapsed">${esc(dur(secsBetween(state.live.meters.started_at || run.started_at, new Date().toISOString())) || "0 s")}</strong></div><div>Model calls<strong id="m-calls">${state.live.meters.model_calls ?? 0}</strong></div><div>Sandbox operations<strong id="m-ops">${state.live.meters.sandbox_ops ?? 0}</strong></div><div>Cost so far<strong id="m-cost">${esc(usd(state.live.meters.cost_committed_usd ?? 0))}</strong></div></div>
+      <div class="meter"><div>Elapsed<strong id="m-elapsed">${esc(dur(secsBetween(state.live.meters.started_at || run.started_at, new Date().toISOString())) || "0 s")}</strong></div><div>Model calls<strong id="m-calls">${state.live.meters.model_calls ?? 0}</strong></div><div>Sandbox operations<strong id="m-ops">${state.live.meters.sandbox_ops ?? 0}</strong></div><div>Inference so far<strong id="m-cost">${esc(inferenceCost(run.provider, state.live.meters.cost_committed_usd ?? 0))}</strong></div></div>
       <ul class="log" id="log" aria-live="polite" aria-relevant="additions" aria-label="Event log">${events.map(logRow).join("")}</ul>
       <p class="note">Updates are applied to the changed rows only. Keep a disclosure open or your focus on a control while the log grows: neither moves.</p>
       ${det("stages-help", "What each stage does", `<ul class="plain">${STAGE_HELP.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`)}</div>`;
@@ -722,7 +733,7 @@
     const m = state.live.meters || {};
     const set = (sel, text) => { const el = $(sel); if (el && el.textContent !== text) { el.textContent = text; if (el.classList.contains("tick") || el.tagName !== "STRONG") return; el.classList.add("tick"); setTimeout(() => el.classList.remove("tick"), 600); } };
     set("#m-elapsed", dur(secsBetween(m.started_at || run.started_at, body.status === "running" ? new Date().toISOString() : m.finished_at || new Date().toISOString())) || "0 s");
-    set("#m-calls", String(m.model_calls ?? 0)); set("#m-ops", String(m.sandbox_ops ?? 0)); set("#m-cost", usd(m.cost_committed_usd ?? 0));
+    set("#m-calls", String(m.model_calls ?? 0)); set("#m-ops", String(m.sandbox_ops ?? 0)); set("#m-cost", inferenceCost(run.provider, m.cost_committed_usd ?? 0));
     const h = liveHeaderText(run, body.status, m);
     set("[data-k=seal]", h.seal); set("[data-k=statement]", h.statement); set("[data-k=explain]", h.explanation); set("[data-k=evref]", h.evidence.ref); set("[data-k=evtext]", h.evidence.text);
     const seal = $("[data-k=seal]"); if (seal) { seal.className = `seal big ${vclass(h.seal)}`; const dec = $(".decision"); if (dec) dec.dataset.verdict = vclass(h.seal); }
@@ -903,16 +914,46 @@
   function guideClose() { prefs.set("attest.guide", "off"); renderGuide(); }
 
   // ------------------------------------------------------------------ actions
+  // A live run starts in two steps (revision 8): Run opens a confirmation that states what the run spends and where, and only its
+  // own button sends the request, with the X-Attest-Confirm header the server requires. The confirmation lapses after a minute and
+  // closes when the task, mode or profile changes. On the public host an automated browser cannot pass it.
+  const CONFIRM_MS = 60000;
+  function confirmText(p) {
+    const b = (state.health || {}).budget || {};
+    if (p && !p.public) return "Inference runs on the team's development gateway and spends its allowance, which is not USD. Execution runs in Token Factory Sandboxes, metered by that service. Nothing is charged to the public budget.";
+    return `Nemotron inference on Nebius Token Factory is billed to this project: up to $${Number(b.per_run_cap_usd ?? 0.5).toFixed(2)} is reserved against today's $${Number(b.daily_cap_usd ?? 2).toFixed(2)} cap${b.remaining_usd != null ? ` ($${Number(b.remaining_usd).toFixed(2)} left)` : ""} and replaced by the real cost when the run ends. Execution runs in Token Factory Sandboxes, and a search for outside documentation the specification names uses Tavily; both are metered by those services, separately from inference.`;
+  }
+  function confirmOpen() {
+    const box = $("#confirm"), go = $("#confirm-go"), t = currentTask(), p = currentProfile();
+    const team = p && !p.public;
+    $("#confirm-h").textContent = `${team ? "Start a team run" : "Start a paid run"} of ${t ? t.title : "this task"}?`;
+    $("#confirm-text").textContent = confirmText(p);
+    go.textContent = team ? "Start team run" : "Start paid run";
+    box.hidden = false;
+    go.disabled = true; setTimeout(() => { go.disabled = false; }, 700);  // a double click on Run never passes straight through
+    clearTimeout(state.confirmTimer); state.confirmTimer = setTimeout(confirmClose, CONFIRM_MS);
+    go.focus({ preventScroll: true }); box.scrollIntoView({ block: "nearest", behavior: REDUCED ? "auto" : "smooth" });
+  }
+  function confirmClose() { clearTimeout(state.confirmTimer); const box = $("#confirm"); if (box) box.hidden = true; }
   async function startRun() {
-    const go = $("#go"), note = $("#start-note");
     const t = currentTask(); if (!t) return;
     if (state.mode === "browse") {
       if (t.estimate && t.estimate.latest_run_id) { await openRun(t.estimate.latest_run_id, false); $("#main").focus({ preventScroll: true }); }
       return;
     }
+    confirmOpen();  // nothing is sent from here
+  }
+  async function confirmStart() {
+    const go = $("#go"), note = $("#start-note");
+    const t = currentTask(); if (!t || $("#confirm").hidden || $("#confirm-go").disabled) return;
+    confirmClose();
+    if (AUTOMATED && !LOCAL_HOST) {
+      note.className = "note err"; note.textContent = "Live runs are not started from an automated browser on this host. Open the console in a regular browser to start one.";
+      return;
+    }
     go.disabled = true; note.className = "note"; note.textContent = "Starting the run.";
     try {
-      const res = await api("/api/runs", { method: "POST", headers: { "Content-Type": "application/json" },
+      const res = await api("/api/runs", { method: "POST", headers: { "Content-Type": "application/json", "X-Attest-Confirm": "start-run" },
         body: JSON.stringify({ task_id: t.task_id, provider: state.profile || (state.profiles[0] || {}).id, admin_token: state.token || null }) });
       note.textContent = `Queued as ${res.run_id} (${res.position ? `${res.position} run${res.position === 1 ? "" : "s"} ahead` : "starting next"}).`;
       await loadRuns(); await openRun(res.run_id, false); loadHealth();
@@ -982,9 +1023,9 @@
     else if (t.hasAttribute("data-guide-open")) guideOpen();
   });
   document.addEventListener("change", (e) => {
-    if (e.target.name === "mode") { state.mode = e.target.value; renderEstimate(); }
-    else if (e.target.id === "task") { state.task = e.target.value; renderEstimate(); }
-    else if (e.target.id === "profile") { state.profile = e.target.value; renderEstimate(); }
+    if (e.target.name === "mode") { state.mode = e.target.value; confirmClose(); renderEstimate(); }
+    else if (e.target.id === "task") { state.task = e.target.value; confirmClose(); renderEstimate(); }
+    else if (e.target.id === "profile") { state.profile = e.target.value; confirmClose(); renderEstimate(); }
     else if (e.target.id === "only-red") { state.onlyRed = e.target.checked; renderPanel(); }
   });
   document.addEventListener("toggle", (e) => {
@@ -1001,9 +1042,12 @@
     }
     const h = e.target.closest("#history button");
     if (h && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); const all = $$("#history button"); const i = all.indexOf(h); all[e.key === "ArrowDown" ? Math.min(i + 1, all.length - 1) : Math.max(i - 1, 0)].focus(); }
+    if (e.key === "Escape" && !$("#confirm").hidden) { confirmClose(); $("#go").focus(); return; }
     if (e.key === "Escape" && !$("#guide").hidden) guideClose();
   });
   $("#go").addEventListener("click", startRun);
+  $("#confirm-go").addEventListener("click", confirmStart);
+  $("#confirm-cancel").addEventListener("click", () => { confirmClose(); $("#go").focus(); });
   $("#signin-go").addEventListener("click", signIn);
   $("#admin").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); signIn(); } });
   $("#guide-close").addEventListener("click", guideClose);

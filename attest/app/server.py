@@ -25,6 +25,11 @@ queue entry, no budget reservation and no provider. (On 19 Oct 2026 a verificati
 `provider` was admitted as an ordinary public Nemotron run because the provider defaulted to Nebius.) The 422 body names the
 offending fields without echoing the submitted values.
 
+Explicit start (revision 8): a well-formed admission request still starts a run, which on the public profile is paid. So the request
+must also carry the header `X-Attest-Confirm: start-run`, which the console sends only from the confirmation step a person clicks
+after the cost is shown. Without it the answer is 428 before anything else happens: no row, queue entry, reservation or provider.
+Automated checks, crawlers and probes that copy a body therefore cannot start a run by accident.
+
 Requester identity (API-01): the hourly visitor quota uses the peer address, unless the peer is one of the trusted proxies
 (`ATTEST_TRUSTED_PROXIES`, default the loopback addresses of the nginx vhost on the same host), in which case the LAST
 X-Forwarded-For item is used, validated as an IP literal. A caller cannot choose its own identity.
@@ -51,7 +56,7 @@ import uuid
 import zipfile
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -491,8 +496,15 @@ def runs(request: Request, limit: int = 50):
     return {"runs": rows, "current": _current_ref(team), "queue": worker.queue.qsize(), "busy": worker.current is not None}
 
 
+START_CONFIRMATION = "start-run"  # the X-Attest-Confirm value the console's confirmation step sends
+
+
 @app.post("/api/runs")
-def start_run(body: RunRequest, request: Request):
+def start_run(body: RunRequest, request: Request,
+              x_attest_confirm: str | None = Header(default=None, description="must be `start-run`: the explicit confirmation that starts a run")):
+    if x_attest_confirm != START_CONFIRMATION:  # checked first: nothing exists yet, nothing is created
+        raise HTTPException(428, "a run starts only on explicit confirmation: send the header X-Attest-Confirm: start-run "
+                                 "(the console sends it from its confirmation step, after showing what the run costs)")
     requester = _requester(request)
     admin = _is_admin(body.admin_token) or _team_caller(request)
     if body.provider not in SUPPORTED_PROVIDERS:  # unreachable after RunRequest validation; kept so the handler never admits a stray value

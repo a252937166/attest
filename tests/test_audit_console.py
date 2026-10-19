@@ -48,6 +48,9 @@ except ImportError:  # pragma: no cover - the development venv installs httpx
 NODE = shutil.which("node")
 TOKEN = "synthetic-" + "team-token"  # assembled at run time: the public export scans tests/ for secret-shaped assignments
 TEAM_HEADERS = {"X-Attest-Token": TOKEN}
+# the console's confirmation step sends this header (revision 8); the clients below stand for confirmed console requests unless a
+# test builds its own client without it
+CONFIRMED = {"X-Attest-Confirm": "start-run"}
 MARKER_IP = "198.51.100.10"
 MARKER_PATH = "/opt/attest/private_module.py"
 MARKER = "SYNTHETIC_INTERNAL_DETAIL"
@@ -136,7 +139,7 @@ class ConsoleHarness(unittest.TestCase):
         cls.server = importlib.import_module("attest.app.server")
         cls.store = cls.server.store
         cls.worker = cls.server.worker
-        cls.client = TestClient(cls.server.app, raise_server_exceptions=False)
+        cls.client = TestClient(cls.server.app, raise_server_exceptions=False, headers=CONFIRMED)
 
     @classmethod
     def tearDownClass(cls):
@@ -170,7 +173,7 @@ class TrustedProxyIdentity(ConsoleHarness):
         self.assertEqual([str(n) for n in self.server.TRUSTED_PROXIES], ["127.0.0.1/32", "::1/128"])
 
     def test_forwarded_header_rotation_does_not_reset_the_quota_behind_the_proxy(self):
-        proxied = TestClient(PeerAddress(self.server.app, "127.0.0.1"), raise_server_exceptions=False)
+        proxied = TestClient(PeerAddress(self.server.app, "127.0.0.1"), raise_server_exceptions=False, headers=CONFIRMED)
         for i in range(3):
             self.store.create_run(run_id=f"seed-{i}", **_row(created_at=utcnow(), requester="192.0.2.1"))
         body = {"task_id": "audit-sample", "provider": "nebius"}
@@ -202,7 +205,7 @@ class AtomicAdmission(ConsoleHarness):
             return original(*args, **kwargs)
 
         def request(_):
-            with TestClient(self.server.app, raise_server_exceptions=False) as local:
+            with TestClient(self.server.app, raise_server_exceptions=False, headers=CONFIRMED) as local:
                 response = local.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"})
                 return response.status_code, response.json()
 
@@ -658,7 +661,7 @@ class ConsoleClient(unittest.TestCase):
         report = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertTrue(report["ok"])
         self.assertEqual(set(report["checks"]), {"copy_patch_requires_ok", "queue_position_is_authoritative", "terminal_detail_retried",
-                                                 "download_urls_carry_tickets_never_the_token"})
+                                                 "download_urls_carry_tickets_never_the_token", "live_run_needs_confirmation"})
 
     def test_client_sends_the_token_in_the_header_only_and_tickets_on_team_download_links(self):
         js = (ROOT / "attest/app/static/app.js").read_text(encoding="utf-8")
@@ -1216,11 +1219,8 @@ if __name__ == "__main__":
 INCIDENT_BODY = {"task_id": "audit-sample", "profile": "development"}  # the shape of the 19 Oct 2026 verification request
 
 
-class StrictRunRequests(ConsoleHarness):
-    """Admission requests are explicit: unknown fields are refused and the provider has no default, so the request that started an
-    unapproved paid run on 19 Oct 2026 (`profile` instead of `provider`, a junk query token) is a 422 now. A refused request never
-    reaches the handler or the worker: no row, no queue entry, no budget reservation, no provider. Every check runs against an idle
-    worker whose runtime builder and sockets are blocked; nothing is dispatched anywhere."""
+class AdmissionTraceHarness(ConsoleHarness):
+    """Records every admission call and refuses to build a provider, so a test can show that a refused request left no trace."""
 
     def setUp(self):
         self.enqueued: list = []
@@ -1257,6 +1257,13 @@ class StrictRunRequests(ConsoleHarness):
         self.assertEqual(self.state(), before, "a refused request left a row, a queue entry or a reservation")
         self.assertEqual(self.enqueued, [], "a refused request reached the worker's admission")
         self.assertEqual(self.built, [], "a refused request built a provider")
+
+
+class StrictRunRequests(AdmissionTraceHarness):
+    """Admission requests are explicit: unknown fields are refused and the provider has no default, so the request that started an
+    unapproved paid run on 19 Oct 2026 (`profile` instead of `provider`, a junk query token) is a 422 now. A refused request never
+    reaches the handler or the worker: no row, no queue entry, no budget reservation, no provider. Every check runs against an idle
+    worker whose runtime builder and sockets are blocked; nothing is dispatched anywhere."""
 
     def test_the_incident_request_is_refused_and_leaves_no_trace(self):
         before = self.state()
@@ -1308,7 +1315,7 @@ class StrictRunRequests(ConsoleHarness):
         unknown = self.client.post("/api/runs", json={"task_id": "no-such-task", "provider": "nebius"})
         self.assertEqual(unknown.status_code, 404)
         # the visitor quota still applies to valid public requests (a distinct visitor behind the trusted proxy, three seeded runs)
-        proxied = TestClient(PeerAddress(self.server.app, "127.0.0.1"), raise_server_exceptions=False)
+        proxied = TestClient(PeerAddress(self.server.app, "127.0.0.1"), raise_server_exceptions=False, headers=CONFIRMED)
         for i in range(3):
             self.store.create_run(run_id=f"strict-quota-{i}", **_row(status="queued", verdict=None, created_at=utcnow(), requester="192.0.2.61"))
         limited = proxied.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"}, headers={"x-forwarded-for": "192.0.2.61"})
@@ -1331,7 +1338,7 @@ class StrictRunRequests(ConsoleHarness):
         self.assert_refused_without_trace(self.client.post(f"/api/runs?ticket={ticket}", json=INCIDENT_BODY), before, "provider")
         self.assert_refused_without_trace(self.client.post("/api/runs", json=INCIDENT_BODY, headers={"X-Attest-Token": ticket}), before, "provider")
         # nor an exemption from the visitor quota
-        proxied = TestClient(PeerAddress(self.server.app, "127.0.0.1"), raise_server_exceptions=False)
+        proxied = TestClient(PeerAddress(self.server.app, "127.0.0.1"), raise_server_exceptions=False, headers=CONFIRMED)
         for i in range(3):
             self.store.create_run(run_id=f"strict-ticket-quota-{i}", **_row(status="queued", verdict=None, created_at=utcnow(), requester="192.0.2.62"))
         for headers, query in (({"x-forwarded-for": "192.0.2.62"}, f"?ticket={ticket}"),
@@ -1350,3 +1357,46 @@ class StrictRunRequests(ConsoleHarness):
         self.assertNotIn("default", schema["properties"]["provider"])
         self.assertNotIn("enum", schema["properties"]["provider"])
         self.assertNotIn("codex", response.text.lower())
+
+
+class ExplicitStart(AdmissionTraceHarness):
+    """Revision 8: a well-formed admission request starts a run only with the explicit confirmation the console's confirmation step
+    sends (`X-Attest-Confirm: start-run`). Without it, or with any other value, the answer is 428 before anything exists: no row,
+    queue entry, reservation, admission call or provider, for public and team requests alike. The positive controls are the
+    confirmed requests of every other test in this module (the shared clients send the header)."""
+
+    def unconfirmed(self) -> TestClient:
+        return TestClient(self.server.app, raise_server_exceptions=False)  # no default header: an automated check or a probe
+
+    def assert_not_started(self, response, before: dict) -> None:
+        self.assertEqual(response.status_code, 428, response.text)
+        self.assertIn("X-Attest-Confirm: start-run", response.json()["detail"])
+        self.assertEqual(self.state(), before, "an unconfirmed request left a row, a queue entry or a reservation")
+        self.assertEqual(self.enqueued, [], "an unconfirmed request reached the worker's admission")
+        self.assertEqual(self.built, [], "an unconfirmed request built a provider")
+
+    def test_a_valid_public_request_without_confirmation_starts_nothing(self):
+        before = self.state()
+        client = self.unconfirmed()
+        for headers in ({}, {"X-Attest-Confirm": ""}, {"X-Attest-Confirm": "yes"}, {"X-Attest-Confirm": "START-RUN"}, {"X-Attest-Confirm": "start-run "}):
+            self.assert_not_started(client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"}, headers=headers), before)
+
+    def test_a_team_request_without_confirmation_starts_nothing(self):
+        before = self.state()
+        client = self.unconfirmed()
+        self.assert_not_started(client.post("/api/runs", json={"task_id": "audit-sample", "provider": "codex"}, headers=TEAM_HEADERS), before)
+        self.assert_not_started(client.post("/api/runs", json={"task_id": "audit-sample", "provider": "codex", "admin_token": TOKEN}), before)
+
+    def test_a_malformed_body_is_still_refused_first_without_trace(self):
+        before = self.state()
+        self.assert_refused_without_trace(self.unconfirmed().post("/api/runs", json=INCIDENT_BODY), before, "provider")
+
+    def test_the_confirmed_request_reaches_admission(self):
+        response = self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "nebius"})
+        self.assertNotEqual(response.status_code, 428, response.text)
+        self.assertEqual(len(self.enqueued), 1, "the confirmed request reached the worker's admission (the quota or budget may refuse it there)")
+
+    def test_the_public_schema_documents_the_confirmation_header(self):
+        operation = self.client.get("/api/openapi.json").json()["paths"]["/api/runs"]["post"]
+        names = [p["name"].lower() for p in operation.get("parameters", []) if p.get("in") == "header"]
+        self.assertIn("x-attest-confirm", names)

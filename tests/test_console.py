@@ -52,7 +52,7 @@ class ConsoleApi(unittest.TestCase):
         cls.tmpdir = tempfile.TemporaryDirectory()
         cls.tmp = Path(cls.tmpdir.name)
         cls.server = _make_app(cls.tmp)
-        cls.client = TestClient(cls.server.app)
+        cls.client = TestClient(cls.server.app, headers={"X-Attest-Confirm": "start-run"})
         cls.team = {"X-Attest-Token": "test-token"}  # the fixtures include a development-gateway run, which only the team may read
         cls.runs = cls.client.get("/api/runs", headers=cls.team).json()["runs"]
         cls.by_task = {}

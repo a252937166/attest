@@ -302,7 +302,8 @@ def render_markdown(bundle: dict) -> str:
         "## 10. Ledger",
         _table([[f"{c['provider']}:{c['requested_model']}", c["role"], c["stage"], c["requested_effort"] or "-", c["tokens_in"] if c["tokens_in"] is not None else "-",
                  c["tokens_out"] if c["tokens_out"] is not None else "-", c["tokens_cached"] if c["tokens_cached"] is not None else "-",
-                 _fmt(c["cost_usd"], 6), f"{c['elapsed_ms'] / 1000:.1f}s", "ok" if c["ok"] else ("malformed" if c["malformed_output"] else "error")]
+                 _fmt(c["cost_usd"], 6), f"{c['elapsed_ms'] / 1000:.1f}s",
+                 "ok" if c["ok"] else ("not sent" if c.get("request_sent") is False else "malformed" if c["malformed_output"] else "error")]
                 for c in model_calls],
                ["Model", "Role", "Stage", "Effort", "In", "Out", "Cached", "USD", "Elapsed", "Status"]),
         "",
@@ -310,14 +311,21 @@ def render_markdown(bundle: dict) -> str:
         + (f", {ledger.get('rate_limited_calls')} rejected by the provider's hourly limit and retried after waiting {round((ledger.get('pacing_wait_ms') or 0) / 1000)} s in total"
            if ledger.get("rate_limited_calls") or ledger.get("pacing_wait_ms") else "") + "); "
         f"tokens in/out/cached {ledger.get('tokens_in')}/{ledger.get('tokens_out')}/{ledger.get('tokens_cached')}; "
-        f"USD: {ledger.get('cost_usd') if ledger.get('cost_usd') is not None else 'n/a (Codex gateway allowance, not billed in USD)'}.",
+        f"Inference USD: {ledger.get('cost_usd') if ledger.get('cost_usd') is not None else 'n/a (development gateway allowance, not billed in USD)'}"
+        + (f"; {ledger.get('calls_not_sent')} attempt(s) were never sent (the connection failed first) and cost nothing" if ledger.get("calls_not_sent") else "") + ".",
         "",
         _table([[o["stage"], o["operation_uuid"], o["status"], o["exit_code"], f"{o['duration_s']}s" if o["duration_s"] is not None else "-",
                  "retained" if o["result_image_uuid"] else "disposable", "on" if o.get("networking_enabled") else "off", o["raw_cost_diag"]]
                 for o in sandbox_ops],
                ["Sandbox op", "Operation", "Status", "Exit", "Duration", "Image", "Net", "raw cost diag (not USD)"]),
         "",
-        f"Sandbox operations: {ledger.get('sandbox_operations')}, total guest duration {ledger.get('sandbox_duration_s')}s, retained images {ledger.get('sandbox_retained_images')}.",
+        f"Sandbox operations: {ledger.get('sandbox_operations')}, total guest duration {ledger.get('sandbox_duration_s')}s, retained images {ledger.get('sandbox_retained_images')}"
+        + (f", {ledger.get('sandbox_spawn_retries')} spawn(s) sent again after a connection failure" if ledger.get("sandbox_spawn_retries") else "")
+        + (f", {ledger.get('sandbox_uncertain')} operation(s) with an unknown outcome (never replayed)" if ledger.get("sandbox_uncertain") else "") + ".",
+        "",
+        "Inference, Token Factory Sandboxes and Tavily search are separate services, metered and billed separately; this record never adds "
+        "them into one figure. The inference figure above is the only USD amount it states: Sandboxes operations carry raw cost diagnostics "
+        f"with no confirmed currency, and Tavily used {(grounding or {}).get('calls') or 0} search call(s) (section 9).",
         "",
         "## 11. Limitations of this bundle",
         "\n".join(f"- {item}" for item in bundle.get("limitations") or []),
@@ -329,7 +337,7 @@ def render_markdown(bundle: dict) -> str:
         parts += [
             "## 12. E7 Failure record",
             f"Component: {d.get('component')}; stage: {d.get('stage')}; model calls {d.get('model_calls')} ({d.get('model_calls_failed')} failed); "
-            f"sandbox operations {d.get('sandbox_operations')}; committed cost USD {d.get('cost_usd_committed')}; "
+            f"sandbox operations {d.get('sandbox_operations')}; committed inference USD {d.get('cost_usd_committed')}; "
             f"uncertain unpriced calls {d.get('uncertain_unpriced_calls')}; retried: no; outcome uncertain: {'yes' if d.get('uncertain') else 'no'}.",
             "",
             "\n".join(f"- {r}" for r in d.get("reasons") or []),

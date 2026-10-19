@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/styles.css?v=20261019c">
+<link rel="stylesheet" href="/static/styles.css?v=20261019e">
 </head>
 <body data-view="home">
 <a class="skip" href="#start">Skip to the start panel</a>
@@ -57,7 +57,7 @@
   <div class="step"><span class="n">2</span>
     <div class="modes" role="radiogroup" aria-label="Mode">
       <label class="mode"><input type="radio" name="mode" value="browse" data-focus="mode-browse" checked><span class="mode-text"><span class="l">Browse recorded evidence</span><span class="d">Free and instant. Opens the latest recorded Proof Bundle of this task; no inference runs.</span></span><span class="price free">free</span></label>
-      <label class="mode"><input type="radio" name="mode" value="live" data-focus="mode-live"><span class="mode-text"><span class="l" id="mode-live-label">Run live on Nemotron</span><span class="d">Starts a new run in Nebius Token Factory Sandboxes. Takes a few minutes; capped per run and per day.</span></span><span class="price" id="mode-live-price">paid</span></label>
+      <label class="mode"><input type="radio" name="mode" value="live" data-focus="mode-live"><span class="mode-text"><span class="l" id="mode-live-label">Run live on Nemotron</span><span class="d">Starts a new run: Nemotron inference on Nebius Token Factory, billed and capped per run and per day; execution in Token Factory Sandboxes. You confirm before anything starts.</span></span><span class="price" id="mode-live-price">paid</span></label>
     </div>
     <div class="estimate" id="estimate"></div>
     <label class="field" id="profile-field" hidden>Inference profile
@@ -66,6 +66,11 @@
   </div>
   <div class="step"><span class="n">3</span>
     <button type="button" class="btn primary block" id="go" data-focus="go">Open the latest recorded run</button>
+    <div class="confirm" id="confirm" role="group" aria-labelledby="confirm-h" hidden>
+      <p class="confirm-h" id="confirm-h">Start a paid run?</p>
+      <p class="confirm-text" id="confirm-text"></p>
+      <div class="confirm-actions"><button type="button" class="btn primary" id="confirm-go" data-focus="confirm-go">Start paid run</button><button type="button" class="btn ghost" id="confirm-cancel" data-focus="confirm-cancel">Cancel</button></div>
+    </div>
     <p class="note" id="start-note"></p>
     <p class="note" id="public-note">Public runs use the Nemotron profile.</p>
     <p class="caps"><span class="chip" id="chip-budget">Nemotron budget <span class="muted" id="chip-budget-text">loading</span></span><span class="chip" id="chip-runs">Runs <span class="muted" id="chip-runs-text">loading</span></span></p>
@@ -111,16 +116,16 @@
         <li data-stage="7"><span class="exref">E5</span><span class="bm-k">Drift audit, action trail against the request</span><span class="bm-v mono ok">score 0.0, aligned</span></li>
         <li data-stage="8"><span class="exref">M</span><span class="bm-k">Manifest written last</span><span class="bm-v mono">22 files, sha256 each</span></li>
       </ul>
-      <div class="bm-meters mono"><span data-bm="calls">0</span> model calls<span class="sep"></span><span data-bm="ops">0</span> sandbox operations<span class="sep"></span><span data-bm="cost">$0.000</span></div>
-      <figcaption>Replay of the recorded run <span class="mono">slugkit-regression-001-attest-a2</span> from the frozen evaluation of 17 Oct 2026: 13 model calls, 8 sandbox operations, $0.031, 1 min 56 s, verdict VERIFIED, offline check 24 of 24 OK.</figcaption>
+      <div class="bm-meters mono"><span data-bm="calls">0</span> model calls<span class="sep"></span><span data-bm="ops">0</span> sandbox operations<span class="sep"></span><span data-bm="cost">$0.000</span> inference</div>
+      <figcaption>Replay of the recorded run <span class="mono">slugkit-regression-001-attest-a2</span> from the frozen evaluation of 17 Oct 2026: 13 model calls, 8 sandbox operations, $0.031 of inference, 1 min 56 s, verdict VERIFIED, offline check 24 of 24 OK.</figcaption>
     </figure>
     </div>
     <div class="built" aria-label="Built with">
       <span class="built-label">Built with</span>
       <div class="built-logos">
-        <a class="built-logo nebius" href="https://nebius.com/token-factory" target="_blank" rel="noopener" title="Nebius Token Factory"><img src="/static/brand/nebius-logo.svg?v=20261019c" alt="Nebius" width="167" height="46"></a>
+        <a class="built-logo nebius" href="https://nebius.com/token-factory" target="_blank" rel="noopener" title="Nebius Token Factory"><img src="/static/brand/nebius-logo.svg?v=20261019e" alt="Nebius" width="167" height="46"></a>
         <span class="built-divider" aria-hidden="true"></span>
-        <a class="built-logo nvidia" href="https://developer.nvidia.com/nemotron" target="_blank" rel="noopener" title="NVIDIA Nemotron"><img src="/static/brand/nvidia-logo.svg?v=20261019c" alt="NVIDIA" width="210" height="40"></a>
+        <a class="built-logo nvidia" href="https://developer.nvidia.com/nemotron" target="_blank" rel="noopener" title="NVIDIA Nemotron"><img src="/static/brand/nvidia-logo.svg?v=20261019e" alt="NVIDIA" width="210" height="40"></a>
       </div>
       <div class="built-text">
         <p>Inference on <strong>Nebius Token Factory</strong>, execution in <strong>Token Factory Sandboxes</strong>, models <strong>NVIDIA Nemotron 3</strong> Ultra, Super and 3.5 Lightning.</p>
@@ -232,7 +237,7 @@
         <g class="arch-box" transform="translate(20,40)"><rect width="250" height="92" rx="12"/><text x="18" y="34" class="arch-title">Console and CLI</text><text x="18" y="58" class="arch-sub">pick a task, browse or run live</text><text x="18" y="78" class="arch-sub">attest run, attest import, attest check</text></g>
         <g class="arch-box main" transform="translate(300,40)"><rect width="360" height="92" rx="12"/><text x="18" y="34" class="arch-title">Attest pipeline, on the host</text><text x="18" y="58" class="arch-sub">freeze, checkpoint, spec, seal, red, implement,</text><text x="18" y="78" class="arch-sub">verify, break, audit, arbitrate, attest</text></g>
         <g class="arch-box out" transform="translate(880,40)"><rect width="300" height="92" rx="12"/><text x="18" y="34" class="arch-title">Proof Bundle</text><text x="18" y="58" class="arch-sub">exhibits E1 to E7, counterexample, ledger,</text><text x="18" y="78" class="arch-sub">manifest; re-derived by attest check</text></g>
-        <g class="arch-box nebius" transform="translate(300,200)"><rect width="420" height="150" rx="12"/><text x="18" y="34" class="arch-title">Nebius Token Factory, inference</text><text x="18" y="62" class="arch-sub">Nemotron 3 Ultra: specification, drift audit, arbitration</text><text x="18" y="84" class="arch-sub">Nemotron 3 Super: sealing, implementation, breaking</text><text x="18" y="106" class="arch-sub">Nemotron 3.5 Lightning: summaries</text><text x="18" y="132" class="arch-sub mono">schema-constrained JSON, priced per call, never replayed</text></g>
+        <g class="arch-box nebius" transform="translate(300,200)"><rect width="420" height="150" rx="12"/><text x="18" y="34" class="arch-title">Nebius Token Factory, inference</text><text x="18" y="62" class="arch-sub">Nemotron 3 Ultra: specification, drift audit, arbitration</text><text x="18" y="84" class="arch-sub">Nemotron 3 Super: sealing, implementation, breaking</text><text x="18" y="106" class="arch-sub">Nemotron 3.5 Lightning: summaries</text><text x="18" y="132" class="arch-sub mono">schema-constrained JSON, priced per call, uncertain calls never replayed</text></g>
         <g class="arch-box nebius" transform="translate(760,200)"><rect width="420" height="150" rx="12"/><text x="18" y="34" class="arch-title">Token Factory Sandboxes, execution</text><text x="18" y="62" class="arch-sub">one retained checkpoint image per task</text><text x="18" y="84" class="arch-sub">disposable branches: red, verify, existing, heldout,</text><text x="18" y="106" class="arch-sub">mutant 1 to 12, breaker, arbitration</text><text x="18" y="132" class="arch-sub mono">networking off after the checkpoint</text></g>
         <g class="arch-box" transform="translate(20,420)"><rect width="1160" height="100" rx="12"/><text x="18" y="34" class="arch-title">Attest's own deterministic code, on the host and inside each branch</text><text x="18" y="62" class="arch-sub">task freeze and digests, the sealed-test supervisor (per-test processes, nonce, canaries), binding checks, mutation engine, the verdict rule, manifest and the offline checker</text><text x="18" y="84" class="arch-sub mono">attest_revision 166cdcbd recorded in every bundle of the frozen evaluation</text></g>
         <g class="arch-edges" fill="none" stroke="#A7B4C0" stroke-width="1.6" marker-end="url(#arr)">
@@ -249,7 +254,7 @@
       <ol class="arch-stack">
         <li><b>Console and CLI</b><span>pick a task, browse or run live; attest run, attest import, attest check</span></li>
         <li class="main"><b>Attest pipeline, on the host</b><span>freeze, checkpoint, spec, contract audit (executed witnesses), seal, red, implement, verify, break, audit, arbitrate, attest</span></li>
-        <li class="nebius"><b>Nebius Token Factory, inference</b><span>Nemotron 3 Ultra: specification, contract audit, drift audit, arbitration. Nemotron 3 Super: sealing, implementation, breaking. Nemotron 3.5 Lightning: summaries.</span><span class="mono">schema-constrained JSON, priced per call, never replayed</span></li>
+        <li class="nebius"><b>Nebius Token Factory, inference</b><span>Nemotron 3 Ultra: specification, contract audit, drift audit, arbitration. Nemotron 3 Super: sealing, implementation, breaking. Nemotron 3.5 Lightning: summaries.</span><span class="mono">schema-constrained JSON, priced per call, uncertain calls never replayed</span></li>
         <li class="nebius"><b>Token Factory Sandboxes, execution</b><span>one retained checkpoint image per task; disposable branches: witness 1 to 3, red, verify, existing, heldout, mutant 1 to 12, breaker, arbitration re-runs</span><span class="mono">networking off after the checkpoint</span></li>
         <li><b>Attest's own deterministic code, on the host and inside each branch</b><span>task freeze and digests, the sealed-test supervisor (per-test processes, nonce, canaries), binding checks, mutation engine, the verdict rule, manifest and the offline checker</span><span class="mono">attest_revision 166cdcbd recorded in every bundle of the frozen evaluation</span></li>
         <li class="out"><b>Proof Bundle</b><span>exhibits E1 to E7, counterexample, ledger, manifest; re-derived offline by attest check</span></li>
@@ -317,7 +322,7 @@
       <ul class="latest-list" id="latest-list"></ul>
     </div>
     <div class="eval rv" aria-labelledby="eval-h">
-      <h3 id="eval-h">The frozen evaluation, 17 October 2026</h3>
+      <h3 id="eval-h">The frozen evaluation of 17 October 2026, on an earlier version</h3>
       <p>Eight tasks, two systems, two attempts per cell, every scheduled cell reported. The plain agent is the same implementer with the same model, tools and turn budget and no sealed tests, breaker, audit or verdict; both are judged by the same held-out suite, stripped from the system under test. Method, commit, digests, models and limits were frozen before the run.</p>
       <div class="tablewrap"><table>
         <thead><tr><th></th><th>Plain agent (16 cells)</th><th>Attest (16 cells)</th></tr></thead>
@@ -327,17 +332,17 @@
           <tr><td>Correct patch held for a human</td><td>0</td><td>5</td></tr>
           <tr><td>No patch produced (unfinished task; labelled a correct refusal at the time, corrected on 19 Oct)</td><td>1</td><td>2</td></tr>
           <tr><td>Infrastructure error, never replayed</td><td>3</td><td>3</td></tr>
-          <tr><td>Committed cost</td><td>$0.23</td><td>$0.86</td></tr>
+          <tr><td>Committed inference cost</td><td>$0.23</td><td>$0.86</td></tr>
         </tbody>
       </table></div>
-      <p class="note">What this shows, and only this: on this suite Attest did not ship fewer broken patches than the plain agent; both shipped the two patches for the unsatisfiable task, where the sealed tests did not expose the contract's contradiction. Every Attest hold was on a patch the held-out judge accepted, four of them after the arbiter had classified the failing adversarial test as a test defect (arbitration was advisory in that version, so the rule kept the hold). The two NO CHANGE verdicts on the external task were unfinished tasks, not correct refusals; the implementer ran out of turns without a patch (corrections note in the evaluation folder). These are the historical M5 figures of the pinned 17 Oct version; the console now runs revision 5, whose Nemotron validation is a proposal awaiting approval.</p>
+      <p class="note">What this shows, and only this: on this suite Attest did not ship fewer broken patches than the plain agent; both shipped the two patches for the unsatisfiable task, where the sealed tests did not expose the contract's contradiction. Every Attest hold was on a patch the held-out judge accepted, four of them after the arbiter had classified the failing adversarial test as a test defect (arbitration was advisory in that version, so the rule kept the hold). The two NO CHANGE verdicts on the external task were unfinished tasks, not correct refusals; the implementer ran out of turns without a patch (corrections note in the evaluation folder). These are the historical M5 figures of the version pinned on 17 Oct 2026 (commit 6b786a2e). They are not an evaluation of the version this console runs (<span id="eval-version">see the footer</span>); its Nemotron re-evaluation has not been run.</p>
     </div>
   </section>
 
   <footer class="foot">
     <div class="foot-row">
       <div class="foot-brand"><svg class="mark" aria-hidden="true"><use href="#mark"/></svg><span class="wordmark">Attest</span><span class="foot-line">Evidence, not assurance.</span></div>
-      <div class="foot-built"><div class="foot-logos"><a href="https://nebius.com/token-factory" target="_blank" rel="noopener" title="Nebius Token Factory"><img class="nebius" src="/static/brand/nebius-logo.svg?v=20261019c" alt="Nebius" width="124" height="34"></a><a href="https://developer.nvidia.com/nemotron" target="_blank" rel="noopener" title="NVIDIA Nemotron"><img class="nvidia" src="/static/brand/nvidia-logo.svg?v=20261019c" alt="NVIDIA" width="158" height="30"></a></div><span>Built on Nebius Token Factory with NVIDIA Nemotron 3. An entry to the Nebius x NVIDIA Global AI Hackathon 2026; an independent project, not a Nebius or NVIDIA product. The Nebius and NVIDIA marks belong to their owners.</span></div>
+      <div class="foot-built"><div class="foot-logos"><a href="https://nebius.com/token-factory" target="_blank" rel="noopener" title="Nebius Token Factory"><img class="nebius" src="/static/brand/nebius-logo.svg?v=20261019e" alt="Nebius" width="124" height="34"></a><a href="https://developer.nvidia.com/nemotron" target="_blank" rel="noopener" title="NVIDIA Nemotron"><img class="nvidia" src="/static/brand/nvidia-logo.svg?v=20261019e" alt="NVIDIA" width="158" height="30"></a></div><span>Built on Nebius Token Factory with NVIDIA Nemotron 3. An entry to the Nebius x NVIDIA Global AI Hackathon 2026; an independent project, not a Nebius or NVIDIA product. The Nebius and NVIDIA marks belong to their owners.</span></div>
     </div>
     <p class="foot-meta"><span id="foot-version"></span><a href="/api/docs">API documentation</a><a href="/api/health">Service health</a></p>
   </footer>
@@ -374,6 +379,6 @@
   </div>
 </aside>
 <button type="button" class="guide-launch" id="guide-launch" hidden><svg class="mark" aria-hidden="true"><use href="#mark"/></svg>Guide</button>
-<script src="/static/app.js?v=20261019c"></script>
+<script src="/static/app.js?v=20261019e"></script>
 </body>
 </html>
