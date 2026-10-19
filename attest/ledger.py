@@ -12,6 +12,17 @@ Settlement records (`add_call`, `add_op`) are appended best-effort: when their a
 journal still holds the open reservation (which `read_journal` then counts at its bound, the conservative reading) and the
 failure is counted in `journal_failures`. Durability here means "survives the death of this process"; the fsync additionally
 asks the operating system to put the line on the device, which covers a host crash as far as the device honours fsync.
+
+Tail recovery (review finding R5-01, 19 Oct 2026): an append that fails after writing part of its line leaves the journal with an
+unframed tail (no final newline). Left alone, the next successful append would land on that same line, a restart's parser would
+lose both records, and `reserve` would still have reported success. Every append therefore first reads the last byte of the
+journal: a non-empty file that does not end in a newline is repaired, durably, by terminating the cut line and appending a
+`journal_repair` record (the cut record is lost and is not reconstructed; a reservation it would have settled stays open at its
+bound, the conservative reading). Every append is then verified by reading its bytes back from the offset where it started; the
+byte before that offset must be a newline (or the offset must be 0). A reservation whose repair, write or verification fails
+raises `LedgerError` and records nothing. A settlement whose append fails is counted in `journal_failures` and marks the ledger
+`journal_degraded`; the next `reserve` runs the same repair and verification and clears the flag only when its own line read back
+intact. `read_journal` reads bytes with replacement, so a tail cut inside a multi-byte character never raises.
 """
 
 from __future__ import annotations
@@ -29,8 +40,9 @@ def utcnow() -> str:
 
 
 class LedgerError(RuntimeError):
-    """The journal could not take a record that must be durable before money is committed: no sink is attached, or the append
-    failed at open, write, flush, fsync or close. `reserve` raises it and records nothing; the caller must not send the request."""
+    """The journal could not take a record that must be durable before money is committed: no sink is attached, the append failed
+    at open, write, flush, fsync or close, the cut tail before it could not be repaired, or the line did not read back as written.
+    `reserve` raises it and records nothing; the caller must not send the request."""
 
 
 def _open_journal(path: Path):
@@ -50,6 +62,70 @@ def _write_durably(path: Path, lines: list[str]) -> None:
         os.fsync(handle.fileno())
     finally:
         handle.close()
+
+
+TAIL_SCAN_BYTES = 65_536  # how far back a repair looks for the start of a cut line (its length and head go into the repair record)
+
+
+def _tail_state(path: Path) -> tuple[int, bytes]:
+    """The journal's size and the bytes of its unterminated last line: empty when the file is missing, empty or ends with a
+    newline. A binary read of the last byte decides; the cut line itself is read back at most TAIL_SCAN_BYTES. Raises OSError."""
+    path = Path(path)
+    if not path.exists():
+        return 0, b""
+    with path.open("rb") as handle:
+        handle.seek(0, os.SEEK_END)
+        size = handle.tell()
+        if size == 0:
+            return 0, b""
+        handle.seek(size - 1)
+        if handle.read(1) == b"\n":
+            return size, b""
+        start = max(0, size - TAIL_SCAN_BYTES)
+        handle.seek(start)
+        chunk = handle.read(size - start)
+    return size, chunk.rsplit(b"\n", 1)[-1]
+
+
+def _write_verified(path: Path, lines: list[str], framed_before: bool = True) -> int:
+    """Append `lines` durably (write, flush, fsync, close), then read them back from the offset where the append started: the bytes
+    on disk must equal what was written and, unless `framed_before` is False (the repair of a cut tail), the byte before the offset
+    must be a newline or the offset must be 0. Returns the offset. Raises OSError or ValueError from the write and LedgerError when
+    the read-back differs."""
+    path = Path(path)
+    offset = path.stat().st_size if path.exists() else 0
+    data = "".join(lines).encode("utf-8")
+    _write_durably(path, lines)
+    with path.open("rb") as handle:
+        if offset and framed_before:
+            handle.seek(offset - 1)
+            before = handle.read(1)
+            if before != b"\n":
+                raise LedgerError(f"journal verification failed: the byte before offset {offset} is {before!r}, not a newline, so the record "
+                                  f"would share its line with a cut record")
+        else:
+            handle.seek(offset)
+        on_disk = handle.read(len(data))
+    if on_disk != data:
+        raise LedgerError(f"journal verification failed: the {len(data)} bytes appended at offset {offset} read back differently "
+                          f"({len(on_disk)} bytes read{'' if len(on_disk) == len(data) else ', short'})")
+    return offset
+
+
+def _repair_tail(path: Path) -> dict | None:
+    """Frame an unterminated last line (a write cut short) so that later records start on their own line: append a newline and a
+    `journal_repair` record, durably and verified. Returns the repair record, or None when the tail was already framed. The cut
+    record is lost and is not reconstructed: a reservation it would have settled stays open at its bound. Raises OSError or
+    ValueError from the write and LedgerError when the repair does not read back."""
+    size, partial = _tail_state(path)
+    if size == 0 or not partial:
+        return None
+    record = {"event": "journal_repair", "at_utc": utcnow(),
+              "note": "the previous line was cut short (no final newline) and has been terminated here; its record is lost and is not "
+                      "reconstructed, so a reservation it would have settled stays open at its bound and is reconciled against the provider's billing",
+              "cut_line_bytes": len(partial), "cut_line_head": partial[:120].decode("utf-8", "replace")}
+    _write_verified(path, ["\n", json.dumps(record, ensure_ascii=False) + "\n"], framed_before=False)
+    return record
 
 
 @dataclass
@@ -117,26 +193,38 @@ class Ledger:
     # settlement records the journal did not take (the run went on; the in-memory record and the reservation already in the
     # journal keep the accounting conservative); reported in totals so a bundle shows that its journal is incomplete
     journal_failures: list[dict] = field(default_factory=list, repr=False, compare=False)
+    # cut tails this ledger terminated before appending (the `journal_repair` records it wrote), reported in totals
+    journal_repairs: list[dict] = field(default_factory=list, repr=False, compare=False)
+    # why the last settlement append failed, until a reservation line is appended and read back intact after the tail was repaired
+    journal_degraded: str | None = field(default=None, repr=False, compare=False)
+    # private diagnostics sink (attest.core.diagnostics.Diagnostics, attached by the pipeline): providers route the raw text of a
+    # failed call through public_error() so that call records, the journal and the bundle carry only the public vocabulary (R5-04)
+    diagnostics: object = field(default=None, repr=False, compare=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
     _reservation_seq: int = field(default=0, repr=False, compare=False)
 
     # ------------------------------------------------------------------ journal
     def attach_sink(self, path: Path) -> None:
         """Start journaling into `path`; anything already recorded is written first so the journal is complete. Raises LedgerError
-        when the journal cannot be created: a run whose journal does not exist must not start paid work."""
+        when the journal cannot be created (or an existing file's cut tail cannot be repaired, or the header does not read back): a
+        run whose journal does not exist must not start paid work."""
         with self._lock:
             sink = Path(path)
             lines = [json.dumps({"event": "ledger", "at_utc": utcnow(), "version": 1,
                                  "note": "append-only journal: reservations are written (and fsynced) before a request is sent, call records as soon as "
                                          "they are known; an open reservation without a call record is a request whose outcome was lost "
-                                         "with the process and stays committed at its bound"}) + "\n"]
+                                         "with the process and stays committed at its bound; a journal_repair record terminates a line that a "
+                                         "failed append cut short (that record is lost, the reservation it would have settled stays open)"}) + "\n"]
             lines += [json.dumps({"event": "call", **asdict(call)}, ensure_ascii=False) + "\n" for call in self.model_calls]
             lines += [json.dumps({"event": "sandbox_op", **asdict(op)}, ensure_ascii=False) + "\n" for op in self.sandbox_ops]
             lines += [json.dumps({"event": "reserve", **reservation}) + "\n" for reservation in self.open_reservations]
             try:
                 sink.parent.mkdir(parents=True, exist_ok=True)
-                _write_durably(sink, lines)
-            except (OSError, ValueError) as error:
+                repair = _repair_tail(sink)
+                if repair is not None:
+                    self.journal_repairs.append(repair)
+                _write_verified(sink, lines)
+            except (OSError, ValueError, LedgerError) as error:
                 raise LedgerError(f"cannot create the ledger journal {sink}: {type(error).__name__}: {error}") from error
             self.sink = sink
 
@@ -148,20 +236,27 @@ class Ledger:
             self.sink = None
 
     def _append(self, record: dict, must_persist: bool = False) -> None:
-        """Append one journal line (write, flush, fsync, close). `must_persist` is set for reservations: any failure, including a
-        missing sink, becomes LedgerError and nothing is recorded. A settlement record that fails is counted and the run goes on,
-        because the in-memory record and the reservation already in the journal keep the accounting conservative."""
+        """Append one journal line: repair a cut tail first, then write, flush, fsync, close, then read the line back (R5-01).
+        `must_persist` is set for reservations: any failure, including a missing sink, becomes LedgerError and nothing is recorded.
+        A settlement record that fails is counted, marks the journal degraded and the run goes on, because the in-memory record and
+        the reservation already in the journal keep the accounting conservative."""
         if self.sink is None:
             if must_persist:
                 raise LedgerError("no journal sink is attached: a USD reservation must be journaled before its request is sent")
             return
         try:
-            _write_durably(self.sink, [json.dumps(record, ensure_ascii=False) + "\n"])
-        except (OSError, ValueError) as error:
-            self.journal_failures.append({"event": record.get("event"), "at_utc": utcnow(), "error": f"{type(error).__name__}: {error}"[:300]})
+            repair = _repair_tail(self.sink)
+            if repair is not None:
+                self.journal_repairs.append(repair)
+            _write_verified(self.sink, [json.dumps(record, ensure_ascii=False) + "\n"])
+        except (OSError, ValueError, LedgerError) as error:
+            reason = f"{type(error).__name__}: {error}"[:300]
+            self.journal_failures.append({"event": record.get("event"), "at_utc": utcnow(), "error": reason})
             if must_persist:
-                raise LedgerError(f"the ledger journal {self.sink} did not take the reservation ({type(error).__name__}: {error}); "
+                raise LedgerError(f"the ledger journal {self.sink} did not take the reservation ({reason}); "
                                   f"nothing was recorded and the request must not be sent") from error
+            self.journal_degraded = (f"the {record.get('event')} record failed to journal at {utcnow()} ({reason}); the journal tail is repaired "
+                                     f"and the next reservation line verified before any further request is dispatched")
 
     def _changed(self) -> None:
         if self.on_change is not None:
@@ -173,16 +268,31 @@ class Ledger:
     # ------------------------------------------------------------------ records
     def reserve(self, provider: str, role: str, stage: str, model: str, reserved_usd: float) -> str:
         """Record a USD reservation before a request is sent and return its id (`add_call` closes it). The reservation exists only
-        once its journal line is durable: with no sink or a failed append LedgerError is raised and nothing is recorded in memory
-        either (no request will be sent, so nothing is owed); the caller must not dispatch."""
+        once its journal line is durable and read back intact after any cut tail was repaired: with no sink, a failed repair, a
+        failed append or a failed verification LedgerError is raised and nothing is recorded in memory either (no request will be
+        sent, so nothing is owed); the caller must not dispatch. A ledger degraded by an earlier settlement failure is cleared here
+        and only here, once this line is verified."""
         with self._lock:
             self._reservation_seq += 1
             reservation = {"id": f"r{self._reservation_seq}", "provider": provider, "role": role, "stage": stage, "model": model,
                            "reserved_usd": round(float(reserved_usd), 6), "at_utc": utcnow()}
             self._append({"event": "reserve", **reservation}, must_persist=True)
             self.open_reservations.append(reservation)
+            self.journal_degraded = None  # the tail is framed and this line read back as written: the journal takes records again
         self._changed()
         return reservation["id"]
+
+    def public_error(self, stage: str, error: BaseException | str, context: dict | None = None) -> str:
+        """The only form in which a failed call's error enters a call record (and so the journal and the bundle): a fixed public
+        sentence, with a correlation reference when a diagnostics sink is attached (the raw text goes to its private sidecar)."""
+        sink = self.diagnostics
+        if sink is not None:
+            try:
+                return sink.public_text(stage, error, context)
+            except Exception:  # noqa: BLE001 - diagnostics must never break accounting
+                pass
+        from .core.diagnostics import classify_error  # local import: core imports this module
+        return classify_error(error)[1]
 
     def add_call(self, call: ModelCall, reservation_id: str | None = None) -> None:
         with self._lock:
@@ -239,6 +349,8 @@ class Ledger:
             "open_reservations": len(self.open_reservations),
             "open_reserved_usd": round(open_reserved, 6),
             "journal_failures": len(self.journal_failures),
+            "journal_repairs": len(self.journal_repairs),
+            "journal_degraded": self.journal_degraded,
             "rate_limited_calls": sum(1 for c in self.model_calls if not c.ok and "HTTP 429" in (c.error or "")),
             "pacing_wait_ms": sum(c.pacing_wait_ms or 0 for c in self.model_calls),
             "by_model": by_model,
@@ -253,6 +365,8 @@ class Ledger:
                 "sandbox_ops": [asdict(o) for o in self.sandbox_ops],
                 "open_reservations": list(self.open_reservations),
                 "journal_failures": list(self.journal_failures),
+                "journal_repairs": list(self.journal_repairs),
+                "journal_degraded": self.journal_degraded,
                 "totals": self.totals()}
 
 
@@ -262,13 +376,20 @@ JOURNAL_FILE = "ledger.jsonl"
 def read_journal(path: Path) -> dict | None:
     """Read a run's ledger journal back: known costs, calls, and reservations never closed by a call record. Returns None
     when the file is missing or holds no ledger header. Lines that do not parse (a write cut short by the interruption)
-    are skipped and counted."""
+    are skipped and counted, `journal_repair` records are counted, and the bytes are decoded with replacement so a tail cut
+    inside a multi-byte character never raises; `tail_framed` says whether the file ends with a newline."""
     path = Path(path)
     if not path.is_file():
         return None
-    calls, reservations, closed, ops, bad = [], {}, set(), 0, 0
+    calls, reservations, closed, ops, bad, repairs = [], {}, set(), 0, 0, 0
     header = False
-    with path.open("r", encoding="utf-8") as handle:
+    with path.open("rb") as handle:
+        handle.seek(0, os.SEEK_END)
+        size = handle.tell()
+        if size:
+            handle.seek(size - 1)
+        tail_framed = size == 0 or handle.read(1) == b"\n"
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
         for line in handle:
             line = line.strip()
             if not line:
@@ -278,7 +399,7 @@ def read_journal(path: Path) -> dict | None:
             except json.JSONDecodeError:
                 bad += 1
                 continue
-            kind = record.get("event")
+            kind = record.get("event") if isinstance(record, dict) else None
             if kind == "ledger":
                 header = True
             elif kind == "reserve":
@@ -289,6 +410,8 @@ def read_journal(path: Path) -> dict | None:
                     closed.add(record["reservation_id"])
             elif kind == "sandbox_op":
                 ops += 1
+            elif kind == "journal_repair":
+                repairs += 1
     if not header and not calls and not reservations:
         return None
     open_reservations = [r for rid, r in reservations.items() if rid not in closed]
@@ -298,5 +421,5 @@ def read_journal(path: Path) -> dict | None:
     return {"model_calls": len(calls), "cost_usd": round(sum(known), 6) if known else None, "cost_usd_committed": round(committed, 6),
             "uncertain_unpriced_calls": sum(1 for c in calls if c.get("cost_usd") is None and (c.get("reserved_usd") or 0.0) > 0),
             "open_reservations": len(open_reservations), "open_reserved_usd": round(sum(r.get("reserved_usd") or 0.0 for r in open_reservations), 6),
-            "sandbox_operations": ops, "unparsable_lines": bad,
+            "sandbox_operations": ops, "unparsable_lines": bad, "journal_repairs": repairs, "tail_framed": tail_framed,
             "tokens_in": sum(c.get("tokens_in") or 0 for c in calls), "tokens_out": sum(c.get("tokens_out") or 0 for c in calls)}

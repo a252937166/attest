@@ -20,7 +20,7 @@ from attest.core.sealed import CANARY_FAIL_ID, CANARY_PASS_ID, SUPERVISOR_VERSIO
 from attest.core.task import TaskSpec
 from attest.core.testparse import parse_pytest, parse_unittest
 from attest.ledger import Ledger, ModelCall, utcnow
-from attest.models.base import ModelResult
+from attest.models.base import ModelError, ModelResult
 from attest.sandbox.base import RunResult, StepResult
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -78,9 +78,12 @@ CANDIDATE_SRC = '''def parse_duration(text: str) -> float:
     return float(total)
 '''
 TAMPERING_CANDIDATE_SRC = "import sys, os\nsys.modules['unittest'] = sys.modules.get('unittest')\n" + CANDIDATE_SRC
-# witness programs the fake contract auditor returns; the fake executor "runs" them by their exit marker
-WITNESS_DEMONSTRATES = "import sys\nprint('CONTRADICTION AC1,AC2: for input \"1h\" AC1 demands 3600 and AC2 demands 60')\nsys.exit(3)\n"
+# witness programs the fake contract auditor returns; the fake executor "runs" them by their exit marker and echoes the ids they name
+WITNESS_DEMONSTRATES = "import sys\nprint('CONTRADICTION TC1,TC2: for input \"1h\" TC1 demands 3600 and TC2 demands 60')\nsys.exit(3)\n"  # grounded: task criteria, constrained
+WITNESS_DEMONSTRATES_DERIVED = "import sys\nprint('CONTRADICTION AC1,AC2: for input \"1h\" AC1 demands 3600 and AC2 demands 60')\nsys.exit(3)\n"  # specification criteria
+WITNESS_UNCONSTRAINED = ("import sys\ndef required(x):\n    return 60\nprint('CONTRADICTION TC1,TC2: my own implementation returns 60 for \"1h\"')\nsys.exit(3)\n")
 WITNESS_NOT_SHOWN = "import sys\nprint('NOT DEMONSTRATED: no input found up to length 6')\nsys.exit(0)\n"
+PRIVATE_MARKER = "SYNTHETIC_PRIVATE_DIAGNOSTIC /opt/attest/private/module.py"  # must never reach a public record (R5-04)
 BREAKER_WITH_SYNTAX_ERROR = SEALED_SRC.replace("class T(", "class B(").replace("def test_a(self):", "def test_a(self)")  # missing colon
 CORRECTED_TEST_A = 'self.assertEqual(parse_duration("1h"), 3600.0, "corrected")'
 
@@ -137,9 +140,12 @@ class FakeProvider:
                 "corrected_module": None, "corrected_notes": "fake: treated as a real bug, no correction"}
 
     def structured(self, role, prompt, schema, stage):
+        if role == "spec" and self.scenario == "spec_provider_error":
+            raise ModelError(f"HTTP 502 from https://private-gateway.invalid/run: {PRIVATE_MARKER}")  # fails the run at the first model call (R5-04)
         if role == "spec":
             infeasible = self.scenario in ("spec_infeasible_unproven", "spec_infeasible_demonstrated")
-            two = ("coverage_gap", "contract_conflict", "spec_infeasible_demonstrated", "contract_claim_unproven", "spec_infeasible_unproven")
+            two = ("coverage_gap", "contract_conflict", "spec_infeasible_demonstrated", "contract_claim_unproven", "spec_infeasible_unproven",
+                   "contract_conflict_derived", "contract_conflict_mixed", "contract_conflict_unconstrained")
             criteria = ["units work", "errors raise ValueError"] if self.scenario in two else ["units work"]
             payload = {"feasible": not infeasible, "infeasibility_reason": "fake: the criteria contradict" if infeasible else None,
                        "restated_task": "add units",
@@ -156,12 +162,23 @@ class FakeProvider:
         elif role == "audit" and stage == "contract-audit":
             if self.scenario in ("contract_conflict", "spec_infeasible_demonstrated"):
                 payload = {"consistent": False, "notes": "fake conflict", "conflicts": [
-                    {"requirement_ids": ["AC1", "AC2"], "summary": "AC1 and AC2 demand different values for the same input", "witness": WITNESS_DEMONSTRATES}]}
+                    {"requirement_ids": ["TC1", "TC2"], "summary": "TC1 and TC2 demand different values for the same input", "witness": WITNESS_DEMONSTRATES}]}
+            elif self.scenario == "contract_conflict_derived":
+                payload = {"consistent": False, "notes": "fake derived conflict", "conflicts": [
+                    {"requirement_ids": ["AC1", "AC2"], "summary": "AC1 and AC2 demand different values for the same input", "witness": WITNESS_DEMONSTRATES_DERIVED}]}
+            elif self.scenario == "contract_conflict_mixed":
+                payload = {"consistent": False, "notes": "fake mixed conflict", "conflicts": [
+                    {"requirement_ids": ["TC1", "AC2"], "summary": "TC1 and AC2 demand different values", "witness": WITNESS_DEMONSTRATES}]}
+            elif self.scenario == "contract_conflict_unconstrained":
+                payload = {"consistent": False, "notes": "fake unconstrained conflict", "conflicts": [
+                    {"requirement_ids": ["TC1", "TC2"], "summary": "my own implementation disagrees with the original", "witness": WITNESS_UNCONSTRAINED}]}
             elif self.scenario in ("contract_claim_unproven", "spec_infeasible_unproven"):
                 payload = {"consistent": False, "notes": "fake suspicion", "conflicts": [
                     {"requirement_ids": ["AC1"], "summary": "AC1 may be impossible", "witness": WITNESS_NOT_SHOWN}]}
             else:
                 payload = {"consistent": True, "notes": "fake: consistent", "conflicts": []}
+        elif role == "audit" and self.scenario == "drift_provider_error":
+            raise ModelError(f"HTTP 502 from https://private-gateway.invalid/run: {PRIVATE_MARKER}")  # a provider failure carrying private text (R5-04)
         elif role == "audit":
             score = 0.9 if self.scenario == "drift_high" else 0.1
             payload = {"drift_score": score, "assessment": "off_target" if score > 0.5 else "aligned", "scope_narrowed": [],
@@ -347,7 +364,9 @@ class FakeExecutor:
             elif name.startswith("witness-"):
                 source = files.get(step["cmd"][-1], b"").decode()
                 if "sys.exit(3)" in source:
-                    results.append(StepResult(name, step["cmd"], 3, False, 0.1, "CONTRADICTION AC1,AC2: for input \"1h\" AC1 demands 3600 and AC2 demands 60\n", ""))
+                    # the fake "runs" the witness by echoing the marker line its source prints (so the ids it names are the ones recorded)
+                    marker = next((line.split("'", 1)[1].rsplit("'", 1)[0] for line in source.splitlines() if "CONTRADICTION" in line), "CONTRADICTION TC1,TC2: fake")
+                    results.append(StepResult(name, step["cmd"], 3, False, 0.1, marker + "\n", ""))
                 else:
                     results.append(StepResult(name, step["cmd"], 0, False, 0.1, "NOT DEMONSTRATED: no input found up to length 6\n", ""))
             elif name.endswith("_result"):
@@ -610,7 +629,8 @@ class VerificationBinding(unittest.TestCase):
         self.assertEqual(conflict["witness_path"], "contract_audit/witness_1.py")
         self.assertIn("CONTRADICTION", conflict["stdout_tail"])
         self.assertIsNone(bundle["sealed_tests"], "no sealing after a demonstrated contradiction")
-        self.assertIn("executed witness", bundle["verdict"]["reasons"][0])
+        self.assertIn("executed, constrained witness on the task's own criteria", bundle["verdict"]["reasons"][0])
+        self.assertTrue(conflict["grounded"] and conflict["provenance"] == "task" and conflict["witness_constrained"])
 
     def test_claimed_conflict_without_a_demonstration_does_not_stop_the_run(self):
         bundle = run_scenario("contract_claim_unproven")

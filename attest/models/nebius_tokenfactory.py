@@ -55,7 +55,10 @@ class NebiusTokenFactory:
         self.ledger = ledger
         self.roles = roles_from_env(roles or DEFAULT_ROLES)
         self.usd_cap = usd_cap
-        self.max_calls = max_calls  # optional hard cap on the number of calls one run may make (None = only the USD cap)
+        # Hard cap on the number of calls one run may make (None = only the USD cap). Every entry point that builds this provider for a
+        # paid run passes the cap it promises (the harness, the CLI and the console worker all default to 22, review finding R5-05);
+        # the call that would exceed it is refused before dispatch with a definite ModelError naming the cap.
+        self.max_calls = max_calls
         self.thinking_roles = thinking_roles
         self.max_tokens = max_tokens
         self.timeout = timeout
@@ -78,7 +81,9 @@ class NebiusTokenFactory:
             "seal": "low", "implement": default_effort, "break": "low", "summary": "low"}
         # Audit findings AC-03 and AC-04 (19 Oct 2026): once this instance could not journal a reservation, or settled a generated
         # answer without usable metering, it refuses every further paid request (the reason is kept here). Nothing is dispatched
-        # blind, and the per-run cap never binds on a guess; a human reconciles the run against the provider's billing.
+        # blind, and the per-run cap never binds on a guess; a human reconciles the run against the provider's billing. Review
+        # finding R5-01: a reservation is journaled only after the ledger repaired any cut journal tail and read the new line back
+        # (attest/ledger.py); when that fails the LedgerError below halts this instance the same way.
         self.halted: str | None = None
 
     def _headers(self) -> dict:
@@ -89,16 +94,24 @@ class NebiusTokenFactory:
             raise ModelError(f"refusing the request: {self.halted}")
 
     def describe(self) -> dict:
+        """The effective configuration of this instance (recorded as the bundle's `profile.provider`; the evaluation harness freezes
+        its stable keys as the registered provider profile) plus its current state: `max_calls` is the cap that governs the run,
+        `halted` the reason paid calls stopped, `journal_degraded`/`journal_failures`/`journal_repairs` the state of the ledger journal."""
         return {"provider": self.name, "base_url": self.base, "roles": dict(self.roles), "usd_cap": self.usd_cap, "max_calls": self.max_calls, "reasoning_effort": dict(self.reasoning_effort),
                 "temperature": self.TEMPERATURE,
                 "thinking_roles": list(self.thinking_roles) if self.send_thinking_flag else [],
                 "send_thinking_flag": self.send_thinking_flag, "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
                 "schema_in_prompt": True, "auto_retry": False, "pre_request_reservation": True,
-                "reservation_policy": "the USD reservation is journaled durably (fsync) before dispatch; if it cannot be, the request is not sent and the "
-                                      "run stops paid calls",
+                "reservation_policy": "the USD reservation is journaled durably (fsync) and read back before dispatch, after any cut journal tail has been "
+                                      "terminated with a journal_repair record; if it cannot be, the request is not sent and the run stops paid calls",
                 "metering_policy": "an HTTP 200 whose usage cannot price the generation (missing, empty, partial or malformed counters) keeps its "
                                    "reservation unsettled and stops further paid calls of the run pending reconciliation; explicit zero counters settle as 0",
+                "call_cap_policy": (f"at most {self.max_calls} model calls per run (failed calls and retries count); the call that would exceed it is refused "
+                                    f"before dispatch" if self.max_calls is not None else "no per-run call cap; only the USD cap binds"),
                 "halted": self.halted,
+                "journal_degraded": getattr(self.ledger, "journal_degraded", None),
+                "journal_failures": len(getattr(self.ledger, "journal_failures", None) or []),
+                "journal_repairs": len(getattr(self.ledger, "journal_repairs", None) or []),
                 "max_prompt_chars": self.MAX_PROMPT_CHARS, "max_tokens": self.max_tokens}
 
     CHARS_PER_TOKEN = 3.0  # conservative for English plus code; real ratio is usually higher
@@ -133,7 +146,8 @@ class NebiusTokenFactory:
         if spent + reservation > self.usd_cap:
             raise ModelError(f"per-run USD cap {self.usd_cap:.2f} would be exceeded: spent {spent:.4f} + reserved {reservation:.4f}; aborting before the call")
         if self.max_calls is not None and self.calls_made() >= self.max_calls:
-            raise ModelError(f"per-run call cap {self.max_calls} reached; aborting before the call")
+            # a definite refusal before dispatch: the cap counts every call record of this run (failed calls and retries included)
+            raise ModelError(f"per-run call cap {self.max_calls} reached ({self.calls_made()} calls recorded in this run); the request was not sent")
         thinking = self.send_thinking_flag and role in self.thinking_roles
         schema_text = json.dumps(schema, separators=(",", ":"))
         payload = {
@@ -185,13 +199,13 @@ class NebiusTokenFactory:
                                       timeout=self.timeout)
         except TransportError as error:
             call.elapsed_ms = int((time.monotonic() - t0) * 1000)
-            call.error = f"transport: {error}"
+            call.error = self.ledger.public_error(f"{stage}-transport", error)
             call.settlement = "unsettled"  # the request may have been billed: the reservation stays committed until reconciled
             self.ledger.add_call(call, reservation_id)
             raise ModelError(f"inference outcome uncertain ({error}); not retried", uncertain=True) from None
         except HttpError as error:
             call.elapsed_ms = int((time.monotonic() - t0) * 1000)
-            call.error = str(error)
+            call.error = self.ledger.public_error(f"{stage}-http", error)
             if 400 <= error.status < 500:
                 call.cost_usd = 0.0  # the provider refused the request (quota, schema, auth): nothing was generated, nothing is billed
                 call.settlement = "known"
@@ -237,7 +251,7 @@ class NebiusTokenFactory:
             call.malformed_output = True
             head = (text or "").strip().replace("\n", " ")[:240]
             finish = (choices[0].get("finish_reason") if choices else None)
-            call.error = f"schema violation: {problem}; finish_reason={finish}; content head: {head!r}"
+            call.error = f"schema violation: {problem}; finish_reason={finish}"  # the content head stays out of the record (R5-04)
             self.ledger.add_call(call, reservation_id)
             if finish == "length" and not (head or "").strip() and attempt == 1 and not self.halted:
                 # the model spent the whole completion budget on reasoning: a definite failure (nothing to replay), retried once at

@@ -22,7 +22,10 @@ RULE = ("VERIFIED only when every recorded gate passes (a skipped gate never cou
         "base or a mutant with authentic, structurally sound results) and the gate was re-run; the arbiter's classification alone never "
         "changes a gate, and a sealed test that failed by assertion or exception is never overridden.")
 ABORT_VERDICTS = ("INFEASIBLE", "NO CHANGE", "ERROR", "BASELINE")
-EVIDENCE_PROTOCOL_VERSION = 2
+# 2 (19 Oct 2026, revision 5): complete evidence for the verdict is required. 3 (19 Oct 2026, revision 6, follow-up review R5-02
+# and R5-03): the mandatory stage records are derived from the frozen task and the execution mode, not from what survived; an
+# INFEASIBLE verdict needs a GROUNDED conflict (authoritative task criteria only, a constrained witness within the input domain).
+EVIDENCE_PROTOCOL_VERSION = 3
 LEGACY_CLEARING_CUTOFF = "2026-10-19"  # bundles started before this UTC date may carry the former explicit apply mode
 
 

@@ -262,5 +262,10 @@ Evidence and acceptance tests: `reports/attest-audit-repairs-2026-10-19/console/
   legacy bundles); a run counts against every UTC day on which it was queued, started, ran or finished.
 - Publication contract: runs carry a `visibility` (`public` or `team`); team runs (the development profile, and imported
   bundles of that provider) are hidden from every read route (list, detail, events, artifacts, zip, current-run and
-  estimate references) unless the caller presents the team token in `X-Attest-Token` (or `?token=` on downloads). The home
-  page says so. Anonymous queue counts include team runs without identifying them.
+  estimate references) unless the caller presents the team token in the `X-Attest-Token` header. A query-string token is ignored on every
+  route (R5-07, 19 Oct 2026): a copied or logged URL never carries the team's authority. Because downloads are plain
+  links, a signed-in team member first obtains a short-lived, run-scoped, read-only ticket (`POST
+  /api/runs/{run_id}/download-ticket`, header token required, lifetime `ATTEST_DOWNLOAD_TICKET_SECONDS`, default 600 s)
+  and passes it as `?ticket=` on that run's artifact and zip routes only; a ticket authorises nothing else (no POST, no
+  other run, no list or detail), is signed with a per-process secret, and team downloads answer `Cache-Control:
+  no-store`. The home page says so. Anonymous queue counts include team runs without identifying them.

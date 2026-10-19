@@ -7,7 +7,16 @@ addresses, host paths and diagnostic text never do; a failed run is published as
 
 Visibility (publication contract): rows of the development gateway (the team profile) are `team` rows. Every read route
 (list, detail, events, artifacts, zip, the current-run reference and the task estimates) hides them unless the caller
-presents the team token in an `X-Attest-Token` header or, for downloads, a `token` query parameter.
+presents the team token in the `X-Attest-Token` header. The header is the only place the token is read: a `token` query
+parameter is ignored everywhere (R5-07), so a copied or logged URL never carries the team's authority.
+
+Download tickets (R5-07): downloads are plain links, so a signed-in team member obtains a short-lived, run-scoped, read-only
+ticket (`POST /api/runs/{run_id}/download-ticket`, header token required) and the client appends it as `?ticket=` to that
+run's artifact and zip links only. A ticket is `<run_id>.<expiry unix seconds>.<hmac-sha256 hex>`, signed with a secret drawn
+at import (a restart invalidates outstanding tickets and the page requests a new one), valid for
+`ATTEST_DOWNLOAD_TICKET_SECONDS` (default 600) and honoured by the artifact and zip routes for the embedded run id alone. It
+opens nothing else: not the list, detail, events, estimates, current-run references or profiles, and never admission or an
+exemption from the visitor quota. Public runs download without any credential.
 
 Requester identity (API-01): the hourly visitor quota uses the peer address, unless the peer is one of the trusted proxies
 (`ATTEST_TRUSTED_PROXIES`, default the loopback addresses of the nginx vhost on the same host), in which case the LAST
@@ -21,12 +30,16 @@ explicit 413, and the archive is spooled to a temporary file rather than held in
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import hmac
 import ipaddress
 import json
 import logging
 import os
 import re
+import secrets
 import tempfile
+import time
 import uuid
 import zipfile
 from pathlib import Path
@@ -49,6 +62,12 @@ EXAMPLES_DIR = Path(os.environ.get("ATTEST_EXAMPLES_DIR", ROOT / "examples")).re
 ADMIN_TOKEN = os.environ.get("ATTEST_ADMIN_TOKEN", "")
 PUBLIC_RUNS_PER_HOUR = int(os.environ.get("ATTEST_PUBLIC_RUNS_PER_HOUR", "3"))
 RETENTION_KEEP_ERRORS = int(os.environ.get("ATTEST_RETENTION_KEEP_ERRORS", "10"))
+# Download tickets (R5-07): lifetime in seconds, and a signing secret that lives only in this process. Nothing is persisted;
+# a restart invalidates every outstanding ticket, which the console handles by requesting a new one.
+DOWNLOAD_TICKET_SECONDS = int(os.environ.get("ATTEST_DOWNLOAD_TICKET_SECONDS", "600"))
+_TICKET_SECRET = secrets.token_bytes(32)
+_TICKET_EXPIRY = re.compile(r"[0-9]{1,12}")
+_TICKET_SIGNATURE = re.compile(r"[0-9a-f]{64}")
 
 
 def _parse_proxies(spec: str) -> tuple:
@@ -161,13 +180,10 @@ def _is_admin(token: str | None) -> bool:
     return bool(ADMIN_TOKEN) and token == ADMIN_TOKEN
 
 
-def _caller_token(request: Request) -> str | None:
-    return request.headers.get("x-attest-token") or request.query_params.get("token")
-
-
 def _team_caller(request: Request) -> bool:
-    """A caller who presents the team token may see team runs."""
-    return _is_admin(_caller_token(request))
+    """A caller who presents the team token in the X-Attest-Token header may see team runs. The header is the only place
+    the token is read from: a `token` query parameter is never consulted, so a URL cannot carry the team's authority."""
+    return _is_admin(request.headers.get("x-attest-token"))
 
 
 def _visible(run: dict, team: bool) -> bool:
@@ -181,6 +197,59 @@ def _visible_run(run_id: str, request: Request) -> tuple[dict, bool]:
     if not run or not _visible(run, team):
         raise HTTPException(404, "unknown run")
     return run, team
+
+
+# ------------------------------------------------------------------ download tickets (R5-07)
+def _now() -> float:
+    """The ticket clock, a function so that tests can freeze it."""
+    return time.time()
+
+
+def _ticket_signature(run_id: str, expires: int) -> str:
+    return hmac.new(_TICKET_SECRET, f"{run_id}\n{expires}".encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def mint_download_ticket(run_id: str) -> dict:
+    """A short-lived, read-only download credential for one run: `<run_id>.<expiry unix seconds>.<hmac-sha256 hex>`. It is
+    honoured by the artifact and zip routes of that run alone and grants nothing else."""
+    expires = int(_now()) + DOWNLOAD_TICKET_SECONDS
+    return {"run_id": run_id, "ticket": f"{run_id}.{expires}.{_ticket_signature(run_id, expires)}",
+            "expires_at": dt.datetime.fromtimestamp(expires, dt.timezone.utc).isoformat(), "expires_in_s": DOWNLOAD_TICKET_SECONDS}
+
+
+def ticket_run_id(ticket: str | None) -> str | None:
+    """The run a download ticket opens, or None when the ticket is absent, malformed, forged, signed by another process or
+    expired. A run id may itself contain dots; the expiry and signature never do, so the ticket is split from the right."""
+    if not ticket or len(ticket) > 512:
+        return None
+    parts = ticket.rsplit(".", 2)
+    if len(parts) != 3:
+        return None
+    run_id, expiry, signature = parts
+    if not run_id or not _TICKET_EXPIRY.fullmatch(expiry) or not _TICKET_SIGNATURE.fullmatch(signature):
+        return None
+    expires = int(expiry)
+    if not hmac.compare_digest(_ticket_signature(run_id, expires), signature):
+        return None
+    if _now() >= expires:
+        return None
+    return run_id
+
+
+def _download_run(run_id: str, request: Request) -> dict:
+    """The row behind a download: a public row, a team row for a caller with the header token, or any row for the bearer of
+    an unexpired ticket minted for exactly this run id. Anything else is 404, exactly like a missing run."""
+    run = store.get_run(run_id)
+    if not run:
+        raise HTTPException(404, "unknown run")
+    if not _visible(run, _team_caller(request)) and ticket_run_id(request.query_params.get("ticket")) != run_id:
+        raise HTTPException(404, "unknown run")
+    return run
+
+
+def _download_headers(run: dict) -> dict:
+    """Team downloads are not to be kept by intermediaries or browser caches; public downloads are unchanged."""
+    return {"Cache-Control": "no-store"} if run.get("visibility", PUBLIC) == TEAM else {}
 
 
 def _current_ref(team: bool) -> str | None:
@@ -463,9 +532,20 @@ def run_events(run_id: str, request: Request, after: int = 0):
             "position": worker.position(run_id), "error_code": code, "error_public": public}
 
 
+@app.post("/api/runs/{run_id}/download-ticket")
+def download_ticket(run_id: str, request: Request):
+    """A short-lived (default ten minutes), run-scoped, read-only download ticket for a signed-in team member: the client
+    appends it as `?ticket=` to this run's artifact and zip links, so the team token itself never enters a URL. The team
+    token must be in the X-Attest-Token header; a ticket cannot mint another ticket and grants nothing but the downloads."""
+    if not _team_caller(request):
+        raise HTTPException(403, "a download ticket is issued to the team token presented in the X-Attest-Token header")
+    _visible_run(run_id, request)
+    return mint_download_ticket(run_id)
+
+
 @app.get("/api/runs/{run_id}/artifacts/{name:path}")
 def artifact(run_id: str, name: str, request: Request):
-    run, _ = _visible_run(run_id, request)
+    run = _download_run(run_id, request)
     if not run.get("out_dir"):
         raise HTTPException(404, "unknown run or no artifacts yet")
     if not ARTIFACT_PATTERN.match(name):
@@ -473,12 +553,13 @@ def artifact(run_id: str, name: str, request: Request):
     path = contained_file(Path(run["out_dir"]), name)
     if path is None:
         raise HTTPException(404, "artifact not available")
-    return FileResponse(str(path), media_type=MEDIA_TYPES.get(path.suffix, "application/octet-stream"), filename=path.name)
+    return FileResponse(str(path), media_type=MEDIA_TYPES.get(path.suffix, "application/octet-stream"), filename=path.name,
+                        headers=_download_headers(run))
 
 
 @app.get("/api/runs/{run_id}/bundle.zip")
 def bundle_zip(run_id: str, request: Request):
-    run, _ = _visible_run(run_id, request)
+    run = _download_run(run_id, request)
     if not run.get("out_dir"):
         raise HTTPException(404, "unknown run or no artifacts yet")
     root = Path(run["out_dir"])
@@ -510,7 +591,8 @@ def bundle_zip(run_id: str, request: Request):
             spool.close()
 
     return StreamingResponse(stream(), media_type="application/zip",
-                             headers={"Content-Disposition": f'attachment; filename="{root.name}-proof-bundle.zip"', "Content-Length": str(size)})
+                             headers={"Content-Disposition": f'attachment; filename="{root.name}-proof-bundle.zip"', "Content-Length": str(size),
+                                      **_download_headers(run)})
 
 
 @app.get("/", response_class=HTMLResponse)

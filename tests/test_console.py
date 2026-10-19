@@ -160,7 +160,15 @@ class ConsoleApi(unittest.TestCase):
                      f"/api/runs/{team_row['run_id']}/artifacts/tamper_scan.json", f"/api/runs/{team_row['run_id']}/bundle.zip"):
             self.assertEqual(self.client.get(path).status_code, 404, path)
             self.assertEqual(self.client.get(path, headers=self.team).status_code, 200, path)
-        self.assertEqual(self.client.get(f"/api/runs/{team_row['run_id']}/bundle.zip?token=test-token").status_code, 200)
+            self.assertEqual(self.client.get(path + "?token=test-token").status_code, 404, path)  # R5-07: the header is the only place the token is read
+        # a team run's plain download links carry a short-lived, run-scoped ticket minted with the header token, never the token
+        minted = self.client.post(f"/api/runs/{team_row['run_id']}/download-ticket", headers=self.team)
+        self.assertEqual(minted.status_code, 200, minted.text)
+        ticket = minted.json()["ticket"]
+        self.assertEqual(self.client.get(f"/api/runs/{team_row['run_id']}/bundle.zip?ticket={ticket}").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/runs/{team_row['run_id']}/artifacts/tamper_scan.json?ticket={ticket}").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/runs/{team_row['run_id']}?ticket={ticket}").status_code, 404, "a ticket opens downloads only")
+        self.assertEqual(self.client.post(f"/api/runs/{team_row['run_id']}/download-ticket").status_code, 403, "minting needs the header token")
         self.assertNotIn("codex", self.client.get("/api/runs").text.lower())
         judge = self._run("durationkit-units-001", "VERIFIED")
         self.assertEqual(self.client.get(f"/api/runs/{judge['run_id']}").status_code, 200)  # public rows need no token

@@ -37,6 +37,13 @@ whose cells ran different profiles is an invalid comparison. On every process st
 rebuilt from disk: every completed row once plus every run directory no row owns once, whether interrupted mid-run (journal)
 or finished without a persisted row (ledger totals) (AC-01, AC-02).
 
+Effective provider profile (review finding R5-06, 19 Oct 2026): the provider name and the harness-level limits do not pin the
+comparison; the models answering each role, the reasoning effort, the sampling parameters and the per-run caps do, and several of
+them come from the environment (ATTEST_NEBIUS_ROLES, ATTEST_NEBIUS_REASONING_EFFORT, ATTEST_NEBIUS_THINKING_FLAG, ATTEST_CODEX_ROLES).
+`provider_profile` selects the stable keys of `provider.describe()`; the profile is registered in schedule.json, every completed row
+carries the profile its bundle recorded, a row whose profile differs from the registration invalidates its task's comparison, and a
+process that would build a different provider (on resume, or at the start of a cell) refuses before any paid call.
+
 Usage:
   run_evaluation.py [--provider codex|nebius] [--tasks id,id] [--systems baseline,attest] [--attempts 1] [--workers 2]
                     [--usd-cap 0.5] [--approve-usd TOTAL] [--max-calls N] [--max-turns 14] [--out DIR] [--label TEXT]
@@ -161,11 +168,68 @@ def _same_setting(given, registered) -> bool:
 EXECUTION_PROFILE = {"executed_provider": ("provider", "provider"), "usd_cap": ("per_run_usd_cap", "per-run USD cap"),
                      "max_calls": ("max_calls_per_run", "per-run call cap"), "max_turns": ("max_turns", "turn cap")}
 
+# The keys of a provider description that define the comparison a batch makes (review finding R5-06): which model answers each role,
+# how it reasons and samples, and the per-run limits. Everything else in describe() is state (halted, journal counters) or policy prose.
+PROFILE_KEYS = {"nebius_tokenfactory": ("provider", "roles", "reasoning_effort", "temperature", "max_tokens", "usd_cap", "max_calls",
+                                        "thinking_roles", "send_thinking_flag"),
+                "codex_gateway": ("provider", "roles", "base_url_sha256")}
+PROFILE_ENVIRONMENT = ("ATTEST_NEBIUS_ROLES", "ATTEST_NEBIUS_REASONING_EFFORT", "ATTEST_NEBIUS_THINKING_FLAG", "ATTEST_CODEX_ROLES")
+
+
+def _role_text(selection) -> str | None:
+    """One spelling for a role's selection: the Token Factory maps a role to a model id, the gateway to (model, effort)."""
+    if isinstance(selection, (list, tuple)):
+        model = selection[0] if selection else None
+        effort = selection[1] if len(selection) > 1 else None
+        if model is None:
+            return None
+        return f"{model}:{effort}" if effort else str(model)
+    return None if selection is None else str(selection)
+
+
+def provider_profile(description: dict | None) -> dict:
+    """The effective provider configuration a batch compares: the stable keys of `provider.describe()` for the provider named in it
+    (an unknown provider contributes its name only). Per-role maps are spelled `role -> model` (Token Factory) or `role ->
+    model:effort` (gateway); lists are plain lists, so the profile survives the schedule's JSON round trip unchanged."""
+    desc = description or {}
+    name = desc.get("provider")
+    profile = {}
+    for key in PROFILE_KEYS.get(name, ("provider",)):
+        value = desc.get(key)
+        if key == "roles" and isinstance(value, dict):
+            value = {role: _role_text(selection) for role, selection in sorted(value.items())}
+        elif isinstance(value, tuple):
+            value = list(value)
+        profile[key] = value
+    return profile
+
+
+def profile_differences(registered: dict | None, actual: dict | None) -> list[str]:
+    """Every key (and, inside a per-role map, every role) whose actual value differs from the registered one, named."""
+    registered, actual = registered or {}, actual or {}
+    differences = []
+    for key in sorted(set(registered) | set(actual)):
+        before, now = registered.get(key), actual.get(key)
+        if isinstance(before, dict) or isinstance(now, dict):
+            before, now = before or {}, now or {}
+            for sub in sorted(set(before) | set(now)):
+                if not _same_setting(before.get(sub), now.get(sub)):
+                    differences.append(f"{key}.{sub} {now.get(sub)!r} differs from the registered {before.get(sub)!r}")
+        elif not _same_setting(before, now):
+            differences.append(f"{key} {now!r} differs from the registered {before!r}")
+    return differences
+
+
+def profile_refusal(out_root: Path, differences: list[str]) -> str:
+    return (f"refusing: the provider this process builds differs from the profile registered in {out_root / 'schedule.json'}: " + "; ".join(differences) +
+            ". A resumed batch runs the registered models, reasoning effort, sampling and per-run limits or not at all; remove the environment "
+            f"override ({', '.join(PROFILE_ENVIRONMENT)}) or register a new evaluation. No cell was constructed or run.")
+
 
 def comparison_validity(rows: list[dict], registered: str | None, snapshot_intact: bool, schedule: dict | None = None) -> dict:
-    """Per task: valid only when every completed cell carries the registered revision, ran the registered provider and limits (when
-    `schedule` is given; rows written before 19 Oct 2026 recorded no execution profile and are not judged on it) and the snapshot
-    was intact."""
+    """Per task: valid only when every completed cell carries the registered revision, ran the registered provider and limits and the
+    registered provider profile (when `schedule` is given; rows written before 19 Oct 2026 recorded no execution profile, rows of
+    schedules registered before the profile freeze no provider profile, and neither is judged on it) and the snapshot was intact."""
     by_task: dict[str, dict] = {}
     for row in rows:
         entry = by_task.setdefault(row["task"], {"valid": True, "reasons": []})
@@ -184,6 +248,11 @@ def comparison_validity(rows: list[dict], registered: str | None, snapshot_intac
             if not _same_setting(row[field], schedule[key]):
                 entry["valid"] = False
                 entry["reasons"].append(f"{row['system']} a{row['attempt']}: {label} {row[field]!r} differs from the registered {schedule[key]!r}")
+        if schedule and schedule.get("provider_profile") is not None and "provider_profile" in row:
+            drift = profile_differences(schedule["provider_profile"], row["provider_profile"])
+            if drift:
+                entry["valid"] = False
+                entry["reasons"].append(f"{row['system']} a{row['attempt']}: provider profile differs from the registered one: " + "; ".join(drift))
     if not snapshot_intact:
         for entry in by_task.values():
             entry["valid"] = False
@@ -264,13 +333,23 @@ class Budget:
 
 
 # ----------------------------------------------------------------------------- one cell
-def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root: Path) -> dict:
+def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root: Path, registered_profile: dict | None = None) -> dict:
     task = TaskSpec.load(task_root / cell["task_path"])
     stripped = sorted(task.heldout_tests)
     task.heldout_tests = {}  # the system under test never sees the judge's suite
     heldout_src = (task_root / cell["heldout"]).read_text(encoding="utf-8")
     ledger = Ledger()
     provider = build_provider(provider_name, ledger, usd_cap, max_calls, notify=lambda m: log(f"[{cell['task']} {cell['system']}] {m}"))
+    actual_profile = provider_profile(provider.describe())
+    if registered_profile is not None:
+        # the provider actually built for this cell (code, command line and environment) must be the registered one (R5-06): a
+        # drifted cell is reported as never run, before any executor, run directory or paid call exists
+        drift = profile_differences(registered_profile, actual_profile)
+        if drift:
+            return {**cell, "status": "not_run", "verdict": None, "accepted": False, "held_out_correct": None, "cost_usd": None, "cost_committed_usd": None,
+                    "wall_s": None, "infra_error": False, "uncertain": False, "provider_profile": actual_profile,
+                    "reason": "the provider built for this cell differs from the registered profile (an environment override such as "
+                              + " or ".join(PROFILE_ENVIRONMENT[:2]) + "?): " + "; ".join(drift)}
     executor = executor_for(ledger)
     system = cell["system"]
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
@@ -289,6 +368,7 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
                 "model_calls_failed": totals.get("model_calls_failed"), "sandbox_ops": totals.get("sandbox_operations"),
                 "wall_s": round(time.monotonic() - t0, 1), "reasons": [message], "warnings": [], "gates": {}, "out_dir": str(pipeline.out_dir),
                 "run_id": pipeline.run_id, "revision_digest": revision_of(pipeline.bundle), "arbitration": None, "error": message,
+                "provider_profile": provider_profile(((pipeline.bundle or {}).get("profile") or {}).get("provider")),
                 "infra_error": True, "uncertain": "uncertain" in message.lower() or bool(totals.get("uncertain_unpriced_calls"))}
     wall = round(time.monotonic() - t0, 1)
     judge_error = None
@@ -311,6 +391,7 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
     reasons = bundle["verdict"].get("reasons", [])
     uncertain = any("uncertain" in r for r in reasons) or bool(totals.get("uncertain_unpriced_calls")) or bool(judge_error and "uncertain" in judge_error.lower())
     roles = ((bundle.get("profile") or {}).get("provider") or {}).get("roles")
+    recorded_profile = provider_profile((bundle.get("profile") or {}).get("provider"))  # what the bundle says ran, not what we built
     candidate = bundle.get("candidate") or {}
     return {**cell, "status": "completed", "verdict": verdict, "accepted": accepted, "held_out_correct": correct, "judge_passed": judge_passed,
             "changed_paths": len(candidate.get("changed_paths") or []) + len(candidate.get("deleted_paths") or []),
@@ -323,13 +404,14 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
             "sandbox_ops": totals.get("sandbox_operations"), "wall_s": wall, "turns": bundle["trajectory"]["turns"],
             "finished": bundle["trajectory"]["finished"], "reasons": reasons[:4], "warnings": bundle["verdict"].get("warnings", [])[:4],
             "gates": {k: {"ok": g.get("ok"), "evidence_class": g.get("evidence_class")} for k, g in (bundle.get("gates") or {}).items()},
-            "out_dir": str(pipeline.out_dir), "run_id": bundle["run_id"], "roles": roles,
+            "out_dir": str(pipeline.out_dir), "run_id": bundle["run_id"], "roles": roles, "provider_profile": recorded_profile,
             "revision_digest": revision_of(bundle), "supervisor": ((bundle.get("provenance") or {}).get("supervisor") or {}).get("version"),
             "arbitration": ({"counts": arb["counts"], "cleared": arb["cleared"], "headline": arb["headline"]} if arb else None),
             "infra_error": verdict in INFRA_VERDICTS, "uncertain": uncertain}
 
 
-def run_cell(cell, budget: Budget, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root: Path, governor=None) -> dict:
+def run_cell(cell, budget: Budget, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root: Path, governor=None,
+             registered_profile: dict | None = None) -> dict:
     # An operator stops a batch cleanly by creating <report dir>/STOP: cells not yet started are reported as not run with that
     # reason, cells in flight finish and write their ledgers, and the batch can be resumed later with --resume.
     stop_file = Path(out_dir).parent / "STOP"
@@ -344,7 +426,7 @@ def run_cell(cell, budget: Budget, provider_name, usd_cap, max_calls, out_dir, m
     try:
         if governor is not None:
             paced = governor.wait_for_headroom(CALLS_PER_CELL.get(cell["system"], 15), notify=lambda m: log(f"[{cell['task']} {cell['system']}] {m}"))
-        row = one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root)
+        row = one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root, registered_profile=registered_profile)
     except Exception as error:  # noqa: BLE001 - retain the failure as an attempt
         message = f"{type(error).__name__}: {str(error)[:200]}"
         row = {**cell, "status": "completed", "verdict": "HARNESS_ERROR", "accepted": False, "held_out_correct": None,
@@ -450,7 +532,9 @@ def interrupted_cells(runs_dir: Path, rows: list[dict], already: list[dict], per
 
 def classify(row):
     """Confusion label against ground truth (held-out correctness). A cell that produced no patch at all (Attest's NO CHANGE,
-    or a baseline that neither finished nor changed a file) is `no_patch`: an unfinished task, never a correct rejection."""
+    or a baseline that neither finished nor changed a file) is `no_patch`: an unfinished task, never a correct rejection. A hold
+    without a patch (INFEASIBLE, or NEEDS HUMAN with no patch and an unfinished implementer) is a refusal of the task: right on an
+    unsatisfiable task, a `false_refusal` on one whose held-out suite is satisfiable."""
     if row.get("status") == "not_run":
         return "not_run"
     correct = row.get("held_out_correct")
@@ -458,9 +542,10 @@ def classify(row):
         return "infra_error"
     if row.get("verdict") == "NO CHANGE" or (row.get("system") == "baseline" and not row.get("finished") and row.get("changed_paths") == 0):
         return "no_patch"
-    if row.get("verdict") == "INFEASIBLE":
-        # no patch exists, so the judge's result describes the unmodified repository, not a rejection: the refusal is right only
-        # when the task itself is unsatisfiable; refusing a task whose held-out suite can be satisfied is a wrong refusal
+    if row.get("verdict") == "INFEASIBLE" or (row.get("verdict") == "NEEDS HUMAN" and row.get("changed_paths") == 0 and not row.get("finished")):
+        # no patch exists, so the judge's result describes the unmodified repository, not a rejection: the refusal (INFEASIBLE, or a
+        # NEEDS HUMAN hold that produced no patch) is right only when the task itself is unsatisfiable; holding a task whose held-out
+        # suite can be satisfied is a wrong refusal. A NEEDS HUMAN hold WITH a patch is judged on that patch below.
         return "true_reject" if row.get("ground_truth") == "unsatisfiable" else "false_refusal"
     if correct is None:
         return "unknown"
@@ -550,6 +635,17 @@ def restore_registered(args, schedule: dict) -> list[str]:
         elif not _same_setting(given, registered):
             conflicts.append(f"{flag} {given} (registered: {registered})")
     return conflicts
+
+
+def registered_profile_conflicts(schedule: dict, args) -> list[str]:
+    """The differences between the provider this process builds for the registered configuration and the profile the schedule
+    registered; empty when they agree or when the schedule registered no profile (written before the profile freeze)."""
+    registered = schedule.get("provider_profile")
+    if registered is None:
+        log("the schedule registered no provider profile (written before the profile freeze); the provider built now is not compared with it")
+        return []
+    actual = provider_profile(build_provider(args.provider, Ledger(), args.usd_cap, args.max_calls).describe())
+    return profile_differences(registered, actual)
 
 
 def conflict_refusal(out_root: Path, conflicts: list[str]) -> str:
@@ -657,6 +753,13 @@ def run_batch(args) -> int:
             print(conflict_refusal(out_root, conflicts), file=sys.stderr)
             return 2
     apply_defaults(args)
+    if args.resume:
+        # the provider this process would build (its code, the restored command line and ITS environment) must carry the registered
+        # profile (R5-06): an environment override such as ATTEST_NEBIUS_ROLES is refused here, before any cell runtime exists
+        drift = registered_profile_conflicts(schedule, args)
+        if drift:
+            print(profile_refusal(out_root, drift), file=sys.stderr)
+            return 2
     snapshot_root = Path(args.snapshot_root).resolve()
     source_root = Path(args.source_root).resolve() if args.source_root else None
     provenance = runtime_provenance(snapshot_root, source_root)
@@ -677,7 +780,10 @@ def run_batch(args) -> int:
         schedule.setdefault("resumptions", []).append({"at_utc": resumed_at, "cells": [c["scheduled_index"] for c in cells],
                                                        "provenance_check": "snapshot digests verified by the launcher",
                                                        "configuration": "restored from this schedule (provider, per-run USD cap, call cap, turn cap, workers, "
-                                                                        "attempts, systems, approved total); a conflicting command line is refused"})
+                                                                        "attempts, systems, approved total); a conflicting command line is refused",
+                                                       "provider_profile_check": ("the provider built by this process carries the registered profile"
+                                                                                  if schedule.get("provider_profile") is not None else
+                                                                                  "no profile registered (schedule written before the profile freeze)")})
         (out_root / "schedule.json").write_text(json.dumps(schedule, indent=2) + "\n", encoding="utf-8")
     else:
         suite = json.loads((snapshot_root / args.suite).read_text(encoding="utf-8"))["tasks"]
@@ -698,14 +804,16 @@ def run_batch(args) -> int:
                                   "ground_truth": entry.get("ground_truth", "held_out_suite"), "kind": entry.get("kind"),
                                   "heldout_sha256": heldout_sha, "task_spec_sha256": spec_sha, "system": system, "attempt": attempt})
         probe_ledger = Ledger()
+        registered_profile = None  # stays None only when the provider could not be constructed while registering without credentials
         try:
             provider_desc = build_provider(args.provider, probe_ledger, args.usd_cap, args.max_calls).describe()
+            registered_profile = provider_profile(provider_desc)  # the effective models, effort, sampling and caps this process would run (R5-06)
         except Exception as error:  # noqa: BLE001 - registering a schedule must work without credentials; a real run needs them
             if not getattr(args, "register_only", False):
                 raise
             provider_desc = {"provider": args.provider, "note": f"provider not constructed while registering only ({type(error).__name__})"}
         schedule = {"label": args.label, "registered_at_utc": utcnow(), "attest_version": __version__, "provider": args.provider,
-                    "provider_detail": provider_desc, "per_run_usd_cap": args.usd_cap, "approve_usd": args.approve_usd,
+                    "provider_detail": provider_desc, "provider_profile": registered_profile, "per_run_usd_cap": args.usd_cap, "approve_usd": args.approve_usd,
                     "max_calls_per_run": args.max_calls, "max_turns": args.max_turns, "workers": args.workers, "attempts_per_cell": args.attempts,
                     "systems": systems, "tasks": [t["id"] for t in suite], "suite": args.suite, "heldout_stripped_from_system_under_test": True,
                     "provenance": provenance,
@@ -717,23 +825,34 @@ def run_batch(args) -> int:
                     "definitions": {"accepted": "attest: verdict VERIFIED; baseline: implementer finished",
                                     "correct": "existing suite and held-out suite pass on the final patch in a fresh branch (judge); for a task whose ground_truth is "
                                                "'unsatisfiable' no patch counts as correct and a hold (INFEASIBLE or NEEDS HUMAN) is the right outcome",
-                                    "infra_error": "verdict ERROR or a harness exception", "not_run": "scheduled but never executed; reason recorded",
+                                    "infra_error": "verdict ERROR or a harness exception",
+                                    "not_run": "scheduled but never executed; reason recorded (a batch stop condition, the operator's STOP file, or a provider "
+                                               "built for the cell whose profile differs from the registered one)",
                                     "no_patch": "no patch was produced (Attest NO CHANGE, or a baseline that neither finished nor edited): an unfinished "
                                                 "task, counted neither as a rejection nor as an acceptance",
                                     "true_reject": "a patch was produced and not accepted, and the judge found it not correct; or the task is marked "
-                                                   "unsatisfiable and Attest refused it (INFEASIBLE)",
-                                    "false_refusal": "Attest ended INFEASIBLE (refused the task on an executed witness) although the task's ground truth is a "
-                                                     "satisfiable held-out suite: a wrong refusal, counted neither as a rejection of a patch nor as an unfinished task",
-                                    "comparison_invalid": "a task whose cells did not all run the registered revision, provider and limits, or whose snapshot "
-                                                          "changed during the batch"},
+                                                   "unsatisfiable and Attest held it without a patch (INFEASIBLE, or NEEDS HUMAN with no patch)",
+                                    "false_refusal": "Attest held the task without producing a patch (INFEASIBLE on an executed witness, or NEEDS HUMAN with no "
+                                                     "patch and an unfinished implementer) although the task's ground truth is a satisfiable held-out suite: a wrong "
+                                                     "refusal, counted neither as a rejection of a patch nor as an unfinished task; a NEEDS HUMAN hold with a patch "
+                                                     "is judged on that patch",
+                                    "provider_profile": "the effective provider configuration registered at launch (models per role, reasoning effort, sampling, "
+                                                        "per-run caps; for the gateway the roles with their effort and the URL digest), selected from "
+                                                        "provider.describe(); every completed row carries the profile its bundle recorded, a resumed process "
+                                                        "whose provider differs is refused before any cell, a cell whose provider differs is reported as not run",
+                                    "comparison_invalid": "a task whose cells did not all run the registered revision, provider, limits and provider profile, or "
+                                                          "whose snapshot changed during the batch"},
                     "resume_policy": "a resumed batch restores provider, per-run USD cap, call cap, turn cap, workers, attempts, systems and the approved "
-                                     "total from this file and refuses a conflicting command line; its starting committed total is rebuilt on every "
-                                     "process start from every completed row and every run directory no row owns, each counted once",
+                                     "total from this file and refuses a conflicting command line; it refuses a process whose provider (code, command line "
+                                     "and environment) differs from provider_profile; its starting committed total is rebuilt on every process start from "
+                                     "every completed row and every run directory no row owns, each counted once",
                     "cells": cells}
         schedule["register_only"] = bool(getattr(args, "register_only", False))
         (out_root / "schedule.json").write_text(json.dumps(schedule, indent=2) + "\n", encoding="utf-8")
         log(f"pre-registered {len(cells)} cells ({len(suite)} tasks x {systems} x {args.attempts} attempt(s)) on provider={args.provider}; "
             f"per-run cap ${args.usd_cap}, batch approval {args.approve_usd}, max calls {args.max_calls}; schedule -> {out_root / 'schedule.json'}")
+        log(f"provider profile registered: {json.dumps(registered_profile, sort_keys=True)}"
+            + (f" (overrides in the environment: {', '.join(k for k in PROFILE_ENVIRONMENT if os.environ.get(k))})" if any(os.environ.get(k) for k in PROFILE_ENVIRONMENT) else ""))
         if getattr(args, "register_only", False):
             log("register-only: no cell was started; the schedule and the snapshot digests are the record of this invocation")
             return 0
@@ -786,7 +905,8 @@ def run_batch(args) -> int:
         return report
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = [pool.submit(run_cell, cell, budget, args.provider, args.usd_cap, args.max_calls, runs_dir, args.max_turns, snapshot_root, governor)
+        futures = [pool.submit(run_cell, cell, budget, args.provider, args.usd_cap, args.max_calls, runs_dir, args.max_turns, snapshot_root, governor,
+                               registered_profile=schedule.get("provider_profile"))
                    for cell in cells]
         for fut in futures:
             row = fut.result()

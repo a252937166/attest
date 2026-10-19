@@ -19,6 +19,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from attest.core import exhibits as exhibits_module
 from attest.core import pipeline as pipeline_module
 from attest.core.check import check_bundle
 from attest.core.manifest import MANIFEST_FILE, build_manifest, verify_manifest
@@ -35,13 +36,18 @@ from tests.test_verification import TASK, FakeExecutor, FakeProvider, run_scenar
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def kept_run(scenario: str, **kwargs) -> tuple[dict, Path, Path]:
-    """Run the offline pipeline into a kept temporary directory; returns (bundle, run_dir, tmp_root)."""
+def kept_run(scenario: str, heldout: dict | None = None, events: list | None = None, **kwargs) -> tuple[dict, Path, Path]:
+    """Run the offline pipeline into a kept temporary directory; returns (bundle, run_dir, tmp_root). `heldout` sets the task's
+    held-out tests; `events` collects the progress events (what the console would store)."""
     tmp = Path(tempfile.mkdtemp(prefix=f"attest-audit-{scenario}-"))
     ledger = Ledger()
-    pipeline = Pipeline(task=TaskSpec.load(TASK), provider=FakeProvider(ledger, scenario), executor=FakeExecutor(ledger, scenario), ledger=ledger,
+    task = TaskSpec.load(TASK)
+    if heldout is not None:
+        task.heldout_tests = heldout
+    progress = (lambda event: events.append(event)) if events is not None else None
+    pipeline = Pipeline(task=task, provider=FakeProvider(ledger, scenario), executor=FakeExecutor(ledger, scenario), ledger=ledger,
                         out_dir=tmp, max_turns=4, max_mutants=6, mutant_workers=2, tavily=None, profile_label="audit-offline",
-                        run_id=f"audit-{scenario}", **kwargs)
+                        run_id=f"audit-{scenario}", progress=progress, **kwargs)
     with contextlib.redirect_stdout(io.StringIO()):
         bundle = pipeline.run()
     return bundle, pipeline.out_dir, tmp
@@ -719,7 +725,7 @@ class WitnessValidation(unittest.TestCase):
         from attest.sandbox.base import RunResult, StepResult
 
         class WitnessExecutor(FakeExecutor):
-            stdout = "CONTRADICTION AC1,AC2: for input \"1h\" AC1 demands 3600 and AC2 demands 60\n"
+            stdout = "CONTRADICTION TC1,TC2: for input \"1h\" TC1 demands 3600 and TC2 demands 60\n"
 
             def run_branch(self, image, files, steps, stage, deletes=None, timeout=120, networking=False):
                 step = steps[0]
@@ -733,24 +739,25 @@ class WitnessValidation(unittest.TestCase):
                                 out_dir=tmp, max_turns=2, tavily=None, profile_label="t")
             spec = {"acceptance_criteria": ["one", "two"], "restated_task": "r", "interface_contract": []}
             answers = iter([
-                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["AC9"], "summary": "ghost", "witness": WITNESS_DEMONSTRATES}]},
+                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["TC99"], "summary": "ghost", "witness": WITNESS_DEMONSTRATES}]},
                 {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": [], "summary": "nothing", "witness": WITNESS_DEMONSTRATES}]},
-                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["AC2"], "summary": "real", "witness": WITNESS_DEMONSTRATES}]},
-                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["AC1"], "summary": "real", "witness": WITNESS_DEMONSTRATES}]},
+                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["TC2"], "summary": "real", "witness": WITNESS_DEMONSTRATES}]},
+                {"consistent": False, "notes": "", "conflicts": [{"requirement_ids": ["TC1"], "summary": "real", "witness": WITNESS_DEMONSTRATES}]},
             ])
             pipeline.ask = lambda *args: SimpleNamespace(json=next(answers), call=SimpleNamespace(requested_model="fake"))
             with contextlib.redirect_stdout(io.StringIO()):
                 ghost = pipeline.contract_audit(spec, {}, "ckpt")
                 nothing = pipeline.contract_audit(spec, {}, "ckpt")
                 real = pipeline.contract_audit(spec, {}, "ckpt")
-                executor.stdout = "CONTRADICTION AC2: the marker names a requirement the conflict did not claim\n"
+                executor.stdout = "CONTRADICTION TC2: the marker names a requirement the conflict did not claim\n"
                 unnamed = pipeline.contract_audit(spec, {}, "ckpt")
             self.assertFalse(ghost["conflicts"][0]["demonstrated"])
             self.assertIn("unknown requirement", ghost["conflicts"][0]["status"])
             self.assertIsNone(ghost["conflicts"][0]["operation_uuid"], "a witness for a nonexistent requirement is not executed")
             self.assertIn("names no requirement", nothing["conflicts"][0]["status"])
-            self.assertTrue(real["conflicts"][0]["demonstrated"])
+            self.assertTrue(real["conflicts"][0]["demonstrated"] and real["conflicts"][0]["grounded"])
             self.assertEqual(real["outcome"], "contradiction demonstrated")
+            self.assertEqual(real["requirement_ids_known"]["task"][:2], ["TC1", "TC2"])
             self.assertFalse(unnamed["conflicts"][0]["demonstrated"])
             self.assertIn("does not name", unnamed["conflicts"][0]["status"])
         finally:
@@ -780,3 +787,347 @@ class RecordedCorpusHistorical(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Follow-up review of 19 Oct 2026 (revision 5 -> revision 6): R5-02, R5-03 and the pipeline side of R5-04.
+from tests.test_verification import HELDOUT_SRC, PRIVATE_MARKER  # noqa: E402
+
+
+def _copy_run(run_dir: Path) -> Path:
+    copy = Path(tempfile.mkdtemp(prefix="attest-r5-copy-")) / run_dir.name
+    shutil.copytree(run_dir, copy)
+    return copy
+
+
+class R502MandatoryStagesDerivedFromTheTask(unittest.TestCase):
+    """R5-02: the mandatory stage records come from the protocol, the verdict, the frozen task and the execution mode; jointly
+    deleting a stage record with its raw result or its gate must fail with a named completeness error."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.bundle, cls.run_dir, cls.tmp = kept_run("honest")
+        cls.held_bundle, cls.held_run_dir, cls.held_tmp = kept_run("honest", heldout={"tests/test_heldout.py": HELDOUT_SRC})
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+        shutil.rmtree(cls.held_tmp, ignore_errors=True)
+
+    def _stripped(self, run_dir: Path, mutate_bundle=None, mutate_raw=None) -> dict:
+        copy = _copy_run(run_dir)
+        try:
+            if mutate_raw:
+                rewrite_raw(copy, mutate_raw)
+            if mutate_bundle:
+                rewrite_bundle(copy, mutate_bundle)
+            else:
+                rewrite_bundle(copy, lambda b: None)
+            return check_bundle(copy)
+        finally:
+            shutil.rmtree(copy.parent, ignore_errors=True)
+
+    def test_positive_controls_are_complete(self):
+        for run_dir in (self.run_dir, self.held_run_dir):
+            report = check_bundle(run_dir)
+            self.assertTrue(report["ok"] and report["fully_verified"] and report["evidence_complete"], failed_checks(report))
+            self.assertEqual(report["protocol"], 3)
+        self.assertEqual(self.held_bundle["gates"]["heldout_suite"]["ok"], True)
+        self.assertTrue(self.held_bundle["task"]["heldout_tests_sha256"])
+
+    def test_joint_omission_of_the_existing_suite_evidence_fails_with_a_named_error(self):
+        cases = {
+            "stage and raw": (lambda b: b["verification"].pop("existing"), lambda r: r.pop("existing")),
+            "stage and gate": (lambda b: (b["verification"].pop("existing"), b["gates"].pop("existing_suite")), None),
+            "stage, raw and gate": (lambda b: (b["verification"].pop("existing"), b["gates"].pop("existing_suite")), lambda r: r.pop("existing")),
+            "raw only": (None, lambda r: r.pop("existing")),
+            "binding mode lost": (lambda b: b["execution"].pop("suite_binding"), None),
+            "stage says stdout but mode is bound": (lambda b: b["verification"]["existing"].update({"evidence_class": "stdout"}), None),
+        }
+        for name, (mutate_bundle, mutate_raw) in cases.items():
+            report = self._stripped(self.run_dir, mutate_bundle, mutate_raw)
+            self.assertFalse(report["ok"], name)
+            self.assertFalse(report["fully_verified"], name)
+            self.assertIn("required_evidence", failed_checks(report), (name, failed_checks(report)))
+            needle = "binding" if name == "binding mode lost" else "existing"
+            self.assertIn(needle, failed_checks(report)["required_evidence"].lower(), name)
+
+    def test_joint_omission_of_held_out_evidence_fails_when_the_task_declares_held_out_tests(self):
+        cases = {
+            "stage and raw": (lambda b: b["verification"].__setitem__("heldout", None), lambda r: r.pop("heldout")),
+            "stage and gate": (lambda b: (b["verification"].__setitem__("heldout", None), b["gates"].pop("heldout_suite")), None),
+            "stage, raw and gate": (lambda b: (b["verification"].__setitem__("heldout", None), b["gates"].pop("heldout_suite")), lambda r: r.pop("heldout")),
+        }
+        for name, (mutate_bundle, mutate_raw) in cases.items():
+            report = self._stripped(self.held_run_dir, mutate_bundle, mutate_raw)
+            self.assertFalse(report["ok"], name)
+            self.assertIn("held-out", failed_checks(report).get("required_evidence", "").lower(), (name, failed_checks(report)))
+        # the other direction: held-out evidence on a task that declares none is also a completeness error
+        report = self._stripped(self.run_dir, lambda b: (b["verification"].__setitem__("heldout", self.held_bundle["verification"]["heldout"]),
+                                                          b["gates"].__setitem__("heldout_suite", {"ok": True, "detail": "x", "evidence_class": "bound"})))
+        self.assertIn("declares no held-out tests", failed_checks(report).get("required_evidence", ""))
+
+    def test_gate_without_its_stage_record_is_an_error_for_any_current_verdict(self):
+        report = self._stripped(self.run_dir, lambda b: (b["verification"].pop("existing"), b["verdict"].update({"verdict": "NEEDS HUMAN", "reasons": ["x"]}),
+                                                          b["gates"]["drift_audit"].update({"ok": False})))
+        self.assertFalse(report["ok"])
+        self.assertIn("has no stage record", failed_checks(report).get("required_evidence", ""))
+        self.assertIn("gates_match_stage_records", failed_checks(report))
+
+    def test_historical_copy_keeps_partial_handling(self):
+        report = self._stripped(self.run_dir, lambda b: (b["verification"].pop("existing"), b.pop("evidence_protocol"), b["provenance"].update({"attest_version": "0.4.0"})),
+                                lambda r: r.pop("existing"))
+        self.assertTrue(report["ok"], failed_checks(report))
+        self.assertTrue(report["historical"])
+        self.assertFalse(report["fully_verified"])
+        self.assertIsNone(report["evidence_complete"])
+
+
+class R503GroundedInfeasibility(unittest.TestCase):
+    """R5-03: only a demonstrated conflict grounded in the requester's own criteria, with a constrained witness inside the input
+    domain, may end a run as INFEASIBLE; derived, mixed or unconstrained demonstrations are held for a human."""
+
+    def test_grounded_conflict_ends_infeasible_and_checks_complete_under_protocol_three(self):
+        bundle, run_dir, tmp = kept_run("contract_conflict")
+        try:
+            self.assertEqual(bundle["verdict"]["verdict"], "INFEASIBLE")
+            conflict = bundle["contract_audit"]["conflicts"][0]
+            self.assertEqual((conflict["provenance"], conflict["witness_constrained"], conflict["grounded"]), ("task", True, True))
+            self.assertIn("input_domain", bundle["contract_audit"])
+            report = check_bundle(run_dir)
+            self.assertTrue(report["ok"] and report["fully_verified"], failed_checks(report))
+            # forging the grounded flag on a conflict that names derived criteria is caught offline
+            rewrite_bundle(run_dir, lambda b: b["contract_audit"]["conflicts"][0].update({"requirement_ids": ["AC1", "AC2"]}))
+            forged = check_bundle(run_dir)
+            self.assertFalse(forged["ok"])
+            self.assertIn("not all the task's own", failed_checks(forged).get("required_evidence", ""))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_derived_mixed_and_unconstrained_demonstrations_are_held(self):
+        expectations = {"contract_conflict_derived": ("derived", True), "contract_conflict_mixed": ("mixed", True), "contract_conflict_unconstrained": ("task", False)}
+        for scenario, (provenance, constrained) in expectations.items():
+            bundle, run_dir, tmp = kept_run(scenario)
+            try:
+                self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN", (scenario, bundle["verdict"]))
+                conflict = bundle["contract_audit"]["conflicts"][0]
+                self.assertTrue(conflict["demonstrated"], scenario)
+                self.assertFalse(conflict["grounded"], scenario)
+                self.assertEqual(conflict["provenance"], provenance, scenario)
+                self.assertEqual(conflict["witness_constrained"], constrained, scenario)
+                if not constrained:
+                    self.assertTrue(any("defines a function" in p for p in conflict["constraint_problems"]), conflict["constraint_problems"])
+                self.assertIn("not grounded", bundle["verdict"]["reasons"][0])
+                self.assertIsNone(bundle["sealed_tests"], "no sealing: the hold is decided before any code")
+                decision = exhibits_module.decision(bundle)
+                self.assertEqual(decision["reason_class"], "contract_conflict_held", scenario)
+                self.assertIn("not grounded", decision["explanation"])
+                report = check_bundle(run_dir)
+                self.assertTrue(report["ok"] and report["fully_verified"], (scenario, failed_checks(report)))
+                # the hold must never be recorded as INFEASIBLE: a forged verdict fails the required-evidence check
+                rewrite_bundle(run_dir, lambda b: b["verdict"].update({"verdict": "INFEASIBLE"}))
+                forged = check_bundle(run_dir)
+                self.assertFalse(forged["ok"], scenario)
+                self.assertIn("grounded", failed_checks(forged).get("required_evidence", ""), scenario)
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_recorded_witnesses_classify_as_the_review_argued(self):
+        from attest.core.pipeline import requirement_provenance, witness_constraint_problems
+        repairs = ROOT / "reports/attest-audit-repairs-2026-10-19"
+        kvparse = next(repairs.glob("evaluation-codex-2/runs/kvparse-refactor-001-*/contract_audit/witness_1.py"), None)
+        rle = next(repairs.glob("evaluation-codex/runs/rle-encode-*/contract_audit/witness_1.py"), None)
+        if kvparse is None or rle is None:
+            self.skipTest("recorded witnesses not present")
+        problems = witness_constraint_problems(kvparse.read_text(encoding="utf-8"))
+        self.assertTrue(any("defines a class" in p for p in problems) and any("defines a function" in p for p in problems), problems)
+        self.assertEqual(witness_constraint_problems(rle.read_text(encoding="utf-8")), [])
+        # the recorded kvparse conflict named only derived criteria of the specification, never the task's own
+        self.assertEqual(requirement_provenance(["AC1", "AC2", "AC16"], {"TC1", "TC2"}, {f"AC{i}" for i in range(1, 19)}), "derived")
+        self.assertEqual(requirement_provenance(["TC1", "AC2"], {"TC1"}, {"AC2"}), "mixed")
+        self.assertEqual(requirement_provenance(["TC1"], {"TC1"}, {"AC2"}), "task")
+        self.assertEqual(requirement_provenance(["ZZ1"], {"TC1"}, {"AC2"}), "unknown")
+        # the constraint checker's vocabulary
+        for source, needle in (("x = lambda v: v\n", "lambda"), ("Z = type('Z', (str,), {})\n", "type dynamically"), ("exec('1')\n", "exec()"),
+                               ("class Q(str):\n    pass\n", "defines a class"), ("def f():\n    pass\n", "defines a function")):
+            self.assertTrue(any(needle in p for p in witness_constraint_problems(source)), source)
+        self.assertEqual(witness_constraint_problems("import sys\nfrom pkg import f\nprint(f('a'))\nsys.exit(0)\n"), [])
+
+    def test_recorded_protocol_two_infeasible_bundle_still_checks_under_its_own_protocol(self):
+        run_dir = next((ROOT / "reports/attest-audit-repairs-2026-10-19/evaluation-codex/runs").glob("rle-encode-*"), None)
+        if run_dir is None:
+            self.skipTest("recorded bundle not present")
+        report = check_bundle(run_dir)
+        self.assertEqual(report["protocol"], 2)
+        self.assertTrue(report["ok"] and report["evidence_complete"], failed_checks(report))
+
+
+class R504DiagnosticsStayPrivate(unittest.TestCase):
+    """R5-04: raw exception text never enters bundle reasons, stage records, progress events, the trajectory, PROOF.md or any
+    artifact; it lives in the private sidecar behind a correlation reference, and the console's public routes never carry it."""
+
+    def _all_public_text(self, run_dir: Path) -> str:
+        return "\n".join(p.read_text(encoding="utf-8", errors="replace") for p in run_dir.rglob("*") if p.is_file())
+
+    def test_provider_failure_at_the_first_call_is_sanitized_everywhere(self):
+        events: list = []
+        bundle, run_dir, tmp = kept_run("spec_provider_error", events=events)
+        try:
+            self.assertEqual(bundle["verdict"]["verdict"], "ERROR")
+            reason = bundle["verdict"]["reasons"][0]
+            self.assertIn("HTTP 502", reason)
+            self.assertIn("[ref ", reason)
+            self.assertNotIn(PRIVATE_MARKER, reason)
+            self.assertNotIn("private-gateway", reason)
+            public = self._all_public_text(run_dir)
+            self.assertNotIn(PRIVATE_MARKER, public)
+            self.assertNotIn("private-gateway", public)
+            self.assertFalse(any(PRIVATE_MARKER in e["message"] for e in events), "progress events are public")
+            sidecar = tmp / "diagnostics" / f"{run_dir.name}.jsonl"
+            self.assertTrue(sidecar.is_file(), "the private sidecar lives next to the run directories, outside the bundle")
+            entries = [json.loads(line) for line in sidecar.read_text().splitlines()]
+            self.assertTrue(any(PRIVATE_MARKER in e["detail"] for e in entries))
+            self.assertIn(entries[-1]["reference"], reason)
+            manifest = json.loads((run_dir / MANIFEST_FILE).read_text())
+            self.assertFalse(any("diagnostics" in f["path"] for f in manifest["files"]))
+            self.assertTrue(check_bundle(run_dir)["ok"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_provider_failure_in_a_late_stage_is_sanitized_in_gates_and_reasons(self):
+        events: list = []
+        bundle, run_dir, tmp = kept_run("drift_provider_error", events=events)
+        try:
+            self.assertEqual(bundle["verdict"]["verdict"], "NEEDS HUMAN")
+            self.assertFalse(bundle["gates"]["drift_audit"]["ok"])
+            self.assertIn("[ref ", bundle["gates"]["drift_audit"]["detail"])
+            public = self._all_public_text(run_dir)
+            self.assertNotIn(PRIVATE_MARKER, public)
+            self.assertFalse(any(PRIVATE_MARKER in e["message"] for e in events))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_console_routes_never_carry_the_private_text(self):
+        try:
+            import httpx  # noqa: F401
+            from fastapi.testclient import TestClient
+        except ImportError:
+            self.skipTest("fastapi.testclient needs httpx")
+        import importlib
+        import os
+        import sys
+        import zipfile
+        bundle, run_dir, tmp = kept_run("spec_provider_error")
+        data = Path(tempfile.mkdtemp(prefix="attest-r504-console-"))
+        saved = dict(os.environ)
+        try:
+            os.environ.update({"ATTEST_DATA_DIR": str(data), "ATTEST_IMPORT_DIRS": str(tmp), "ATTEST_IMPORT_PROVIDERS": "fake",
+                               "ATTEST_ADMIN_TOKEN": "", "ATTEST_PUBLIC_RUNS_PER_HOUR": "3"})
+            sys.modules.pop("attest.app.server", None)
+            server = importlib.import_module("attest.app.server")
+            client = TestClient(server.app)
+            try:
+                runs = client.get("/api/runs").json()["runs"]
+                self.assertTrue(any(r["run_id"] == bundle["run_id"] for r in runs), runs)
+                texts = [client.get("/api/runs").text, client.get(f"/api/runs/{bundle['run_id']}").text, client.get(f"/api/runs/{bundle['run_id']}/events").text,
+                         client.get(f"/api/runs/{bundle['run_id']}/artifacts/proof_bundle.json").text, client.get(f"/api/runs/{bundle['run_id']}/artifacts/PROOF.md").text]
+                zipped = client.get(f"/api/runs/{bundle['run_id']}/bundle.zip")
+                self.assertEqual(zipped.status_code, 200)
+                with zipfile.ZipFile(io.BytesIO(zipped.content)) as archive:
+                    texts.extend(archive.read(name).decode("utf-8", "replace") for name in archive.namelist())
+                    self.assertFalse(any("diagnostics" in name for name in archive.namelist()))
+                for text in texts:
+                    self.assertNotIn(PRIVATE_MARKER, text)
+                    self.assertNotIn("private-gateway", text)
+            finally:
+                client.close()
+                server.store._conn.close()
+        finally:
+            os.environ.clear()
+            os.environ.update(saved)
+            sys.modules.pop("attest.app.server", None)
+            shutil.rmtree(tmp, ignore_errors=True)
+            shutil.rmtree(data, ignore_errors=True)
+
+
+class R504CallRecordsStayPublic(unittest.TestCase):
+    """R5-04, the accounting carrier: a failed model call's record (ledger, journal, bundle) carries the public vocabulary and a
+    correlation reference; the provider's raw error text (URL, response body) goes to the private sidecar only."""
+
+    def _sidecar(self, tmp: Path, run_id: str):
+        from attest.core.diagnostics import Diagnostics
+        return Diagnostics(run_id, tmp / "diagnostics")
+
+    def test_nebius_http_and_transport_failures_are_recorded_publicly(self):
+        from attest.http import HttpError, TransportError
+        from attest.models.base import ModelError
+        from attest.models.nebius_tokenfactory import NebiusTokenFactory
+        tmp = Path(tempfile.mkdtemp(prefix="attest-r504-calls-"))
+        try:
+            ledger = Ledger()
+            ledger.attach_sink(tmp / "ledger.jsonl")
+            ledger.diagnostics = self._sidecar(tmp, "calls-nebius")
+            provider = NebiusTokenFactory("offline-fake-key", ledger, usd_cap=0.5)
+            body = {"error": {"message": f"{PRIVATE_MARKER} request body echo: secret-shaped-text-123456"}}
+            failures = iter([HttpError(502, body, "https://api.example.invalid/v1/chat/completions?trace=" + PRIVATE_MARKER),
+                             TransportError(f"timed out talking to https://api.example.invalid {PRIVATE_MARKER}")])
+
+            def fake(method, url, headers, payload=None, timeout=60, **kw):
+                raise next(failures)
+
+            with mock.patch("attest.models.nebius_tokenfactory.request_json", fake):
+                with self.assertRaises(ModelError):
+                    provider.structured("spec", "p", {"type": "object", "properties": {}}, "spec")
+                with self.assertRaises(ModelError) as caught:
+                    provider.structured("spec", "p", {"type": "object", "properties": {}}, "spec")
+            self.assertTrue(caught.exception.uncertain)
+            self.assertEqual(len(ledger.model_calls), 2)
+            for call in ledger.model_calls:
+                self.assertIn("[ref ", call.error or "")
+                self.assertNotIn(PRIVATE_MARKER, call.error)
+                self.assertNotIn("example.invalid", call.error)
+            self.assertIn("HTTP 502", ledger.model_calls[0].error)
+            self.assertIn("uncertain", ledger.model_calls[1].error)
+            self.assertEqual(ledger.model_calls[1].settlement, "unsettled")
+            journal = (tmp / "ledger.jsonl").read_text(encoding="utf-8")
+            self.assertNotIn(PRIVATE_MARKER, journal)
+            self.assertNotIn(PRIVATE_MARKER, json.dumps(ledger.to_dict()))
+            sidecar = (tmp / "diagnostics" / "calls-nebius.jsonl").read_text(encoding="utf-8")
+            self.assertEqual(sidecar.count(PRIVATE_MARKER), 2, "both raw texts recorded privately, once each")
+            for call in ledger.model_calls:
+                self.assertIn(call.error.rsplit("[ref ", 1)[1].rstrip("]"), sidecar)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_gateway_failures_are_recorded_publicly_too(self):
+        from attest.http import HttpError
+        from attest.models.base import ModelError
+        from attest.models.codex_gateway import CodexGateway
+        tmp = Path(tempfile.mkdtemp(prefix="attest-r504-gateway-"))
+        try:
+            ledger = Ledger()
+            ledger.diagnostics = self._sidecar(tmp, "calls-gateway")
+            provider = CodexGateway("offline-fake-key", ledger, base_url="https://gateway.example.invalid/v1")
+            provider._catalog = {"gpt-6-sol": ["low", "medium"], "gpt-6-astra": ["low", "medium"], "gpt-6-luna": ["low"]}
+
+            def fake(method, url, headers, payload=None, timeout=60, **kw):
+                if url.endswith("/status"):
+                    return 200, {"limits": {"hourly_requests_enforced": False, "max_concurrent_requests": 1}}, {}
+                raise HttpError(500, {"error": PRIVATE_MARKER}, url)
+
+            with mock.patch("attest.models.codex_gateway.request_json", fake):
+                with self.assertRaises(ModelError):
+                    provider.structured("spec", "p", {"type": "object", "properties": {}}, "spec")
+            self.assertEqual(len(ledger.model_calls), 1)
+            self.assertIn("HTTP 500", ledger.model_calls[0].error)
+            self.assertNotIn(PRIVATE_MARKER, ledger.model_calls[0].error)
+            self.assertNotIn("gateway.example.invalid", ledger.model_calls[0].error)
+            self.assertIn(PRIVATE_MARKER, (tmp / "diagnostics" / "calls-gateway.jsonl").read_text(encoding="utf-8"))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_without_a_sink_the_record_still_carries_only_the_public_sentence(self):
+        from attest.http import HttpError
+        ledger = Ledger()
+        text = ledger.public_error("spec-http", HttpError(503, {"error": PRIVATE_MARKER}, "https://x.invalid/" + PRIVATE_MARKER))
+        self.assertEqual(text, "the model provider returned HTTP 503")

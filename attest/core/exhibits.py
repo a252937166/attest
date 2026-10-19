@@ -357,6 +357,9 @@ def reason_class(bundle: dict) -> str:
     if verdict in ABORT_VERDICTS:
         return verdict.lower().replace(" ", "_")
     gates = bundle.get("gates") or {}
+    audit_outcome = (bundle.get("contract_audit") or {}).get("outcome")
+    if not gates and verdict == "NEEDS HUMAN" and audit_outcome == "conflict demonstrated on derived criteria or by an unconstrained witness":
+        return "contract_conflict_held"
     if not gates and verdict == "NEEDS HUMAN" and (bundle.get("spec") or {}).get("feasible") is False:
         return "infeasibility_unproven"
     ver = bundle.get("verification") or {}
@@ -589,6 +592,18 @@ def decision(bundle: dict) -> dict:
             explanation = "The candidate changed files outside the allowed write scope or touched protected paths, so it is rejected regardless of test results."
             evidence = {"ref": "gates", "text": reasons[0] if reasons else "scope policy violated"}
             decide = ["Review the violations in the Patch tab; then narrow the patch or widen the task's write scope deliberately."]
+        elif klass == "contract_conflict_held":
+            audit = bundle.get("contract_audit") or {}
+            shown = next((c for c in audit.get("conflicts") or [] if c.get("demonstrated")), {})
+            why = ("it rests on criteria the specification model derived, not only on the requester's own" if shown.get("provenance") != "task"
+                   else "its witness was not constrained (it defined its own code or values outside the input domain)")
+            explanation = (f"The contract auditor's witness program demonstrated a conflict between requirements {', '.join(shown.get('requirement_ids') or [])} "
+                           f"when Attest ran it on the unmodified repository, but the conflict is not grounded: {why}. A model's restatement of the task, "
+                           "or a witness that compares one implementation of its own choosing, cannot establish that the task itself is impossible, so the "
+                           "run stops here as a hold rather than an INFEASIBLE verdict. No sealed tests were written and no implementation was attempted.")
+            evidence = {"ref": "contract_audit", "text": ((shown.get("stdout_tail") or "").strip().splitlines() or [shown.get("summary") or ""])[0][:300]}
+            decide = ["Read the witness program, its output and the requirement ids in contract_audit/; decide whether the requester's criteria really conflict.",
+                      "If they do, record the contradiction in the task; if the specification over-read the task, clarify the statement and run again."]
         elif klass == "infeasibility_unproven":
             explanation = ("The specification stage judged the task infeasible, but the contract auditor's witness programs did not demonstrate a "
                            "contradiction when they ran on the unmodified repository. An undemonstrated claim of infeasibility is a hold, not a verdict: "
@@ -605,10 +620,13 @@ def decision(bundle: dict) -> dict:
         audit = bundle.get("contract_audit") or {}
         shown_conflict = next((c for c in audit.get("conflicts") or [] if c.get("demonstrated")), None)
         if shown_conflict:
+            grounded = (" The conflict is grounded: every requirement it names is one of the requester's own criteria and the witness is constrained to "
+                        "the unchanged code and the task's input domain." if shown_conflict.get("grounded") else "")
             explanation = (f"The contract auditor claimed that requirements {', '.join(shown_conflict.get('requirement_ids') or [])} cannot both hold, and its "
                            "witness program demonstrated the conflict when Attest ran it on the unmodified repository in a sandbox (exit code "
-                           f"{shown_conflict.get('exit_code')}, operation {shown_conflict.get('operation_uuid')}). No sealed tests were written and no "
-                           "implementation was attempted. The witness's reasoning is the model's; its execution and output are recorded.")
+                           f"{shown_conflict.get('exit_code')}, operation {shown_conflict.get('operation_uuid')}).{grounded} No sealed tests were written and no "
+                           "implementation was attempted. The witness's reasoning is the model's; its execution and output are recorded, which is not a formal "
+                           "proof of impossibility.")
             evidence = {"ref": "contract_audit", "text": ((shown_conflict.get("stdout_tail") or "").strip().splitlines() or [shown_conflict.get("summary") or ""])[0][:300]}
             decide = ["Read the witness program and its output in contract_audit/; it names the input on which the requirements conflict.",
                       "Revise the task statement or the contract so the conflict disappears, then run again."]

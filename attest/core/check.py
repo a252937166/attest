@@ -39,7 +39,8 @@ from .exhibits import decision, exhibits
 from .manifest import MANIFEST_FILE, build_manifest, list_symlinks, verify_manifest
 from .proof import render_markdown
 from .provenance import attest_revision
-from .pipeline import base_discrimination, classification_problems, classify_mutant_run, correction_problems, mutant_rerun_discrimination
+from .pipeline import (base_discrimination, classification_problems, classify_mutant_run, correction_problems, mutant_rerun_discrimination,
+                       requirement_provenance, witness_constraint_problems)
 from .prompts import WITNESS_EXIT_CODE, WITNESS_MARKER
 from .sealed import bind_modules, bind_verification, static_test_ids, summarize
 from .verdict import EVIDENCE_PROTOCOL_VERSION, expected_verdict, legacy_clearing_allowed, protocol_version
@@ -137,8 +138,10 @@ def _binding_matches(recomputed: dict, recorded: dict | None, strict: bool) -> t
     return same, sorted(set(diff))
 
 
-def required_evidence_problems(bundle: dict, run_dir: Path, raw: dict | None) -> list[str]:
-    """What a CURRENT bundle must carry for its verdict (CORE-06). Every missing item is named."""
+def required_evidence_problems(bundle: dict, run_dir: Path, raw: dict | None, protocol: int = 2) -> list[str]:
+    """What a CURRENT bundle must carry for its verdict (CORE-06). Every missing item is named. The mandatory stage records are
+    derived from the protocol, the terminal verdict, the frozen task and the recorded execution mode, never from which records
+    happen to be present (follow-up review R5-02); from protocol 3 an INFEASIBLE verdict needs a grounded conflict (R5-03)."""
     problems: list[str] = []
     verdict = (bundle.get("verdict") or {}).get("verdict")
     task = bundle.get("task") or {}
@@ -153,6 +156,21 @@ def required_evidence_problems(bundle: dict, run_dir: Path, raw: dict | None) ->
         demonstrated = [c for c in audit.get("conflicts") or [] if c.get("demonstrated")]
         if not demonstrated:
             problems.append("INFEASIBLE without a demonstrated witness in contract_audit")
+        if protocol >= 3:
+            grounded = [c for c in demonstrated if c.get("grounded")]
+            if not grounded:
+                problems.append("INFEASIBLE without a grounded conflict (authoritative task criteria only, constrained witness)")
+            task_ids = {f"TC{i}" for i in range(1, len(task.get("acceptance_criteria") or []) + 1)}
+            derived_ids = {f"AC{i}" for i in range(1, len((bundle.get("spec") or {}).get("acceptance_criteria") or []) + 1)}
+            for conflict in grounded:
+                if requirement_provenance(conflict.get("requirement_ids") or [], task_ids, derived_ids) != "task":
+                    problems.append("a grounded conflict names criteria that are not all the task's own")
+                path = conflict.get("witness_path")
+                if path and (run_dir / path).is_file():
+                    if witness_constraint_problems((run_dir / path).read_text(encoding="utf-8")):
+                        problems.append("a grounded conflict's witness is not constrained")
+                elif not conflict.get("witness_constrained"):
+                    problems.append("a grounded conflict without a constrained witness record")
         for conflict in demonstrated:
             path = conflict.get("witness_path")
             if not path or not (run_dir / path).is_file():
@@ -168,16 +186,67 @@ def required_evidence_problems(bundle: dict, run_dir: Path, raw: dict | None) ->
             if not conflict.get("requirement_ids"):
                 problems.append("demonstrated conflict names no requirement")
         return problems
-    if verdict != "VERIFIED":
-        return problems
     gates = bundle.get("gates") or {}
     verification = bundle.get("verification") or {}
     raw = raw or {}
+    if gates:
+        # every recorded gate must have the stage record it summarises; a gate whose stage record vanished is not evidence (R5-02)
+        stage_of = {"existing_suite": verification.get("existing"), "sealed_binding": verification.get("binding"), "heldout_suite": verification.get("heldout"),
+                    "mutation": ((bundle.get("breaker") or {}).get("mutation")), "adversarial_tests": ((bundle.get("breaker") or {}).get("adversarial")),
+                    "drift_audit": bundle.get("drift")}
+        for name, gate in gates.items():
+            if gate.get("skipped"):
+                continue
+            if name in stage_of and not stage_of[name]:
+                problems.append(f"gate {name} has no stage record")
+    if verdict != "VERIFIED":
+        return problems
     missing_gates = [g for g in GATE_INVENTORY if g not in gates]
-    if verification.get("heldout") is not None and "heldout_suite" not in gates:
+    task_heldout = bool(task.get("heldout_tests_sha256"))
+    if task_heldout and "heldout_suite" not in gates:
         missing_gates.append("heldout_suite")
     if missing_gates:
         problems.append("gate inventory incomplete: " + ", ".join(missing_gates))
+    # The repository's own suite always runs on the candidate; its record and, in bound mode, its raw result are mandatory, and
+    # the mode comes from the execution record of the checkpoint, not from the surviving stage record (R5-02).
+    mode = ((bundle.get("execution") or {}).get("suite_binding") or {}).get("mode")
+    if mode not in ("bound", "stdout"):
+        problems.append("execution record without the suite binding mode")
+    existing = verification.get("existing")
+    if not isinstance(existing, dict):
+        problems.append("existing-suite stage record missing")
+    else:
+        if not existing.get("all_passed"):
+            problems.append("existing-suite stage record does not say the suite passed")
+        if mode and existing.get("evidence_class") != mode:
+            problems.append(f"existing-suite evidence class {existing.get('evidence_class')!r} differs from the recorded binding mode {mode!r}")
+        if mode == "bound":
+            if raw.get("existing") is None:
+                problems.append("raw existing-suite result missing for a bound suite")
+            if not (existing.get("binding") or {}).get("ok"):
+                problems.append("existing-suite binding missing or not ok for a bound suite")
+            if not existing.get("modules"):
+                problems.append("existing-suite record names no modules for a bound suite")
+        elif mode == "stdout" and not existing.get("operation_uuid"):
+            problems.append("existing-suite record without the sandbox operation that ran it")
+    heldout = verification.get("heldout")
+    if task_heldout:
+        if not isinstance(heldout, dict):
+            problems.append("held-out stage record missing although the frozen task declares held-out tests")
+        else:
+            if not heldout.get("all_passed"):
+                problems.append("held-out stage record does not say the suite passed")
+            if heldout.get("evidence_class") == "bound":
+                if raw.get("heldout") is None:
+                    problems.append("raw held-out result missing for a bound held-out suite")
+                if not (heldout.get("binding") or {}).get("ok"):
+                    problems.append("held-out binding missing or not ok for a bound held-out suite")
+            elif not heldout.get("operation_uuid"):
+                problems.append("held-out record without the sandbox operation that ran it")
+    elif heldout is not None or "heldout_suite" in gates:
+        problems.append("held-out evidence recorded although the frozen task declares no held-out tests")
+    if not isinstance(verification.get("sealed"), dict):
+        problems.append("sealed stage record missing")
     for name, gate in gates.items():
         if gate.get("skipped"):
             problems.append(f"gate {name} skipped in a VERIFIED bundle")
@@ -214,10 +283,6 @@ def required_evidence_problems(bundle: dict, run_dir: Path, raw: dict | None) ->
             problems.append("sealed binding records an incomplete supervisor cleanup")
         if not gates.get("sealed_binding", {}).get("corrected") and not (verification.get("binding") or {}).get("ok"):
             problems.append("sealed binding failed in a VERIFIED bundle")
-    for name in ("existing", "heldout"):
-        record = verification.get(name)
-        if record and record.get("evidence_class") == "bound" and raw.get(name) is None:
-            problems.append(f"raw {name} result missing for a bound gate")
     breaker = bundle.get("breaker") or {}
     adversarial = breaker.get("adversarial") or {}
     if not adversarial.get("sha256") or not (run_dir / "breaker_tests.py").is_file():
@@ -583,6 +648,8 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
     if "existing_suite" in gates and existing:
         if bool(gates["existing_suite"].get("ok")) != bool(existing.get("all_passed")):
             mismatches.append("existing_suite")
+    elif "existing_suite" in gates and current and not gates["existing_suite"].get("skipped"):
+        mismatches.append("existing_suite (gate without a stage record)")
     if "sealed_binding" in gates and verification.get("binding") is not None:
         if gates["sealed_binding"].get("corrected"):
             corrected = verification.get("corrected") or {}
@@ -595,6 +662,8 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
     if "heldout_suite" in gates and heldout:
         if bool(gates["heldout_suite"].get("ok")) != bool(heldout.get("all_passed")):
             mismatches.append("heldout_suite")
+    elif "heldout_suite" in gates and current and not gates["heldout_suite"].get("skipped"):
+        mismatches.append("heldout_suite (gate without a stage record)")
     if "adversarial_tests" in gates and adversarial and not gates["adversarial_tests"].get("skipped"):
         if gates["adversarial_tests"].get("corrected"):
             corrected = adversarial.get("corrected") or {}
@@ -642,7 +711,7 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
     elif recorded_verdict == "NEEDS HUMAN":
         report.add("hold_has_reasons", bool(reasons), "a NEEDS HUMAN verdict names at least one reason" if reasons else "NEEDS HUMAN without any recorded reason")
     if current:
-        problems = required_evidence_problems(bundle, run_dir, raw)
+        problems = required_evidence_problems(bundle, run_dir, raw, protocol)
         report.add("required_evidence", not problems, f"the complete evidence for a {recorded_verdict} verdict under evidence protocol {protocol} is present"
                    if not problems else "required evidence missing: " + "; ".join(problems)[:600])
     try:

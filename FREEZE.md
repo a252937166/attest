@@ -157,7 +157,9 @@ for verdict ...` instead of `FULLY VERIFIED`, so that an ERROR bundle with compl
 VERIFIED (held-out 450 passed), `balanced-brackets` VERIFIED (after a gateway capacity error in the first batch),
 `rle-encode` INFEASIBLE on an executed witness (the unsatisfiable task), `kvparse-refactor-001` INFEASIBLE on an executed
 witness after a gateway capacity error in the first batch: a wrong refusal of a satisfiable task, the specification's own
-restatement being contradictory (`evaluation-codex-2/CORRECTIONS.md`). All seven bundles pass `attest check` with complete
+restatement being contradictory (`evaluation-codex-2/CORRECTIONS.md`) [correction of 19 Oct 2026, revision 6, pin values
+untouched: the "every str input" quantifier is the task's own sentence, and the witness disproves one implementation rather
+than every allowed one; see the correction section of `evaluation-codex-2/CORRECTIONS.md` and the revision-6 section below]. All seven bundles pass `attest check` with complete
 evidence under protocol 2; the mutation runs recorded no unknown mutant; no arbitration correction was needed in these runs,
 so the correction path is covered by the offline acceptance tests only.
 
@@ -183,3 +185,72 @@ Credit: the last verified reading of the Token Factory billing page is $25.00 at
 since then is about $1.49 (plus at most $0.03 unrecorded). Reading the current balance and its expiry needs the owner's
 signed-in browser session (the debugging session was not available on 19 Oct without closing the owner's Chrome, which was
 not done); the account is never recharged by the project.
+
+# Revision 6 (19 Oct 2026): the version proposed for the next paid validation
+
+Revision 6 closes the seven findings of the independent follow-up review of revision 5
+(`reports/attest-revision5-review-2026-10-19/README.md`; repairs and acceptance evidence in
+`reports/attest-revision5-repairs-2026-10-19/README.md`). The M5 pin at the top of this file is history and stays as it is; the
+revision-4 and revision-5 pins above were never run on Nemotron and stay as written (one bracketed correction of the
+revision-5 narrative, pin values untouched). No paid Nebius call runs before the owner approves the proposal at the end of this
+section.
+
+## What changed in the method (revision 5 to revision 6)
+
+| Stage | Revision 5 | Revision 6 |
+| --- | --- | --- |
+| Infeasibility | a demonstrated witness (exit code 3 and a `CONTRADICTION` line naming existing criteria) ended the run INFEASIBLE, whichever criteria it named and whatever the witness program did | the auditor sees the task's own criteria (`TC` ids) apart from the specification's derived ones (`AC` ids); INFEASIBLE needs a conflict whose requirements are all `TC` ids and whose witness is constrained (no `def`, `class`, `lambda`, dynamic type, `exec`/`eval`/`compile`/`__import__`/`globals`/`locals`/`vars`/`setattr`/`getattr`; literal inputs of the declared domain only); a demonstrated conflict that is derived, mixed or unconstrained holds the run (`NEEDS HUMAN`, `contract_conflict_held`) |
+| Evidence protocol | version 2: the checker required raw results for the stage records that were present | version 3: the mandatory records are derived from the protocol, the verdict, the frozen task and the recorded execution mode (existing-suite record, raw result and binding in bound mode; held-out evidence exactly when the task declares held-out tests; a stage record behind every recorded gate; a grounded conflict with a constrained witness behind INFEASIBLE); jointly deleting a stage record with its raw result or its gate is a named completeness error |
+| Diagnostics | raw exception text in bundle reasons, stage records, progress events, call records | a fixed public vocabulary with correlation references everywhere a run speaks publicly; the raw text goes to a private sidecar outside the run directory (`<runs dir>/diagnostics/<run id>.jsonl`), excluded from exports, never in a bundle, manifest, download or event |
+| Ledger journal | durable reservation before dispatch; a failed settlement append was swallowed and could leave a cut line that swallowed the next reservation on restart | every append is written, flushed, fsynced and read back; a cut tail is terminated by a `journal_repair` record before anything is appended; a reservation that cannot be journaled and verified halts paid dispatch; a failed settlement marks the ledger `journal_degraded` until a later reservation reads back intact; `read_journal` is binary-safe and reports `tail_framed` |
+| Call cap | the harness supplied 22; the CLI and the console built the paid provider without a cap | `python -m attest run --max-calls` (22 by default for the Nebius provider) and `ATTEST_PER_RUN_MAX_CALLS` (22 by default) on the console; the provider refuses call 23 before dispatch and records the cap and its policy in the bundle's profile |
+| Comparison validity | provider name and high-level limits compared | the effective provider profile (resolved model id and effort per role, sampling, limits, thinking flags) is registered with the schedule; a resume under an environment override is refused before any cell runs; a cell whose profile differs from the registration is not run, and a row with another implementation model invalidates the comparison |
+| Harness labels | `false_refusal` for INFEASIBLE on a satisfiable task | plus: a hold before any patch (`NEEDS HUMAN`, no changed path, implementer never ran) is labelled by the ground truth: `true_reject` on an unsatisfiable task, `false_refusal` otherwise; a hold with a patch keeps the held-out judge's label |
+| Console credentials | the team token travelled as `?token=` on download links and was honoured everywhere | the team token is a header only; downloads of team runs use short-lived (600 s), run-scoped, read-only tickets that authorise no POST and no other route; team downloads are `Cache-Control: no-store`; the host's access log drops the query string |
+
+## The pin (revision 6)
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `REV6-CODE-COMMIT` on branch `main` of the review repository (the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 36 files) | `b11ec0658845e54d8917ac7a1cdbb32dddd1d16232fa0f377b08971a711837e9` |
+| Harness `scripts/run_evaluation.py` sha256 | `5af2b4989b2b93db7a9c37b4e1d654cb1e8b703bba47c8cfcf3a0e0c36bec5a3` (registers the effective provider profile; labels a hold before any patch by the ground truth) |
+| `examples/` tree digest | `6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4` in the working tree and the exported tree (unchanged since revision 5; a clean git clone normalises the python-semver `docs/make.bat` line endings and computes `e95a28aa…`, the M5 value) |
+| Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
+| Method `METHOD.md` sha256 | `ec415afcf1649040a219968d49a469553058d8299a1dfd3ad557bafe71c138dc` (unchanged: the frozen M5 method; its 20-call cap is historical, revisions 5 and 6 use 22) |
+| Guest programs | unchanged from revision 5: supervisor `attest-sealed-supervisor/7` `97d3d47d1d5b4fed…`; per-test child `e4e7b0b294a2004c…`; canary `9cdc57c1348fae5c…`; sandbox runner `attest-guest/3` `db8e2a76834b83ac…` |
+| Evidence protocol | version 3 (`attest.core.verdict.EVIDENCE_PROTOCOL_VERSION`); manifest version 2 |
+| Models and sampling (Nebius Token Factory) | unchanged from the M5 pin (spec, audit, arbitrate: Nemotron 3 Ultra; seal, implement, break: Nemotron 3 Super; summary: Nemotron 3.5 Lightning; temperature 0.2, max_tokens 16000, `reasoning_effort` low for seal, break and summary, medium for implement, model default for the Ultra roles); the effective profile is now registered in every schedule and compared on resume |
+| Limits | revision-5 limits; per-run call cap **22** at every entry point (harness, CLI, console); download tickets 600 s |
+| Offline suite | 352 tests (`reports/attest-revision5-repairs-2026-10-19/offline-suite.log`) |
+
+Development-gateway reliability batch of this revision (Attest only, one attempt per task, no paid inference call):
+`reports/attest-revision5-repairs-2026-10-19/evaluation-codex/` (3 cells: `durationkit-units-001` as the positive control,
+`rle-encode` the unsatisfiable task, `kvparse-refactor-001` the task of the recorded false refusal). Outcomes: `durationkit-units-001` VERIFIED (held-out 13 of 13, `true_accept`), `kvparse-refactor-001` VERIFIED (held-out
+passes, `true_accept`: the task revision 5 refused was implemented), `rle-encode` NEEDS HUMAN (`true_reject`: a constrained witness
+demonstrated the conflict but named mixed criteria `TC5, AC8, AC12`, so the provenance rule held the run instead of
+ending it INFEASIBLE). All three bundles check `OK, EVIDENCE COMPLETE` under protocol 3 (`bundle-checks.txt`); the seven
+recorded revision-5 bundles still check complete under the repaired checker. Record checking, not three correct patches:
+the held-out judge establishes the two acceptances; nothing establishes the hold beyond the executed witness.
+
+## The exact command (revision 6)
+
+```bash
+git clone <repository> attest-eval && cd attest-eval && git checkout REV6-CODE-COMMIT
+export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
+python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
+    --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r6-final \
+    --out reports/attest-evaluation-2026-10-XX-nebius-r6
+```
+
+## Proposed paid work (awaiting the owner's approval; nothing runs before it)
+
+| Budget line | Purpose | Models | Expected | Maximum | Calls | Stop rules |
+| --- | --- | --- | --- | --- | --- | --- |
+| Smoke test | two Nemotron runs through the CLI from the revision-6 pinned checkout, to see the grounded contract audit on Nemotron output before a batch: `python3 -m attest run --provider nebius --task examples/durationkit-task/task.json --out runs --usd-cap 0.5 --max-calls 22` and the same with `--task examples/eval/rle-encode/task.json` | Ultra (spec, contract audit, drift, arbitrate), Super (seal, implement, break), Lightning (summary) | about $0.15 | $1.00 ($0.50 per run) | at most 22 per run, refused before dispatch | the run's own caps; any transport-uncertain operation stops the run |
+| Revised evaluation (32 cells, same suite, same method otherwise) | measure revision 6 against the M5 result: false accepts on rle-encode, false holds and refusals, the external task | as above; concurrency 2 | $3.00 to $4.00 (M5 cost $1.09 for 32 cells; the audit adds one Ultra call and up to three sandbox branches per Attest cell, the arbitration path up to three more) | $9.00 (`--approve-usd`; $0.50 reserved per run before it starts) | at most 22 per run | cap, 3 consecutive infrastructure errors, any transport-uncertain operation, operator STOP file |
+| Total | | | about $3.50 | **$10.00** | | |
+
+Credit: the last verified reading of the Token Factory billing page is $25.00 at 16:55 UTC on 17 Oct 2026; committed spend
+since then is about $1.49 (plus at most $0.03 unrecorded). Reading the current balance and its expiry needs the owner's
+signed-in browser session; the account is never recharged by the project.

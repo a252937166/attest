@@ -72,6 +72,26 @@ with a fail-closed scan, refusal of overlapping export destinations, a real vers
 release manifest. The repaired revision is validated offline and on the development gateway; its validation on Nemotron
 remains a proposal awaiting the owner's approval (FREEZE.md).
 
+Revision 6 (19 Oct 2026, version 0.6.0, `reports/attest-revision5-repairs-2026-10-19/README.md`) closes the seven findings of
+the independent follow-up review of revision 5 (`reports/attest-revision5-review-2026-10-19/README.md`). Infeasibility: a run
+ends INFEASIBLE only on a conflict grounded in the requester's own acceptance criteria (the task's `TC` ids, never only the
+specification's derived `AC` ids) and demonstrated by a constrained witness (a program that defines no function or class,
+creates no dynamic type and calls no `exec`/`eval`, inside the declared input domain); a demonstrated conflict that is derived,
+mixed or unconstrained is held for a person (`NEEDS HUMAN`, reason class `contract_conflict_held`), and the recorded kvparse
+refusal is re-read under that rule (`reports/attest-audit-repairs-2026-10-19/evaluation-codex-2/CORRECTIONS.md`: the "every str
+input" quantifier is the task's own sentence, and the witness disproved one implementation, not every allowed one). Evidence
+protocol 3: `attest check` derives the mandatory stage records from the frozen task and the execution mode (an existing-suite
+record with its raw result and binding in bound mode, held-out evidence exactly when the task declares held-out tests, a
+grounded conflict behind every INFEASIBLE verdict), so jointly deleting a stage record with its raw result or its gate is a
+named completeness error. Diagnostics: raw exception text never enters a bundle, a stage record, a progress event, a call
+record, PROOF.md or a download; every failure is recorded in a private sidecar outside the run directory and published as a
+fixed public sentence with a correlation reference. Accounting: a journal append that fails leaves the journal's framing
+repaired or halts paid dispatch, and a partial write followed by another request and a restart recovers every reservation;
+the CLI enforces and records the 22-call cap of the paid proposal, call 23 being refused before dispatch; the harness
+freezes the effective provider configuration (resolved model ids per role, reasoning effort, sampling, limits) and an
+environment override no longer silently preserves a valid comparison. Console: the team token travels in a header only, and
+team downloads use short-lived, run-scoped, read-only tickets that can authorise no POST. The M5 results are unchanged.
+
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).
@@ -113,11 +133,15 @@ attest/
   core/provenance.py      Attest revision digest, supervisor/child/canary/runner digests, sampling parameters, limits, upstream
   core/manifest.py        manifest.json (v2): sha256, size and purpose of every artifact, complete listing required, no links (written last)
   core/check.py           `attest check`: offline recomputation of digests, bindings, mutants, corrections, ledger totals, verdict rule and
-                          PROOF.md; strict for current bundles (evidence protocol), historical mode for older ones
+                          PROOF.md; strict for current bundles (evidence protocol 2 or 3, mandatory records derived from the
+                          frozen task and the execution mode), historical mode for older ones
+  core/diagnostics.py     public error vocabulary with correlation references; the raw text of every failure goes to a private
+                          sidecar outside the run directory, never into a bundle, an event, a call record or a download
   core/proof.py           Proof Bundle (proof_bundle.json + PROOF.md, exhibits and provenance sections)
   app/                    FastAPI console + API, single worker, SQLite store, static UI (decision header, exhibits E1 to E7,
                           counterexamples, keyed updates, recorded evidence first; development profile only after a team token)
-  cli.py                  `python -m attest preflight|run|check|import` (run: --arbitration-advisory, --no-arbitration, ...)
+  cli.py                  `python -m attest preflight|run|check|import` (run: --max-calls, 22 by default for the Nebius provider and
+                          enforced before dispatch; --arbitration-advisory, --no-arbitration, ...)
 examples/eval/            frozen evaluation suite (SUITE.json) with independent held-out tests
 scripts/run_evaluation.py plain agent vs Attest harness: pre-registered attempts, held-out stripped from the system under test,
                           Codex by default, Nebius only with --approve-usd and --max-calls
@@ -204,7 +228,12 @@ result forgery are recorded as failures (see `tests/test_verification.py`, `test
 Contract audit (revision 4): after the specification, the `audit` role looks for requirements that no implementation confined
 to the write scope can satisfy and must back each claim with a witness program; Attest runs every witness in a disposable
 branch of the unmodified checkpoint and records the program, its digest, exit code, output and operation id. A conflict is
-demonstrated only by exit code 3 and a `CONTRADICTION` line; INFEASIBLE rests on a demonstrated witness and on nothing else.
+demonstrated only by exit code 3 and a `CONTRADICTION` line. Since revision 6 the auditor sees the task's own criteria
+(`TC` ids) apart from the specification's derived ones (`AC` ids) and every conflict records its provenance (`task`,
+`derived`, `mixed`); INFEASIBLE needs a conflict whose requirements are all the task's own and whose witness is constrained
+(no function, class, lambda, dynamic type, `exec` or `eval`: it may only call the public interface on literal inputs of the
+declared domain). A demonstrated conflict that fails either condition holds the run for a person instead
+(`contract_conflict_held`); a witness that disproves one implementation never establishes that the task is impossible.
 The sealer's coverage map (which test checks which criterion) is checked for completeness and its gaps are recorded.
 
 Arbitration (revisions 4 and 5): a corrected generated-test module counts only when it keeps every test method, changes only
@@ -223,15 +252,24 @@ least one sealed test failed with an authentic child result under a structurally
 passed authentically, and otherwise as unknown (excluded from the score). The policy is recorded in the bundle and `attest
 check` reclassifies every mutant from its raw result.
 
-Evidence protocol (revision 5): every bundle declares `evidence_protocol.version` (2). `attest check` requires the complete
-evidence for a current bundle's verdict and reports `EVIDENCE COMPLETE` only when the digests, the complete manifest and that
-evidence all check; a bundle without the field is historical (internal consistency only, never fully verified), and the former
-explicit apply mode (`cleared_by_arbitration`) is honoured only for historical bundles started before 19 Oct 2026.
+Evidence protocol (revisions 5 and 6): every bundle declares `evidence_protocol.version` (2 for revision 5, 3 since revision
+6). `attest check` requires the complete evidence for a current bundle's verdict and reports `EVIDENCE COMPLETE` only when
+the digests, the complete manifest and that evidence all check; a bundle without the field is historical (internal
+consistency only, never fully verified), and the former explicit apply mode (`cleared_by_arbitration`) is honoured only for
+historical bundles started before 19 Oct 2026. Under version 3 the mandatory records are derived from the frozen task and
+the execution mode rather than from what survived in the bundle: the existing-suite stage record, its raw supervisor result
+and its binding in bound mode, held-out evidence exactly when the task declares held-out tests, a stage record behind every
+recorded gate, and a grounded conflict with a constrained witness behind an INFEASIBLE verdict. Complete evidence
+establishes that the recorded verdict follows from the recorded evidence; it does not establish that the verdict is correct
+(the held-out judge of the evaluation harness measures that).
 
 Ledger journal (revision 4): `ledger.jsonl` in every run directory records a reservation before each Nebius request and the
 call record as soon as it is known; `attest.ledger.read_journal` sums known costs and open reservations, which the console's
 restart reconciliation and the harness's resume use for interrupted runs. Transport-uncertain calls stay `unsettled` at
-their reservation; nothing uncertain is ever replayed.
+their reservation; nothing uncertain is ever replayed. Since revision 6 every append is written, flushed, fsynced and read back;
+a line that an earlier failed append cut short is terminated by a `journal_repair` record before anything else is appended
+(the cut record is lost, its reservation stays open at its bound), a reservation that cannot be journaled and verified halts
+paid dispatch, and a failed settlement marks the ledger `journal_degraded` until a later reservation reads back intact.
 
 Order rule: the sealed supervisor is the only step of the verification branch; nothing that imports candidate code runs
 before it in the same sandbox operation. The repository's own suite and the held-out suite run afterwards in their own

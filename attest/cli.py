@@ -13,15 +13,35 @@ from .ledger import Ledger
 from .secrets import SecretError, load_secret, project_id
 
 EXIT_CODES = "exit codes: 0 success (run: VERIFIED); 1 check found a mismatch; 2 refused or misconfigured (credentials, limits, bad input); 3 import skeleton has policy problems to fix"
+# Per-run model-call cap of the Nebius provider when --max-calls is not given (review finding R5-05, 19 Oct 2026): the same figure the
+# evaluation harness registers (scripts/run_evaluation.py NEBIUS_DEFAULT_MAX_CALLS) and the console worker reads from its environment,
+# so a CLI smoke run is governed by the cap the freeze promises. The development gateway is paced by its allowance and has no default cap.
+NEBIUS_DEFAULT_MAX_CALLS = 22
 
 
-def build_provider(name: str, ledger: Ledger, usd_cap: float):
+def effective_max_calls(provider: str, given: int | None) -> int | None:
+    """The per-run call cap an entry point passes to the provider: the explicit --max-calls, else 22 for nebius and none for codex."""
+    if given is not None:
+        return given
+    return NEBIUS_DEFAULT_MAX_CALLS if provider == "nebius" else None
+
+
+def positive_int(text: str) -> int:
+    value = int(text)
+    if value < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return value
+
+
+def build_provider(name: str, ledger: Ledger, usd_cap: float, max_calls: int | None = None):
+    """The provider of a CLI run. A Nebius provider always carries a per-run call cap (`effective_max_calls`), which its `describe()` and
+    therefore the bundle's `profile.provider` record as `max_calls`."""
     if name == "codex":
         from .models.codex_gateway import CodexGateway
         return CodexGateway(load_secret("CODEX_API_KEY"), ledger, notify=lambda m: print(f"[codex] {m}", flush=True))
     if name == "nebius":
         from .models.nebius_tokenfactory import NebiusTokenFactory
-        return NebiusTokenFactory(load_secret("NEBIUS_API_KEY"), ledger, usd_cap=usd_cap)
+        return NebiusTokenFactory(load_secret("NEBIUS_API_KEY"), ledger, usd_cap=usd_cap, max_calls=effective_max_calls(name, max_calls))
     raise SystemExit(f"unknown provider {name}")
 
 
@@ -46,7 +66,7 @@ def cmd_preflight(args) -> int:
     who = executor.whoami()
     report["sandboxes"] = {"permissions": who.get("permissions"), "limits": who.get("limits"),
                            "base_image_uuid": executor.resolve_image(args.base_image)}
-    provider = build_provider(args.provider, ledger, args.usd_cap)
+    provider = build_provider(args.provider, ledger, args.usd_cap, args.max_calls)
     if args.provider == "codex":
         status = provider.status()
         report["codex_gateway"] = {"running": status.get("running"), "waiting": status.get("waiting"),
@@ -78,7 +98,7 @@ def cmd_run(args) -> int:
     from .core.task import TaskSpec
     ledger = Ledger()
     task = TaskSpec.load(Path(args.task))
-    provider = build_provider(args.provider, ledger, args.usd_cap)
+    provider = build_provider(args.provider, ledger, args.usd_cap, args.max_calls)  # the cap is in the bundle's profile.provider
     executor = build_executor(ledger)
     pipeline = Pipeline(task=task, provider=provider, executor=executor, ledger=ledger, out_dir=Path(args.out),
                         max_turns=args.max_turns, max_mutants=args.max_mutants, mutation_threshold=args.mutation_threshold,
@@ -89,6 +109,11 @@ def cmd_run(args) -> int:
     bundle = pipeline.run()
     print(json.dumps({"verdict": bundle["verdict"]["verdict"], "reasons": bundle["verdict"]["reasons"],
                       "out_dir": str(pipeline.out_dir), "totals": bundle["ledger"]["totals"]}, indent=2))
+    diagnostics = getattr(pipeline, "diagnostics", None)
+    if diagnostics is not None and diagnostics.entries:
+        # the bundle carries public sentences with references only; the operator's private detail is in the sidecar (R5-04)
+        print(f"diagnostics: {len(diagnostics.entries)} private entr{'y' if len(diagnostics.entries) == 1 else 'ies'} "
+              f"behind the [ref …] markers in {diagnostics.path}", file=sys.stderr)
     return 0 if bundle["verdict"]["verdict"] == "VERIFIED" else 2
 
 
@@ -177,7 +202,7 @@ def cmd_check(args) -> int:
     return worst
 
 
-def main(argv=None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="attest", description="Attest: evidence-gated coding agent", epilog=EXIT_CODES)
     sub = parser.add_subparsers(dest="command", required=True)
     pre = sub.add_parser("preflight", help="check credentials, gateway queue, catalog and sandbox access")
@@ -185,6 +210,8 @@ def main(argv=None) -> int:
     pre.add_argument("--base-image", default="python:3.12-slim")
     pre.add_argument("--adapter-smoke", action="store_true", help="run one disposable sandbox op through the adapter")
     pre.add_argument("--usd-cap", type=float, default=0.5)
+    pre.add_argument("--max-calls", type=positive_int, default=None,
+                     help=f"per-run model-call cap reported for the provider (nebius: default {NEBIUS_DEFAULT_MAX_CALLS}; codex: none)")
     pre.add_argument("--output")
     pre.set_defaults(func=cmd_preflight)
     run = sub.add_parser("run", help="run one task end to end and write a Proof Bundle")
@@ -193,6 +220,9 @@ def main(argv=None) -> int:
     run.add_argument("--provider", choices=["codex", "nebius"], default="codex")
     run.add_argument("--max-turns", type=int, default=12)
     run.add_argument("--usd-cap", type=float, default=0.5)
+    run.add_argument("--max-calls", type=positive_int, default=None,
+                     help=f"per-run model-call cap: the call that would exceed it is refused before dispatch (nebius: default {NEBIUS_DEFAULT_MAX_CALLS}, "
+                          "the cap the freeze promises for a paid run; codex: none unless given); recorded in the bundle's profile.provider")
     run.add_argument("--profile-label")
     run.add_argument("--max-mutants", type=int, default=12)
     run.add_argument("--mutation-threshold", type=float, default=0.5)
@@ -230,7 +260,19 @@ def main(argv=None) -> int:
     check.add_argument("paths", nargs="+", help="run directories or downloaded bundle zips")
     check.add_argument("--json", action="store_true", help="print the report as JSON")
     check.set_defaults(func=cmd_check)
-    args = parser.parse_args(argv)
+    return parser
+
+
+def parse_args(argv=None) -> argparse.Namespace:
+    """Parsed arguments with the per-run call cap resolved: `attest run`/`preflight` with --provider nebius and no --max-calls carry 22."""
+    args = build_parser().parse_args(argv)
+    if hasattr(args, "max_calls"):
+        args.max_calls = effective_max_calls(args.provider, args.max_calls)
+    return args
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
     try:
         return args.func(args)
     except SecretError as error:

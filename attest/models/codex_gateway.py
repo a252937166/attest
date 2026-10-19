@@ -153,12 +153,12 @@ class CodexGateway:
                                           timeout=self.deadline_s + 90)
             except TransportError as error:
                 call.elapsed_ms = int((time.monotonic() - t0) * 1000)
-                call.error = self._public(f"transport: {error}")
+                call.error = self.ledger.public_error(f"{stage}-transport", error)
                 self.ledger.add_call(call)
                 raise ModelError(self._public(f"inference outcome uncertain ({error}); not retried"), uncertain=True) from None
             except HttpError as error:
                 call.elapsed_ms = int((time.monotonic() - t0) * 1000)
-                call.error = self._public(str(error))
+                call.error = self.ledger.public_error(f"{stage}-http", error)
                 self.ledger.add_call(call)
                 if error.status == 429:
                     # a definite rejection: nothing executed and no allowance was consumed upstream, so the same request may

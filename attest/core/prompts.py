@@ -212,8 +212,14 @@ Produce JSON with:
 """
 
 
-def numbered_criteria(criteria: list[str]) -> str:
-    return "\n".join(f"AC{i}: {text}" for i, text in enumerate(criteria, 1)) or "(none)"
+def numbered_criteria(criteria: list[str], prefix: str = "AC") -> str:
+    return "\n".join(f"{prefix}{i}: {text}" for i, text in enumerate(criteria, 1)) or "(none)"
+
+
+WITNESS_INPUT_DOMAIN = ("the input domain of a witness is the set of values the task names or implies: literals of the built-in types the "
+                        "task's statement and criteria use (plain str, int, list, dict, bytes, None and so on) and values computed from them "
+                        "by the unchanged repository code; instances of subclasses of built-in types, objects with overridden special methods "
+                        "and other adversarial values are OUTSIDE the domain unless the task names them explicitly")
 
 
 def contract_audit_prompt(task, spec: dict, snapshot: dict[str, bytes]) -> str:
@@ -229,16 +235,19 @@ of its requirements cannot both hold for some concrete input, or when a requirem
 represent every input; two acceptance criteria that demand different outputs for the same input; an error case that contradicts
 a normal case; a requirement that a fixed caller makes impossible.
 {lead}
-TASK STATEMENT:
+TASK STATEMENT (authoritative, written by the requester):
 {task.statement}
 
-RESTATED TASK:
+AUTHORITATIVE TASK CRITERIA (the requester's own acceptance criteria, referenced by id TCn):
+{numbered_criteria(task.acceptance_criteria, "TC")}
+
+RESTATED TASK (derived by the specification stage, a model):
 {spec["restated_task"]}
 
-INTERFACE CONTRACT:
+INTERFACE CONTRACT (derived):
 {json.dumps(spec["interface_contract"], indent=2)}
 
-ACCEPTANCE CRITERIA (referenced by id):
+DERIVED ACCEPTANCE CRITERIA (written by the specification stage, referenced by id ACn):
 {numbered_criteria(spec["acceptance_criteria"])}
 
 OUT OF SCOPE (must not change): {json.dumps(spec.get("out_of_scope") or [])}
@@ -248,10 +257,22 @@ IMPORT HINT: {task.import_hint or "(none)"}
 REPOSITORY BEFORE ANY CHANGE (full text for files in the write scope, excerpts for the rest):
 {_dump_files(snapshot, task.allowed_write_globs)}
 
+PROVENANCE RULE. Name the requirements a conflict rests on by id. Only a conflict whose every requirement is an AUTHORITATIVE
+task criterion (TC ids) can end the run as infeasible; a conflict that involves a derived criterion (AC ids), or mixes both, is
+recorded and HELD FOR A HUMAN, because a model's restatement cannot establish that the requester's task is impossible. Do not
+restate a TC as an AC to make a conflict look authoritative: cite the TC.
+
+INPUT DOMAIN RULE. {WITNESS_INPUT_DOMAIN}. A witness that needs a value outside the domain demonstrates nothing about the task.
+
 For EVERY conflict you report you must supply a WITNESS PROGRAM, because a claim without an executed demonstration is recorded
 as a suspicion and does not stop the run. The witness is a standalone Python 3.12 program (standard library only, no network,
 no file writes, under 20 seconds) that will be executed in the repository root of the UNMODIFIED repository (the write-scope
 files are still in their original state, so a function to be implemented may be a stub or missing: do not call it). It must:
+- be CONSTRAINED: it may not define any function, class or lambda, may not create types with type(name, bases, dict), may not
+  use exec, eval, compile or __import__; it may only import the standard library and the repository's unchanged modules, build
+  values of the input domain, call the unchanged code and compare. In particular it must not implement its own version of the
+  function the task asks for and treat that version's output as "required": a required value must follow from a criterion's
+  stated rule or example (a literal the criterion states, or the unchanged inverse/reference function the criterion names);
 - compute something from the fixed code or the contract itself (for example call the unchanged inverse function on candidate
   outputs, enumerate every possible output up to a stated bound, or evaluate the two criteria on the same concrete input) that
   shows the requirements cannot all hold for a concrete input it names;

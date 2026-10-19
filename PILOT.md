@@ -123,7 +123,9 @@ patch, the breaker tests and every supervisor record.
 
 Verdicts: `VERIFIED` (every gate passed; a gate may have been re-run on a corrected generated test after the correction was
 validated by execution, which the bundle says), `NEEDS HUMAN` (a gate failed; the reasons name it; a sealed test that failed by assertion or by any exception always holds, even when the arbiter calls it defective; only a test the supervisor killed at its timeout can be corrected), `INFEASIBLE` (the contract auditor's witness program,
-executed on your unmodified repository, demonstrated that the requirements contradict each other; the program and its
+executed on your unmodified repository, demonstrated that your own acceptance criteria contradict each other; since
+revision 6 the conflict must name only your criteria and the witness may only call the public interface on literal
+inputs, otherwise the run is held as `NEEDS HUMAN` with reason class `contract_conflict_held`; the program and its
 output are in `contract_audit/`), `NO CHANGE` (no patch was produced: the implementer finished without editing, or ran out
 of turns, which the bundle reports as unfinished), `ERROR` (infrastructure; nothing was retried).
 

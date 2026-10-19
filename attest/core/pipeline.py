@@ -27,12 +27,13 @@ from pathlib import Path
 
 from ..ledger import JOURNAL_FILE, Ledger, utcnow
 from ..models.base import ModelError
+from .diagnostics import SIDECAR_DIR, Diagnostics
 from .external import LIMITS as EXTERNAL_LIMITS, external_policy_problems, repository_problems
 from .grounding import ground, sources_text
 from .mutate import generate_mutants
 from .prompts import (ACTION_SCHEMA, ARBITRATION_SCHEMA, BREAKER_SCHEMA, CONTRACT_AUDIT_SCHEMA, DRIFT_SCHEMA, SEAL_SCHEMA, SPEC_SCHEMA,
-                      WITNESS_EXIT_CODE, WITNESS_MARKER, arbitrate_prompt, breaker_prompt, contract_audit_prompt, drift_prompt,
-                      implement_prompt, seal_prompt, spec_prompt)
+                      WITNESS_EXIT_CODE, WITNESS_INPUT_DOMAIN, WITNESS_MARKER, arbitrate_prompt, breaker_prompt, contract_audit_prompt,
+                      drift_prompt, implement_prompt, seal_prompt, spec_prompt)
 from .manifest import MANIFEST_FILE, build_manifest
 from .proof import write_bundle
 from .provenance import build_provenance
@@ -248,6 +249,47 @@ def coverage_gaps(coverage, criteria: list[str], test_ids: list[str]) -> list[st
     return [f"AC{i}" for i in range(1, len(criteria) + 1) if i not in covered]
 
 
+WITNESS_FORBIDDEN_CALLS = ("exec", "eval", "compile", "__import__", "globals", "locals", "vars", "setattr", "getattr")
+
+
+def witness_constraint_problems(source: str) -> list[str]:
+    """Why a witness program is not CONSTRAINED (follow-up review R5-03): a constrained witness builds values of the input domain,
+    calls the unchanged code and compares; it defines no function, class or lambda (so it cannot implement its own version of the
+    function under change, nor build a subclass of a built-in type), creates no type dynamically and runs no dynamic code.
+    Returns the problems found (empty when the program is constrained); a module that does not parse is one problem."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError as error:
+        return [f"does not parse: {error.msg} at line {error.lineno}"]
+    problems: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            problems.append(f"defines a function ({node.name}) at line {node.lineno}")
+        elif isinstance(node, ast.ClassDef):
+            problems.append(f"defines a class ({node.name}) at line {node.lineno}")
+        elif isinstance(node, ast.Lambda):
+            problems.append(f"defines a lambda at line {node.lineno}")
+        elif isinstance(node, ast.Call):
+            name = node.func.id if isinstance(node.func, ast.Name) else (node.func.attr if isinstance(node.func, ast.Attribute) else None)
+            if name == "type" and len(node.args) + len(node.keywords) > 1:
+                problems.append(f"creates a type dynamically at line {node.lineno}")
+            elif name in WITNESS_FORBIDDEN_CALLS:
+                problems.append(f"calls {name}() at line {node.lineno}")
+    return problems
+
+
+def requirement_provenance(ids: list[str], task_ids: set[str], derived_ids: set[str]) -> str:
+    """'task' when every id is an authoritative task criterion, 'derived' when every id is a specification criterion, 'mixed'
+    otherwise; 'unknown' when an id matches neither (the caller refuses such a conflict)."""
+    if not ids or any(i not in task_ids and i not in derived_ids for i in ids):
+        return "unknown"
+    if all(i in task_ids for i in ids):
+        return "task"
+    if all(i in derived_ids for i in ids):
+        return "derived"
+    return "mixed"
+
+
 ARBITRATION_RULE = ("a correction counts only when it keeps every test method, changes only the bodies of the failing ones (imports may be "
                     "added, nothing existing may be rebound), is classified for exactly the failing tests, passes on the candidate under the "
                     "supervisor and still discriminates with authentic, structurally sound results (every corrected sealed test fails on the "
@@ -370,6 +412,10 @@ class Pipeline:
         if getattr(ledger, "sink", None) is None and hasattr(ledger, "attach_sink"):
             ledger.attach_sink(self.out_dir / JOURNAL_FILE)  # reservations and call records survive an interrupted process
         self.started_at = utcnow()
+        # full exception texts go to a private sidecar next to the run directories (never inside a bundle); public records carry a
+        # fixed-vocabulary sentence plus the correlation reference (R5-04)
+        self.diagnostics = Diagnostics(self.run_id, out_dir / SIDECAR_DIR)
+        self.ledger.diagnostics = self.diagnostics  # providers route failed-call text through the same private sidecar (R5-04)
         self.bundle: dict = {
             "run_id": self.run_id, "started_at_utc": self.started_at, "finished_at_utc": None,
             "profile": {"label": profile_label, "provider": provider.describe(), "executor": executor.describe()},
@@ -524,7 +570,7 @@ class Pipeline:
         if run.runner_error or step is None:
             return {"runner": self.task.test_runner, "ran": 0, "tests": [], "events": [], "passed": 0, "failing": 0,
                     "failures": 0, "errors": 1, "subtest_events": 0, "module_error": True, "all_passed": False,
-                    "summary_line": f"runner error: {run.runner_error or 'step missing'}", "operation_uuid": run.operation_uuid,
+                    "summary_line": f"runner error: {self.diagnostics.public_text(name, run.runner_error or 'step missing')}", "operation_uuid": run.operation_uuid,
                     "stderr_tail": _tail(run.raw_stderr_excerpt, 1500)}
         parsed = parse_test_output(self.task.test_runner, step.stdout, step.stderr, step.exit_code)
         parsed.update({"operation_uuid": run.operation_uuid, "exit_code": step.exit_code, "timed_out": step.timed_out,
@@ -550,8 +596,8 @@ class Pipeline:
         except ModelError as error:
             if error.uncertain or "schema" not in str(error):
                 raise
-            self.log(f"{stage}: malformed answer, one repair retry ({str(error)[:120]})")
-            return self.provider.structured(role, prompt + self.REPAIR_SUFFIX.format(problem=str(error)[:160]), schema, f"{stage}-repair")
+            self.log(f"{stage}: malformed answer, one repair retry ({self.diagnostics.public_text(stage, error)})")
+            return self.provider.structured(role, prompt + self.REPAIR_SUFFIX.format(problem=self.diagnostics.public_text(f"{stage}-schema", error)), schema, f"{stage}-repair")
 
     # ----------------------------------------------------------------- lifecycle
     def run(self) -> dict:
@@ -561,10 +607,13 @@ class Pipeline:
             self.log(f"ABORT {abort.verdict}: {abort.reason}", "aborted")
             self.bundle["verdict"] = {"verdict": abort.verdict, "reasons": [abort.reason], "warnings": self.bundle["verdict"].get("warnings", [])}
         except ModelError as error:
-            self.log(f"MODEL ERROR: {error}", "error")
-            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [f"model provider: {error}" + (" (outcome uncertain; not retried)" if error.uncertain else "")], "warnings": []}
+            public = self.diagnostics.public_text(self.bundle.get("stage") or "run", error)
+            self.log(f"MODEL ERROR: {public}", "error")
+            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [f"model provider: {public}" + (" (outcome uncertain; not retried)" if error.uncertain else "")],
+                                      "warnings": []}
         except Exception as error:  # noqa: BLE001 - keep the evidence, then re-raise
-            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [f"{type(error).__name__}: {str(error)[:300]}"], "warnings": []}
+            public = self.diagnostics.public_text(self.bundle.get("stage") or "run", error)
+            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [public], "warnings": []}
             self.finish()
             raise
         return self.finish()
@@ -599,7 +648,8 @@ class Pipeline:
         except PipelineAbort as abort:
             self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [abort.reason], "warnings": []}
         except ModelError as error:
-            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [f"model provider: {error}"], "warnings": []}
+            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [f"model provider: {self.diagnostics.public_text(self.bundle.get('stage') or 'baseline', error)}"],
+                                      "warnings": []}
         return self.finish()
 
     def _checkpoint(self, snapshot: dict[str, bytes]) -> str:
@@ -620,7 +670,7 @@ class Pipeline:
         self.bundle["execution"].update({"checkpoint_operation_uuid": checkpoint.operation_uuid,
                                          "checkpoint_image_uuid": checkpoint.result_image_uuid, "baseline": baseline})
         if not checkpoint.ok or not checkpoint.result_image_uuid:
-            raise PipelineAbort("ERROR", f"checkpoint failed: {checkpoint.runner_error or checkpoint.status}")
+            raise PipelineAbort("ERROR", f"checkpoint failed: {self.diagnostics.public_text('checkpoint', checkpoint.runner_error or str(checkpoint.status))}")
         if install and not install.ok:
             raise PipelineAbort("ERROR", f"dependency install failed (exit {install.exit_code})")
         if not baseline["all_passed"]:
@@ -771,7 +821,7 @@ class Pipeline:
                                          "checkpoint_networking": task.checkpoint_networking, "baseline": baseline})
         self.save("baseline.json", baseline)
         if not checkpoint.ok or not checkpoint.result_image_uuid:
-            raise PipelineAbort("ERROR", f"checkpoint failed: {checkpoint.runner_error or checkpoint.status}")
+            raise PipelineAbort("ERROR", f"checkpoint failed: {self.diagnostics.public_text('checkpoint', checkpoint.runner_error or str(checkpoint.status))}")
         if install and not install.ok:
             raise PipelineAbort("ERROR", f"dependency install failed (exit {install.exit_code}): {_tail(install.stderr, 400)}")
         if not baseline["all_passed"]:
@@ -796,13 +846,24 @@ class Pipeline:
         audit = self.contract_audit(spec, snapshot, checkpoint_uuid)
         self.bundle["contract_audit"] = audit
         self.save("contract_audit.json", audit)
-        demonstrated = [c for c in audit.get("conflicts") or [] if c.get("demonstrated")]
+        grounded = [c for c in audit.get("conflicts") or [] if c.get("grounded")]
+        demonstrated = [c for c in audit.get("conflicts") or [] if c.get("demonstrated") and not c.get("grounded")]
         claimed = [c for c in audit.get("conflicts") or [] if not c.get("demonstrated")]
-        self.log(f"contract audit: {audit.get('outcome')} ({len(demonstrated)} demonstrated, {len(claimed)} claimed only)")
+        self.log(f"contract audit: {audit.get('outcome')} ({len(grounded)} grounded, {len(demonstrated)} demonstrated but not grounded, {len(claimed)} claimed only)")
+        if grounded:
+            first = grounded[0]
+            raise PipelineAbort("INFEASIBLE", f"contract contradiction demonstrated by an executed, constrained witness on the task's own criteria "
+                                              f"(requirements {', '.join(first['requirement_ids'])}): {first['summary'][:200]}; witness output: "
+                                              f"{(first.get('stdout_tail') or '').strip()[:200]}")
         if demonstrated:
+            # a demonstrated conflict that rests on the specification model's restatement, or on an unconstrained witness, is not a
+            # proof that the requester's task is impossible (R5-03): it is held for a human with the evidence recorded
             first = demonstrated[0]
-            raise PipelineAbort("INFEASIBLE", f"contract contradiction demonstrated by an executed witness (requirements {', '.join(first['requirement_ids'])}): "
-                                              f"{first['summary'][:200]}; witness output: {(first.get('stdout_tail') or '').strip()[:200]}")
+            raise PipelineAbort("NEEDS HUMAN", f"contract conflict demonstrated but not grounded ({first.get('provenance')} criteria "
+                                               f"{', '.join(first['requirement_ids'])}"
+                                               + ("" if first.get("witness_constrained") else "; unconstrained witness") + f"): {first['summary'][:200]}; "
+                                               "a model's restatement of the task cannot establish that the task is impossible, so a human decides whether "
+                                               "the requirement conflict is real")
         if not spec["feasible"]:
             raise PipelineAbort("NEEDS HUMAN", f"the specification stage judged the task infeasible ({(spec.get('infeasibility_reason') or '')[:200]}) "
                                                "but no executed witness demonstrated a contradiction; a human decides whether the task is feasible")
@@ -835,8 +896,9 @@ class Pipeline:
                 if not error.uncertain:
                     raise
                 feedback = None
-                rejected.append({"attempt": attempt, "reason": f"inference outcome uncertain: {error}"})
-                self.log(f"seal attempt {attempt} not usable: {str(error)[:160]}")
+                public = self.diagnostics.public_text(f"seal-{attempt}", error)
+                rejected.append({"attempt": attempt, "reason": f"inference outcome uncertain: {public}"})
+                self.log(f"seal attempt {attempt} not usable: {public}")
                 continue
             candidate_src, repaired = repair_escapes(result.json["test_file"])
             if repaired:
@@ -971,7 +1033,7 @@ class Pipeline:
                 heldout = self.run_repo_suite("heldout", checkpoint_uuid, changed, deletes, heldout=task.heldout_tests, include_existing=False)
             except Exception as error:  # noqa: BLE001 - uncertain spawn: gate fails with the reason, no replay
                 heldout = {"ran": 0, "tests": [], "passed": 0, "failing": 0, "all_passed": False, "module_error": True,
-                           "summary_line": f"held-out branch could not be executed: {type(error).__name__}: {str(error)[:160]}",
+                           "summary_line": f"held-out branch could not be executed: {self.diagnostics.public_text('heldout', error)}",
                            "operation_uuid": None, "evidence_class": (self.bound_plan or {}).get("mode", "stdout"),
                            "evidence_note": "branch did not run", "files": sorted(task.heldout_tests)}
             self.bundle["verification"]["heldout"] = heldout
@@ -1013,9 +1075,10 @@ class Pipeline:
                     warnings.append(f"drift audit: score {score:.2f}, widened {len(drift.get('scope_widened') or [])}, unsupported claims {len(drift.get('unsupported_claims') or [])}")
             self.log(f"drift audit: score {score} ({drift.get('assessment')})")
         except ModelError as error:
-            self.bundle["drift"] = {"error": str(error)}
-            gates["drift_audit"] = {"ok": False, "detail": f"audit call failed: {error}", "evidence_class": "model"}
-            blame["drift_audit"] = [f"drift audit unavailable: {error}"]
+            public = self.diagnostics.public_text("drift-audit", error)
+            self.bundle["drift"] = {"error": public}
+            gates["drift_audit"] = {"ok": False, "detail": f"audit call failed: {public}", "evidence_class": "model"}
+            blame["drift_audit"] = [f"drift audit unavailable: {public}"]
 
         def decide() -> tuple[str, list[str], dict]:
             """The recorded reasons (general first, then per gate in the fixed gate order) and the pure derivation; the two
@@ -1176,39 +1239,48 @@ class Pipeline:
         conflict counts as demonstrated only when its witness exits with WITNESS_EXIT_CODE and prints the marker line; the
         program, its output and the operation id are recorded so a reader can judge the demonstration."""
         record = {"model": None, "consistent": None, "notes": "", "conflicts": [], "outcome": "not run", "error": None,
-                  "rule": (f"a conflict is demonstrated only when it names existing acceptance criteria and its witness program, run on the "
-                           f"unmodified repository in a disposable sandbox branch, prints a line starting with {WITNESS_MARKER!r} that names at "
-                           f"least one of them and exits with code {WITNESS_EXIT_CODE}; any other outcome records the conflict as claimed only, "
-                           "which never ends a run; the witness's reasoning is the model's and its execution is recorded, which is not a formal "
-                           "proof of impossibility")}
+                  "rule": (f"a conflict is demonstrated only when it names existing criteria and its witness program, run on the unmodified "
+                           f"repository in a disposable sandbox branch, prints a line starting with {WITNESS_MARKER!r} that names at least one of "
+                           f"them and exits with code {WITNESS_EXIT_CODE}; it is GROUNDED, and may end the run as infeasible, only when every named "
+                           "requirement is an authoritative task criterion (TC) and the witness is constrained (no function, class, lambda or dynamic "
+                           "type, no dynamic code; values of the input domain and the unchanged code only); a demonstrated conflict that involves a "
+                           "derived criterion (AC) or an unconstrained witness is held for a human; a claimed-only conflict never ends a run; the "
+                           "witness's reasoning is the model's and its execution is recorded, which is not a formal proof of impossibility")}
         try:
             answer = self.ask("audit", contract_audit_prompt(self.task, spec, snapshot), CONTRACT_AUDIT_SCHEMA, "contract-audit")
         except ModelError as error:
             if error.uncertain:
                 raise
-            record.update({"error": f"audit call failed: {error}", "outcome": "unavailable"})
+            record.update({"error": f"audit call failed: {self.diagnostics.public_text('contract-audit', error)}", "outcome": "unavailable"})
             return record
         record["model"] = answer.call.requested_model
         record["consistent"] = bool(answer.json.get("consistent"))
         record["notes"] = answer.json.get("notes") or ""
         conflicts = list(answer.json.get("conflicts") or [])[:MAX_WITNESSES]
-        valid_ids = {f"AC{i}" for i in range(1, len(spec.get("acceptance_criteria") or []) + 1)}
-        record["requirement_ids_known"] = sorted(valid_ids, key=lambda s: int(s[2:]))
+        task_ids = {f"TC{i}" for i in range(1, len(self.task.acceptance_criteria or []) + 1)}
+        derived_ids = {f"AC{i}" for i in range(1, len(spec.get("acceptance_criteria") or []) + 1)}
+        record["requirement_ids_known"] = {"task": sorted(task_ids, key=lambda s: int(s[2:])), "derived": sorted(derived_ids, key=lambda s: int(s[2:]))}
+        record["input_domain"] = WITNESS_INPUT_DOMAIN
         for index, conflict in enumerate(conflicts, 1):
             witness, _ = repair_escapes(conflict.get("witness") or "")
             ids = [str(i).strip() for i in (conflict.get("requirement_ids") or []) if str(i).strip()]
-            entry = {"requirement_ids": ids, "summary": (conflict.get("summary") or "")[:500],
-                     "witness_path": None, "witness_sha256": None, "exit_code": None, "timed_out": None, "stdout_tail": "", "stderr_tail": "",
-                     "operation_uuid": None, "demonstrated": False, "status": "no witness"}
-            unknown_ids = [i for i in ids if i not in valid_ids]
-            if not ids or unknown_ids:
-                # a conflict must name real acceptance criteria; a witness for requirements that do not exist is a claim about nothing
+            provenance = requirement_provenance(ids, task_ids, derived_ids)
+            entry = {"requirement_ids": ids, "provenance": provenance, "summary": (conflict.get("summary") or "")[:500],
+                     "witness_path": None, "witness_sha256": None, "witness_constrained": None, "constraint_problems": [],
+                     "exit_code": None, "timed_out": None, "stdout_tail": "", "stderr_tail": "",
+                     "operation_uuid": None, "demonstrated": False, "grounded": False, "status": "no witness"}
+            if provenance == "unknown":
+                # a conflict must name real criteria (authoritative TC ids or derived AC ids); a witness for requirements that do not
+                # exist is a claim about nothing
+                unknown_ids = [i for i in ids if i not in task_ids and i not in derived_ids]
                 entry["status"] = ("the conflict names no requirement" if not ids else "the conflict names unknown requirement id(s): " + ", ".join(unknown_ids)[:120]) \
                     + "; recorded as claimed only, the witness was not executed"
                 record["conflicts"].append(entry)
                 self.log(f"contract audit: conflict {index}: {entry['status']}")
                 continue
             if witness.strip():
+                entry["constraint_problems"] = witness_constraint_problems(witness)
+                entry["witness_constrained"] = not entry["constraint_problems"]
                 try:
                     compile(witness, f"witness_{index}.py", "exec")
                 except SyntaxError as error:
@@ -1225,7 +1297,7 @@ class Pipeline:
                     run = self.executor.run_branch(checkpoint_uuid, {guest_path: witness.encode("utf-8")}, steps, stage=f"witness-{index}",
                                                    timeout=WITNESS_TIMEOUT + 60)
                 except Exception as error:  # noqa: BLE001 - an uncertain spawn is recorded, never replayed
-                    entry["status"] = f"witness could not be executed: {type(error).__name__}: {str(error)[:160]}"
+                    entry["status"] = f"witness could not be executed: {self.diagnostics.public_text(f'witness-{index}', error)}"
                     record["conflicts"].append(entry)
                     continue
                 step = run.step(f"witness-{index}")
@@ -1244,7 +1316,16 @@ class Pipeline:
                         entry["status"] = "witness timed out"
                     elif step.exit_code == WITNESS_EXIT_CODE and marker and names_claim:
                         entry["demonstrated"] = True
-                        entry["status"] = "demonstrated"
+                        # GROUNDED (R5-03): every requirement is the requester's own, and the witness is constrained to the input domain
+                        # and the unchanged code; only a grounded conflict may end the run as infeasible, anything else is a hold
+                        entry["grounded"] = provenance == "task" and bool(entry["witness_constrained"])
+                        if entry["grounded"]:
+                            entry["status"] = "demonstrated and grounded (authoritative criteria, constrained witness)"
+                        elif provenance != "task":
+                            entry["status"] = f"demonstrated on {provenance} criteria (a model's restatement is involved); held for a human, not infeasible"
+                        else:
+                            entry["status"] = ("demonstrated by an unconstrained witness (" + "; ".join(entry["constraint_problems"])[:200]
+                                               + "); held for a human, not infeasible")
                     elif step.exit_code == WITNESS_EXIT_CODE and marker:
                         entry["status"] = "marker line does not name any of the claimed requirements; recorded as claimed only"
                     elif step.exit_code == 0:
@@ -1253,8 +1334,10 @@ class Pipeline:
                         entry["status"] = f"broken witness (exit {step.exit_code}" + ("" if marker else ", no marker line") + ")"
             record["conflicts"].append(entry)
             self.log(f"contract audit: conflict {index} ({', '.join(entry['requirement_ids'])}): {entry['status']}")
-        if any(c["demonstrated"] for c in record["conflicts"]):
+        if any(c["grounded"] for c in record["conflicts"]):
             record["outcome"] = "contradiction demonstrated"
+        elif any(c["demonstrated"] for c in record["conflicts"]):
+            record["outcome"] = "conflict demonstrated on derived criteria or by an unconstrained witness"
         elif record["conflicts"]:
             record["outcome"] = "conflicts claimed, none demonstrated"
         elif record["consistent"]:
@@ -1283,7 +1366,7 @@ class Pipeline:
                                                deletes=deletes, timeout=self.task.test_timeout + 60)
             except Exception as error:  # noqa: BLE001 - an uncertain or failed spawn makes this mutant unknown, never replayed
                 return {**base, "status": "unknown", "operation_uuid": None, "failing_methods": 0, "killed_by": [],
-                        "evidence": "no execution", "error": f"{type(error).__name__}: {str(error)[:200]}"}
+                        "evidence": "no execution", "error": self.diagnostics.public_text(f"mutant-{mutant.id}", error)}
             result, summary = self.suite_outcome(run, nonce)
             raw_mutants[mutant.id] = result
             binding = bind_verification(result, expected_ids, sealed_sha, nonce, canary=False)
@@ -1353,7 +1436,8 @@ class Pipeline:
                     run = self.executor.run_branch(checkpoint_uuid, files, self.suite_steps(nonce, "test_breaker", GUEST_BREAKER_DIR, "breaker"),
                                                    stage="breaker-tests", deletes=deletes, timeout=self.task.test_timeout + 60)
                 except Exception as error:  # noqa: BLE001 - uncertain spawn: the adversarial stage is unusable, not replayed
-                    raise ModelError(f"adversarial branch could not be executed: {type(error).__name__}: {str(error)[:160]}") from None
+                    # classified and recorded privately here, as a sandbox failure; the ModelError below carries only the public text
+                    raise ModelError(f"adversarial branch could not be executed: {self.diagnostics.public_text('break-tests-sandbox', error)}") from None
                 result, summary = self.suite_outcome(run, nonce, "breaker")
                 self.raw_results["adversarial"] = result
                 binding = bind_verification(result, host_ids, sha256_text(src), nonce)
@@ -1363,9 +1447,10 @@ class Pipeline:
                                "operation_uuid": run.operation_uuid}
                 self.log(f"breaker tests: {summary['summary_line']}; binding {'ok' if binding['ok'] else 'FAILED'}")
         except ModelError as error:
-            adversarial = {"unusable": f"adversarial test authoring failed: {error}",
-                           "summary": {"ran": 0, "tests": [], "passed": 0, "failing": 0, "all_passed": False, "summary_line": f"authoring failed: {str(error)[:120]}"},
-                           "binding": {"ok": False, "checks": {}, "reasons": [str(error)]}}
+            public = self.diagnostics.public_text("break-tests", error)
+            adversarial = {"unusable": f"adversarial test authoring failed: {public}",
+                           "summary": {"ran": 0, "tests": [], "passed": 0, "failing": 0, "all_passed": False, "summary_line": f"authoring failed: {public}"},
+                           "binding": {"ok": False, "checks": {}, "reasons": [public]}}
         return {"mutation": mutation, "adversarial": adversarial}
 
     # ----------------------------------------------------------------- arbitration
@@ -1460,7 +1545,7 @@ class Pipeline:
             answer = self.ask("arbitrate", arbitrate_prompt(self.task, spec, diff, module_src, module_name, failing),
                               ARBITRATION_SCHEMA, f"arbitrate-{label}").json
         except ModelError as error:
-            record["error"] = f"arbiter call failed: {error}"
+            record["error"] = f"arbiter call failed: {self.diagnostics.public_text(f'arbitrate-{label}', error)}"
             return record
         record["classifications"] = answer.get("classifications") or []
         record["corrected_notes"] = answer.get("corrected_notes", "")
@@ -1512,7 +1597,7 @@ class Pipeline:
                                          "binding_ok": cand_binding["ok"], "operation_uuid": run.operation_uuid}
             candidate_ok = summary["all_passed"] and cand_binding["ok"]
         except Exception as error:  # noqa: BLE001
-            record["error"] = f"candidate re-run failed: {type(error).__name__}: {str(error)[:160]}"
+            record["error"] = f"candidate re-run failed: {self.diagnostics.public_text(f'arbitrate-{label}-candidate', error)}"
             return record
         # The corrected tests must still DISCRIMINATE: fail on the unmodified base (every corrected sealed test must, since the
         # red check is the sealed suite's defining property), or, for a module that legitimately passes on the base (a refactor
@@ -1527,7 +1612,7 @@ class Pipeline:
                                              stage=f"arbitrate-{label}-base", timeout=self.task.test_timeout + 60)
             result_b, summary_b = self.suite_outcome(run_b, nonce_b, "arbbase")
         except Exception as error:  # noqa: BLE001
-            record["error"] = f"base re-run failed: {type(error).__name__}: {str(error)[:160]}"
+            record["error"] = f"base re-run failed: {self.diagnostics.public_text(f'arbitrate-{label}-base', error)}"
             return record
         self.raw_results[f"{label}_corrected_base"] = result_b
         record["base_rerun"] = base_discrimination(result_b, summary_b, corrected_ids, corrected_sha, nonce_b, sorted(changed_tests), label)
@@ -1572,7 +1657,7 @@ class Pipeline:
                                                stage=f"arbitrate-adversarial-{mutant['id']}", deletes=deletes, timeout=self.task.test_timeout + 60)
                 result_m, summary = self.suite_outcome(run, nonce, "arbmut")
             except Exception as error:  # noqa: BLE001 - an uncertain spawn makes this mutant unknown, never replayed
-                record["mutant_reruns"].append({"mutant": mutant["id"], "error": f"{type(error).__name__}: {str(error)[:120]}"})
+                record["mutant_reruns"].append({"mutant": mutant["id"], "error": self.diagnostics.public_text(f"arbitrate-adversarial-{mutant['id']}", error)})
                 continue
             raw[mutant["id"]] = result_m
             entry = mutant_rerun_discrimination(result_m, summary, corrected_ids, corrected_sha, nonce, sorted(changed_tests))
@@ -1639,7 +1724,7 @@ class Pipeline:
                                                stage=f"impl-python-{turn}", deletes=deletes, timeout=90)
                 step = run.step("python")
                 if run.runner_error or step is None:
-                    return f"sandbox run failed: {run.runner_error}"
+                    return f"sandbox run failed: {self.diagnostics.public_text(f'impl-python-{turn}', run.runner_error)}"
                 note = ""
                 if re.search(r"write_text|write_bytes|open\([^)]*['\"](w|a|r\+)|shutil\.|os\.(rename|replace|remove)", action["code"]):
                     note = ("NOTE: this snippet wrote files, but run_python executes in a throwaway sandbox branch and those changes are DISCARDED. "

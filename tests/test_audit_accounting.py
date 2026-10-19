@@ -4,8 +4,14 @@ AC-01: every process start rebuilds the batch's starting committed total from di
 row owns once); AC-02: a finished bundle whose row was never persisted is recovered from its ledger totals; AC-03: a USD reservation
 is journaled durably before dispatch, or the request is not sent; AC-04: a successful answer without usable metering keeps its
 reservation unsettled and stops further paid calls; AC-07: a resumed batch runs exactly its registered configuration or refuses
-before anything is constructed. Offline only: fake providers and transports, temporary directories, a socket tripwire; no
-credentials are read.
+before anything is constructed.
+
+Revision-5 review repairs (19 Oct 2026): R5-01, a settlement append cut short never swallows the next reservation (the journal tail is
+repaired and every append read back; a reservation that cannot be verified is refused, SettlementTailRecovery); R5-05, the promised
+22-call cap governs the provider at every entry point (CallCap); R5-06, the effective provider profile (models per role, effort,
+sampling, caps) is frozen at registration and compared on resume, per cell and per row (ProviderProfileFreeze); and a hold without a
+patch is labelled as a refusal judged by the ground truth (HoldLabels). Offline only: fake providers and transports, temporary
+directories, a socket tripwire; no credentials are read.
 """
 
 import argparse
@@ -22,11 +28,11 @@ from pathlib import Path
 from unittest import mock
 
 import attest.ledger as ledger_module
-from attest.ledger import JOURNAL_FILE, Ledger, LedgerError, ModelCall, read_journal, utcnow
+from attest.ledger import JOURNAL_FILE, Ledger, LedgerError, ModelCall, SandboxOp, read_journal, utcnow
 from attest.models.base import ModelError, extract_usage, token_count, usage_problem
 from attest.models.nebius_tokenfactory import NebiusTokenFactory
 from tests.test_budget import PaidFakeProvider, quiet
-from tests.test_verification import FakeExecutor
+from tests.test_verification import TASK, FakeExecutor
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -35,6 +41,7 @@ import render_evaluation  # noqa: E402
 
 SCHEMA = {"type": "object", "properties": {"x": {"type": "integer"}}, "required": ["x"], "additionalProperties": False}
 SUPER = "nvidia/nemotron-3-super-120b-a12b"
+NANO = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
 REQUEST = "attest.models.nebius_tokenfactory.request_json"
 
 
@@ -462,7 +469,7 @@ class ScriptedCells:
     def restart(self, script: dict[int, str] | None = None):
         self.script, self.dead = dict(script or {}), False
 
-    def __call__(self, cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root):
+    def __call__(self, cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root, registered_profile=None):
         if self.dead:
             raise Interrupted("the process is dead")
         self.executed.append((cell["scheduled_index"], provider_name))
@@ -622,10 +629,10 @@ class FinishedButUnreportedRun(unittest.TestCase):
         real_one_system = harness.one_system
         state = {"die_after": 1, "dead": False}
 
-        def one_system_then_die(cell, *rest):
+        def one_system_then_die(cell, *rest, **options):
             if state["dead"]:
                 raise Interrupted("the process is dead")
-            row = real_one_system(cell, *rest)  # Pipeline.finish wrote proof_bundle.json, ledger.json and the manifest
+            row = real_one_system(cell, *rest, **options)  # Pipeline.finish wrote proof_bundle.json, ledger.json and the manifest
             if cell["scheduled_index"] == state["die_after"]:
                 state["dead"] = True
                 raise Interrupted(row["run_id"])  # ... and the row is never persisted
@@ -664,6 +671,9 @@ class FinishedButUnreportedRun(unittest.TestCase):
         self.assertAlmostEqual(again["budget"]["committed_usd"], expected, places=4)  # and once again on the next start
         self.assertAlmostEqual(again["starting_total"]["committed_usd"], expected, places=4)
         self.assertEqual(_profile_reasons(again), [])
+        # every completed row carries the profile its bundle recorded, and it is the registered one (R5-06)
+        self.assertEqual(again["schedule"]["provider_profile"], {"provider": "fake-paid"})
+        self.assertTrue(all(r["provider_profile"] == {"provider": "fake-paid"} for r in rows))
 
 
 # ----------------------------------------------------------------------------- AC-07: a resumed batch keeps its registration
@@ -826,6 +836,444 @@ class RenderUnownedDirectories(unittest.TestCase):
         self.assertIn("Starting committed total of this process: $0.25", text)
         self.assertIn("| t-attest-a1-dead | finished_unreported | ledger.json | 3 | 0.15 | 0 | yes |", text)
         self.assertEqual(text.count("t-attest-a1-dead"), 1)
+
+
+# ----------------------------------------------------------------------------- R5-01: a cut settlement line never swallows the next reservation
+class SettlementTailRecovery(unittest.TestCase):
+    """The review's counterexample: a settlement append writes a JSON prefix without its newline and fails; the disk is healthy again;
+    the next reservation must not land on the cut line, where a restart's parser would lose both records while `reserve` reported
+    success. The repaired ledger terminates the cut line with a `journal_repair` record, reads every append back, and refuses to
+    reserve when it cannot; the provider turns that refusal into a halt before dispatch."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="attest-r501-"))
+        self.sink = self.tmp / JOURNAL_FILE
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    @staticmethod
+    def _cut_then_fail(path, lines):
+        """The review's injection: the line is written only up to a JSON prefix, without its newline, then the disk fails."""
+        with Path(path).open("a", encoding="utf-8") as handle:
+            handle.write(lines[0][:48])
+        raise OSError(5, "Input/output error (fake, after a partial write)")
+
+    def _lines(self) -> list[str]:
+        return self.sink.read_text(encoding="utf-8", errors="replace").splitlines()
+
+    def test_the_reviews_sequence_recovers_both_reservations(self):
+        ledger = Ledger()
+        ledger.attach_sink(self.sink)
+        first = ledger.reserve("nebius_tokenfactory", "seal", "first", "offline-model", 0.02)
+        with mock.patch("attest.ledger._write_durably", side_effect=self._cut_then_fail):
+            ledger.add_call(_call(stage="first", cost_usd=0.01, reserved_usd=0.02), first)  # does not raise: the in-memory record is kept
+        self.assertEqual(ledger.totals()["journal_failures"], 1)
+        self.assertIn("call record failed to journal", ledger.journal_degraded)
+        self.assertFalse(self.sink.read_bytes().endswith(b"\n"))  # the cut line
+        self.assertFalse(read_journal(self.sink)["tail_framed"])
+        second = ledger.reserve("nebius_tokenfactory", "seal", "second", "offline-model", 0.05)  # the disk is healthy again
+        self.assertEqual(second, "r2")
+        self.assertIsNone(ledger.journal_degraded)  # cleared only now: the tail is framed and the new line read back as written
+        self.assertEqual(ledger.totals()["journal_repairs"], 1)
+        self.assertAlmostEqual(ledger.totals()["cost_usd_committed"], 0.06)  # in memory: the known $0.01 plus the open $0.05
+        restored = read_journal(self.sink)
+        self.assertEqual((restored["unparsable_lines"], restored["journal_repairs"], restored["open_reservations"], restored["tail_framed"]), (1, 1, 2, True))
+        self.assertAlmostEqual(restored["open_reserved_usd"], 0.07)  # r1 stays open at its bound (its settlement is lost); r2 is recovered in full
+        self.assertAlmostEqual(restored["cost_usd_committed"], 0.07)
+        self.assertGreaterEqual(restored["cost_usd_committed"], ledger.totals()["cost_usd_committed"])  # never an understatement
+        lines = self._lines()
+        self.assertTrue(lines[-3].startswith('{"event": "call"') and not lines[-3].endswith("}"))  # the cut prefix, now terminated
+        repair = json.loads(lines[-2])
+        self.assertEqual(repair["event"], "journal_repair")
+        self.assertIn("lost", repair["note"])
+        self.assertEqual((repair["cut_line_bytes"], repair["cut_line_head"]), (48, lines[-3]))
+        self.assertEqual({k: json.loads(lines[-1])[k] for k in ("event", "id", "reserved_usd")}, {"event": "reserve", "id": "r2", "reserved_usd": 0.05})
+
+    def test_the_sequence_through_the_provider_dispatches_only_a_verified_reservation(self):
+        ledger = Ledger()
+        ledger.attach_sink(self.sink)
+        provider = NebiusTokenFactory("offline-fake-key", ledger, usd_cap=0.5)
+        real_write = ledger_module._write_durably
+        appends = []
+
+        def cut_the_first_settlement(path, lines):
+            appends.append(lines[0][:20])
+            if len(appends) == 2:  # 1: the first reservation; 2: its settlement, cut short; every later append reaches a healthy disk
+                return self._cut_then_fail(path, lines)
+            return real_write(path, lines)
+        seen = []
+
+        def transport(method, url, headers, payload=None, timeout=60, max_bytes=0):
+            seen.append(read_journal(self.sink))  # what a restart would read if the process died now, with this request in flight
+            if len(seen) == 2:
+                raise Interrupted("the process dies with the second request in flight: no settlement is written")
+            return 200, answer({"prompt_tokens": 1000, "completion_tokens": 200}), {}
+        with mock.patch("attest.ledger._write_durably", side_effect=cut_the_first_settlement), mock.patch(REQUEST, transport):
+            self.assertEqual(provider.structured("seal", "prompt", SCHEMA, "seal-1").json, {"x": 1})
+            self.assertEqual(provider.describe()["journal_failures"], 1)
+            self.assertIn("call record failed to journal", provider.describe()["journal_degraded"])
+            with self.assertRaises(Interrupted):
+                provider.structured("seal", "prompt", SCHEMA, "seal-2")
+        self.assertEqual(len(seen), 2)  # the second request was dispatched: its reservation had been written after the repair and verified
+        self.assertEqual((seen[1]["open_reservations"], seen[1]["journal_repairs"], seen[1]["unparsable_lines"], seen[1]["tail_framed"]), (2, 1, 1, True))
+        restored = read_journal(self.sink)
+        bound = ledger.open_reservations[0]["reserved_usd"]  # r2, never settled
+        self.assertEqual(restored["open_reservations"], 2)
+        self.assertAlmostEqual(restored["open_reserved_usd"], 2 * bound, places=9)  # r1 at its bound (settlement lost) plus r2 in full
+        self.assertGreaterEqual(restored["cost_usd_committed"], ledger.totals()["cost_usd_committed"])
+        self.assertEqual(len(ledger.model_calls), 1)
+        self.assertIsNone(provider.describe()["journal_degraded"])
+        self.assertEqual((provider.describe()["journal_failures"], provider.describe()["journal_repairs"]), (1, 1))
+        self.assertIsNone(provider.halted)
+
+    def test_a_tail_cut_inside_a_multibyte_character_is_repaired_and_read_back(self):
+        ledger = Ledger()
+        ledger.attach_sink(self.sink)
+        ledger.reserve("nebius_tokenfactory", "seal", "first", "offline-model", 0.02)
+        cut = '{"event": "call", "reservation_id": "r1", "cost_note": "café'.encode("utf-8")[:-1]  # cut inside the two-byte e-acute
+        with self.sink.open("ab") as handle:
+            handle.write(cut)
+        before = read_journal(self.sink)  # binary-safe: the cut multi-byte tail is counted, never raised on
+        self.assertEqual((before["unparsable_lines"], before["open_reservations"], before["tail_framed"]), (1, 1, False))
+        self.assertEqual(ledger.reserve("nebius_tokenfactory", "seal", "second", "offline-model", 0.05), "r2")
+        after = read_journal(self.sink)
+        self.assertEqual((after["unparsable_lines"], after["journal_repairs"], after["open_reservations"], after["tail_framed"]), (1, 1, 2, True))
+        self.assertAlmostEqual(after["cost_usd_committed"], 0.07)
+        self.assertIn(cut + b'\n{"event": "journal_repair"', self.sink.read_bytes())  # terminated exactly where it was cut
+        repair = json.loads([line for line in self._lines() if '"journal_repair"' in line][0])
+        self.assertEqual(repair["cut_line_bytes"], len(cut))
+        self.assertTrue(repair["cut_line_head"].startswith('{"event": "call"') and repair["cut_line_head"].endswith("caf�"))
+        self.assertEqual((ledger.totals()["journal_repairs"], ledger.totals()["journal_failures"]), (1, 0))  # the cut came from a dead process, not from this ledger
+
+    def test_normal_appends_show_no_repair_and_read_back_byte_identical(self):
+        ledger = Ledger()
+        written = []
+        real_write = ledger_module._write_durably
+
+        def spy(path, lines):
+            written.extend(lines)
+            return real_write(path, lines)
+        with mock.patch("attest.ledger._write_durably", side_effect=spy):
+            ledger.attach_sink(self.sink)
+            for index in range(5):
+                rid = ledger.reserve("nebius_tokenfactory", "seal", f"seal-{index}", "offline-model", 0.05)
+                ledger.add_call(_call(stage=f"seal-{index}", cost_note="café ✓ non-ASCII settles too"), rid)
+            ledger.add_op(SandboxOp(stage="verify", operation_uuid="op", image_uuid="img", result_image_uuid=None, disposable=True, networking_enabled=False,
+                                    status="done", exit_code=0, timed_out=False, signal=None, duration_s=1.0, raw_cost_diag=None, stdout_truncated=False,
+                                    started_at_utc=utcnow()))
+        self.assertEqual(self.sink.read_bytes(), "".join(written).encode("utf-8"))  # byte-identical read-back of every append
+        totals = ledger.totals()
+        self.assertEqual((totals["journal_failures"], totals["journal_repairs"], totals["journal_degraded"]), (0, 0, None))
+        journal = read_journal(self.sink)
+        self.assertEqual((journal["unparsable_lines"], journal["journal_repairs"], journal["open_reservations"], journal["model_calls"],
+                          journal["sandbox_operations"], journal["tail_framed"]), (0, 0, 0, 5, 1, True))
+        self.assertAlmostEqual(journal["cost_usd_committed"], 0.05)  # five known costs of $0.01
+
+    def test_a_failing_tail_repair_halts_the_provider_before_dispatch(self):
+        ledger = Ledger()
+        ledger.attach_sink(self.sink)
+        provider = NebiusTokenFactory("offline-fake-key", ledger, usd_cap=0.5)
+        real_write = ledger_module._write_durably
+        appends = []
+
+        def disk_stays_broken(path, lines):
+            appends.append(lines[0][:20])
+            if len(appends) == 1:
+                return real_write(path, lines)  # the first reservation
+            if len(appends) == 2:
+                return self._cut_then_fail(path, lines)  # its settlement, cut short
+            raise OSError(5, "Input/output error (fake: the disk stays unwritable)")  # the repair of the cut tail
+        with mock.patch("attest.ledger._write_durably", side_effect=disk_stays_broken), \
+             mock.patch(REQUEST, return_value=(200, answer({"prompt_tokens": 1000, "completion_tokens": 200}), {})) as request:
+            self.assertEqual(provider.structured("seal", "prompt", SCHEMA, "seal-1").json, {"x": 1})
+            with self.assertRaises(ModelError) as cm:
+                provider.structured("seal", "prompt", SCHEMA, "seal-2")
+            with self.assertRaises(ModelError) as again:
+                provider.structured("implement", "prompt", SCHEMA, "implement-1")
+        self.assertEqual(request.call_count, 1)  # the second and third requests never left the process
+        self.assertEqual(appends[2:], ["\n"])  # the one further append was the attempted repair of the cut tail, nothing else was tried
+        self.assertFalse(cm.exception.uncertain)
+        self.assertIn("could not be journaled", str(cm.exception))
+        self.assertIn("was not sent", str(cm.exception))
+        self.assertIn("no further paid requests", str(again.exception))
+        self.assertTrue(provider.halted)
+        self.assertEqual(ledger.open_reservations, [])  # r2 exists neither in memory nor on disk: nothing is owed for it
+        self.assertEqual(ledger.totals()["journal_failures"], 2)  # the cut settlement and the refused reservation
+        self.assertTrue(ledger.journal_degraded)  # never cleared: no reservation line was verified after the failure
+        restored = read_journal(self.sink)
+        self.assertEqual((restored["open_reservations"], restored["unparsable_lines"], restored["tail_framed"]), (1, 1, False))  # r1 open at its bound; the tail still cut
+        self.assertGreaterEqual(restored["cost_usd_committed"], ledger.totals()["cost_usd_committed"])
+
+    def test_a_line_that_reads_back_differently_is_refused_or_degrades(self):
+        ledger = Ledger()
+        ledger.attach_sink(self.sink)
+
+        def corrupting(path, lines):  # the write "succeeds" but the bytes on disk are not the bytes given
+            with Path(path).open("a", encoding="utf-8") as handle:
+                handle.write(lines[0].replace('"event": "reserve"', '"event": "reserv"').replace('"event": "call"', '"event": "cal"'))
+        with mock.patch("attest.ledger._write_durably", side_effect=corrupting):
+            with self.assertRaises(LedgerError) as cm:
+                ledger.reserve("nebius_tokenfactory", "seal", "seal-1", "offline-model", 0.05)
+        self.assertIn("verification failed", str(cm.exception))
+        self.assertEqual((ledger.open_reservations, ledger.totals()["cost_usd_committed"]), ([], 0))
+        rid = ledger.reserve("nebius_tokenfactory", "seal", "seal-2", "offline-model", 0.05)  # the healthy disk: verified and recorded
+        with mock.patch("attest.ledger._write_durably", side_effect=corrupting):
+            ledger.add_call(_call(stage="seal-2"), rid)
+        self.assertIn("verification failed", ledger.journal_degraded)
+        self.assertEqual(ledger.totals()["journal_failures"], 2)
+        self.assertEqual(ledger.reserve("nebius_tokenfactory", "seal", "seal-3", "offline-model", 0.05), "r3")
+        self.assertIsNone(ledger.journal_degraded)
+        journal = read_journal(self.sink)
+        self.assertEqual((journal["journal_repairs"], journal["open_reservations"]), (0, 2))  # the corrupted lines were framed (no repair); r2 stays open at its bound
+        self.assertGreaterEqual(journal["cost_usd_committed"], ledger.totals()["cost_usd_committed"])
+
+
+# ----------------------------------------------------------------------------- R5-05: the promised 22-call cap governs every entry point
+class CallCap(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="attest-r505-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_provider_serves_exactly_the_cap_and_refuses_the_next_call_before_dispatch(self):
+        ledger = Ledger()
+        ledger.attach_sink(self.tmp / JOURNAL_FILE)
+        provider = NebiusTokenFactory("offline-fake-key", ledger, usd_cap=5.0, max_calls=22)
+        with mock.patch(REQUEST, return_value=(200, answer({"prompt_tokens": 1000, "completion_tokens": 200}), {})) as request:
+            for index in range(22):
+                self.assertEqual(provider.structured("implement", "prompt", SCHEMA, f"implement-{index}").json, {"x": 1})
+            with self.assertRaises(ModelError) as cm:
+                provider.structured("implement", "prompt", SCHEMA, "implement-22")
+            with self.assertRaises(ModelError) as again:
+                provider.structured("summary", "prompt", SCHEMA, "summary")
+        self.assertEqual(request.call_count, 22)
+        self.assertFalse(cm.exception.uncertain)
+        self.assertIn("per-run call cap 22 reached", str(cm.exception))
+        self.assertIn("was not sent", str(cm.exception))
+        self.assertIn("call cap 22", str(again.exception))
+        self.assertEqual((len(ledger.model_calls), provider.calls_made(), provider.describe()["max_calls"]), (22, 22, 22))
+        self.assertIn("at most 22 model calls per run", provider.describe()["call_cap_policy"])
+        self.assertIsNone(provider.halted)  # the cap is a refusal per request, not a fault of the run
+        journal = read_journal(self.tmp / JOURNAL_FILE)  # positive control for R5-01: 22 ordinary settlements, no repair, nothing unparsable
+        self.assertEqual((journal["model_calls"], journal["open_reservations"], journal["journal_repairs"], journal["unparsable_lines"], journal["tail_framed"]),
+                         (22, 0, 0, 0, True))
+
+    def test_cli_defaults_the_cap_to_22_for_nebius_and_none_for_codex(self):
+        from attest import cli
+        self.assertEqual(cli.parse_args(["run", "--task", "t.json", "--out", "o", "--provider", "nebius"]).max_calls, 22)
+        self.assertIsNone(cli.parse_args(["run", "--task", "t.json", "--out", "o", "--provider", "codex"]).max_calls)
+        self.assertIsNone(cli.parse_args(["run", "--task", "t.json", "--out", "o"]).max_calls)  # the default provider is codex
+        self.assertEqual(cli.parse_args(["run", "--task", "t.json", "--out", "o", "--provider", "nebius", "--max-calls", "5"]).max_calls, 5)
+        self.assertEqual(cli.parse_args(["preflight", "--provider", "nebius"]).max_calls, 22)
+        self.assertIsNone(cli.build_parser().parse_args(["run", "--task", "t.json", "--out", "o", "--provider", "nebius"]).max_calls)  # unset until resolved
+        self.assertEqual((cli.effective_max_calls("nebius", None), cli.effective_max_calls("codex", None), cli.effective_max_calls("nebius", 30)), (22, None, 30))
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                cli.parse_args(["run", "--task", "t.json", "--out", "o", "--provider", "nebius", "--max-calls", "0"])
+        with mock.patch("attest.cli.load_secret", return_value="offline-fake-key"):
+            defaulted = cli.build_provider("nebius", Ledger(), 0.5)
+            explicit = cli.build_provider("nebius", Ledger(), 0.5, 7)
+        self.assertEqual((defaulted.max_calls, defaulted.describe()["max_calls"], explicit.max_calls), (22, 22, 7))
+
+    def test_cli_run_passes_the_cap_to_the_provider_it_builds(self):
+        from attest import cli
+        built = {}
+
+        class RecordingPipeline:
+            def __init__(self, **kw):
+                built["provider"] = kw["provider"]
+                self.out_dir = Path(kw["out_dir"]) / "fake-run"
+
+            def run(self):
+                return {"verdict": {"verdict": "VERIFIED", "reasons": []}, "ledger": {"totals": {}}}
+        for flags, expected in (([], 22), (["--max-calls", "5"], 5)):
+            with self.subTest(flags=flags), mock.patch("attest.cli.load_secret", return_value="offline-fake-key"), \
+                 mock.patch("attest.cli.build_executor", return_value=None), mock.patch("attest.core.pipeline.Pipeline", RecordingPipeline):
+                code = quiet(cli.main, ["run", "--task", str(TASK), "--out", str(self.tmp), "--provider", "nebius", "--no-grounding", *flags])
+            self.assertEqual(code, 0)
+            self.assertEqual((built["provider"].max_calls, built["provider"].describe()["max_calls"]), (expected, expected))  # what profile.provider records
+
+    def test_console_worker_builds_the_paid_provider_with_the_environment_cap(self):
+        from attest.app import worker as worker_module
+        from attest.app.db import Store
+        worker = worker_module.Worker(Store(self.tmp / "attest.db"), self.tmp, TASK.parent.parent, max_turns=4)
+        try:
+            with mock.patch("attest.app.worker.load_secret", return_value="offline-fake-key"), mock.patch("attest.app.worker.project_id", return_value="offline-project"):
+                with mock.patch.dict(os.environ, {worker_module.PER_RUN_MAX_CALLS_ENV: "9"}):
+                    capped, _, _ = worker.build_runtime("r1", "nebius", Ledger())
+                with mock.patch.dict(os.environ):
+                    os.environ.pop(worker_module.PER_RUN_MAX_CALLS_ENV, None)
+                    default, _, _ = worker.build_runtime("r1", "nebius", Ledger())
+                with mock.patch.dict(os.environ, {worker_module.PER_RUN_MAX_CALLS_ENV: "none"}), self.assertLogs("attest.app", level="WARNING"):
+                    unusable, _, _ = worker.build_runtime("r1", "nebius", Ledger())
+        finally:
+            worker.stop()
+        self.assertEqual((capped.max_calls, capped.describe()["max_calls"]), (9, 9))
+        self.assertEqual((default.max_calls, unusable.max_calls, worker_module.DEFAULT_PER_RUN_MAX_CALLS), (22, 22, 22))
+
+
+# ----------------------------------------------------------------------------- R5-06: the effective provider profile is frozen and compared
+class ProviderProfileFreeze(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="attest-r506-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    @staticmethod
+    def _nebius_provider(name, ledger, cap, calls, notify=None):
+        """The real provider class, built offline (no request leaves at construction); it reads the role and effort environment."""
+        return NebiusTokenFactory("offline-fake-key", ledger, usd_cap=cap, max_calls=calls)
+
+    def test_profile_selects_the_effective_configuration_and_names_role_drift(self):
+        registered = harness.provider_profile(NebiusTokenFactory("offline-fake-key", Ledger(), usd_cap=0.5, max_calls=22).describe())
+        self.assertEqual(sorted(registered), sorted(["provider", "roles", "reasoning_effort", "temperature", "max_tokens", "usd_cap", "max_calls",
+                                                     "thinking_roles", "send_thinking_flag"]))
+        self.assertEqual((registered["provider"], registered["roles"]["implement"], registered["reasoning_effort"]["implement"], registered["max_calls"],
+                          registered["usd_cap"], registered["temperature"], registered["max_tokens"]), ("nebius_tokenfactory", SUPER, "medium", 22, 0.5, 0.2, 16000))
+        for volatile in ("halted", "journal_degraded", "journal_failures", "base_url", "reservation_policy", "call_cap_policy"):
+            self.assertNotIn(volatile, registered)
+        self.assertEqual(harness.profile_differences(registered, json.loads(json.dumps(registered))), [])  # survives the schedule's JSON round trip
+        with mock.patch.dict(os.environ, {"ATTEST_NEBIUS_ROLES": f"implement={NANO}", "ATTEST_NEBIUS_REASONING_EFFORT": "high"}):
+            drifted = harness.provider_profile(NebiusTokenFactory("offline-fake-key", Ledger(), usd_cap=0.5, max_calls=22).describe())
+        drift = harness.profile_differences(registered, drifted)
+        self.assertEqual(len(drift), 2)
+        self.assertTrue(any(d.startswith(f"roles.implement {NANO!r} differs from the registered {SUPER!r}") for d in drift), drift)
+        self.assertTrue(any(d.startswith("reasoning_effort.implement 'high' differs from the registered 'medium'") for d in drift), drift)
+        self.assertEqual(harness.profile_differences(registered, dict(registered, max_calls=20)), ["max_calls 20 differs from the registered 22"])
+        codex = harness.provider_profile({"provider": "codex_gateway", "base_url": None, "base_url_sha256": "0123456789abcdef", "pacing": {"budget": 1},
+                                          "roles": {"implement": ["gpt-6-sol", "medium"], "summary": ["gpt-6-luna", None]}, "retry_policy": "prose"})
+        self.assertEqual(codex, {"provider": "codex_gateway", "roles": {"implement": "gpt-6-sol:medium", "summary": "gpt-6-luna"}, "base_url_sha256": "0123456789abcdef"})
+        self.assertEqual(harness.provider_profile({"provider": "fake-paid", "anything": 1}), {"provider": "fake-paid"})
+        self.assertEqual(harness.provider_profile(None), {"provider": None})
+
+    def test_a_row_with_another_implement_model_invalidates_the_comparison(self):
+        registered = {"provider": "nebius_tokenfactory", "roles": {"implement": SUPER, "seal": SUPER}, "reasoning_effort": {"implement": "medium", "seal": "low"},
+                      "temperature": 0.2, "max_tokens": 16000, "usd_cap": 0.5, "max_calls": 22, "thinking_roles": [], "send_thinking_flag": False}
+        schedule = {"provider": "nebius", "per_run_usd_cap": 0.5, "max_calls_per_run": 22, "max_turns": 14, "provider_profile": registered}
+        base = {"status": "completed", "revision_digest": "a" * 64, "executed_provider": "nebius", "usd_cap": 0.5, "max_calls": 22, "max_turns": 14}
+        rows = [{**base, "task": "t1", "system": "baseline", "attempt": 1, "provider_profile": registered},
+                {**base, "task": "t1", "system": "attest", "attempt": 1, "provider_profile": {**registered, "roles": {**registered["roles"], "implement": NANO}}},
+                {**base, "task": "t2", "system": "baseline", "attempt": 1, "provider_profile": registered},
+                {**base, "task": "t2", "system": "attest", "attempt": 1, "provider_profile": json.loads(json.dumps(registered))},
+                {**base, "task": "t3", "system": "attest", "attempt": 1}]  # a row from before the profile freeze: not judged on it
+        validity = harness.comparison_validity(rows, "a" * 64, snapshot_intact=True, schedule=schedule)
+        self.assertFalse(validity["t1"]["valid"])
+        self.assertEqual(len(validity["t1"]["reasons"]), 1)
+        self.assertIn(f"attest a1: provider profile differs from the registered one: roles.implement {NANO!r} differs from the registered {SUPER!r}", validity["t1"]["reasons"][0])
+        self.assertTrue(validity["t2"]["valid"] and validity["t3"]["valid"])
+        self.assertTrue(harness.comparison_validity(rows[:2], "a" * 64, snapshot_intact=True)["t1"]["valid"])  # without a schedule, as before
+        self.assertTrue(harness.comparison_validity(rows[:2], "a" * 64, snapshot_intact=True, schedule=dict(schedule, provider_profile=None))["t1"]["valid"])
+        rendered_rows = [dict(r, confusion="unknown", scheduled_index=i, cost_committed_usd=0.1, wall_s=1.0, held_out_correct=None, accepted=False) for i, r in enumerate(rows)]
+        report = {"schedule": {**schedule, "label": "t", "systems": ["baseline", "attest"], "tasks": ["t1", "t2", "t3"], "attempts_per_cell": 1, "cells": [{}] * 5, "provenance": {}},
+                  "rows": rendered_rows, "summary": harness.summarize(rendered_rows, ["baseline", "attest"], validity), "budget": {},
+                  "provenance_check": {"invalid_tasks": ["t1"], "comparisons": validity}, "interrupted": []}
+        text = render_evaluation.render(report)
+        self.assertIn(f"provider profile: provider=nebius_tokenfactory; roles implement={SUPER} seal={SUPER}; reasoning_effort implement=medium seal=low; "
+                      "temperature=0.2; max_tokens=16000; usd_cap=0.5; max_calls=22", text)
+        self.assertIn("invalid comparisons: ['t1']", text)
+        self.assertEqual(report["summary"]["attest"]["cells_in_invalid_comparisons"], 1)
+
+    def _register_real_nebius_batch(self, cells: ScriptedCells, provenance: dict) -> None:
+        with mock.patch.object(harness, "runtime_provenance", return_value=provenance), mock.patch.object(harness, "build_provider", side_effect=self._nebius_provider), \
+             mock.patch.object(harness, "codex_governor", side_effect=AssertionError("no Codex runtime in these tests")), mock.patch.object(harness, "one_system", side_effect=cells):
+            self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, attempts=1, usd_cap=0.5, approve_usd=1.0, max_calls=22)), 0)
+        schedule = json.loads((self.tmp / "schedule.json").read_text(encoding="utf-8"))
+        self.assertEqual((schedule["provider_profile"]["provider"], schedule["provider_profile"]["roles"]["implement"], schedule["provider_profile"]["max_calls"],
+                          schedule["provider_profile"]["reasoning_effort"]["implement"]), ("nebius_tokenfactory", SUPER, 22, "medium"))
+        report = json.loads((self.tmp / "evaluation.json").read_text(encoding="utf-8"))
+        report["rows"], report["complete"] = report["rows"][:1], False  # the interruption: the second row was never persisted
+        (self.tmp / "evaluation.json").write_text(json.dumps(report), encoding="utf-8")
+
+    def test_resume_under_a_role_override_is_refused_before_any_cell(self):
+        provenance = _provenance_stub()
+        cells = ScriptedCells(provenance["attest_revision"]["digest"])
+        self._register_real_nebius_batch(cells, provenance)
+        before = (self.tmp / "evaluation.json").read_text(encoding="utf-8")
+        untouched = AssertionError("a cell runtime was constructed although the provider profile differs")
+        for environment in ({"ATTEST_NEBIUS_ROLES": f"implement={NANO}"}, {"ATTEST_NEBIUS_REASONING_EFFORT": "high"}):
+            with self.subTest(environment=environment), mock.patch.dict(os.environ, environment), mock.patch.object(harness, "build_provider", side_effect=self._nebius_provider), \
+                 mock.patch.object(harness, "runtime_provenance", side_effect=untouched), mock.patch.object(harness, "codex_governor", side_effect=untouched), \
+                 mock.patch.object(harness, "one_system", side_effect=untouched), contextlib.redirect_stderr(io.StringIO()) as err:
+                self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, resume=True, **ResumeConfiguration.UNSET)), 2)
+            self.assertIn("refusing", err.getvalue())
+            self.assertIn("ATTEST_NEBIUS_ROLES", err.getvalue())
+            self.assertIn("No cell was constructed or run", err.getvalue())
+            if "ATTEST_NEBIUS_ROLES" in environment:
+                self.assertIn(f"roles.implement {NANO!r} differs from the registered {SUPER!r}", err.getvalue())
+            else:
+                self.assertIn("reasoning_effort.implement 'high' differs from the registered 'medium'", err.getvalue())
+        self.assertEqual((self.tmp / "evaluation.json").read_text(encoding="utf-8"), before)
+        self.assertNotIn("resumptions", json.loads((self.tmp / "schedule.json").read_text(encoding="utf-8")))
+        # positive control: the unchanged environment resumes, runs the missing cell and stays a valid same-profile comparison
+        cells.restart()
+        with mock.patch.object(harness, "runtime_provenance", return_value=provenance), mock.patch.object(harness, "build_provider", side_effect=self._nebius_provider), \
+             mock.patch.object(harness, "codex_governor", side_effect=AssertionError("no Codex runtime in these tests")), mock.patch.object(harness, "one_system", side_effect=cells):
+            self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, resume=True, **ResumeConfiguration.UNSET)), 0)
+        resumed = json.loads((self.tmp / "evaluation.json").read_text(encoding="utf-8"))
+        self.assertTrue(resumed["complete"])
+        self.assertEqual([r["status"] for r in resumed["rows"]], ["completed", "completed"])
+        self.assertEqual(_profile_reasons(resumed), [])
+        self.assertIn("carries the registered profile", resumed["schedule"]["resumptions"][0]["provider_profile_check"])
+
+    def test_a_cell_whose_provider_differs_from_the_registration_is_not_run(self):
+        registered = harness.provider_profile(NebiusTokenFactory("offline-fake-key", Ledger(), usd_cap=0.5, max_calls=22).describe())
+        cell = {"scheduled_index": 0, "task": "durationkit-units-001", "task_path": "examples/durationkit-task/task.json",
+                "heldout": "examples/eval/durationkit-task/heldout.py", "system": "attest", "attempt": 1, "ground_truth": "held_out_suite"}
+        budget = harness.Budget(approve_usd=2.0, per_run_cap=0.5)
+        with mock.patch.dict(os.environ, {"ATTEST_NEBIUS_REASONING_EFFORT": "high"}), mock.patch.object(harness, "build_provider", side_effect=self._nebius_provider), \
+             mock.patch.object(harness, "executor_for", side_effect=AssertionError("no executor may be built for a cell whose provider differs")), \
+             mock.patch(REQUEST, side_effect=AssertionError("no request may leave for a cell whose provider differs")):
+            row = quiet(harness.run_cell, cell, budget, "nebius", 0.5, 22, self.tmp / "runs", 4, ROOT, registered_profile=registered)
+        self.assertEqual(row["status"], "not_run")
+        self.assertIn("reasoning_effort.implement 'high' differs from the registered 'medium'", row["reason"])
+        self.assertIn("ATTEST_NEBIUS_ROLES", row["reason"])
+        self.assertEqual(row["provider_profile"]["reasoning_effort"]["implement"], "high")
+        self.assertEqual(harness.classify(row), "not_run")
+        self.assertFalse((self.tmp / "runs").exists())  # no run directory: no pipeline was constructed
+        self.assertEqual(budget.snapshot()["committed_usd"], 0.0)
+        # positive control: the same cell with a provider carrying the registered profile runs and its row records that profile
+        with mock.patch.object(harness, "build_provider", lambda name, ledger, cap, calls, notify=None: PaidFakeProvider(ledger)), \
+             mock.patch.object(harness, "executor_for", lambda ledger: FakeExecutor(ledger)):
+            row = quiet(harness.run_cell, cell, budget, "nebius", 0.5, 22, self.tmp / "runs", 4, ROOT, registered_profile={"provider": "fake-paid"})
+        self.assertEqual((row["status"], row["provider_profile"]), ("completed", {"provider": "fake-paid"}))
+        self.assertTrue(any((self.tmp / "runs").iterdir()))
+
+
+# ----------------------------------------------------------------------------- a hold without a patch is a refusal judged by the ground truth
+class HoldLabels(unittest.TestCase):
+    def test_a_hold_without_a_patch_is_a_refusal_judged_by_the_ground_truth(self):
+        hold = {"status": "completed", "verdict": "NEEDS HUMAN", "accepted": False, "held_out_correct": False, "system": "attest", "finished": False, "changed_paths": 0}
+        self.assertEqual(harness.classify(dict(hold, ground_truth="unsatisfiable")), "true_reject")
+        self.assertEqual(harness.classify(dict(hold, ground_truth="held_out_suite")), "false_refusal")
+        self.assertEqual(harness.classify(hold), "false_refusal")
+        self.assertEqual(harness.classify(dict(hold, held_out_correct=None)), "false_refusal")  # the judge's view of the unmodified repository is irrelevant
+        # a NEEDS HUMAN hold that did produce a patch keeps the accepted/correct logic
+        patched = dict(hold, changed_paths=2, held_out_correct=True)
+        self.assertEqual(harness.classify(patched), "false_reject")
+        self.assertEqual(harness.classify(dict(patched, held_out_correct=False)), "true_reject")
+        self.assertEqual(harness.classify(dict(patched, held_out_correct=None)), "unknown")
+        self.assertEqual(harness.classify(dict(patched, ground_truth="unsatisfiable", held_out_correct=False)), "true_reject")
+        # a finished implementer that changed nothing is not an unfinished hold: the existing logic applies
+        self.assertEqual(harness.classify(dict(hold, finished=True)), "true_reject")
+        # INFEASIBLE keeps its rule, NO CHANGE stays no_patch, a row from before `changed_paths` was recorded keeps the existing logic
+        infeasible = dict(hold, verdict="INFEASIBLE")
+        self.assertEqual((harness.classify(dict(infeasible, ground_truth="unsatisfiable")), harness.classify(infeasible)), ("true_reject", "false_refusal"))
+        self.assertEqual(harness.classify(dict(hold, verdict="NO CHANGE")), "no_patch")
+        legacy = {k: v for k, v in hold.items() if k != "changed_paths"}
+        self.assertEqual(harness.classify(legacy), "true_reject")
+        rows = [dict(hold, confusion="false_refusal", scheduled_index=0, task="t", attempt=1, cost_committed_usd=0.1, wall_s=10.0, ground_truth="held_out_suite"),
+                dict(hold, confusion="true_reject", scheduled_index=1, task="u", attempt=1, cost_committed_usd=0.1, wall_s=10.0, ground_truth="unsatisfiable")]
+        summary = harness.summarize(rows, ["attest"])
+        self.assertEqual((summary["attest"]["confusion"]["false_refusal"], summary["attest"]["confusion"]["true_reject"], summary["attest"]["needs_human"]), (1, 1, 2))
+        report = {"schedule": {"label": "t", "provider": "nebius", "systems": ["attest"], "tasks": ["t", "u"], "attempts_per_cell": 1, "cells": [{}, {}], "provenance": {}},
+                  "rows": rows, "summary": summary, "budget": {}, "provenance_check": {}, "interrupted": []}
+        text = render_evaluation.render(report)
+        self.assertIn("False refusal (hold without a patch on a satisfiable task)", text)
+        self.assertIn("a NEEDS HUMAN hold with no patch", text)
+        self.assertIn("| 0 | 0 | 0 | 1 | 1 | 0 |", text)  # true reject 1, false refusal 1, no patch 0
 
 
 if __name__ == "__main__":

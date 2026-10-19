@@ -32,8 +32,10 @@ records, every evaluated mutant's classification and the mutation score, the bas
 digests of corrected test modules and of contract-audit witnesses, that a correction kept the test set and changed only the
 failing tests' bodies and was classified for exactly the failing tests, that an INFEASIBLE verdict rests on an executed and
 demonstrated witness, the ledger totals, the gate-to-verdict rule and `PROOF.md`. The header of the report names the bundle's
-evidence protocol: a bundle written by revision 5 or later declares version 2 and must carry the complete evidence for its
-verdict (the result line then reads `OK, EVIDENCE COMPLETE for verdict ...`); every bundle recorded before that is checked as a historical bundle for
+evidence protocol: a bundle written by revision 5 declares version 2, one written by revision 6 or later version 3, and
+either must carry the complete evidence for its verdict (the result line then reads `OK, EVIDENCE COMPLETE for verdict ...`;
+under version 3 the mandatory records are derived from the frozen task and the execution mode, and an INFEASIBLE verdict
+needs a conflict grounded in the task's own criteria with a constrained witness); every bundle recorded before that is checked as a historical bundle for
 internal consistency only, with warnings for the checks its records cannot support, and is never reported as fully verified.
 Public copies of development-profile runs are redacted (the team's gateway host and local paths); such a copy carries
 `REDACTION.json` naming its source run and the original manifest's digest, and its manifest is the export's own, so the

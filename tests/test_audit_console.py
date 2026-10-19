@@ -1,17 +1,22 @@
 """Acceptance tests for the console, API and accounting repairs of the 19 October 2026 audit: API-01 to API-11, AC-05, AC-06,
-the publication contract for team runs and the containment of artifact downloads. Offline only: FastAPI's TestClient against a
-temporary data directory, the worker loop idled (alive but consuming nothing) or stopped, sockets blocked, no inference, no
-sandboxes, no network. The auditor's reproductions under reports/attest-audit-2026-10-19/ assert the faulty behaviour; these
-tests assert the repaired behaviour."""
+the publication contract for team runs, the containment of artifact downloads and the revision-5 follow-up finding R5-07
+(the team token is read from the X-Attest-Token header only; team downloads use short-lived, run-scoped tickets). Offline
+only: FastAPI's TestClient against a temporary data directory, the worker loop idled (alive but consuming nothing) or stopped,
+sockets blocked, no inference, no sandboxes, no network. The auditor's reproductions under reports/attest-audit-2026-10-19/
+and reports/attest-revision5-review-2026-10-19/ assert the faulty behaviour; these tests assert the repaired behaviour."""
 
 from __future__ import annotations
 
 import concurrent.futures
 import datetime as dt
+import hashlib
+import hmac
 import importlib
 import io
 import json
 import os
+import re
+import secrets
 import shutil
 import socket
 import subprocess
@@ -652,14 +657,22 @@ class ConsoleClient(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         report = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertTrue(report["ok"])
-        self.assertEqual(set(report["checks"]), {"copy_patch_requires_ok", "queue_position_is_authoritative", "terminal_detail_retried"})
+        self.assertEqual(set(report["checks"]), {"copy_patch_requires_ok", "queue_position_is_authoritative", "terminal_detail_retried",
+                                                 "download_urls_carry_tickets_never_the_token"})
 
-    def test_client_sends_the_token_on_reads_and_downloads(self):
+    def test_client_sends_the_token_in_the_header_only_and_tickets_on_team_download_links(self):
         js = (ROOT / "attest/app/static/app.js").read_text(encoding="utf-8")
         self.assertIn('"X-Attest-Token": state.token', js)
-        self.assertIn("?token=${encodeURIComponent(state.token)}", js)
+        self.assertNotIn("?token=", js)  # R5-07: the team token never enters a URL
+        self.assertNotIn("token=${", js)
+        self.assertNotIn("tokenQuery", js)
+        self.assertIn("?ticket=${encodeURIComponent(state.ticket.value)}", js)
+        self.assertIn("/download-ticket`, { method: \"POST\" }", js)
+        self.assertIn("fetch(patchUrl, { headers: authHeaders() })", js)  # Copy patch: header, no credential in the URL
+        self.assertNotIn("data-patch-url", js)
         self.assertNotIn("localStorage.setItem(\"attest.token", js)
         self.assertNotIn("sessionStorage.setItem(\"attest.token", js)
+        self.assertNotIn("Storage.setItem(\"attest.ticket", js)
 
 
 # ---------------------------------------------------------------------------------------------------------------- API-09
@@ -933,17 +946,65 @@ class TeamVisibility(ConsoleHarness):
         self.assertIn("SYNTHETIC_TEAM_REASON", detail.text)
         self.assertIn("SYNTHETIC_TEAM_EVENT", self.client.get(f"/api/runs/{self.team_id}/events", headers=TEAM_HEADERS).text)
         self.assertEqual(self.client.get(f"/api/runs/{self.team_id}/artifacts/candidate.patch", headers=TEAM_HEADERS).text, "SYNTHETIC_TEAM_PATCH\n")
-        self.assertEqual(self.client.get(f"/api/runs/{self.team_id}/artifacts/candidate.patch?token={TOKEN}").text, "SYNTHETIC_TEAM_PATCH\n")
-        for zipped in (self.client.get(f"/api/runs/{self.team_id}/bundle.zip", headers=TEAM_HEADERS), self.client.get(f"/api/runs/{self.team_id}/bundle.zip?token={TOKEN}")):
-            self.assertEqual(zipped.status_code, 200)
-            with zipfile.ZipFile(io.BytesIO(zipped.content)) as archive:
-                self.assertIn(f"{self.team_id}/candidate.patch", archive.namelist())
+        zipped = self.client.get(f"/api/runs/{self.team_id}/bundle.zip", headers=TEAM_HEADERS)
+        self.assertEqual(zipped.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(zipped.content)) as archive:
+            self.assertIn(f"{self.team_id}/candidate.patch", archive.namelist())
         health = self.client.get("/api/health", headers=TEAM_HEADERS).json()
         self.assertEqual(health["current"], self.team_id)
         self.assertTrue(health["team"])
         estimate = self.client.get("/api/tasks", headers=TEAM_HEADERS).json()["tasks"][0]["estimate"]
         self.assertEqual(estimate["latest_run_id"], self.team_id)
         self.assertEqual(estimate["recorded_runs"], 1)
+
+    def test_a_query_token_is_ignored_on_every_route(self):
+        """R5-07: `?token=` is read nowhere, so its bearer is an anonymous caller on reads and on admission alike. The review's
+        reproduction (reports/attest-revision5-review-2026-10-19/api-review-repro.py) asserts the old, faulty behaviour."""
+        query = f"?token={TOKEN}"
+        anonymous = self.client.get("/api/runs").json()
+        with_query = self.client.get("/api/runs" + query).json()
+        self.assertEqual([r["run_id"] for r in with_query["runs"]], [r["run_id"] for r in anonymous["runs"]])
+        self.assertNotIn(self.team_id, [r["run_id"] for r in with_query["runs"]])
+        self.assertIsNone(with_query["current"], "the executing team run is not referenced")
+        for path in (f"/api/runs/{self.team_id}", f"/api/runs/{self.team_id}/events", f"/api/runs/{self.team_id}/artifacts/candidate.patch",
+                     f"/api/runs/{self.team_id}/bundle.zip", f"/api/runs/{self.team_id}/artifacts/proof_bundle.json"):
+            response = self.client.get(path + query)
+            self.assertEqual(response.status_code, 404, path)
+            self.assertNotIn("SYNTHETIC_TEAM", response.text)
+        health = self.client.get("/api/health" + query).json()
+        self.assertFalse(health["team"])
+        self.assertIsNone(health["current"])
+        self.assertEqual(self.client.get("/api/tasks" + query).json()["tasks"][0]["estimate"]["recorded_runs"], 0)
+        self.assertFalse(self.client.get("/api/profiles" + query).json()["team"])
+        self.assertEqual(self.client.post(f"/api/runs/{self.team_id}/download-ticket" + query).status_code, 403)
+        before = len(self.store.list_runs(include_team=True))
+        self.assertEqual(self.client.post("/api/runs" + query, json={"task_id": "audit-sample", "provider": "codex"}).status_code, 403)
+        self.assertEqual(len(self.store.list_runs(include_team=True)), before, "the refused request left no row")
+
+    def test_a_download_ticket_opens_the_team_runs_downloads_and_nothing_else(self):
+        """R5-07: the header token mints a ticket for the run; the ticket opens that run's artifact and zip routes and no other route."""
+        self.assertEqual(self.client.post(f"/api/runs/{self.team_id}/download-ticket").status_code, 403, "minting needs the header token")
+        minted = self.client.post(f"/api/runs/{self.team_id}/download-ticket", headers=TEAM_HEADERS)
+        self.assertEqual(minted.status_code, 200, minted.text)
+        ticket = minted.json()["ticket"]
+        self.assertTrue(ticket.startswith(self.team_id + "."))
+        self.assertNotIn(TOKEN, ticket)
+        query = f"?ticket={ticket}"
+        self.assertEqual(self.client.get(f"/api/runs/{self.team_id}/artifacts/candidate.patch{query}").text, "SYNTHETIC_TEAM_PATCH\n")
+        zipped = self.client.get(f"/api/runs/{self.team_id}/bundle.zip{query}")
+        self.assertEqual(zipped.status_code, 200)
+        with zipfile.ZipFile(io.BytesIO(zipped.content)) as archive:
+            self.assertIn(f"{self.team_id}/candidate.patch", archive.namelist())
+        for path in (f"/api/runs/{self.team_id}", f"/api/runs/{self.team_id}/events"):
+            response = self.client.get(path + query)
+            self.assertEqual(response.status_code, 404, path)
+            self.assertNotIn("SYNTHETIC_TEAM", response.text)
+        listing = self.client.get("/api/runs" + query).json()
+        self.assertNotIn(self.team_id, [r["run_id"] for r in listing["runs"]])
+        self.assertIsNone(listing["current"])
+        self.assertFalse(self.client.get("/api/health" + query).json()["team"])
+        self.assertEqual(self.client.post("/api/runs" + query, json={"task_id": "audit-sample", "provider": "codex"}).status_code, 403)
+        self.assertEqual(self.client.get(f"/api/runs/{self.public_id}").status_code, 200, "public rows need neither token nor ticket")
 
     def test_imported_development_bundles_become_team_rows_and_old_rows_are_backfilled(self):
         tmp = Path(tempfile.mkdtemp(prefix="attest-audit-visibility-"))
@@ -971,6 +1032,180 @@ class TeamVisibility(ConsoleHarness):
             reopened._conn.close()
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+# --------------------------------------------------------------------------------------- R5-07: run-scoped download tickets
+class DownloadTickets(ConsoleHarness):
+    """R5-07: the team token is accepted in the X-Attest-Token header only, and a team run's downloads from a plain link use a
+    short-lived, run-scoped, read-only ticket that opens nothing but that run's artifact and zip routes."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.team_a = cls._team_run("ticket-team-a")
+        cls.team_b = cls._team_run("ticket-team-b")
+        out = cls.tmp / "data" / "runs" / "ticket-public"
+        out.mkdir(parents=True)
+        (out / "proof_bundle.json").write_text(json.dumps(_bundle("ticket-public")), encoding="utf-8")
+        (out / "candidate.patch").write_text("SYNTHETIC_PUBLIC_PATCH\n", encoding="utf-8")
+        cls.store.create_run(run_id="ticket-public", **_row(finished_at=utcnow(), out_dir=str(out)))
+
+    @classmethod
+    def _team_run(cls, run_id: str) -> str:
+        out = cls.tmp / "data" / "runs" / run_id
+        out.mkdir(parents=True)
+        (out / "proof_bundle.json").write_text(json.dumps(_bundle(run_id, provider="codex_gateway")), encoding="utf-8")
+        (out / "candidate.patch").write_text(f"SYNTHETIC_PATCH_{run_id}\n", encoding="utf-8")
+        (out / "private-notes.env").write_text("SYNTHETIC_UNPUBLISHED_NOTE=offline-marker\n", encoding="utf-8")
+        cls.store.create_run(run_id=run_id, **_row(provider="codex", profile_label="development", finished_at=utcnow(), out_dir=str(out)))
+        assert cls.store.get_run(run_id)["visibility"] == TEAM
+        cls.store.add_event(run_id, utcnow(), "pacing", f"SYNTHETIC_EVENT_{run_id}")
+        return run_id
+
+    def mint(self, run_id: str) -> dict:
+        response = self.client.post(f"/api/runs/{run_id}/download-ticket", headers=TEAM_HEADERS)
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def test_minting_needs_the_header_token_and_a_visible_run(self):
+        a = self.team_a
+        self.assertEqual(self.client.post(f"/api/runs/{a}/download-ticket").status_code, 403)
+        self.assertEqual(self.client.post(f"/api/runs/{a}/download-ticket?token={TOKEN}").status_code, 403, "the query token is not read")
+        self.assertEqual(self.client.post(f"/api/runs/{a}/download-ticket", json={"admin_token": TOKEN}).status_code, 403, "header only")
+        self.assertEqual(self.client.post(f"/api/runs/{a}/download-ticket", headers={"X-Attest-Token": "not-the-token"}).status_code, 403)
+        self.assertEqual(self.client.post("/api/runs/no-such-run/download-ticket", headers=TEAM_HEADERS).status_code, 404)
+        self.assertEqual(self.client.get(f"/api/runs/{a}/download-ticket", headers=TEAM_HEADERS).status_code, 405)
+        body = self.mint(a)
+        self.assertEqual(set(body), {"run_id", "ticket", "expires_at", "expires_in_s"})
+        self.assertEqual(body["run_id"], a)
+        self.assertEqual(body["expires_in_s"], 600)
+        self.assertRegex(body["ticket"], rf"^{re.escape(a)}\.[0-9]+\.[0-9a-f]{{64}}$")
+        expires = dt.datetime.fromisoformat(body["expires_at"])
+        self.assertAlmostEqual((expires - dt.datetime.now(dt.timezone.utc)).total_seconds(), 600, delta=5)
+        self.assertEqual(int(body["ticket"].split(".")[-2]), int(expires.timestamp()))
+        self.assertEqual(self.server.ticket_run_id(body["ticket"]), a)
+        self.assertEqual(self.client.post("/api/runs/ticket-public/download-ticket", headers=TEAM_HEADERS).status_code, 200,
+                         "a public run is visible to the team as well, though its downloads need no ticket")
+
+    def test_a_ticket_opens_only_its_own_runs_downloads(self):
+        a, b = self.team_a, self.team_b
+        ticket = self.mint(a)["ticket"]
+        query = f"?ticket={ticket}"
+        patch_response = self.client.get(f"/api/runs/{a}/artifacts/candidate.patch{query}")
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(patch_response.text, f"SYNTHETIC_PATCH_{a}\n")
+        self.assertEqual(patch_response.headers["cache-control"], "no-store")
+        zipped = self.client.get(f"/api/runs/{a}/bundle.zip{query}")
+        self.assertEqual(zipped.status_code, 200)
+        self.assertEqual(zipped.headers["cache-control"], "no-store")
+        with zipfile.ZipFile(io.BytesIO(zipped.content)) as archive:
+            self.assertEqual(set(archive.namelist()), {f"{a}/proof_bundle.json", f"{a}/candidate.patch"})
+        self.assertNotIn(b"SYNTHETIC_UNPUBLISHED_NOTE", zipped.content)
+        # run B is as unknown to the bearer of A's ticket as to an anonymous caller
+        for path in (f"/api/runs/{b}/artifacts/candidate.patch", f"/api/runs/{b}/bundle.zip", f"/api/runs/{b}/artifacts/proof_bundle.json"):
+            response = self.client.get(path + query)
+            self.assertEqual(response.status_code, 404, path)
+            self.assertNotIn("SYNTHETIC", response.text)
+        # the artifact allowlist and the containment checks apply to a ticketed download as to any other
+        self.assertEqual(self.client.get(f"/api/runs/{a}/artifacts/private-notes.env{query}").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/runs/{a}/artifacts/mutants_..%2F..%2Fetc.py{query}").status_code, 404)
+
+    def test_an_expired_ticket_is_refused(self):
+        a, server = self.team_a, self.server
+        frozen = 1_800_000_000.0
+        with patch.object(server, "_now", lambda: frozen):
+            ticket = self.mint(a)["ticket"]
+        self.assertEqual(int(ticket.split(".")[-2]), int(frozen) + 600)
+        artifact = f"/api/runs/{a}/artifacts/candidate.patch?ticket={ticket}"
+        archive = f"/api/runs/{a}/bundle.zip?ticket={ticket}"
+        with patch.object(server, "_now", lambda: frozen + 599):
+            self.assertEqual((self.client.get(artifact).status_code, self.client.get(archive).status_code), (200, 200))
+        with patch.object(server, "_now", lambda: frozen + 600):
+            self.assertEqual((self.client.get(artifact).status_code, self.client.get(archive).status_code), (404, 404))
+            self.assertIsNone(server.ticket_run_id(ticket))
+        with patch.object(server, "_now", lambda: frozen + 3600):
+            self.assertEqual(self.client.get(artifact).status_code, 404)
+        # a non-positive lifetime issues tickets that are already dead; the header token is unaffected by any of this
+        with patch.object(server, "DOWNLOAD_TICKET_SECONDS", -1):
+            dead = self.mint(a)["ticket"]
+        self.assertEqual(self.client.get(f"/api/runs/{a}/artifacts/candidate.patch?ticket={dead}").status_code, 404)
+        self.assertEqual(self.client.get(f"/api/runs/{a}/artifacts/candidate.patch", headers=TEAM_HEADERS).status_code, 200)
+
+    def test_a_ticket_grants_nothing_but_downloads(self):
+        a = self.team_a
+        ticket = self.mint(a)["ticket"]
+        query = f"?ticket={ticket}"
+        anonymous = self.client.get("/api/runs").json()
+        listing = self.client.get("/api/runs" + query).json()
+        self.assertEqual([r["run_id"] for r in listing["runs"]], [r["run_id"] for r in anonymous["runs"]])
+        self.assertNotIn(a, [r["run_id"] for r in listing["runs"]])
+        self.assertIsNone(listing["current"])
+        for path in (f"/api/runs/{a}", f"/api/runs/{a}/events"):
+            response = self.client.get(path + query)
+            self.assertEqual(response.status_code, 404, path)
+            self.assertNotIn("SYNTHETIC", response.text)
+        self.assertEqual(self.client.get("/api/tasks" + query).json(), self.client.get("/api/tasks").json())
+        self.assertEqual(self.client.get("/api/profiles" + query).json(), {"profiles": self.server.PUBLIC_PROFILES, "team": False})
+        health = self.client.get("/api/health" + query).json()
+        self.assertFalse(health["team"])
+        self.assertIsNone(health["current"])
+        # a ticket is not a token: in the header or the body it is just a wrong token, and it cannot mint another ticket
+        self.assertEqual(self.client.get(f"/api/runs/{a}", headers={"X-Attest-Token": ticket}).status_code, 404)
+        self.assertEqual(self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "codex", "admin_token": ticket}).status_code, 403)
+        self.assertEqual(self.client.post(f"/api/runs/{a}/download-ticket{query}").status_code, 403)
+        self.assertEqual(self.client.post("/api/runs", json={"task_id": "audit-sample", "provider": "codex"}, headers={"X-Attest-Token": ticket}).status_code, 403)
+        # admission: neither the ticket nor a query token carries team authority or an exemption from the visitor quota
+        self.assertEqual(self.client.post("/api/runs" + query, json={"task_id": "audit-sample", "provider": "codex"}).status_code, 403)
+        for i in range(3):
+            self.store.create_run(run_id=f"ticket-quota-{i}", **_row(status="queued", verdict=None, created_at=utcnow(), requester="testclient"))
+        self.assertEqual(self.client.post("/api/runs", json={"task_id": "audit-sample"}).status_code, 429)
+        self.assertEqual(self.client.post("/api/runs" + query, json={"task_id": "audit-sample"}).status_code, 429)
+        self.assertEqual(self.client.post(f"/api/runs?token={TOKEN}", json={"task_id": "audit-sample"}).status_code, 429)
+        self.assertEqual(self.client.post(f"/api/runs?token={TOKEN}", json={"task_id": "audit-sample", "provider": "codex"}).status_code, 403)
+        self.assertEqual(self.store.count_recent("testclient", "2000-01-01"), 3, "no refused request left a row")
+        admitted = self.client.post("/api/runs", json={"task_id": "audit-sample"}, headers=TEAM_HEADERS)  # the header is the credential
+        self.assertEqual(admitted.status_code, 200, admitted.text)
+
+    def test_forged_and_malformed_tickets_are_refused(self):
+        a, b, server = self.team_a, self.team_b, self.server
+        genuine = self.mint(a)["ticket"]
+        run_id, expiry, signature = genuine.rsplit(".", 2)
+        self.assertEqual(run_id, a)
+        flipped = signature[:-1] + ("0" if signature[-1] != "0" else "1")
+        other_secret = hmac.new(b"not-the-process-secret", f"{a}\n{expiry}".encode("utf-8"), hashlib.sha256).hexdigest()
+        forged = [f"{a}.{expiry}.{flipped}",                 # one bit of the signature
+                  f"{b}.{expiry}.{signature}",               # run B under A's signature
+                  f"{a}.{int(expiry) + 86400}.{signature}",  # an extended expiry
+                  f"{a}.{expiry}.{other_secret}",            # signed with another secret
+                  f"{a}.{expiry}.{signature.upper()}",       # not the canonical encoding
+                  f"{a}.{expiry}", a, "", ".", "..", f"{a}..{signature}", f"{a}.{expiry}.", f"{a}.notanumber.{signature}",
+                  f"{a}.{expiry}.{signature}.{signature}", f" {genuine}", genuine + " ", genuine.replace(".", "%2E"), "x" * 600]
+        for ticket in forged:
+            self.assertIsNone(server.ticket_run_id(ticket), ticket)
+            for path in (f"/api/runs/{a}/artifacts/candidate.patch", f"/api/runs/{a}/bundle.zip", f"/api/runs/{b}/artifacts/candidate.patch"):
+                response = self.client.get(path, params={"ticket": ticket})
+                self.assertEqual(response.status_code, 404, (ticket, path))
+                self.assertNotIn("SYNTHETIC", response.text)
+        self.assertEqual(server.ticket_run_id(genuine), a)
+        self.assertEqual(self.client.get(f"/api/runs/{a}/artifacts/candidate.patch", params={"ticket": genuine}).status_code, 200)
+        # another process (a restart) has another secret: the old ticket is refused and the page asks for a new one
+        with patch.object(server, "_TICKET_SECRET", secrets.token_bytes(32)):
+            self.assertIsNone(server.ticket_run_id(genuine))
+            self.assertEqual(self.client.get(f"/api/runs/{a}/bundle.zip", params={"ticket": genuine}).status_code, 404)
+            reissued = self.mint(a)["ticket"]
+            self.assertEqual(self.client.get(f"/api/runs/{a}/bundle.zip", params={"ticket": reissued}).status_code, 200)
+        self.assertIsNone(server.ticket_run_id(reissued), "nor does this process honour the other one's tickets")
+
+    def test_public_runs_download_without_any_credential(self):
+        for path in ("/api/runs/ticket-public/artifacts/candidate.patch", "/api/runs/ticket-public/bundle.zip", "/api/runs/ticket-public/artifacts/proof_bundle.json"):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200, path)
+            self.assertNotEqual(response.headers.get("cache-control"), "no-store", "public downloads are unchanged")
+        self.assertEqual(self.client.get("/api/runs/ticket-public/artifacts/candidate.patch").text, "SYNTHETIC_PUBLIC_PATCH\n")
+        # a stray or foreign credential on a public download changes nothing
+        self.assertEqual(self.client.get("/api/runs/ticket-public/bundle.zip?ticket=garbage").status_code, 200)
+        self.assertEqual(self.client.get(f"/api/runs/ticket-public/bundle.zip?token={TOKEN}").status_code, 200)
+        self.assertEqual(self.client.get("/api/runs/ticket-public/bundle.zip", params={"ticket": self.mint(self.team_a)["ticket"]}).status_code, 200)
 
 
 if __name__ == "__main__":

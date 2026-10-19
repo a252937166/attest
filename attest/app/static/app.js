@@ -45,7 +45,7 @@
   const PROV_TEXT = { live: "Live run started from this console", imported: "Recorded evidence", synthetic: "Synthetic fixture: replayed from a recorded run, not a live execution" };
 
   const state = { view: "home", runId: null, tab: "overview", filter: "all", mode: "browse", task: null, profiles: [], profile: null, token: "", team: false,
-    tasks: [], runs: [], health: null, detail: null, expanded: new Set(), onlyRed: false, revealed: false, spot: null,
+    ticket: null, tasks: [], runs: [], health: null, detail: null, expanded: new Set(), onlyRed: false, revealed: false, spot: null,
     live: { timer: null, lastSeq: 0, events: [], status: null, stage: null, meters: {}, polls: 0 } };
   const guide = { ctx: null, steps: [], i: 0 };
   window.attestDebug = { polls: 0, renders: 0, panelRenders: 0 };
@@ -65,12 +65,41 @@
   const restoreFocus = (id) => { if (!id) return; const el = document.querySelector(`[data-focus="${id}"]`); if (el && el !== document.activeElement) el.focus({ preventScroll: true }); };
   const scrollTo = (el, block) => { if (el) el.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: block || "start" }); };
 
-  // The team token lives in memory only. Once it has been accepted it is sent on every read, because team runs are hidden
-  // from callers without it; downloads (plain links) carry it as a query parameter.
+  // The team token lives in memory only and travels in the X-Attest-Token header of every read once it has been accepted,
+  // because team runs are hidden from callers without it. It never enters a URL. Downloads are plain links, so a team run's
+  // artifact and zip links carry a short-lived ticket instead: minted for that run when its case file renders, valid for ten
+  // minutes, good for that run's downloads only (it opens nothing else and authorises no run). Public runs download with no
+  // credential at all.
   const authHeaders = () => (state.token && state.team ? { "X-Attest-Token": state.token } : {});
-  const tokenQuery = () => (state.token && state.team ? `?token=${encodeURIComponent(state.token)}` : "");
-  const artUrl = (runId, name) => `/api/runs/${encodeURIComponent(runId)}/artifacts/${name}${tokenQuery()}`;
-  const zipUrl = (runId) => `/api/runs/${encodeURIComponent(runId)}/bundle.zip${tokenQuery()}`;
+  const ticketQuery = (runId) => (state.ticket && state.ticket.runId === runId && state.ticket.value ? `?ticket=${encodeURIComponent(state.ticket.value)}` : "");
+  const artUrl = (runId, name) => `/api/runs/${encodeURIComponent(runId)}/artifacts/${name}${ticketQuery(runId)}`;
+  const zipUrl = (runId) => `/api/runs/${encodeURIComponent(runId)}/bundle.zip${ticketQuery(runId)}`;
+  const TICKET_RENEW_MS = 60000;  // a ticket is renewed this long before it would expire
+  // One ticket per run view: requested for a team run when its finished case file is about to render, reused while it is
+  // valid, renewed before it expires (the rendered links are rewritten in place). Public runs and signed-out viewers get none.
+  async function ensureTicket(run) {
+    const runId = run && run.run_id;
+    if (!runId || !state.team || !state.token || run.visibility !== "team") { clearTicket(); return null; }
+    if (state.ticket && state.ticket.runId === runId && state.ticket.expiresAt - Date.now() > TICKET_RENEW_MS) return state.ticket.value;
+    clearTicket();
+    let body;
+    try { body = await api(`/api/runs/${encodeURIComponent(runId)}/download-ticket`, { method: "POST" }); } catch (e) { return null; }
+    if (!body || !body.ticket) return null;
+    const ttl = Math.max(5000, (Number(body.expires_in_s) || 600) * 1000);
+    state.ticket = { runId, value: body.ticket, expiresAt: Date.now() + ttl, timer: setTimeout(() => renewTicket(runId), Math.max(1000, ttl - TICKET_RENEW_MS)) };
+    return body.ticket;
+  }
+  function clearTicket() { if (state.ticket && state.ticket.timer) clearTimeout(state.ticket.timer); state.ticket = null; }
+  async function renewTicket(runId) {
+    if (state.runId !== runId || !state.detail || state.live.status) return;  // the viewer moved on, or the run is still live
+    clearTicket();
+    if (await ensureTicket(state.detail.run)) refreshDownloadLinks();
+  }
+  function refreshDownloadLinks() {  // a renewed ticket: the rendered download links of the open run are rewritten, nothing is rebuilt
+    const root = main(); if (!root || !state.runId) return;
+    const prefix = `/api/runs/${encodeURIComponent(state.runId)}/`;
+    $$("a[href]", root).forEach((a) => { const href = a.getAttribute("href"); if (href.startsWith(prefix)) a.setAttribute("href", href.split("?")[0] + ticketQuery(state.runId)); });
+  }
   async function api(path, opts = {}) {
     const res = await fetch(path, Object.assign({}, opts, { headers: Object.assign({}, authHeaders(), opts.headers || {}) }));
     const body = await res.json().catch(() => ({}));
@@ -107,7 +136,7 @@
   function stopLive() { if (state.live.timer) { clearInterval(state.live.timer); state.live.timer = null; } }
 
   function showHome(opts = {}) {
-    stopLive();
+    stopLive(); clearTicket();
     state.runId = null; state.detail = null; state.live.status = null;
     if (!opts.popstate) setRoute(null, !!opts.replace, opts.hash || "");
     setView("home");
@@ -371,7 +400,7 @@
         <button type="button" class="btn secondary" data-new-run="${esc(run.task_id)}" data-focus="act-new">Start a new run</button>`;
     }
     return `<a class="btn primary" href="${zipUrl(run.run_id)}">Download Proof Bundle</a>
-      ${detail?.bundle?.candidate?.diff ? `<button type="button" class="btn secondary" data-copy-patch="${esc(run.run_id)}" data-patch-url="${esc(art("candidate.patch"))}" data-focus="act-copy">Copy patch</button>` : ""}
+      ${detail?.bundle?.candidate?.diff ? `<button type="button" class="btn secondary" data-copy-patch="${esc(run.run_id)}" data-focus="act-copy">Copy patch</button>` : ""}
       <a class="btn secondary" href="${art("PROOF.md")}" target="_blank" rel="noopener">Open PROOF.md</a>`;
   }
 
@@ -746,6 +775,8 @@
         return false;
       }
       if (state.runId !== id) return false;
+      await ensureTicket(detail.run);  // a team run's download links carry a ticket, never the token
+      if (state.runId !== id) return false;
       state.detail = detail; renderFinished(detail);
       return true;
     }
@@ -760,7 +791,7 @@
   }
 
   async function openRun(id, replace) {
-    stopLive();
+    stopLive(); clearTicket();
     state.runId = id; state.detail = null; state.onlyRed = false;
     state.live = { timer: null, lastSeq: 0, events: [], status: null, stage: null, meters: {}, polls: 0 };
     loadExpanded(id);
@@ -788,6 +819,8 @@
       renderLive(detail);
       state.live.timer = setInterval(pollLive, POLL_MS);
     } else {
+      await ensureTicket(run);  // a team run's download links carry a ticket, never the token
+      if (state.runId !== id) return;
       renderFinished(detail);
     }
   }
@@ -893,19 +926,24 @@
     await loadProfiles(token || null);
     note.textContent = state.team ? "Signed in: the team profile is available in the Inference profile list when you choose to run live, and team runs are listed." : (token ? "That token was not accepted; the public profile stays selected." : "Enter the team token to see the team profile.");
     note.className = state.team || !token ? "note" : "note err";
-    if (state.team !== wasTeam) { await loadRuns(); loadTasks(); loadHealth(); }  // the history changes with what the caller may see
+    if (state.team !== wasTeam) {  // the history changes with what the caller may see, and so do the open run's download links
+      clearTicket();
+      await loadRuns(); loadTasks(); loadHealth();
+      if (state.detail && !state.live.status) { await ensureTicket(state.detail.run); refreshDownloadLinks(); }
+    }
   }
-  async function copyPatch(btn, runId, url) {
-    // the clipboard changes only after a successful response: an error document is never pasted as a patch
-    const patchUrl = url || `/api/runs/${encodeURIComponent(runId)}/artifacts/candidate.patch`;
+  async function copyPatch(btn, runId) {
+    // the clipboard changes only after a successful response: an error document is never pasted as a patch. The fetch
+    // carries the team token in its header; no credential is put into the URL
+    const patchUrl = `/api/runs/${encodeURIComponent(runId)}/artifacts/candidate.patch`;
     const old = btn.textContent;
     const show = (text, ms) => { btn.textContent = text; setTimeout(() => { btn.textContent = old; }, ms); };
     let res;
-    try { res = await fetch(patchUrl); } catch (e) { show("Copy failed: no response", 3000); return; }
+    try { res = await fetch(patchUrl, { headers: authHeaders() }); } catch (e) { show("Copy failed: no response", 3000); return; }
     if (!res.ok) { show(`Copy failed (${res.status})`, 3000); return; }
     const text = await res.text();
     try { await navigator.clipboard.writeText(text); show("Copied", 2000); }
-    catch (e) { location.href = patchUrl; }
+    catch (e) { location.href = artUrl(runId, "candidate.patch"); }  // no clipboard: the download link (ticketed for a team run)
   }
   async function copyLink(btn) {
     try { await navigator.clipboard.writeText(location.href); const old = btn.textContent; btn.textContent = "Link copied"; setTimeout(() => { btn.textContent = old; }, 2000); }
@@ -934,7 +972,7 @@
     else if (t.dataset.tab) { if (t.disabled) return; state.tab = t.dataset.tab; setRoute(state.runId, true); renderPanel(); }
     else if (t.dataset.tabLink) { e.preventDefault(); state.tab = t.dataset.tabLink; setRoute(state.runId, true); renderPanel(); $(`#tab-${state.tab}`)?.focus(); }
     else if (t.dataset.filter) { state.filter = t.dataset.filter; renderFilters(); renderHistory(); $(`[data-focus="filter-${state.filter}"]`)?.focus(); }
-    else if (t.dataset.copyPatch) copyPatch(t, t.dataset.copyPatch, t.dataset.patchUrl);
+    else if (t.dataset.copyPatch) copyPatch(t, t.dataset.copyPatch);
     else if (t.dataset.retryFinal) finishLive(t.dataset.retryFinal);
     else if (t.hasAttribute("data-copy-link")) copyLink(t);
     else if (t.dataset.newRun !== undefined) { state.mode = "live"; $("input[name=mode][value=live]").checked = true; if (state.tasks.some((x) => x.task_id === t.dataset.newRun)) { state.task = t.dataset.newRun; $("#task").value = state.task; } renderEstimate(); $("#rail-details").open = true; $("#go").focus(); }

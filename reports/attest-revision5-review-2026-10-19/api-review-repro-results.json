@@ -1,0 +1,54 @@
+{
+  "scope": "temporary synthetic data; worker idled; build_runtime and socket connections blocked",
+  "checks": {
+    "row_only_error_is_sanitized": {
+      "/api/runs": {
+        "status": 200,
+        "diagnostic_present": false
+      },
+      "/api/runs/sanitized-row": {
+        "status": 200,
+        "diagnostic_present": false
+      },
+      "/api/runs/sanitized-row/events": {
+        "status": 200,
+        "diagnostic_present": false
+      }
+    },
+    "bundle_reasons_and_events_still_public": {
+      "/api/runs": {
+        "status": 200,
+        "diagnostic_present": true
+      },
+      "/api/runs/error-bundle": {
+        "status": 200,
+        "diagnostic_present": true
+      },
+      "/api/runs/error-bundle/events": {
+        "status": 200,
+        "diagnostic_present": true
+      },
+      "/api/runs/error-bundle/artifacts/proof_bundle.json": {
+        "status": 200,
+        "diagnostic_present": true
+      },
+      "/api/runs/error-bundle/artifacts/PROOF.md": {
+        "status": 200,
+        "diagnostic_present": true
+      },
+      "/api/runs/error-bundle/bundle.zip": {
+        "status": 200,
+        "diagnostic_present_in_member": true
+      }
+    },
+    "query_token_has_full_team_privileges": {
+      "no_token_team_enqueue": 403,
+      "query_token_team_enqueue": 200,
+      "team_run_hidden_anonymously": true,
+      "query_token_lists_team_run": true,
+      "exhausted_public_visitor": 429,
+      "query_token_bypasses_visitor_quota": 200,
+      "token_kind": "synthetic test constant; no token value retained"
+    }
+  }
+}

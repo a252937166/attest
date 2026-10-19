@@ -17,6 +17,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import logging
+import os
 import queue
 import shutil
 import threading
@@ -30,6 +31,27 @@ from .db import Store, visibility_for
 
 LOG = logging.getLogger("attest.app")
 RESTART_BACKOFF_S = 5.0
+# Per-run model-call cap of every paid console run (review finding R5-05, 19 Oct 2026): ATTEST_PER_RUN_MAX_CALLS, default 22, the
+# figure the freeze promises and the harness and CLI default to. Read when a run's provider is built, so the bundle's profile.provider
+# shows the cap that actually governed the run.
+PER_RUN_MAX_CALLS_ENV = "ATTEST_PER_RUN_MAX_CALLS"
+DEFAULT_PER_RUN_MAX_CALLS = 22
+
+
+def per_run_max_calls() -> int:
+    """The console's per-run call cap for the paid provider. An unusable value (not an integer, or below 1) keeps the default: a
+    misconfiguration must never remove the cap."""
+    raw = os.environ.get(PER_RUN_MAX_CALLS_ENV, "").strip()
+    if not raw:
+        return DEFAULT_PER_RUN_MAX_CALLS
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 0
+    if value < 1:
+        LOG.warning("ignoring an unusable %s=%r; the per-run call cap stays %d", PER_RUN_MAX_CALLS_ENV, raw, DEFAULT_PER_RUN_MAX_CALLS)
+        return DEFAULT_PER_RUN_MAX_CALLS
+    return value
 
 
 class WorkerUnavailable(RuntimeError):
@@ -251,7 +273,8 @@ class Worker:
                                     notify=lambda message: self.store.add_event(run_id, utcnow(), "pacing", message))
         else:
             from ..models.nebius_tokenfactory import NebiusTokenFactory
-            provider = NebiusTokenFactory(load_secret("NEBIUS_API_KEY"), ledger, usd_cap=self.per_run_usd_cap)
+            # the per-run call cap is enforced by the provider before dispatch and recorded in the bundle's profile.provider (R5-05)
+            provider = NebiusTokenFactory(load_secret("NEBIUS_API_KEY"), ledger, usd_cap=self.per_run_usd_cap, max_calls=per_run_max_calls())
         executor = TokenFactorySandboxes(load_secret("NEBIUS_API_KEY"), project_id(), ledger)
         try:
             from ..core.grounding import Tavily

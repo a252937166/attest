@@ -1,0 +1,201 @@
+{
+  "batch_package_snapshot_difference": [
+    "core/check.py"
+  ],
+  "core06_missing_existing_stage": {
+    "after": {
+      "errors": 2,
+      "evidence_complete": false,
+      "fully_verified": false,
+      "manifest_verified": true,
+      "ok": false,
+      "protocol": 2,
+      "warnings": 0
+    },
+    "before": {
+      "existing_gate": {
+        "detail": "OK (2 of 2 methods, each in its own process)",
+        "evidence_class": "bound",
+        "ok": true
+      },
+      "existing_record_present": true,
+      "raw_existing_present": true
+    },
+    "deleted_fields": [
+      "proof_bundle.verification.existing",
+      "verify_raw.existing"
+    ],
+    "error_checks": [
+      {
+        "detail": "gates disagree with their stage records: existing_suite (gate without a stage record)",
+        "name": "gates_match_stage_records",
+        "ok": false,
+        "severity": "error"
+      },
+      {
+        "detail": "required evidence missing: gate existing_suite has no stage record; existing-suite stage record missing",
+        "name": "required_evidence",
+        "ok": false,
+        "severity": "error"
+      }
+    ],
+    "interpretation": "Current-protocol semantic completeness accepts a missing stage; this is not a hash forgery or proof of execution authenticity.",
+    "original_run_modified": false,
+    "positive_control": {
+      "errors": 0,
+      "evidence_complete": true,
+      "fully_verified": true,
+      "manifest_verified": true,
+      "ok": true,
+      "protocol": 2,
+      "warnings": 0
+    },
+    "regenerated_in_temporary_copy": [
+      "proof_bundle.json",
+      "verify_raw.json",
+      "PROOF.md",
+      "manifest.json"
+    ],
+    "retained_gate": {
+      "detail": "OK (2 of 2 methods, each in its own process)",
+      "evidence_class": "bound",
+      "ok": true
+    },
+    "source_run": "reports/attest-audit-repairs-2026-10-19/evaluation-codex-2/runs/balanced-brackets-attest-a1-20261019T082112441317Z"
+  },
+  "kvparse_witness_counterexample": {
+    "cases": [
+      {
+        "guarded_partition": {
+          "kind": "exception",
+          "type": "ValueError"
+        },
+        "input": "a=b",
+        "input_type": "ZeroLengthString",
+        "original": {
+          "kind": "exception",
+          "type": "ValueError"
+        }
+      },
+      {
+        "guarded_partition": {
+          "kind": "return",
+          "value": [
+            "a",
+            "b"
+          ]
+        },
+        "input": "a=b",
+        "input_type": "str",
+        "original": {
+          "kind": "return",
+          "value": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "guarded_partition": {
+          "kind": "return",
+          "value": [
+            "a",
+            "b"
+          ]
+        },
+        "input": " a = b ",
+        "input_type": "str",
+        "original": {
+          "kind": "return",
+          "value": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "guarded_partition": {
+          "kind": "return",
+          "value": [
+            "a",
+            "=b"
+          ]
+        },
+        "input": "a==b",
+        "input_type": "str",
+        "original": {
+          "kind": "return",
+          "value": [
+            "a",
+            "=b"
+          ]
+        }
+      },
+      {
+        "guarded_partition": {
+          "kind": "return",
+          "value": [
+            "q",
+            " spaced "
+          ]
+        },
+        "input": "q = \" spaced \"",
+        "input_type": "str",
+        "original": {
+          "kind": "return",
+          "value": [
+            "q",
+            " spaced "
+          ]
+        }
+      },
+      {
+        "guarded_partition": {
+          "kind": "exception",
+          "type": "ValueError"
+        },
+        "input": "novalue",
+        "input_type": "str",
+        "original": {
+          "kind": "exception",
+          "type": "ValueError"
+        }
+      },
+      {
+        "guarded_partition": {
+          "kind": "exception",
+          "type": "ValueError"
+        },
+        "input": " = v",
+        "input_type": "str",
+        "original": {
+          "kind": "exception",
+          "type": "ValueError"
+        }
+      },
+      {
+        "guarded_partition": {
+          "kind": "exception",
+          "type": "ValueError"
+        },
+        "input": "",
+        "input_type": "str",
+        "original": {
+          "kind": "exception",
+          "type": "ValueError"
+        }
+      }
+    ],
+    "frozen_statement": "Refactor kvparse/parser.py without changing any behaviour. Two changes are requested. (1) parse_line(line) must be rewritten without the hand-rolled index loops: split the line at the first '=' with str.partition, strip the key and the value, raise ValueError when there is no '=' or the stripped key is empty, and remove one pair of matching surrounding quotes (both ends '\"' or both ends \"'\") from a stripped value of length two or more; the function must not contain a 'while' loop. (2) Extract the detection of ignorable lines into a module-level function _is_ignorable(line) -> bool in kvparse/parser.py that returns True exactly when the stripped line is empty or starts with '#' or ';', and make parse use it. The observable behaviour of parse and parse_line must stay byte-for-byte identical for every str input: the same return values, the same exception types in the same situations (TypeError for non-string input to parse, ValueError for a malformed line), later duplicate keys still win, and quotes are removed only when the stripped value starts and ends with the same quote character (a value like '\"x\\'' keeps both characters; a lone '\"' is kept). Exception messages are not prescribed. parse keeps raising TypeError for non-string input; what parse_line does with a non-string argument (for example a list or a mapping) is unspecified and must not be tested, because the required use of str.partition changes it. Keep the public names parse and parse_line exported from kvparse, do not modify the tests, and keep the existing suite passing.",
+    "frozen_statement_equals_current": true,
+    "interpretation": "The witness's single chosen implementation is not forced by use of str.partition. Input-domain scope remains ambiguous.",
+    "proves_all_subclasses_satisfiable": false
+  },
+  "source_sha256": {
+    "attest/core/check.py": "21c7c967584def77d5acc61dabb6bd32b53fb191c55bb1c4136d31864d053f69",
+    "attest/core/manifest.py": "3ab627cac3154bfc9bc1914d7d5d5ab01b952ec53fad351d5227d16b603ffcbd",
+    "attest/core/pipeline.py": "161547c191109593f54f5d25188fddc1598314e109f3849d66e611ac1a41d3b4",
+    "attest/core/sealed.py": "a74b2603160393294e521d1b53519cf77bd58eec7f79be620d8356686fc94379",
+    "attest/core/verdict.py": "3cc724dd4df4d176ae1daca3e570008bc49d0838cf7be180f1da81843a9f13a1"
+  }
+}

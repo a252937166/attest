@@ -13,6 +13,19 @@ import sys
 from pathlib import Path
 
 
+def profile_summary(profile: dict | None) -> str:
+    """One line for the registered provider profile (roles, effort, sampling, limits): `key=value` pairs, per-role maps spelled out."""
+    if not profile:
+        return "none registered"
+    parts = []
+    for key, value in profile.items():
+        if isinstance(value, dict):
+            parts.append(key + " " + " ".join(f"{role}={selection}" for role, selection in value.items()))
+        else:
+            parts.append(f"{key}={value}")
+    return "; ".join(parts)
+
+
 def render(report: dict) -> str:
     schedule = report["schedule"]
     rows = report["rows"]
@@ -26,7 +39,7 @@ def render(report: dict) -> str:
              f"Provenance: commit `{prov.get('source_git_commit') or 'none'}`, package `{(prov.get('attest_revision') or {}).get('digest', '')[:16]}`, "
              f"harness `{(prov.get('eval_script_sha256') or '')[:16]}`, examples `{((prov.get('examples_digest') or {}).get('digest') or '')[:16]}`; "
              f"snapshot intact at end: {(report.get('provenance_check') or {}).get('snapshot_intact_at_end')}; invalid comparisons: "
-             f"{(report.get('provenance_check') or {}).get('invalid_tasks') or 'none'}.",
+             f"{(report.get('provenance_check') or {}).get('invalid_tasks') or 'none'}; provider profile: {profile_summary(schedule.get('provider_profile'))}.",
              f"Budget: committed ${(report.get('budget') or {}).get('committed_usd')} of an approved {(report.get('budget') or {}).get('approve_usd')} (per-run cap ${(report.get('budget') or {}).get('per_run_cap_usd')}).", ""]
     lines += ["## Every scheduled cell", "", "| # | Task | System | Attempt | Status | Verdict | Judge | Label | Calls | USD committed | Wall | Revision |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for r in sorted(rows, key=lambda x: x["scheduled_index"]):
@@ -34,7 +47,7 @@ def render(report: dict) -> str:
         lines.append(f"| {r['scheduled_index']} | {r['task']} | {r['system']} | {r.get('attempt')} | {r.get('status')} | {r.get('verdict') or '-'} | {judge} | {r.get('confusion', '-')} | "
                      f"{r.get('model_calls') if r.get('model_calls') is not None else '-'} | {r.get('cost_committed_usd') if r.get('cost_committed_usd') is not None else '-'} | "
                      f"{str(r.get('wall_s')) + ' s' if r.get('wall_s') is not None else '-'} | {(r.get('revision_digest') or '-')[:8]} |")
-    lines += ["", "## Summary per system", "", "| System | Scheduled | Completed | True accept | False accept (shipped broken) | False reject (held correct) | True reject | False refusal (INFEASIBLE on a satisfiable task) | No patch (unfinished) | Infra error | Not run | Needs human | USD committed | Mean wall |",
+    lines += ["", "## Summary per system", "", "| System | Scheduled | Completed | True accept | False accept (shipped broken) | False reject (held correct) | True reject | False refusal (hold without a patch on a satisfiable task) | No patch (unfinished) | Infra error | Not run | Needs human | USD committed | Mean wall |",
               "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for system, s in (report.get("summary") or {}).items():
         c = s["confusion"]
@@ -61,9 +74,11 @@ def render(report: dict) -> str:
     if pacing:
         lines += ["", f"Pacing: {pacing.get('policy_source')}; rejections {pacing.get('rejections_seen')}; waits {len(pacing.get('waits') or [])}."]
     lines += ["", "Ground truth: the independent held-out suite of each task (for a task marked `unsatisfiable`, no patch counts as correct and a hold is the right outcome). "
-              "`no_patch` marks a cell that produced no patch at all (an unfinished task, neither a rejection nor an acceptance); `false_refusal` marks an "
-              "INFEASIBLE verdict on a task whose held-out suite is satisfiable (a wrong refusal). "
-              "Infrastructure errors and not-run cells stay in the table; nothing was merged or selected."]
+              "`no_patch` marks a cell that produced no patch at all (an unfinished task, neither a rejection nor an acceptance); `false_refusal` marks a hold "
+              "that produced no patch (an INFEASIBLE verdict, or a NEEDS HUMAN hold with no patch) on a task whose held-out suite is satisfiable (a wrong refusal); "
+              "the same hold on a task marked `unsatisfiable` is a `true_reject`. A NEEDS HUMAN hold that did produce a patch is judged on that patch. "
+              "A task is an invalid comparison when any of its cells ran another revision, provider, limit or effective provider profile (models per role, "
+              "reasoning effort, sampling) than the registered one. Infrastructure errors and not-run cells stay in the table; nothing was merged or selected."]
     return "\n".join(lines) + "\n"
 
 

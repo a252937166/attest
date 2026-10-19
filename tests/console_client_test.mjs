@@ -1,6 +1,7 @@
-// Offline checks of the console client's repaired functions (API-08, API-10, API-11): the functions are extracted from
-// app.js unchanged and run in a fake DOM/network context with node's vm module, the way the audit's reproduction did.
+// Offline checks of the console client's repaired functions (API-08, API-10, API-11 and R5-07): the functions are extracted
+// from app.js unchanged and run in a fake DOM/network context with node's vm module, the way the audit's reproduction did.
 // No browser, no network, no application writes. Exit code 0 when every assertion holds; tests/test_audit_console.py runs it.
+// Every credential below is synthetic and assembled at run time (the public export scans tests/ for secret-shaped literals).
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
@@ -16,13 +17,17 @@ function extract(start, next) {
 }
 const results = {};
 
-// API-10: copyPatch changes the clipboard only after a successful response.
+const TOKEN = "synthetic-" + "team-token";
+
+// API-10 (and R5-07): copyPatch changes the clipboard only after a successful response; it fetches the plain artifact path
+// with the team token in the header, so no credential enters a URL, and falls back to the download link only without a clipboard.
 {
   const ctx = {
-    clipboard: undefined, url: null,
+    clipboard: undefined, url: null, headers: null,
     fetch: async () => ({ ok: false, status: 404, text: async () => '{"detail":"artifact missing"}' }),
     navigator: { clipboard: { writeText: async (value) => { ctx.clipboard = value; } } },
     setTimeout: () => 0, location: {}, btn: { textContent: "Copy patch" },
+    authHeaders: () => ({ "X-Attest-Token": TOKEN }), artUrl: (runId, name) => `/api/runs/${runId}/artifacts/${name}?ticket=synthetic`,
   };
   vm.createContext(ctx);
   vm.runInContext(extract("async function copyPatch(", "async function copyLink("), ctx);
@@ -34,13 +39,60 @@ const results = {};
   await vm.runInContext("copyPatch(btn, 'synthetic-run')", ctx);
   assert.equal(ctx.clipboard, undefined, "a 503 must leave the clipboard untouched");
   assert.match(ctx.btn.textContent, /^Copy failed \(503\)/);
-  ctx.fetch = async (url) => { ctx.url = url; return { ok: true, status: 200, text: async () => "diff --git a/x b/x\n+1\n" }; };
+  ctx.fetch = async (url, opts) => { ctx.url = url; ctx.headers = (opts || {}).headers || {}; return { ok: true, status: 200, text: async () => "diff --git a/x b/x\n+1\n" }; };
   ctx.btn.textContent = "Copy patch";
-  await vm.runInContext("copyPatch(btn, 'synthetic-run', '/api/runs/synthetic-run/artifacts/candidate.patch?token=t')", ctx);
+  await vm.runInContext("copyPatch(btn, 'synthetic-run')", ctx);
   assert.equal(ctx.clipboard, "diff --git a/x b/x\n+1\n", "a 200 copies the exact patch text");
   assert.equal(ctx.btn.textContent, "Copied");
-  assert.equal(ctx.url, "/api/runs/synthetic-run/artifacts/candidate.patch?token=t", "the rendered (token-bearing) URL is used");
+  assert.equal(ctx.url, "/api/runs/synthetic-run/artifacts/candidate.patch", "the plain artifact path: no token and no ticket in the URL");
+  assert.equal(ctx.headers["X-Attest-Token"], TOKEN, "the team token travels in the header");
+  assert.equal(ctx.location.href, undefined, "no navigation while the clipboard works");
+  ctx.navigator.clipboard.writeText = async () => { throw new Error("clipboard unavailable"); };
+  await vm.runInContext("copyPatch(btn, 'synthetic-run')", ctx);
+  assert.equal(ctx.location.href, "/api/runs/synthetic-run/artifacts/candidate.patch?ticket=synthetic", "the fallback is the (ticketed) download link");
+  assert.ok(!String(ctx.location.href).includes(TOKEN) && !String(ctx.url).includes(TOKEN), "the token value never appears in a URL");
   results.copy_patch_requires_ok = "ok";
+}
+
+// R5-07: artUrl/zipUrl never contain the token; a team run's links carry its ticket (minted once per run view) and nothing
+// else does; public runs and signed-out viewers get no ticket at all.
+{
+  const posts = [];
+  const a = {
+    state: { runId: "team-run", token: TOKEN, team: true, ticket: null, detail: null, live: { status: null } },
+    api: async (url, opts) => { posts.push([url, (opts || {}).method || "GET"]); return { ticket: "team-run.1760000000." + "ab".repeat(32), expires_in_s: 600 }; },
+    setTimeout: () => 7, clearTimeout: () => {}, main: () => null, $$: () => [],
+  };
+  vm.createContext(a);
+  vm.runInContext(extract("const authHeaders", "async function api("), a);
+  assert.equal(vm.runInContext("JSON.stringify(authHeaders())", a), JSON.stringify({ "X-Attest-Token": TOKEN }), "reads carry the header after sign-in");
+  assert.equal(vm.runInContext("artUrl('team-run', 'PROOF.md')", a), "/api/runs/team-run/artifacts/PROOF.md", "no ticket yet: no credential of any kind");
+  assert.equal(vm.runInContext("zipUrl('team-run')", a), "/api/runs/team-run/bundle.zip");
+  const t1 = await vm.runInContext("ensureTicket({ run_id: 'team-run', visibility: 'team' })", a);
+  const t2 = await vm.runInContext("ensureTicket({ run_id: 'team-run', visibility: 'team' })", a);
+  assert.equal(t1, "team-run.1760000000." + "ab".repeat(32));
+  assert.equal(t1, t2, "one ticket per run view: the second call reuses it");
+  assert.deepEqual(posts, [["/api/runs/team-run/download-ticket", "POST"]]);
+  const art = vm.runInContext("artUrl('team-run', 'candidate.patch')", a), zip = vm.runInContext("zipUrl('team-run')", a);
+  assert.equal(art, `/api/runs/team-run/artifacts/candidate.patch?ticket=${encodeURIComponent(t1)}`);
+  assert.equal(zip, `/api/runs/team-run/bundle.zip?ticket=${encodeURIComponent(t1)}`);
+  for (const url of [art, zip]) { assert.ok(!url.includes(TOKEN), "the token value is not in the URL"); assert.ok(!url.includes("token="), "no token parameter"); }
+  assert.equal(vm.runInContext("artUrl('other-run', 'PROOF.md')", a), "/api/runs/other-run/artifacts/PROOF.md", "another run's links do not carry this ticket");
+  assert.equal(vm.runInContext("zipUrl('other-run')", a), "/api/runs/other-run/bundle.zip");
+  posts.length = 0;
+  assert.equal(await vm.runInContext("ensureTicket({ run_id: 'public-run', visibility: 'public' })", a), null, "a public run gets no ticket");
+  assert.deepEqual(posts, []);
+  assert.equal(vm.runInContext("state.ticket", a), null, "and the previous run's ticket is dropped");
+  assert.equal(vm.runInContext("zipUrl('public-run')", a), "/api/runs/public-run/bundle.zip", "public downloads carry no credential");
+  vm.runInContext("state.team = false", a);
+  assert.equal(vm.runInContext("JSON.stringify(authHeaders())", a), "{}", "signed out: no header");
+  assert.equal(await vm.runInContext("ensureTicket({ run_id: 'team-run', visibility: 'team' })", a), null, "signed out: no ticket");
+  assert.deepEqual(posts, []);
+  vm.runInContext("state.team = true", a);
+  a.api = async () => { const e = new Error("synthetic refusal"); e.status = 403; throw e; };
+  assert.equal(await vm.runInContext("ensureTicket({ run_id: 'team-run', visibility: 'team' })", a), null, "a refused ticket leaves the links uncredentialed");
+  assert.equal(vm.runInContext("zipUrl('team-run')", a), "/api/runs/team-run/bundle.zip");
+  results.download_urls_carry_tickets_never_the_token = "ok";
 }
 
 // API-11: applyLiveUpdate shows the authoritative position, never a count derived from the queue size.
@@ -78,6 +130,7 @@ const results = {};
       return { run: { run_id: "synthetic-run", status: "finished", verdict: "VERIFIED" }, bundle: {} };
     },
     stopLive: () => { t.state.live.timer = null; }, loadRuns: async () => {}, loadHealth: () => {},
+    ensureTicket: async () => null,  // R5-07: the terminal view asks for a download ticket before it renders; stubbed here
     renderFinished: (d) => { rendered.push(d); t.state.detail = d; },
     $: () => null, main: () => mainEl, caseBar: () => "", esc: String, setTimeout: (fn) => fn(),
   };
