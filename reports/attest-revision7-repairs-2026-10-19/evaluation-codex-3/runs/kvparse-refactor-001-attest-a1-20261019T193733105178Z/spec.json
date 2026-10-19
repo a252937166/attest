@@ -1,0 +1,63 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Refactor kvparse/parser.py while preserving its existing string-input behavior: replace parse_line's manual index loops with partitioning at the first '=' and extract blank/comment detection into a module-level _is_ignorable helper used by parse. Preserve whitespace stripping, removal of exactly one matching outer quote pair, malformed-line errors, line splitting, duplicate-key handling, and package exports. Leave existing tests unchanged.",
+  "interface_contract": [
+    {
+      "name": "kvparse.parser.parse_line (also exported as kvparse.parse_line)",
+      "signature": "parse_line(line)",
+      "behavior": "For a str argument, partition at the first '=' using str.partition. Strip both resulting key and value with str.strip(). Return a two-element tuple of strings. If the stripped value has length at least two and its first and last characters are both single quotes or both double quotes, remove exactly those two characters, without further stripping or processing the interior. Otherwise retain the stripped value unchanged. Additional '=' characters belong to the value. Blank and comment-like strings receive no special treatment in this function.",
+      "error_cases": [
+        "ValueError when the string contains no '='.",
+        "ValueError when the key before the first '=' is empty after stripping.",
+        "Exception messages are unspecified.",
+        "Behavior for non-string arguments is unspecified and must not be tested."
+      ]
+    },
+    {
+      "name": "kvparse.parser.parse (also exported as kvparse.parse)",
+      "signature": "parse(text)",
+      "behavior": "Accept str input and return a dict of string keys to string values. Iterate over text.splitlines() in order, skip lines classified as ignorable by _is_ignorable, and parse each remaining raw line with parse_line. Later occurrences of the same stripped key overwrite the value without changing that key's original dictionary insertion position. Preserve Python str.splitlines() semantics, including Windows line endings and other recognized line boundaries. Empty or entirely ignorable text returns an empty dict.",
+      "error_cases": [
+        "TypeError when isinstance(text, str) is false, including None, integers, lists, and bytes.",
+        "ValueError when any non-ignorable line is malformed according to parse_line; do not skip malformed lines or return a partial result.",
+        "Exception messages are unspecified."
+      ]
+    },
+    {
+      "name": "kvparse.parser._is_ignorable",
+      "signature": "_is_ignorable(line) -> bool",
+      "behavior": "Module-level helper for str lines. Return True exactly when line.strip() is empty or starts with '#' or ';'; otherwise return False. Return a bool. This helper need not be exported from kvparse.",
+      "error_cases": [
+        "Behavior for non-string arguments is unspecified."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "1. parse_line uses str.partition with '=' to separate at the first delimiter, contains no while loop, and replaces the manual character-accumulation/index loops.",
+    "2. parse_line('a=b') == ('a', 'b'); parse_line(' a = b ') == ('a', 'b'); parse_line('a==b') == ('a', '=b'); parse_line('a = b = c') == ('a', 'b = c'); parse_line('a=') == ('a', '').",
+    "3. parse_line('k e y = v') == ('k e y', 'v'). Surrounding whitespace follows str.strip() semantics, including Unicode whitespace; interior key and unquoted-value characters remain unchanged.",
+    "4. parse_line('q = \"x\"') == ('q', 'x'); parse_line(\"q = 'x'\") == ('q', 'x'); parse_line(\"q = ''\") == ('q', ''); parse_line('q = \"\"') == ('q', '').",
+    "5. parse_line('q = \"x\\'') == ('q', '\"x\\''); parse_line('q = \"') == ('q', '\"'); a lone single quote is likewise retained. Unmatched or mismatched outer quotes remain unchanged.",
+    "6. parse_line('q = \" spaced \"') == ('q', ' spaced '); parse_line('u = \"a\" \"b\"') == ('u', 'a\" \"b'). Remove exactly one outer matching pair, with no recursive unquoting, escape decoding, or interior whitespace stripping.",
+    "7. parse_line raises ValueError for each of '', 'novalue', ' = v', '   ', '=', and '\\t= 1'. More generally, a str line is malformed exactly when it lacks '=' or its stripped key is empty.",
+    "8. _is_ignorable exists at module scope and returns True for '', whitespace-only lines, '   # c', and '\\t; c'; it returns False for 'a = 1', 'a = # not a comment', and 'a = ; not a comment'. Its classification uses str.strip() semantics.",
+    "9. parse uses _is_ignorable to classify lines. parse('') == {}; parse('k = v') == {'k': 'v'}; text consisting only of blank lines and comments returns {}.",
+    "10. parse('# comment\\r\\n\\r\\n; other\\r\\nname = x\\r\\n') == {'name': 'x'}. Preserve text.splitlines() behavior for all recognized line boundaries and trailing line breaks.",
+    "11. parse('a=1\\nb=2\\n a =3') == {'a': '3', 'b': '2'}, with key iteration order ['a', 'b']. Duplicate keys are compared after stripping and later values win.",
+    "12. Comment markers are significant only at the beginning of a stripped line in parse: parse('a = # text\\nb = ; text') == {'a': '# text', 'b': '; text'}. parse_line('#=v') == ('#', 'v'), while parse('#=v') == {}.",
+    "13. parse raises ValueError for a malformed non-ignorable line at the beginning, middle, or end of otherwise valid text, including missing delimiters and empty stripped keys.",
+    "14. parse raises TypeError for None, 3, a list, and bytes, preserving the existing isinstance(text, str) input guard.",
+    "15. For every str input, preserve the original functions' returned string contents and exception conditions under the specified semantics. Exception messages are not asserted, and parse_line with non-string arguments is not tested.",
+    "16. Both 'from kvparse import parse, parse_line' and imports from kvparse.parser continue to work. All existing tests in tests/ pass without modifications."
+  ],
+  "out_of_scope": [
+    "Implementation code in this specification.",
+    "Changes to existing test files.",
+    "New parser syntax, inline-comment removal, escape processing, recursive unquoting, or additional validation.",
+    "Changes to public function names, signatures, exports, return types, or defined error conditions.",
+    "Defining or testing parse_line behavior for non-string inputs.",
+    "Prescribing exception message text or exporting _is_ignorable from the package."
+  ],
+  "external_references_needed": []
+}

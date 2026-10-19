@@ -1,0 +1,58 @@
+[18:59:58] snapshot /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex/snapshot: attest revision 68e9de49df5b (37 sources), eval script 9f9e4bc2ebfe, examples 6db7a2e937d6 (196 files)
+[18:59:58] fresh process from the snapshot: /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex/snapshot/scripts/run_evaluation.py --provider ...
+[19:00:02] codex pacing policy: gateway status: hourly request counting not enforced
+[19:00:02] pre-registered 4 cells (4 tasks x ['attest'] x 1 attempt(s)) on provider=codex; per-run cap $0.5, batch approval None, max calls None; schedule -> /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex/schedule.json
+[19:00:02] provider profile registered: {"base_url_sha256": "68e25b464500800e", "provider": "codex_gateway", "roles": {"arbitrate": "gpt-6-astra:medium", "audit": "gpt-6-astra:low", "break": "gpt-6-sol:medium", "implement": "gpt-6-sol:medium", "seal": "gpt-6-sol:medium", "spec": "gpt-6-astra:low", "summary": "gpt-6-luna:low"}}
+[19:00:02] frozen task rle-encode with 4 files, spec sha256 e64da208acc9
+[19:00:02] frozen task balanced-brackets with 4 files, spec sha256 84a644df7111
+[19:00:03] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[19:00:03] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[19:00:07] checkpoint dfb556c0-c4ef-4822-b88d-ed548b259ae2 ready; baseline OK (2 tests)
+[19:00:07] suite binding: bound (2 statically discovered test ids in 1 module(s) match the baseline run)
+[19:00:07] specification
+[19:00:13] checkpoint b44cd5c3-ff95-42e2-971a-877fa4fc2faa ready; baseline OK (2 tests)
+[19:00:13] suite binding: bound (2 statically discovered test ids in 1 module(s) match the baseline run)
+[19:00:13] specification
+[19:03:38] MODEL ERROR: the inference outcome is uncertain (transport failure); the request was not retried [ref 6e0a2290]
+[19:03:38] verdict ERROR -> /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex/runs/balanced-brackets-attest-a1-20261019T190002126879Z
+[19:08:46] MODEL ERROR: the inference outcome is uncertain (transport failure); the request was not retried [ref 75b61012]
+[19:08:46] verdict ERROR -> /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex/runs/rle-encode-attest-a1-20261019T190002126647Z
+  [ 0] rle-encode                   attest    a1 completed verdict=ERROR        correct=False -> infra_error  $0.0 524.2s rev=68e9de49 paced=0.0s
+  [ 1] balanced-brackets            attest    a1 completed verdict=ERROR        correct=None  -> infra_error  $0.0 216.0s rev=68e9de49 paced=0.0s
+  [ 2] durationkit-units-001        attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a transport-uncertain operation occurred; the batch stopped for reconciliation without replaying anything (the cell's reconciliation list names what to check))
+  [ 3] kvparse-refactor-001         attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a transport-uncertain operation occurred; the batch stopped for reconciliation without replaying anything (the cell's reconciliation list names what to check))
+
+=== SUMMARY (all scheduled cells) ===
+{
+  "attest": {
+    "scheduled": 4,
+    "completed": 2,
+    "not_run": 2,
+    "confusion": {
+      "true_accept": 0,
+      "false_accept": 0,
+      "false_reject": 0,
+      "true_reject": 0,
+      "false_refusal": 0,
+      "no_patch": 0,
+      "infra_error": 2,
+      "unknown": 0,
+      "not_run": 2
+    },
+    "shipped_broken_code": 0,
+    "needs_human": 0,
+    "no_patch": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_s": 0.0,
+    "cells_in_invalid_comparisons": 0,
+    "total_cost_committed_usd": 0.0,
+    "mean_wall_s": 370.1
+  }
+}
+budget: {"approve_usd": null, "per_run_cap_usd": 0.5, "committed_usd": 0, "peak_projected_usd": 0, "stopped": "a transport-uncertain operation occurred; the batch stopped for reconciliation without replaying anything (the cell's reconciliation list names what to check)"}
+services (kept apart, never added into one figure): {"inference": {"provider": "development gateway (team allowance, not USD)", "model_calls": 2, "calls_not_sent": 0, "committed_usd": null}, "sandboxes": {"service": "Nebius Token Factory Sandboxes (beta)", "operations_in_run_ledgers": 4, "judge_operations": 1, "duration_s": 4.395, "spawn_retries": 0, "billing": "not visible to this harness: the Sandboxes console wording says beta runs are free; no invoice-level reconciliation has been done"}, "search": {"service": "Tavily", "calls": 0, "note": "the harness runs the pipeline without Tavily (tavily=None)"}, "reconciliation_items": 3}
+harness peak resident memory: 53.2 MiB
+provenance: {"registered_revision": "68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4", "snapshot_intact_at_end": true, "working_tree_revision_now": "68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4", "working_tree_changed_since_launch": false, "invalid_tasks": []}
+pacing: {"model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only", "policy_source": "gateway status: hourly request counting not enforced", "policy_checked_at_epoch": 1792436402.1094348, "hourly_limit_assumed": null, "budget": null, "max_concurrency": 2, "max_wait_s": 3900.0, "used_in_window": 2, "blocked_until_epoch": null, "rejections_seen": 0, "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json", "state_shared_across_processes": true, "state_error": null} waits=0
+
+wrote /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex/evaluation.json

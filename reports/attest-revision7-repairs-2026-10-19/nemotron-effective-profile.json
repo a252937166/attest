@@ -1,0 +1,67 @@
+{
+ "note": "The effective provider configuration of the proposed (unapproved) Nemotron run, computed offline from revision 8's package with a placeholder key and blocked sockets, no environment override; nothing was sent. `profile` is what the harness registers and compares (scripts/run_evaluation.py, provider_profile); `describe` is the provider's full self-description.",
+ "package_digest": "68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4",
+ "package_files": 37,
+ "profile": {
+  "provider": "nebius_tokenfactory",
+  "roles": {
+   "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+   "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+   "break": "nvidia/nemotron-3-super-120b-a12b",
+   "implement": "nvidia/nemotron-3-super-120b-a12b",
+   "seal": "nvidia/nemotron-3-super-120b-a12b",
+   "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+   "summary": "nvidia/Nemotron-3_5-Lightning"
+  },
+  "reasoning_effort": {
+   "seal": "low",
+   "implement": "medium",
+   "break": "low",
+   "summary": "low"
+  },
+  "temperature": 0.2,
+  "max_tokens": 16000,
+  "usd_cap": 0.5,
+  "max_calls": 22,
+  "thinking_roles": [],
+  "send_thinking_flag": false
+ },
+ "describe": {
+  "provider": "nebius_tokenfactory",
+  "base_url": "https://api.tokenfactory.nebius.com/v1",
+  "roles": {
+   "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+   "seal": "nvidia/nemotron-3-super-120b-a12b",
+   "implement": "nvidia/nemotron-3-super-120b-a12b",
+   "break": "nvidia/nemotron-3-super-120b-a12b",
+   "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+   "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+   "summary": "nvidia/Nemotron-3_5-Lightning"
+  },
+  "usd_cap": 0.5,
+  "max_calls": 22,
+  "reasoning_effort": {
+   "seal": "low",
+   "implement": "medium",
+   "break": "low",
+   "summary": "low"
+  },
+  "temperature": 0.2,
+  "thinking_roles": [],
+  "send_thinking_flag": false,
+  "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
+  "schema_in_prompt": true,
+  "auto_retry": false,
+  "pre_request_reservation": true,
+  "transport_retry_policy": "a request that was never sent (its connection, proxy tunnel or TLS handshake failed before any byte of it was written) closes its reservation at a known $0 and is sent again at most 2 times after 2/6 s, each attempt under a new reservation, each recorded and counted against the call cap; a request whose bytes were written is never sent again (its reservation stays committed)",
+  "reservation_policy": "the USD reservation is journaled durably (fsync) and read back before dispatch, after any cut journal tail has been terminated with a journal_repair record; if it cannot be, the request is not sent and the run stops paid calls",
+  "metering_policy": "an HTTP 200 whose usage cannot price the generation (missing, empty, partial or malformed counters) keeps its reservation unsettled and stops further paid calls of the run pending reconciliation; explicit zero counters settle as 0",
+  "call_cap_policy": "at most 22 model calls per run (failed calls and retries count); the call that would exceed it is refused before dispatch",
+  "halted": null,
+  "journal_degraded": null,
+  "journal_failures": 0,
+  "journal_repairs": 0,
+  "max_prompt_chars": 120000,
+  "max_tokens": 16000
+ }
+}

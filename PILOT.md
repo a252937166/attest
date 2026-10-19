@@ -15,7 +15,7 @@ itself. Writing a precise statement from an unfamiliar repository takes longer t
 | Item | Why |
 | --- | --- |
 | Python 3.12 (`python3 --version`) | the CLI is standard-library Python; `pip install -e ".[dev]"` adds `jsonschema` (with its dependencies) and `certifi` |
-| A Nebius Token Factory API key and project id | sandboxes (free during the beta) and Nemotron inference (paid, capped by `--usd-cap`, default $0.50 per run) |
+| A Nebius Token Factory API key and project id | Sandboxes (a beta service; Nebius's console says beta runs are free, which this project has not reconciled against an invoice) and Nemotron inference (paid, capped by `--usd-cap`, default $0.50 per run); both are billed by Nebius separately |
 | A public GitHub repository, Python, `unittest` or `pytest`, under 2,000 files and 25 MB | the pilot's supported scope |
 | The 40-character sha of the commit to start from | Attest only works on pinned commits |
 

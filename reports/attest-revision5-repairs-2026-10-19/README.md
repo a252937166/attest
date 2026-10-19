@@ -107,3 +107,9 @@ interrupted runs. The run was not an approved smoke test. The follow-up above is
   reservation stays open at its bound.
 - The revision has been validated offline and on the development gateway only; its behaviour on Nemotron (grounded audit,
   recorded call cap, registered profile) is the unapproved paid proposal in `FREEZE.md`.
+
+## Cost scope, 19 Oct 2026 (revision 8)
+
+"$0 committed (no paid call)" above refers to the inference ledger: the batch ran on the development gateway, whose allowance is not
+billed in USD, and it also used Token Factory Sandboxes for execution, a separately billed beta service whose charges this project
+has not reconciled against an invoice (Nebius's console says beta runs are free). The record does not establish a zero total cost.

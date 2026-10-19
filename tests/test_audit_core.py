@@ -784,6 +784,9 @@ MODERN_CORPUS = {  # folder -> the evidence protocol every bundle in it declares
     "attest-revision6-repairs-2026-10-19/evaluation-codex-2": 4,
     "attest-revision6-repairs-2026-10-19/evaluation-codex-3": 4,
     "attest-revision6-repairs-2026-10-19/evaluation-codex-4": 4,
+    "attest-revision7-repairs-2026-10-19/evaluation-codex": 4,  # revision 8 (protocol unchanged); the batch the 19 Oct 19:0x outage stopped
+    "attest-revision7-repairs-2026-10-19/evaluation-codex-2": 4,
+    "attest-revision7-repairs-2026-10-19/evaluation-codex-3": 4,
 }
 KNOWN_DEFECTIVE = (  # partial copies or a stopped batch; they fail attest check by construction and are not exported
     "attest-hardening-2026-10-16/semver-v2-codex-verified", "attest-hardening-2026-10-16/smoke-run-durationkit-codex",

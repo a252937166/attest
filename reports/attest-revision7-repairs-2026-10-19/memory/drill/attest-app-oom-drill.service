@@ -1,0 +1,18 @@
+[Unit]
+Description=Attest application OOM drill: the deployed release at a 128M limit with a scratch store (temporary, revision 8)
+
+[Service]
+Type=simple
+User=attest
+Group=attest
+WorkingDirectory=/var/lib/attest-app-oom-drill
+Environment=HOME=/var/lib/attest-app-oom-drill
+Restart=on-failure
+RestartSec=3
+MemoryAccounting=yes
+MemoryLimit=128M
+PermissionsStartOnly=true
+ExecStartPre=/bin/sh -c 'echo 134217728 > /sys/fs/cgroup/memory/system.slice/attest-app-oom-drill.service/memory.memsw.limit_in_bytes'
+ExecStart=/opt/attest/app/venv/bin/python /var/lib/attest-app-oom-drill/drill_app.py /var/lib/attest-app-oom-drill/state
+NoNewPrivileges=true
+PrivateTmp=true

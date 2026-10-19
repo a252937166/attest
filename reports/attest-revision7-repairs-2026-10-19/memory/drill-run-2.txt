@@ -1,0 +1,57 @@
+== before: attest.service active, MainPID 29680; free:
+              total        used        free      shared  buff/cache   available
+Mem:            728         354          83          14         290         243
+Swap:          1535         271        1264
+== drill 1 (MemoryLimit=96M and memory+swap 96M, Restart=on-failure), started 18:51:29Z
+systemd MemoryLimit=100663296; limit_in_bytes=; memsw.limit_in_bytes=
+final state: Result=success ExecMainCode=0 ExecMainStatus=0 ActiveState=inactive SubState=dead 
+-- drill log
+2026-10-19T18:51:29Z pid=588 start; 11:memory:/system.slice/attest-oom-drill.service; allocating up to 400 MiB in 8 MiB steps
+2026-10-19T18:51:29Z pid=588 allocated 8 MiB; VmRSS:19464kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 16 MiB; VmRSS:27708kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 24 MiB; VmRSS:35892kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 32 MiB; VmRSS:44088kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 40 MiB; VmRSS:52272kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 48 MiB; VmRSS:60456kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 56 MiB; VmRSS:68640kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 64 MiB; VmRSS:76824kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 72 MiB; VmRSS:85008kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 80 MiB; VmRSS:93192kB VmSwap:0kB
+2026-10-19T18:51:29Z pid=588 allocated 88 MiB; VmRSS:101376kB VmSwap:0kB
+2026-10-19T18:51:32Z pid=627 started again after the previous process ended; 11:memory:/system.slice/attest-oom-drill.service; exiting 0
+-- unit journal
+-- Logs begin at Sat 2026-10-17 20:37:57 CST, end at Tue 2026-10-20 02:51:32 CST. --
+2026-10-20T02:51:29+0800 vm118035 systemd[1]: Starting Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8)...
+2026-10-20T02:51:29+0800 vm118035 systemd[1]: Started Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8).
+2026-10-20T02:51:29+0800 vm118035 systemd[1]: attest-oom-drill.service: main process exited, code=killed, status=9/KILL
+2026-10-20T02:51:29+0800 vm118035 systemd[1]: Unit attest-oom-drill.service entered failed state.
+2026-10-20T02:51:29+0800 vm118035 systemd[1]: attest-oom-drill.service failed.
+2026-10-20T02:51:32+0800 vm118035 systemd[1]: attest-oom-drill.service holdoff time over, scheduling restart.
+2026-10-20T02:51:32+0800 vm118035 systemd[1]: Stopped Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8).
+2026-10-20T02:51:32+0800 vm118035 systemd[1]: Starting Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8)...
+2026-10-20T02:51:32+0800 vm118035 systemd[1]: Started Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8).
+-- kernel
+2026-10-20T02:51:29+0800 vm118035 kernel: python invoked oom-killer: gfp_mask=0xcc0(GFP_KERNEL), order=0, oom_score_adj=0
+2026-10-20T02:51:29+0800 vm118035 kernel:  oom_kill_process.cold+0xb/0x10
+2026-10-20T02:51:29+0800 vm118035 kernel: memory: usage 98304kB, limit 98304kB, failcnt 0
+2026-10-20T02:51:29+0800 vm118035 kernel: memory+swap: usage 98304kB, limit 98304kB, failcnt 445
+2026-10-20T02:51:29+0800 vm118035 kernel: Memory cgroup stats for /system.slice/attest-oom-drill.service:
+2026-10-20T02:51:29+0800 vm118035 kernel: [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
+2026-10-20T02:51:29+0800 vm118035 kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/system.slice/attest-oom-drill.service,task_memcg=/system.slice/attest-oom-drill.service,task=python,pid=588,uid=993
+2026-10-20T02:51:29+0800 vm118035 kernel: Memory cgroup out of memory: Killed process 588 (python) total-vm:248388kB, anon-rss:97760kB, file-rss:7924kB, shmem-rss:0kB, UID:993 pgtables:316kB oom_score_adj:0
+2026-10-20T02:51:29+0800 vm118035 kernel: oom_reaper: reaped process 588 (python), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+== drill 2 (contrast: MemoryLimit=96M alone, no memory+swap limit), started 18:51:33Z
+systemd MemoryLimit=100663296; limit_in_bytes=; memsw.limit_in_bytes=
+final state: Result=success ExecMainCode=0 ExecMainStatus=0 ActiveState=inactive SubState=dead ; peak memory+swap usage seen 0 bytes
+-- drill log
+2026-10-19T18:51:33Z pid=649 allocated 128 MiB; VmRSS:104864kB VmSwap:37604kB
+2026-10-19T18:51:33Z pid=649 allocated 136 MiB; VmRSS:105052kB VmSwap:45592kB
+2026-10-19T18:51:33Z pid=649 allocated 144 MiB; VmRSS:105304kB VmSwap:53788kB
+2026-10-19T18:51:33Z pid=649 allocated 152 MiB; VmRSS:105456kB VmSwap:61820kB
+2026-10-19T18:51:33Z pid=649 allocated 160 MiB; VmRSS:105360kB VmSwap:70100kB
+2026-10-19T18:51:33Z pid=649 reached 160 MiB without being killed; exiting 0
+-- kernel
+== after: attest.service active, MainPID 29680; free:
+              total        used        free      shared  buff/cache   available
+Mem:            728         349         147          14         232         249
+Swap:          1535         274        1261

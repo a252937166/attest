@@ -2,7 +2,7 @@
 
 Files: `build_bundle.sh` (release archive with `RELEASE.json`), `install.sh` (transactional installer), `rollback.sh` (scoped
 version rollback), `decommission.sh` (stop the service and remove its vhost; needs `--yes`), `snapshot.sh` (read-only
-before/after host snapshot), `attest.service` (systemd, placeholder `__MEMORY_MAX__`), `attest.axiqo.xyz.conf` (nginx),
+before/after host snapshot), `attest.service` (systemd, placeholders `__MEMORY_MAX__`, `__MEMORY_MAX_BYTES__` and `__CGROUP_MEMORY_DIR__`), `attest.axiqo.xyz.conf` (nginx),
 `requirements.txt` (the dependency pins, installed per release), `attest.env.example`, and `rehearsal/` (shims and the driver
 that rehearse the scripts on a throwaway root). The 19 Oct 2026 audit findings OPS-01, OPS-02 and OPS-03 are repaired here;
 the record of the repairs and of the rehearsal is `reports/attest-audit-repairs-2026-10-19/ops/README.md`.
@@ -67,6 +67,34 @@ On the server, as root in `/var/tmp/attest-deploy`:
 
 First deployment with this installer: 19 Oct 2026, 08:47 UTC, revision 5 (`0.5.0-1e12d46217fb`), which migrated the host from
 the directory layout to the release layout (`reports/attest-deployment-2026-10-19b/README.md`).
+
+## Memory limit (revision 8, 19 Oct 2026)
+
+yungou runs systemd 219 on cgroup v1. That version ignores `MemoryMax=` (it logs `Unknown lvalue 'MemoryMax'` at every
+daemon-reload) and applies `MemoryLimit=` as `memory.limit_in_bytes`, so from the first deployment until revision 8 no limit
+was in force although the unit carried `MemoryMax=200M`. A memory limit alone would still let the service page its excess out to
+the host's swap instead of failing. The unit therefore sets `MemoryLimit=` (and keeps `MemoryMax=` for newer systemd versions),
+and an `ExecStartPre` that runs as root (`PermissionsStartOnly=true`) writes the same size to `memory.memsw.limit_in_bytes`
+(memory plus swap) before the service process exists; a failing write fails the start. At the limit the kernel's memory-cgroup
+OOM killer ends the process, `Restart=on-failure` starts it again 5 s later, and the new process settles any run that was in
+flight as interrupted (its journaled reservations stay committed, an accepted Sandboxes operation is named for reconciliation;
+nothing is replayed).
+
+`install.sh` renders all three placeholders from `MEMORY_MAX` (sizes are powers of 1024: `200M` is 209715200 bytes) and, after
+the restart and the health check, reads the limit in force back: systemd's `MemoryLimit`, the cgroup's `memory.limit_in_bytes`
+and `memory.memsw.limit_in_bytes`, and the main process's memory cgroup from `/proc/<pid>/cgroup`. Any difference fails the
+install, which then restores the previous release and unit. To check by hand:
+
+```bash
+systemctl show attest -p MemoryLimit -p MainPID
+cat /sys/fs/cgroup/memory/system.slice/attest.service/memory.{limit_in_bytes,memsw.limit_in_bytes,max_usage_in_bytes,failcnt}
+grep memory /proc/$(systemctl show attest -p MainPID --value 2>/dev/null || systemctl show attest -p MainPID | cut -d= -f2)/cgroup
+```
+
+The drill that verified the mechanism on this host (temporary units only) is recorded in
+`reports/attest-revision7-repairs-2026-10-19/memory/`. The rehearsal shims simulate systemd 219's handling of these directives
+(`CGROUP_MEMORY_DIR` and `PROC_DIR` point at a fake hierarchy); `REHEARSAL_NO_SWAP_ACCOUNTING=1` simulates a kernel without swap
+accounting.
 
 ## Rollback (version) and decommissioning (service removal) are different commands
 

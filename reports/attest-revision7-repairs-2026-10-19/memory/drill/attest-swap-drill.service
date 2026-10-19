@@ -1,0 +1,14 @@
+[Unit]
+Description=Attest memory-limit drill, contrast: MemoryLimit=96M alone, without the memory+swap limit (temporary, revision 8)
+
+[Service]
+Type=simple
+User=attest
+Group=attest
+WorkingDirectory=/var/lib/attest-oom-drill
+Restart=no
+MemoryAccounting=yes
+MemoryLimit=96M
+ExecStart=/opt/attest/app/venv/bin/python /var/lib/attest-oom-drill/drill.py /var/lib/attest-oom-drill/swap 160 --no-marker
+NoNewPrivileges=true
+PrivateTmp=true

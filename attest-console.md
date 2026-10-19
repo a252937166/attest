@@ -25,8 +25,8 @@ the deployment reports under `reports/attest-deployment-*/` say which build the 
 | `GET /api/profiles` | the public inference profile list (the judge profile only) |
 | `POST /api/profiles` `{admin_token}` | the profile list for the caller; only a valid team token returns the development profile, so the public page and its responses never name the development gateway |
 | `GET /api/tasks` | sample tasks from `examples/*/task.json`, each with a recorded **estimate**: `runs` and the cost and duration ranges of completed public-profile runs of that task (ERROR and baseline runs and replay fixtures excluded), `recorded_runs`, `latest_run_id`, `latest_verdict` |
-| `GET /api/runs?limit=` | run list, newest first; every row carries `provenance` and a `summary` {verdict, status, stage, cost_usd, cost_committed_usd, duration_s, provenance, model_calls, sandbox_ops} so the history renders without loading bundles |
-| `POST /api/runs` `{task_id, provider, admin_token?}` | enqueue a run; public callers: the judge profile only, 3 runs per hour per visitor, daily budget check; the development profile requires the admin token (HTTP 403 otherwise; unknown profile ids are HTTP 400) |
+| `GET /api/runs?limit=` | run list, newest first; every row carries `provenance` and a `summary` {verdict, status, stage, cost_usd, cost_committed_usd, duration_s, provenance, model_calls, sandbox_ops} so the history renders without loading bundles. Every `cost_*` field is inference only (the Nemotron ledger in USD; a development run records its allowance in tokens and shows no USD); Sandboxes and Tavily are separate services and are never added in |
+| `POST /api/runs` `{task_id, provider, admin_token?}`, header `X-Attest-Confirm: start-run` | enqueue a run; without the confirmation header HTTP 428 before anything exists (revision 8; the console sends it from its confirmation step only); public callers: the judge profile only, 3 runs per hour per visitor, daily budget check; the development profile requires the admin token (HTTP 403 otherwise; a malformed body or unknown profile id is HTTP 422) |
 | `GET /api/runs/{id}/events` (pacing) | since 17 Oct 2026 the development profile's pacing waits and gateway rejections appear as events with stage `pacing`, next to the stage messages |
 | `GET /api/runs/{id}` | run record (with `summary`), full Proof Bundle JSON when finished, progress events, `provenance`, `exhibits` (= `attest.core.exhibits.summary(bundle)`: `decision`, `exhibits` E1 to E7, `gates`, `counterexamples`, `proves`) and `manifest` (from `manifest.json` with `recorded: true`, or computed on request with `recorded: false` for runs recorded before milestone M2; a SHA-256 integrity check, not a signature) |
 | `GET /api/runs/{id}/events?after=` | incremental progress for polling, with the run `status`, `stage`, `verdict`, live `meters` (model calls, sandbox operations, committed USD, tokens, timestamps), queue length and current run |
@@ -205,7 +205,7 @@ names no gateway, and the offline suite (145 tests). Verification record and scr
 ## Deployment
 
 Live at `https://attest.axiqo.xyz` on `yungou` (`206.237.18.80`) since 2026-10-16 00:10 host time, without Docker:
-`attest.service` (uvicorn on 127.0.0.1:4070, `MemoryMax=200M`, measured 42 to 55 MB), nginx vhost with Let's Encrypt,
+`attest.service` (uvicorn on 127.0.0.1:4070, measured 42 to 55 MB; the unit's `MemoryMax=200M` was ignored by the host's systemd 219 until revision 8, which enforces 200M through `MemoryLimit=` and a memory-plus-swap limit, read back by the installer), nginx vhost with Let's Encrypt,
 evidence runs imported from the bundled reports. Procedure, snapshots, judge run and rollback test:
 `reports/attest-deployment-2026-10-15/README.md`; scripts: `deploy/yungou/`. The M3 console is not deployed; a
 redeploy (same procedure: snapshot, bundle, install, health check, rollback path) is required to publish it.
@@ -266,6 +266,16 @@ Evidence and acceptance tests: `reports/attest-audit-repairs-2026-10-19/console/
   the offending fields named, the submitted values not echoed) by request validation, before the handler, so it creates no
   row, queue entry, reservation or provider. Verify admission rules with the offline suites; on the live host use GET
   requests only (`/api/openapi.json` shows the strict schema).
+- Explicit start (revision 8): a well-formed request is still a run, paid on the public profile, so it must also carry
+  `X-Attest-Confirm: start-run`; without it the answer is 428 before anything exists, for public and team requests alike. In the
+  console the Run button only opens a confirmation (what the run reserves against the daily cap, and that Sandboxes and Tavily
+  are metered separately); its own button sends the request, is briefly disabled when it appears so a double click never passes
+  through, lapses after a minute, and refuses in an automated browser (`navigator.webdriver`) on any host but the local one.
+  Automated checks of the live console block every request that is not a GET in the browser itself (see
+  `reports/attest-revision7-repairs-2026-10-19/console/`).
+- Mobile (revision 8): nothing is wider than the viewport down to 320 px: long identifiers, error texts and counterexample names
+  wrap, grid columns may shrink below their content's width, the decision buttons stack, the tabs wrap instead of scrolling, and
+  tables and code keep their own horizontal scroll inside the page.
 - Publication contract: runs carry a `visibility` (`public` or `team`); team runs (the development profile, and imported
   bundles of that provider) are hidden from every read route (list, detail, events, artifacts, zip, current-run and
   estimate references) unless the caller presents the team token in the `X-Attest-Token` header. A query-string token is ignored on every

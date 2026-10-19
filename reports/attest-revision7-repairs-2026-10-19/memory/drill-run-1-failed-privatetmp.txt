@@ -1,0 +1,42 @@
+== before: attest.service active, MainPID 29680; free:
+              total        used        free      shared  buff/cache   available
+Mem:            728         370          58          14         299         227
+Swap:          1535         272        1263
+== drill 1 (MemoryLimit=96M and memory+swap 96M, Restart=on-failure), started 18:49:47Z
+Job for attest-oom-drill.service failed because the control process exited with error code. See "systemctl status attest-oom-drill.service" and "journalctl -xe" for details.
+systemd MemoryLimit=100663296; limit_in_bytes=; memsw.limit_in_bytes=
+final state: Result=exit-code ExecMainCode=0 ExecMainStatus=0 ActiveState=activating SubState=auto-restart 
+-- drill log
+cat: /var/tmp/attest-oom-drill/oom/drill.log: No such file or directory
+-- unit journal
+2026-10-20T02:50:21+0800 vm118035 systemd[1]: Stopped Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8).
+2026-10-20T02:50:21+0800 vm118035 systemd[1]: Starting Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8)...
+2026-10-20T02:50:21+0800 vm118035 systemd[1]: attest-oom-drill.service: control process exited, code=exited status=200
+2026-10-20T02:50:21+0800 vm118035 systemd[1]: Failed to start Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8).
+2026-10-20T02:50:21+0800 vm118035 systemd[1]: Unit attest-oom-drill.service entered failed state.
+2026-10-20T02:50:21+0800 vm118035 systemd[1]: attest-oom-drill.service failed.
+2026-10-20T02:50:24+0800 vm118035 systemd[1]: attest-oom-drill.service holdoff time over, scheduling restart.
+2026-10-20T02:50:24+0800 vm118035 systemd[1]: Stopped Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8).
+2026-10-20T02:50:24+0800 vm118035 systemd[1]: Starting Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8)...
+2026-10-20T02:50:24+0800 vm118035 systemd[1]: attest-oom-drill.service: control process exited, code=exited status=200
+2026-10-20T02:50:24+0800 vm118035 systemd[1]: Failed to start Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8).
+2026-10-20T02:50:24+0800 vm118035 systemd[1]: Unit attest-oom-drill.service entered failed state.
+2026-10-20T02:50:24+0800 vm118035 systemd[1]: attest-oom-drill.service failed.
+2026-10-20T02:50:27+0800 vm118035 systemd[1]: attest-oom-drill.service holdoff time over, scheduling restart.
+2026-10-20T02:50:27+0800 vm118035 systemd[1]: Stopped Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8).
+2026-10-20T02:50:27+0800 vm118035 systemd[1]: Starting Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8)...
+2026-10-20T02:50:27+0800 vm118035 systemd[1]: attest-oom-drill.service: control process exited, code=exited status=200
+2026-10-20T02:50:27+0800 vm118035 systemd[1]: Failed to start Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8).
+2026-10-20T02:50:27+0800 vm118035 systemd[1]: Unit attest-oom-drill.service entered failed state.
+2026-10-20T02:50:27+0800 vm118035 systemd[1]: attest-oom-drill.service failed.
+-- kernel
+== drill 2 (contrast: MemoryLimit=96M alone, no memory+swap limit), started 18:50:29Z
+systemd MemoryLimit=100663296; limit_in_bytes=; memsw.limit_in_bytes=
+final state: Result=exit-code ExecMainCode=1 ExecMainStatus=200 ActiveState=failed SubState=failed ; peak memory+swap usage seen 0 bytes
+-- drill log
+-- kernel
+tail: cannot open ‘/var/tmp/attest-oom-drill/swap/drill.log’ for reading: No such file or directory
+== after: attest.service active, MainPID 29680; free:
+              total        used        free      shared  buff/cache   available
+Mem:            728         355          72          14         301         243
+Swap:          1535         271        1264

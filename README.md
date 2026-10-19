@@ -112,6 +112,27 @@ exported `.gitignore` ignored every `reports/**/runs/` directory, so the reposit
 are fixed, the export now fails when git would ignore an exported file, its derived manifests are deterministic, and a clean
 checkout of the pinned commit passes all 367 tests.
 
+Revision 8 (19 Oct 2026, version 0.8.0, `reports/attest-revision7-repairs-2026-10-19/README.md`) repairs the issues left after
+revision 7. Memory: yungou runs systemd 219 on cgroup v1, which ignored the unit's `MemoryMax=` from the first deployment on; the
+unit now sets `MemoryLimit=` and, before the service process exists, a memory-plus-swap limit of the same size, and the installer
+reads the limit in force back from systemd and the kernel after every restart and rolls back when it differs. A drill on the host
+showed the memory-cgroup OOM killer ending a process at the limit and systemd starting it again, and showed that the memory limit
+alone lets the same process swap past it. Transport: every request records how far it got. A request whose connection, proxy
+tunnel or TLS handshake failed before any byte of it was written cannot have reached the server, so it is sent again (bounded,
+every attempt recorded, a paid reservation closed at a known $0); reads are retried; a request whose bytes were written is
+uncertain and is never sent again: the run stops, a batch stops with a list of what to reconcile, and an accepted Sandboxes
+operation id is journaled before polling starts. Of the six revision-7 transport failures, four failed during connection setup
+and two after the request body stalled in transit; the gateway's ingress log and the Sandboxes operation list show that none of
+them was executed. Spending: a run starts only on explicit confirmation. The console's Run button opens a confirmation that states
+the inference cap and names Sandboxes and Tavily as separately metered services, the page refuses to start a run from an
+automated browser on the public host, and `POST /api/runs` answers 428 before anything exists unless it carries
+`X-Attest-Confirm: start-run`. Inference money is labelled as inference throughout, and a development run is shown as team
+allowance, never as $0. Mobile: nothing on the page is wider than a 320 px viewport (long identifiers and error texts wrap, tabs
+wrap, grid columns shrink), checked in Chrome with mobile emulation on every tab with every panel expanded; the right-edge clipping
+in the revision-7 390 px screenshot came from the screenshot method, not the page. Export: the public tree no longer contains the
+development gateway's host in any spelling (the exporter's own redaction patterns had carried it), and
+`scripts/check_export_provenance.py` checks every exported bundle against its source and its batch's registration.
+
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).
@@ -133,7 +154,8 @@ The final console, API, orchestration, and application data/database when needed
 ```
 attest/
   secrets.py              private credential loading (env, then the private vault notes; never written to artifacts)
-  http.py                 TLS-verified JSON client; POST outcomes are never replayed
+  http.py                 TLS-verified JSON client; records how far each request got: a request that was never sent may be
+                          sent again (bounded), an uncertain POST is never replayed
   ledger.py               model-call and sandbox-operation ledgers
   models/codex_gateway.py        development provider: self-hosted Codex gateway, POST /v1/run with output_schema
   models/nebius_tokenfactory.py  submission provider: NVIDIA Nemotron on Token Factory, json_schema response format, USD cap
@@ -169,6 +191,8 @@ scripts/run_evaluation.py plain agent vs Attest harness: pre-registered attempts
                           Codex by default, Nebius only with --approve-usd and --max-calls
 scripts/usage_report.py   deduplicated usage by provider and day (keyed by bundle run_id; optional console store)
 scripts/sandbox_adversarial_tests.py  real-sandbox adversarial scenarios for the supervisor (forgery, hook planting, legacy order)
+scripts/check_export_provenance.py   every exported bundle: attest check, identity with its source, its batch's registration
+scripts/console_layout_audit.py      the console in Chrome at 320 to 1440 px: anything wider than the viewport, every non-GET blocked
 examples/durationkit-task/     sample repository (unittest) and task.json
 examples/semver-is-compatible/ python-semver at the parent of PR #368, pinned pytest, upstream held-out tests
 tests/                    offline harness tests: adversarial verification scenarios, verification order, canaries, bound

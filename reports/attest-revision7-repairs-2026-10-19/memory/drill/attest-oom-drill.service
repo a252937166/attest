@@ -1,0 +1,17 @@
+[Unit]
+Description=Attest memory-limit drill: the mechanism of attest.service at a 96M limit (temporary, revision 8)
+
+[Service]
+Type=simple
+User=attest
+Group=attest
+WorkingDirectory=/var/lib/attest-oom-drill
+Restart=on-failure
+RestartSec=3
+MemoryAccounting=yes
+MemoryLimit=96M
+PermissionsStartOnly=true
+ExecStartPre=/bin/sh -c 'echo 100663296 > /sys/fs/cgroup/memory/system.slice/attest-oom-drill.service/memory.memsw.limit_in_bytes'
+ExecStart=/opt/attest/app/venv/bin/python /var/lib/attest-oom-drill/drill.py /var/lib/attest-oom-drill/oom 400
+NoNewPrivileges=true
+PrivateTmp=true

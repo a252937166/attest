@@ -1,0 +1,95 @@
+[19:25:13] snapshot /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex-2/snapshot: attest revision 68e9de49df5b (37 sources), eval script 9f9e4bc2ebfe, examples 6db7a2e937d6 (196 files)
+[19:25:13] fresh process from the snapshot: /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex-2/snapshot/scripts/run_evaluation.py --provider ...
+[19:25:17] codex pacing policy: gateway status: hourly request counting not enforced
+[19:25:17] pre-registered 4 cells (4 tasks x ['attest'] x 1 attempt(s)) on provider=codex; per-run cap $0.5, batch approval None, max calls None; schedule -> /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex-2/schedule.json
+[19:25:17] provider profile registered: {"base_url_sha256": "68e25b464500800e", "provider": "codex_gateway", "roles": {"arbitrate": "gpt-6-astra:medium", "audit": "gpt-6-astra:low", "break": "gpt-6-sol:medium", "implement": "gpt-6-sol:medium", "seal": "gpt-6-sol:medium", "spec": "gpt-6-astra:low", "summary": "gpt-6-luna:low"}}
+[19:25:17] frozen task rle-encode with 4 files, spec sha256 e64da208acc9
+[19:25:17] frozen task balanced-brackets with 4 files, spec sha256 84a644df7111
+[19:25:19] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[19:25:19] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[19:25:22] checkpoint 6a43e97f-d82b-4300-a90a-1c5152eb18e4 ready; baseline OK (2 tests)
+[19:25:22] suite binding: bound (2 statically discovered test ids in 1 module(s) match the baseline run)
+[19:25:22] specification
+[19:25:25] checkpoint f15d9d0e-735b-4224-b7d1-4df4e1f7ddb7 ready; baseline OK (2 tests)
+[19:25:25] suite binding: bound (2 statically discovered test ids in 1 module(s) match the baseline run)
+[19:25:25] specification
+[19:26:01] spec: feasible=False, 13 criteria, 2 contract entries, 0 external references
+[19:26:01] contract audit
+[19:26:32] spec: feasible=True, 12 criteria, 2 contract entries, 0 external references
+[19:26:32] contract audit
+[19:27:06] contract audit: conflict 1 (TC5, AC8, AC13): demonstrated on mixed criteria (a model's restatement is involved); held for a human, not infeasible
+[19:27:06] contract audit: conflict demonstrated on derived criteria or by an unconstrained witness (0 grounded, 1 demonstrated but not grounded, 0 claimed only)
+[19:27:06] ABORT NEEDS HUMAN: contract conflict demonstrated but not grounded (mixed criteria TC5, AC8, AC13): The required encoding of 'a1' is 'a111', but the unchanged decoder returns 111 copies of 'a', violating universal round-trip equality.; a model's restatement of the task cannot establish that the task is impossible, so a human decides whether the requirement conflict is real
+[19:27:06] verdict NEEDS HUMAN -> /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex-2/runs/rle-encode-attest-a1-20261019T192517505516Z
+  [ 0] rle-encode                   attest    a1 completed verdict=NEEDS HUMAN  correct=False -> true_reject  $0.0 109.4s rev=68e9de49 paced=0.0s
+[19:27:14] frozen task durationkit-units-001 with 5 files, spec sha256 52f44d7aa752
+[19:27:16] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[19:27:20] checkpoint bf16ddd7-3b13-4e74-b6ad-1581378f2557 ready; baseline OK (6 tests)
+[19:27:20] suite binding: bound (6 statically discovered test ids in 1 module(s) match the baseline run)
+[19:27:20] specification
+[19:27:47] MODEL ERROR: the inference outcome is uncertain (transport failure); the request was not retried [ref af328c62]
+[19:27:47] verdict ERROR -> /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex-2/runs/balanced-brackets-attest-a1-20261019T192517505466Z
+  [ 1] balanced-brackets            attest    a1 completed verdict=ERROR        correct=False -> infra_error  $0.0 150.1s rev=68e9de49 paced=0.0s
+[19:28:15] spec: feasible=True, 18 criteria, 1 contract entries, 0 external references
+[19:28:15] contract audit
+[19:28:34] contract audit: consistent (0 grounded, 0 demonstrated but not grounded, 0 claimed only)
+[19:28:34] sealing acceptance tests (attempt 1)
+[19:29:37] sealed 29 test methods (sha256 0b4848072cf5); red check: 11 of 29 failing on base, 18 passing
+[19:29:37] implementation
+[19:30:16] turn 1: read_file durationkit/parse.py -> [lines 1-15 of 15]
+[19:30:38] turn 2: write_file durationkit/parse.py -> wrote durationkit/parse.py (1278 bytes)
+[19:31:36] turn 3: run_tests  -> existing test suite: OK (ran 6, passed 6, exit 0)
+[19:31:53] turn 4: read_file durationkit/parse.py -> [lines 1-41 of 41]
+[19:33:19] turn 5: run_python  -> exit 0
+[19:33:37] turn 6: finish  -> finished: Extended parse_duration to support ordered duration components and whitespace while preser
+[19:33:37] tamper scan: 2 flagged line(s): dynamic code or decoded payload
+[19:33:37] verification
+[19:33:48] verify: sealed OK (29 of 29 methods, each in its own process); binding ok
+[19:33:55] existing suite (bound): OK (6 of 6 methods, each in its own process) (6/6)
+[19:33:55] breaker pass
+[19:33:55] breaker: 12 mutants of changed lines; running in parallel branches (workers=8)
+[19:34:17] breaker: killed 11, survived 1, unknown 0, mutation score 0.917
+[19:35:02] breaker tests: FAILED (1 of 9 methods: ERROR 1); binding FAILED
+[19:35:02] drift audit
+[19:35:24] drift audit: score 0.0 (aligned)
+[19:35:24] arbitration: classifying model-generated test failures
+[19:36:22] arbitration: adversarial gate re-run on the validated correction: OK (9 of 9 methods, each in its own process)
+[19:36:22] arbitration: all 1 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (1 of 1 corrected test(s) fail on the unmodified base with an authentic result); the affected gate(s) are re-run on the corrected modules
+[19:36:22] verdict VERIFIED -> /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex-2/runs/durationkit-units-001-attest-a1-20261019T192714677513Z
+  [ 2] durationkit-units-001        attest    a1 completed verdict=VERIFIED     correct=True  -> true_accept  $0.0 547.3s rev=68e9de49 paced=0.0s
+  [ 3] kvparse-refactor-001         attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a transport-uncertain operation occurred; the batch stopped for reconciliation without replaying anything (the cell's reconciliation list names what to check))
+
+=== SUMMARY (all scheduled cells) ===
+{
+  "attest": {
+    "scheduled": 4,
+    "completed": 3,
+    "not_run": 1,
+    "confusion": {
+      "true_accept": 1,
+      "false_accept": 0,
+      "false_reject": 0,
+      "true_reject": 1,
+      "false_refusal": 0,
+      "no_patch": 0,
+      "infra_error": 1,
+      "unknown": 0,
+      "not_run": 1
+    },
+    "shipped_broken_code": 0,
+    "needs_human": 1,
+    "no_patch": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_s": 0.0,
+    "cells_in_invalid_comparisons": 0,
+    "total_cost_committed_usd": 0.0,
+    "mean_wall_s": 268.9
+  }
+}
+budget: {"approve_usd": null, "per_run_cap_usd": 0.5, "committed_usd": 0, "peak_projected_usd": 0, "stopped": "a transport-uncertain operation occurred; the batch stopped for reconciliation without replaying anything (the cell's reconciliation list names what to check)"}
+services (kept apart, never added into one figure): {"inference": {"provider": "development gateway (team allowance, not USD)", "model_calls": 16, "calls_not_sent": 0, "committed_usd": null}, "sandboxes": {"service": "Nebius Token Factory Sandboxes (beta)", "operations_in_run_ledgers": 27, "judge_operations": 3, "duration_s": 106.041, "spawn_retries": 0, "billing": "not visible to this harness: the Sandboxes console wording says beta runs are free; no invoice-level reconciliation has been done"}, "search": {"service": "Tavily", "calls": 0, "note": "the harness runs the pipeline without Tavily (tavily=None)"}, "reconciliation_items": 1}
+harness peak resident memory: 55.7 MiB
+provenance: {"registered_revision": "68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4", "snapshot_intact_at_end": true, "working_tree_revision_now": "68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4", "working_tree_changed_since_launch": false, "invalid_tasks": []}
+pacing: {"model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only", "policy_source": "gateway status: hourly request counting not enforced", "policy_checked_at_epoch": 1792437917.5005171, "hourly_limit_assumed": null, "budget": null, "max_concurrency": 2, "max_wait_s": 3900.0, "used_in_window": 18, "blocked_until_epoch": null, "rejections_seen": 0, "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json", "state_shared_across_processes": true, "state_error": null} waits=0
+
+wrote /work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex-2/evaluation.json

@@ -19,8 +19,16 @@ untrusted evidence never clears a gate; candidate-caused exceptions stay held; i
 supervisor kills a timed-out test's process group within a bound; correction scope and classification ids; the evidence
 protocol; manifest completeness), `tests/test_audit_accounting.py`, `tests/test_audit_console.py`, `tests/test_audit_boundaries.py`
 and `tests/test_audit_ops.py` (the deployment scripts rehearsed under shims that stand in for systemd, nginx and pip; about one
-minute of the total, bash required). Then verify a recorded Proof Bundle offline, for example the external-repository run
-that ended VERIFIED:
+minute of the total, bash required). Revision 8 adds `tests/test_transport.py`: the real HTTP client against servers on the
+loopback interface that fail at each point (a TLS handshake dropped or timed out, a proxy that accepts the CONNECT tunnel and
+then drops it, a proxy that refuses it, a request read but never answered, a body cut off while sending), which must classify
+the first four as never sent and the others as uncertain; the gateway, Token Factory and Sandboxes adapters' bounded resend of
+never-sent requests, their refusal to resend anything uncertain, the reservation of a never-sent paid attempt closed at a known
+$0, the accepted Sandboxes operation id journaled before polling, the harness's reconciliation list and the checker's
+recomputation of the transport counters; `ExplicitStart` in `tests/test_audit_console.py` (428 without the confirmation
+header, no trace); the installer's memory-limit readback (`test_audit_ops.py` scenarios 9 and 10); and the console's
+confirmation step in `tests/console_client_test.mjs`. Then verify a recorded Proof Bundle offline, for example the
+external-repository run that ended VERIFIED:
 
 ```bash
 python3 -m attest check reports/attest-m4-2026-10-17/runs/semver-long-prerelease-pr488-20261017T132707Z
@@ -46,7 +54,14 @@ check still passes and says so.
 
 https://attest.axiqo.xyz shows recorded evidence first. Open any run: the decision header, the exhibits E1 to E7, the
 gates, the counterexample when there is one, and the downloadable bundle. Download a bundle zip and run `attest check` on
-it. Starting a live Nemotron run on a curated task is one explicit action, limited per visitor and by a daily cap.
+it. Starting a live Nemotron run on a curated task takes two explicit steps (Run, then the confirmation that states the cap),
+limited per visitor and by a daily cap.
+
+The layout check of revision 8 is reproducible: `python3 scripts/console_layout_audit.py --out <dir>` (Playwright with the
+installed Chrome) starts a local console with no credentials over the recorded runs and reports every element or text that
+leaves the viewport at 320 to 1440 px, on every tab with every panel open, with error states simulated inside the browser;
+`--base https://attest.axiqo.xyz` audits the live console. Every request that is not a GET is blocked in the browser before it
+is sent (aborted on the live console, answered synthetically on the local one), and the report counts them.
 
 ## 3. Your own repository (your Nebius key)
 
@@ -59,6 +74,11 @@ Follow `PILOT.md`: import a public GitHub repository at a pinned commit, write t
 ones. Internal rehearsals by the project's own agents are labelled as such and are never presented as external testing.
 The evaluation method is frozen in `METHOD.md` and the pinned version in `FREEZE.md`; the paid comparison runs only after
 the owner approves its budget.
+
+Export provenance (revision 8): `python3 scripts/check_export_provenance.py` runs `attest check` on every bundle of the
+export (`dist/public`), compares each exported file with its source (byte for byte, or through `REDACTION.json`), and compares
+each batch bundle's package digest and provider profile with its batch's registration (`schedule.json`, `evaluation.json`).
+`--no-source` checks an export on its own.
 
 Final-tree rule (revision 7): the suite counts that a pin records come from a clean checkout of the pinned commit of the
 review repository (`git worktree add --detach <dir> <commit>`, then `python -m unittest discover -s tests -t .` inside it),

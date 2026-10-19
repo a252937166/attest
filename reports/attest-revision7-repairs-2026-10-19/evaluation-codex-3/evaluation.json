@@ -1,0 +1,405 @@
+{
+  "schedule": {
+    "label": "revision8-c",
+    "registered_at_utc": "2026-10-19T19:37:33.098253+00:00",
+    "attest_version": "0.8.0",
+    "provider": "codex",
+    "provider_detail": {
+      "provider": "codex_gateway",
+      "base_url": null,
+      "base_url_sha256": "68e25b464500800e",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "structured_endpoint": "/run",
+      "native_tools": false,
+      "streaming": false,
+      "auto_retry": false,
+      "retry_policy": "HTTP 429 (definite rejection) retried after a bounded wait; a request that was never sent (its connection, proxy tunnel or TLS handshake failed before any byte of it was written) sent again at most 2 times after 2/6 s, each attempt recorded; transport-uncertain failures (the request was written) never retried",
+      "pacing": {
+        "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+        "policy_source": "gateway status: hourly request counting not enforced",
+        "hourly_limit_assumed": null,
+        "budget": null,
+        "max_concurrency": 2,
+        "max_wait_s": 3900.0,
+        "state_shared_across_processes": true
+      }
+    },
+    "provider_profile": {
+      "provider": "codex_gateway",
+      "roles": {
+        "arbitrate": "gpt-6-astra:medium",
+        "audit": "gpt-6-astra:low",
+        "break": "gpt-6-sol:medium",
+        "implement": "gpt-6-sol:medium",
+        "seal": "gpt-6-sol:medium",
+        "spec": "gpt-6-astra:low",
+        "summary": "gpt-6-luna:low"
+      },
+      "base_url_sha256": "68e25b464500800e"
+    },
+    "per_run_usd_cap": 0.5,
+    "approve_usd": null,
+    "max_calls_per_run": null,
+    "max_turns": 14,
+    "workers": 1,
+    "attempts_per_cell": 1,
+    "systems": [
+      "attest"
+    ],
+    "tasks": [
+      "kvparse-refactor-001"
+    ],
+    "suite": "examples/eval/SUITE-M5.json",
+    "heldout_stripped_from_system_under_test": true,
+    "provenance": {
+      "fresh_process": true,
+      "pid": 19092,
+      "snapshot_root": "/work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex-3/snapshot",
+      "source_root": "/work/attest",
+      "source_git_commit": null,
+      "attest_version": "0.8.0",
+      "attest_revision": {
+        "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+        "digest": "68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4",
+        "files": 37,
+        "git_commit": null,
+        "version": "0.8.0"
+      },
+      "eval_script_sha256": "9f9e4bc2ebfee8ec6fbf2504d510fdaf71b137197fbf192dd20be16a9cb70c0f",
+      "examples_digest": {
+        "digest": "6db7a2e937d6e5d4aa4d2074d969782e0c76095f1dd661e773c03edd8f479ba4",
+        "files": 196
+      },
+      "guest_programs": {
+        "supervisor": {
+          "version": "attest-sealed-supervisor/7",
+          "sha256": "97d3d47d1d5b4fed68c3349da14c0cdb06091ec61afa61699eac5b27315b1415"
+        },
+        "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+        "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+        "guest_runner_sha256": "db8e2a76834b83ac69a3d5ecad722e712693ecb982f2a2ec3b2e4d5dde6de00f"
+      },
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "note": "the batch executes the snapshot only; edits to the source tree during the batch cannot reach it and are reported"
+    },
+    "pacing": {
+      "calls_per_cell_reserved": {
+        "baseline": 6,
+        "attest": 15
+      },
+      "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+      "policy_source": "gateway status: hourly request counting not enforced",
+      "policy_checked_at_epoch": 1792438653.0909529,
+      "hourly_limit_assumed": null,
+      "budget": null,
+      "max_concurrency": 2,
+      "max_wait_s": 3900.0,
+      "used_in_window": 18,
+      "blocked_until_epoch": null,
+      "rejections_seen": 0,
+      "waits": [],
+      "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json",
+      "state_shared_across_processes": true,
+      "state_error": null
+    },
+    "stop_conditions": [
+      "batch USD cap reached (reservation of the per-run cap before each run)",
+      "3 consecutive infrastructure errors",
+      "any transport-uncertain operation (never replayed)",
+      "Codex pacing: a cell whose bounded wait for the hourly budget is exceeded ends as ERROR (reported); no fallback",
+      "operator STOP file in the report directory: cells not yet started are reported as not run; in-flight cells finish and keep their ledgers"
+    ],
+    "definitions": {
+      "accepted": "attest: verdict VERIFIED; baseline: implementer finished",
+      "correct": "existing suite and held-out suite pass on the final patch in a fresh branch (judge); for a task whose ground_truth is 'unsatisfiable' no patch counts as correct and a hold (INFEASIBLE or NEEDS HUMAN) is the right outcome",
+      "infra_error": "verdict ERROR or a harness exception",
+      "not_run": "scheduled but never executed; reason recorded (a batch stop condition, the operator's STOP file, or a provider built for the cell whose profile differs from the registered one)",
+      "no_patch": "no patch was produced (Attest NO CHANGE, or a baseline that neither finished nor edited): an unfinished task, counted neither as a rejection nor as an acceptance",
+      "true_reject": "a patch was produced and not accepted, and the judge found it not correct; or the task is marked unsatisfiable and Attest held it without a patch (INFEASIBLE, or NEEDS HUMAN with no patch)",
+      "false_refusal": "Attest held the task without producing a patch (INFEASIBLE on an executed witness, or NEEDS HUMAN with no patch and an unfinished implementer) although the task's ground truth is a satisfiable held-out suite: a wrong refusal, counted neither as a rejection of a patch nor as an unfinished task; a NEEDS HUMAN hold with a patch is judged on that patch",
+      "provider_profile": "the effective provider configuration registered at launch (models per role, reasoning effort, sampling, per-run caps; for the gateway the roles with their effort and the URL digest), selected from provider.describe(); every completed row carries the profile its bundle recorded, a resumed process whose provider differs is refused before any cell, a cell whose provider differs is reported as not run",
+      "comparison_invalid": "a task whose cells did not all run the registered revision, provider, limits and provider profile, or whose snapshot changed during the batch"
+    },
+    "resume_policy": "a resumed batch restores provider, per-run USD cap, call cap, turn cap, workers, attempts, systems and the approved total from this file and refuses a conflicting command line; it refuses a process whose provider (code, command line and environment) differs from provider_profile; its starting committed total is rebuilt on every process start from every completed row and every run directory no row owns, each counted once",
+    "cells": [
+      {
+        "scheduled_index": 0,
+        "task": "kvparse-refactor-001",
+        "task_path": "examples/eval/kvparse-refactor/task.json",
+        "heldout": "examples/eval/kvparse-refactor/heldout.py",
+        "ground_truth": "held_out_suite",
+        "kind": "behaviour-preserving refactor",
+        "heldout_sha256": "ade28a389049792076e1f34a061a741eb91e947399289969bd2bf5f145c9a7af",
+        "task_spec_sha256": "2d7ee5a74ab239372319cc67612f29a86dc88f6a70368a0697f29483789d5fd0",
+        "system": "attest",
+        "attempt": 1
+      }
+    ],
+    "register_only": false
+  },
+  "finished_at_utc": "2026-10-19T19:44:45.159517+00:00",
+  "complete": true,
+  "budget": {
+    "approve_usd": null,
+    "per_run_cap_usd": 0.5,
+    "committed_usd": 0,
+    "peak_projected_usd": 0,
+    "stopped": null
+  },
+  "starting_total": {
+    "rebuilt_at_utc": "2026-10-19T19:37:33.100595+00:00",
+    "completed_rows": 0,
+    "completed_rows_usd": 0,
+    "unowned_run_directories": 0,
+    "unowned_run_directories_usd": 0,
+    "committed_usd": 0,
+    "rule": "every completed row once plus every run directory no row owns once (interrupted: journal; finished but unreported: ledger totals), recomputed from disk at every process start"
+  },
+  "note": "every scheduled cell is reported once; there is no merge or best-of selection",
+  "provenance_check": {
+    "registered_revision": "68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4",
+    "snapshot_intact_at_end": true,
+    "working_tree_revision_now": "68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4",
+    "working_tree_changed_since_launch": false,
+    "comparisons": {
+      "kvparse-refactor-001": {
+        "valid": true,
+        "reasons": []
+      }
+    },
+    "invalid_tasks": []
+  },
+  "pacing": {
+    "model": "no hourly window (the gateway declares hourly counting not enforced); concurrency and 429 handling only",
+    "policy_source": "gateway status: hourly request counting not enforced",
+    "policy_checked_at_epoch": 1792438653.0909529,
+    "hourly_limit_assumed": null,
+    "budget": null,
+    "max_concurrency": 2,
+    "max_wait_s": 3900.0,
+    "used_in_window": 29,
+    "blocked_until_epoch": null,
+    "rejections_seen": 0,
+    "waits": [],
+    "state_file": "/home/author/.cache/attest/codex-pacing-8e467a5246f4.json",
+    "state_shared_across_processes": true,
+    "state_error": null
+  },
+  "resumed_at_utc": null,
+  "interrupted": [],
+  "interrupted_note": "run directories that no persisted row owns, each listed once: kind 'interrupted' (the process died mid-run; the ledger journal is read back) or 'finished_unreported' (the pipeline finished but its row was never persisted; the ledger totals are read back). Every entry with included_in_batch_total is part of this batch's committed total, rebuilt from disk at every process start; the cell itself ran again as a fresh attempt",
+  "rows": [
+    {
+      "scheduled_index": 0,
+      "task": "kvparse-refactor-001",
+      "task_path": "examples/eval/kvparse-refactor/task.json",
+      "heldout": "examples/eval/kvparse-refactor/heldout.py",
+      "ground_truth": "held_out_suite",
+      "kind": "behaviour-preserving refactor",
+      "heldout_sha256": "ade28a389049792076e1f34a061a741eb91e947399289969bd2bf5f145c9a7af",
+      "task_spec_sha256": "2d7ee5a74ab239372319cc67612f29a86dc88f6a70368a0697f29483789d5fd0",
+      "system": "attest",
+      "attempt": 1,
+      "status": "completed",
+      "verdict": "NEEDS HUMAN",
+      "accepted": false,
+      "held_out_correct": true,
+      "judge_passed": true,
+      "changed_paths": 1,
+      "held_out_summary": "OK (9 of 9 methods, each in its own process)",
+      "judge_evidence_class": "bound",
+      "judge_error": null,
+      "judge_operation_uuid": "01a155b1-e799-7131-ba75-f7de61339ca1",
+      "heldout_stripped_from_task": [
+        "tests/test_heldout.py"
+      ],
+      "cost_usd": null,
+      "cost_committed_usd": 0.0,
+      "uncertain_calls": 0,
+      "model_calls": 11,
+      "model_calls_failed": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "sandbox_ops": 8,
+      "sandbox_duration_s": 43.923,
+      "sandbox_spawn_retries": 0,
+      "calls_not_sent": 0,
+      "reconciliation": [],
+      "wall_s": 424.7,
+      "turns": 6,
+      "finished": true,
+      "reasons": [
+        "child process nonzero exit: test_assignment_lines_are_not_ignorable exit 1"
+      ],
+      "warnings": [
+        "arbitration (validated corrections re-run their gates): 1 failing sealed test(s) classified as test defects and the correction was validated by execution, but a sealed test that failed by assertion or by an exception, whatever its origin, is never overridden: the hold stands for a human (the arbiter's view and the corrected tests are recorded)"
+      ],
+      "gates": {
+        "existing_suite": {
+          "ok": true,
+          "evidence_class": "bound"
+        },
+        "sealed_binding": {
+          "ok": false,
+          "evidence_class": "bound"
+        },
+        "mutation": {
+          "ok": false,
+          "evidence_class": "bound"
+        },
+        "adversarial_tests": {
+          "ok": false,
+          "evidence_class": "bound"
+        },
+        "drift_audit": {
+          "ok": true,
+          "evidence_class": "model"
+        }
+      },
+      "out_dir": "/work/attest/reports/attest-revision7-repairs-2026-10-19/evaluation-codex-3/runs/kvparse-refactor-001-attest-a1-20261019T193733105178Z",
+      "run_id": "kvparse-refactor-001-attest-a1-20261019T193733105178Z",
+      "roles": {
+        "spec": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "seal": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "implement": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "break": [
+          "gpt-6-sol",
+          "medium"
+        ],
+        "audit": [
+          "gpt-6-astra",
+          "low"
+        ],
+        "arbitrate": [
+          "gpt-6-astra",
+          "medium"
+        ],
+        "summary": [
+          "gpt-6-luna",
+          "low"
+        ]
+      },
+      "provider_profile": {
+        "provider": "codex_gateway",
+        "roles": {
+          "arbitrate": "gpt-6-astra:medium",
+          "audit": "gpt-6-astra:low",
+          "break": "gpt-6-sol:medium",
+          "implement": "gpt-6-sol:medium",
+          "seal": "gpt-6-sol:medium",
+          "spec": "gpt-6-astra:low",
+          "summary": "gpt-6-luna:low"
+        },
+        "base_url_sha256": "68e25b464500800e"
+      },
+      "revision_digest": "68e9de49df5b22b8a0c6bc842a8e7680ecb03d6a86ba5cee647cf751fb7bb9f4",
+      "supervisor": "attest-sealed-supervisor/7",
+      "arbitration": {
+        "counts": {
+          "implementation_bug": 0,
+          "test_defect": 1,
+          "contract_dispute": 0
+        },
+        "cleared": false,
+        "headline": "1 failing sealed test(s) classified as test defects and the correction was validated by execution, but a sealed test that failed by assertion or by an exception, whatever its origin, is never overridden: the hold stands for a human (the arbiter's view and the corrected tests are recorded)"
+      },
+      "infra_error": false,
+      "uncertain": false,
+      "paced_wait_before_start_s": 0.0,
+      "started_at_utc": "2026-10-19T19:44:45.037363+00:00",
+      "executed_provider": "codex",
+      "usd_cap": 0.5,
+      "max_calls": null,
+      "max_turns": 14,
+      "confusion": "false_reject"
+    }
+  ],
+  "summary": {
+    "attest": {
+      "scheduled": 1,
+      "completed": 1,
+      "not_run": 0,
+      "confusion": {
+        "true_accept": 0,
+        "false_accept": 0,
+        "false_reject": 1,
+        "true_reject": 0,
+        "false_refusal": 0,
+        "no_patch": 0,
+        "infra_error": 0,
+        "unknown": 0,
+        "not_run": 0
+      },
+      "shipped_broken_code": 0,
+      "needs_human": 1,
+      "no_patch": 0,
+      "rate_limited_calls": 0,
+      "pacing_wait_s": 0.0,
+      "cells_in_invalid_comparisons": 0,
+      "total_cost_committed_usd": 0.0,
+      "mean_wall_s": 424.7
+    }
+  },
+  "services": {
+    "inference": {
+      "provider": "development gateway (team allowance, not USD)",
+      "model_calls": 11,
+      "calls_not_sent": 0,
+      "committed_usd": null
+    },
+    "sandboxes": {
+      "service": "Nebius Token Factory Sandboxes (beta)",
+      "operations_in_run_ledgers": 8,
+      "judge_operations": 1,
+      "duration_s": 43.923,
+      "spawn_retries": 0,
+      "billing": "not visible to this harness: the Sandboxes console wording says beta runs are free; no invoice-level reconciliation has been done"
+    },
+    "search": {
+      "service": "Tavily",
+      "calls": 0,
+      "note": "the harness runs the pipeline without Tavily (tavily=None)"
+    },
+    "reconciliation_items": 0
+  },
+  "harness_peak_rss_mb": 51.0
+}

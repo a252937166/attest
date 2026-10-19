@@ -111,3 +111,17 @@ No paid Nebius call occurred in this pass.
 The 19 Oct verification incident of the previous pass ($0.055226 journal-accounted across 16 model calls, not an approved smoke test
 and not a reconciled provider invoice) is unchanged and remains recorded in `reports/attest-deployment-2026-10-19c/README.md`. The
 $10 Nemotron proposal in `FREEZE.md` remains unapproved.
+
+## Additions, 19 Oct 2026 (revision 8)
+
+- Sandboxes operations, reconciled. The account's operation list for 14:15 to 15:15 UTC (read with `GET /operations` on
+  19 Oct at about 17:50 UTC) holds exactly 34 operations: 28 recorded in the run ledgers and 6 held-out judge operations, all
+  `SUCCESS`, 97.0 s of guest time and 72.7 CPU seconds. Neither uncertain spawn created an operation. The "36 recorded, and up to
+  2 more" in the table above counted the two uncertain spawns' empty records; the batches executed 34 Sandboxes operations
+  (`reports/attest-revision7-repairs-2026-10-19/transport/sandboxes-operations-2026-10-19-r7.json`).
+- Cost scope. "$0 committed" in this record is the inference ledger. The development gateway's allowance is not billed in USD,
+  and the batches also used Token Factory Sandboxes, a separately billed beta service whose charges this project has not
+  reconciled against an invoice (Nebius's console says beta runs are free). This record does not establish a zero total cost.
+- The six transport failures. None of the six requests was executed: four failed while the connection was being set up (no
+  ingress entry, no operation), and two were cut off while their bodies were in transit (nginx 408, nothing forwarded). The
+  analysis and the repair are in `reports/attest-revision7-repairs-2026-10-19/transport/`.

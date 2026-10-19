@@ -70,3 +70,14 @@ was not run. The rollback was rehearsed under shims (revision 5), not on this ho
 `before-20261019d-20261019T152849Z.txt`, `after-20261019d-20261019T153001Z.txt`, `health-before-20261019d.json`,
 `health-after-20261019d.json`, `build-20261019d.log`, `install-20261019d.log`, `public-readonly-checks.json`,
 `screens/public-home-r7-{1440,390}.png`, `screens/public-run-r7-{1440,390}.png`.
+
+## Correction, 19 Oct 2026 (revision 8)
+
+The 390 px observation in the verification table came from the capture method, not from the page. Chrome's headless command
+line (`--headless=new --window-size=390,...`) lays the page out wider than a 390 px window and crops the image, so text seemed to
+run past the right edge; repeating that capture on the same version reproduces the effect. Rendered with mobile emulation
+(Playwright with the installed Chrome, a 390 px mobile viewport), the public home page and run page of this version had no element
+and no text wider than the viewport. The console did overflow at narrower widths and in some run views (the logo row, the start
+form and the capability figures at 320 px; long error texts, counterexample names and the decision buttons at 320 to 390 px);
+revision 8 repairs those (`reports/attest-revision7-repairs-2026-10-19/console/`). The memory limit this record reports as not
+enforced is enforced from revision 8 on (`reports/attest-revision7-repairs-2026-10-19/memory/`).
