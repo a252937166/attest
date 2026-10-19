@@ -217,7 +217,15 @@ class Bound02SnapshotNeverFollowsLinks(unittest.TestCase):
         self.assertFalse(any(p.is_symlink() for p in (self.tmp / "imported").rglob("*")))
 
     def test_the_semver_example_links_are_skipped_not_fatal_also_in_a_harness_copy(self):
-        repo = ROOT / "examples" / "semver-is-compatible" / "repo"
+        # The upstream python-semver tree at the pinned commit has two symbolic links in tests/. The public export publishes
+        # no links, so a clean checkout of the review repository lacks them; the test therefore works on a temporary copy of
+        # the example with the two upstream links re-created, the same in the private tree and in any checkout.
+        source = ROOT / "examples" / "semver-is-compatible" / "repo"
+        repo = self.tmp / "semver-example"
+        shutil.copytree(source, repo, symlinks=False, ignore=lambda d, names: [n for n in names if (Path(d) / n).is_symlink()
+                                                                              or n in ("__pycache__",) or n.endswith(".pyc")])
+        for link, target in (("tests/coerce.py", "../docs/advanced/coerce.py"), ("tests/semverwithvprefix.py", "../docs/advanced/semverwithvprefix.py")):
+            os.symlink(target, repo / link)  # exactly the upstream links; their targets were not imported, so they dangle there too
         skipped: list[dict] = []
         files = snapshot_repo(repo, skipped=skipped)
         self.assertIn("tests/conftest.py", files)
@@ -464,6 +472,25 @@ class Rel01ReleaseExclusionsAndWholeTreeScan(unittest.TestCase):
         self.assertEqual(modes, {"systemctl": 0o755, "_log.sh": 0o644, "owner-only": 0o755, "too-open": 0o755, "group-writable.txt": 0o644})
         completed = subprocess.run([str(out / "rehearsal" / "shims" / "systemctl")], capture_output=True)
         self.assertEqual(completed.returncode, 0, "an exported shim runs as it does in the source tree")
+
+    def test_the_review_repository_records_every_exported_file(self):
+        """Revision 7: the exported .gitignore carried unanchored `runs/` and `data/` patterns, so git kept every
+        reports/**/runs/ directory, most of the recorded run evidence, out of the review repository. The export now fails when
+        any exported file would be ignored, and the project's own .gitignore ignores only root-level output."""
+        evidence = ["reports/r/evaluation-codex/runs/run-1/proof_bundle.json", "reports/r/runs/run-2/proof_bundle.json",
+                    "examples/x/repo/data/table.csv", "deploy/yungou/attest.env.example"]
+        local = ["runs/local-run/proof_bundle.json", "data/attest.db", "scratchpad/notes.txt", "dist/public/README.md"]
+        tree = self.tmp / "tree"
+        for rel in evidence + local:
+            (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+            (tree / rel).write_text("x\n")
+        (tree / ".gitignore").write_text("runs/\ndata/\n")  # the patterns of the 19 Oct revision-6 export
+        self.assertEqual(set(export_public.ignored_by_git(tree)) & set(evidence),
+                         {"reports/r/evaluation-codex/runs/run-1/proof_bundle.json", "reports/r/runs/run-2/proof_bundle.json", "examples/x/repo/data/table.csv"})
+        (tree / ".gitignore").write_text((ROOT / ".gitignore").read_text(encoding="utf-8"))  # the project's own rules
+        ignored = set(export_public.ignored_by_git(tree))
+        self.assertEqual(ignored & set(evidence), set(), "no evidence path is ignored")
+        self.assertEqual(ignored & set(local), set(local), "root-level local output stays ignored")
 
     def test_every_staged_file_is_scanned_whatever_its_name(self):
         out = self.tmp / "staged"

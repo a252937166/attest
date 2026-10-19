@@ -1054,8 +1054,7 @@ class R503GroundedInfeasibility(unittest.TestCase):
 
     def test_recorded_protocol_two_infeasible_bundle_still_checks_under_its_own_protocol(self):
         run_dir = next((ROOT / "reports/attest-audit-repairs-2026-10-19/evaluation-codex/runs").glob("rle-encode-*"), None)
-        if run_dir is None:
-            self.skipTest("recorded bundle not present")
+        self.assertIsNotNone(run_dir, "the recorded revision-5 INFEASIBLE bundle is part of the recorded evidence")
         report = check_bundle(run_dir)
         self.assertEqual(report["protocol"], 2)
         self.assertTrue(report["ok"] and report["evidence_complete"], failed_checks(report))

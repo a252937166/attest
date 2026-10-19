@@ -37,6 +37,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import zipfile
@@ -428,6 +429,8 @@ def build_export(staging: Path, dest: Path) -> tuple[dict, int]:
     hits = scan(staging)
     hits.extend(f"{EXPORT_RECORD}: {hit}" for hit in _pattern_hits(json.dumps(record, indent=2) + "\n"))
     record["scan_hits"] = hits
+    # the review repository must record every exported file: none may be ignored by the exported .gitignore (revision 7)
+    record["gitignored"] = ignored_by_git(staging)
     (staging / EXPORT_RECORD).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in record.items() if k not in ("redacted_files", "redacted_runs", "excluded")}
                      | {"redacted_file_count": len(record["redacted_files"]), "redacted_run_count": len(traced),
@@ -438,7 +441,29 @@ def build_export(staging: Path, dest: Path) -> tuple[dict, int]:
     if hits:
         print("SCAN FAILED: redacted strings, secret-like tokens or unpublishable files remain:\n  " + "\n  ".join(hits[:20]), file=sys.stderr)
         return record, 1
+    if record["gitignored"]:
+        print(f"GITIGNORE CHECK FAILED: {len(record['gitignored'])} exported file(s) would not be recorded by the review repository:\n  "
+              + "\n  ".join(record["gitignored"][:20]), file=sys.stderr)
+        return record, 1
     return record, 0
+
+
+def ignored_by_git(tree: Path) -> list[str]:
+    """Every file of `tree` that the tree's own .gitignore files would keep out of a git repository, decided by git itself (a
+    throwaway repository whose work tree is `tree`; the user's global excludes are disabled). Until 19 Oct 2026 (revision 7)
+    the exported .gitignore carried an unanchored `runs/` that kept every reports/**/runs/ directory, most of the recorded run
+    evidence, out of the review repository while the export directory and the deployed release had it."""
+    git = shutil.which("git")
+    if git is None:
+        raise RuntimeError("git is needed to check that the review repository records every exported file")
+    files = sorted(p.relative_to(tree).as_posix() for p in tree.rglob("*") if p.is_file() and not p.is_symlink() and ".git" not in p.relative_to(tree).parts)
+    with tempfile.TemporaryDirectory(prefix="attest-export-gitcheck-") as repo:
+        subprocess.run([git, "init", "-q", repo], check=True, capture_output=True)
+        proc = subprocess.run([git, "-c", "core.excludesFile=" + os.devnull, f"--git-dir={repo}/.git", f"--work-tree={tree}", "check-ignore",
+                               "--no-index", "--stdin"], input="\n".join(files) + "\n", capture_output=True, text=True)
+    if proc.returncode not in (0, 1):  # 0: some paths are ignored, 1: none is
+        raise RuntimeError(f"git check-ignore failed: {proc.stderr.strip()[:300]}")
+    return [line for line in proc.stdout.splitlines() if line.strip()]
 
 
 def publish(staging: Path, dest: Path) -> None:
