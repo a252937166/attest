@@ -382,7 +382,7 @@
       calls.textContent = String(Math.round(BM.total.calls * p)); ops.textContent = String(Math.round(BM.total.ops * p)); cost.textContent = "$" + (BM.total.cost * p).toFixed(3);
       const finished = i >= BM.stages - 1;
       seal.textContent = finished ? "VERIFIED" : "RUNNING"; seal.className = `seal big ${finished ? "VERIFIED" + (REDUCED ? "" : " stamp") : "RUNNING"}`;
-      check.textContent = finished ? "attest check: OK, 24 of 24" : "attest check: pending"; check.classList.toggle("ok", finished);
+      check.textContent = finished ? "attest check: OK, historical bundle" : "attest check: pending"; check.classList.toggle("ok", finished);
       if (finished) stages[BM.stages - 1].className = "done";
     };
     if (REDUCED) { paint(BM.stages - 1); return; }
