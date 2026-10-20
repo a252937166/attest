@@ -241,3 +241,11 @@ The pin now names `6751847` (`FREEZE.md`). The suites recorded earlier keep thei
 `-17-clean-5229e14-` (458 tests, OK, 0 skipped each) are the runs of the pin record and of the deployment records, and their headers'
 "HOME=<empty directory>" is the inaccuracy described above. The deployed release was built from `65d81f7` (code `7664742`), so it is the
 pinned package; only its copy of the tests is the earlier one, which the service never runs.
+
+Addendum to the usage table (after the deployment): the Aliyun host ran the offline suite a third time (suite 19, `6751847`) in the same
+container set-up, removed afterwards; the production console had one more read-only readback over SSH and GET requests (09:05 UTC:
+0.9.0 on the same process since 08:22, limits unchanged, no hold); no inference, Sandboxes or Tavily request was made after the live
+run. The re-pin record `9bf7787` passed the macOS set-up as well (`suites/final-tree-suite-20-clean-9bf7787-macos-no-network.log`, 459
+tests, OK, 0 skipped, HOME still empty afterwards), and the history replayed up to it verified the same way
+(`publication/publication-verify-to-9bf7787.json`: 70 commits, scan clean over 5,950 objects, 8 of 8 pinned digests equal, 849 run
+copies pass `attest check`; `9bf7787` -> `fb121b30da597d739acd163d71298f71b9c4b4a0`).
