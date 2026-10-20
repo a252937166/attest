@@ -532,8 +532,8 @@ that went on after an uncertain spawn were reconciled read-only: both spawns exe
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `775248c2f87d66e5fe4f3802b1caf85024f62a49` on branch `main` of the review repository, version 0.10.0; in the publication repository `fe88f405ae3bd684f7c089ebfdab135cd7ae7d0c` (the same tree; the documentation commits that follow carry this record with an identical `attest/` digest) |
-| `attest/` package digest (sha256 over path and content of every source, 37 files) | `7e72364f135c45c8a69a3a59c9cba5c954ebbb843cc7752b76c8303550548cb6` |
+| Repository commit (code) | `c0ddb486f8c91f061678a2b6239cbbdbddd21f87` on branch `main` of the review repository, version 0.10.0 (the package and the harness of `775248c`, with the recorded-corpus inventory that knows revision 10's live run); in the publication repository `953ae59b8c8ef5e54bbadbf2fb2b940b8851fa3a` (the same tree; the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 37 files) | `7e72364f135c45c8a69a3a59c9cba5c954ebbb843cc7752b76c8303550548cb6`, the same for `775248c`, `f0c28c2` and `c0ddb48` (`c0ddb48` changes one test only) |
 | Harness `scripts/run_evaluation.py` sha256 | `243ab12f3879ffc6d7a0eef5c08c147141a13915457fb7ff1b8e02aa7e0e4ac7` (changed: the resume gate over every row, bundle and run or judge journal, acknowledgements tied to item ids in `reconciliations.jsonl`, the refusal of a batch whose gateway status answer cannot be read) |
 | `examples/` tree digest | unchanged: `e95a28aa363366160062107128950e9ff4c1888d52dccfdf578299e14e341b78` from a clean checkout |
 | Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
@@ -542,13 +542,23 @@ that went on after an uncertain spawn were reconciled read-only: both spawns exe
 | Evidence protocol and witness language | version 5 and `attest-witness/1` (unchanged); manifest version 2 |
 | Effective provider configuration, proposed paid run | computed offline from the pinned package (placeholder key, outbound network denied): equal to the revision-7 registration (`reports/attest-revision10-repairs-2026-10-20/checker/nemotron-effective-profile-775248c.json`) |
 | Limits | revision-8 limits; deployment memory limit 200M (memory and memory plus swap) |
-| Offline suite on the final tree | **491 tests, 0 failures, 0 errors, 0 skips** on a clean checkout of `775248c` with no credential, no private configuration, HOME at a new empty directory (still empty afterwards) and outbound network denied by the operating system except to the loopback interface (`reports/attest-revision10-repairs-2026-10-20/suites/suite-1-clean-775248c-macos.log`); **491 tests, 26 skipped** (no bash, git or node in the image) in a container with no network interface (`suite-2-clean-775248c-linux.log`) |
+| Offline suite on the final tree | **491 tests, 0 failures, 0 errors, 0 skips** on a clean checkout of `c0ddb48` with no credential, no private configuration, HOME at a new empty directory (still empty afterwards) and outbound network denied by the operating system except to the loopback interface (`reports/attest-revision10-repairs-2026-10-20/suites/suite-4-clean-c0ddb48-macos.log`); **491 tests, 26 skipped** (no bash, git or node in the image) in a container with no network interface (`suite-5-clean-c0ddb48-linux.log`); `775248c` passed both set-ups the same way (`suite-1`, `suite-2`) |
+
+History of this pin (20 Oct 2026): the code of the repairs is `775248c`; its clean checkout passed both offline set-ups and the reproduction
+(63 of 63), and a live development run of it on the team's gateway read every real answer through the new checks (12 gateway calls, 8
+Sandboxes operations, no Nebius inference, no Tavily; NEEDS HUMAN on its own evidence). 0.10.0, built from a clean checkout of the pin
+record `f0c28c2`, was deployed on 20 Oct at 16:02 UTC (`reports/attest-deployment-2026-10-20b/`); the deployed package is the pinned package
+(digest `7e72364f…`). A clean checkout of that pin record, run after the deployment, then failed one test of 491
+(`suite-3-clean-f0c28c2-macos-one-failure.log`): `RecordedCorpusInventory` requires every recorded run directory to be classified, and the
+record had added the live run's directory without classifying it. `c0ddb48` adds it to the modern corpus under protocol 5 (tests only, the
+package, harness, METHOD and example digests of `775248c`); its clean checkout passed both offline set-ups, and the pin names it. The deployed
+tree carries the earlier test file, which the service never runs.
 
 ## The exact command (revision 10)
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout fe88f405ae3bd684f7c089ebfdab135cd7ae7d0c
-# the same tree as review-repository commit 775248c2f87d66e5fe4f3802b1caf85024f62a49
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 953ae59b8c8ef5e54bbadbf2fb2b940b8851fa3a
+# the same tree as review-repository commit c0ddb486f8c91f061678a2b6239cbbdbddd21f87
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r10-final \
@@ -557,14 +567,15 @@ python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-
 
 ## Publication repository (revision 10)
 
-The replay of the review history up to `775248c` (`reports/attest-revision10-repairs-2026-10-20/publication/`) found the publication history
-clean (every object, every spelling), every commit differing from its review commit only by the known rewrites, the nine pinned digests equal
-in both, and the 849 rewritten run copies passing `attest check`; every commit it shares with the revision-9 builds maps to the same
-publication commit. The revision-10 pin adds one row to the table of revision 9:
+The replays of the review history up to `775248c` and up to `c0ddb48` (`reports/attest-revision10-repairs-2026-10-20/publication/`) found the
+publication history clean (every object, every spelling), every commit differing from its review commit only by the known rewrites, the pinned
+digests equal in both (nine, then ten), and the 849 rewritten run copies passing `attest check`; every commit they share with each other and
+with the revision-9 builds maps to the same publication commit. Revision 10 adds two rows to the table of revision 9:
 
 | Pin | Review repository | Publication repository |
 | --- | --- | --- |
-| Revision 10 (0.10.0) | `775248c2f87d66e5fe4f3802b1caf85024f62a49` | `fe88f405ae3bd684f7c089ebfdab135cd7ae7d0c` |
+| Revision 10 (0.10.0), the code of the repairs | `775248c2f87d66e5fe4f3802b1caf85024f62a49` | `fe88f405ae3bd684f7c089ebfdab135cd7ae7d0c` |
+| Revision 10 (0.10.0), the pin (the corrected inventory) | `c0ddb486f8c91f061678a2b6239cbbdbddd21f87` | `953ae59b8c8ef5e54bbadbf2fb2b940b8851fa3a` |
 
 ## Proposed paid work (revision 10; awaiting the owner's approval; nothing runs before it)
 

@@ -176,6 +176,9 @@ ACCEPTED_UNREAD with its id, an unreadable model answer is an uncertain call, an
 (0.9.0 let raw `AttributeError`, `TypeError` and `UnicodeDecodeError` escape, polled on, or sent a repair request). The two development
 runs of 17 Oct that went on after an uncertain mutant spawn were reconciled read-only against the Sandboxes account and the gateway's
 ingress log: both spawns did execute (late, one after its run had ended), both mutants were killed, and both verdicts stand.
+Revision 10 was deployed at https://attest.axiqo.xyz on 20 Oct 16:02 UTC (`reports/attest-deployment-2026-10-20b/README.md`); the console
+runs 0.10.0, with the memory limit in force as before and no reconciliation hold open, and the host's free disk went from 7.4 % to 9.2 %
+by removing obsolete Attest builds and uploads.
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,

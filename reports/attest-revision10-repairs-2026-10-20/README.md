@@ -2,8 +2,8 @@
 
 Scope: the four defects named in the revision-10 instruction, the reconciliation of the two VERIFIED development runs of 17 Oct that
 went on after an uncertain spawn, and the disk headroom on yungou. Every defect was reproduced on the frozen 0.9.0 tree before the repair
-(`repro/`), and the same script was run on the repaired tree. Code commit `775248c` of the review repository; package digest
-`7e72364f135c…` (37 sources). Nothing was published or pushed, no paid Nebius call was made, and no video was touched.
+(`repro/`), and the same script was run on the repaired tree. Code commit `775248c` of the review repository, pinned as `c0ddb48` (one test
+of the evidence inventory added, see the clean-checkout results); package digest `7e72364f135c…` (37 sources). Nothing was published or pushed, no paid Nebius call was made, and no video was touched.
 
 ## The issues, their causes and the repairs
 
@@ -112,6 +112,14 @@ acknowledgement rule; the console tests know the two new start-up counters.
 | --- | --- | --- |
 | `suites/suite-1-clean-775248c-macos.log` | clean `git worktree` of `775248c`, `env -i` (no credential, no private configuration), HOME a new empty directory, `sandbox-exec` denying every outbound connection except loopback | **491 tests, OK, 0 skipped**; HOME empty afterwards; checkout unchanged |
 | `suites/suite-2-clean-775248c-linux.log` | `git archive` of `775248c` in a container on the Aliyun host with no network interface (`--network none`, 384 MB, 1 CPU, uid 65534, all capabilities dropped), dependencies from an offline wheelhouse | **491 tests, OK, 26 skipped** (the image has no bash, git or node); container removed; the host's services unaffected |
+| `suites/suite-3-clean-f0c28c2-macos-one-failure.log` | the pin record `f0c28c2` (the deployed tree), after the deployment, the macOS set-up | **490 of 491 pass, 1 failure**: `RecordedCorpusInventory` found the live run's directory, which the record had added, unclassified |
+| `suites/suite-4-clean-c0ddb48-macos.log` | `c0ddb48` (the inventory classifies the folder under protocol 5; tests only), the macOS set-up | **491 tests, OK, 0 skipped**; HOME empty afterwards; checkout unchanged |
+| `suites/suite-5-clean-c0ddb48-linux.log` | `c0ddb48`, the Linux container set-up | **491 tests, OK, 26 skipped**; container removed |
+
+Finding: the pin had been recorded from the clean checkouts of `775248c`, before the live run's directory existed; the final-tree rule asks the
+suite to pass with the evidence in place, and the clean checkout of the record that added the directory did not. The pin now names `c0ddb48`
+(the same package, harness, METHOD and examples); the deployed package is the pinned package, and the deployed tree's one stale test is never
+run by the service.
 
 ## The two VERIFIED runs of 17 Oct, reconciled
 
@@ -180,6 +188,14 @@ Capacity limitation: 15 % free (2.17 GB) cannot be reached by removing what Atte
 about 380 MB (two releases, the interpreter, the data); the remaining space is held by the other services and projects on the host (Docker
 images about 2.05 GB, of which Docker reports 1.6 GB as not used by a running container; application trees under `/opt` and `/root`; a 1 GB
 swap file). Removing any of those is their owner's decision and was not done; the low-disk threshold (7 %, 500 MB) was not changed.
+
+## Deployment
+
+0.10.0, built from a clean checkout of the pin record `f0c28c2`, was deployed to yungou on 20 Oct at 16:02 UTC
+(`reports/attest-deployment-2026-10-20b/README.md`): the store backed up first, the transactional installer, the memory limit read back in force
+(200M for memory and for memory plus swap, no fail count, no OOM kill), the rollback target 0.9.0 verified in place, 0 holds, the start-up
+recovery clean (nothing settled, nothing repaired), the public GET checks byte-identical to the release, and then release 0.8.3 pruned for
+headroom. Free disk afterwards: 1,328,570,368 bytes (9.17 %); the new release took the place of the pruned one.
 
 ## Usage in this pass, per service
 
