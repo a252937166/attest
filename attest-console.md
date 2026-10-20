@@ -21,12 +21,12 @@ the deployment reports under `reports/attest-deployment-*/` say which build the 
 
 | Method and path | Purpose |
 | --- | --- |
-| `GET /api/health` | version, worker liveness, queue length, current run, **disk** (free MB/fraction, `low`, `accepting_runs`), **budget** (daily/per-run caps, whether another Nebius run fits, `remaining_usd`, `committed_today_usd`, `reserved_usd`, `active_runs`), `public_runs_per_hour`, and what was **reconciled** and **deduplicated** at startup |
+| `GET /api/health` | version, worker liveness, queue length, current run, **disk** (free MB/fraction, `low`, `accepting_runs`), **budget** (daily/per-run caps, whether another Nebius run fits, `remaining_usd`, `committed_today_usd`, `reserved_usd`, `active_runs`), `public_runs_per_hour`, what was **reconciled** and **deduplicated** at startup, and since revision 9 **reconciliation** (open holds, `accepting_runs`; the held run ids to the team only) |
 | `GET /api/profiles` | the public inference profile list (the judge profile only) |
 | `POST /api/profiles` `{admin_token}` | the profile list for the caller; only a valid team token returns the development profile, so the public page and its responses never name the development gateway |
 | `GET /api/tasks` | sample tasks from `examples/*/task.json`, each with a recorded **estimate**: `runs` and the cost and duration ranges of completed public-profile runs of that task (ERROR and baseline runs and replay fixtures excluded), `recorded_runs`, `latest_run_id`, `latest_verdict` |
 | `GET /api/runs?limit=` | run list, newest first; every row carries `provenance` and a `summary` {verdict, status, stage, cost_usd, cost_committed_usd, duration_s, provenance, model_calls, sandbox_ops} so the history renders without loading bundles. Every `cost_*` field is inference only (the Nemotron ledger in USD; a development run records its allowance in tokens and shows no USD); Sandboxes and Tavily are separate services and are never added in |
-| `POST /api/runs` `{task_id, provider, admin_token?}`, header `X-Attest-Confirm: start-run` | enqueue a run; without the confirmation header HTTP 428 before anything exists (revision 8; the console sends it from its confirmation step only); public callers: the judge profile only, 3 runs per hour per visitor, daily budget check; the development profile requires the admin token (HTTP 403 otherwise; a malformed body or unknown profile id is HTTP 422) |
+| `POST /api/runs` `{task_id, provider, admin_token?}`, header `X-Attest-Confirm: start-run` | enqueue a run; without the confirmation header HTTP 428 before anything exists (revision 8; the console sends it from its confirmation step only); public callers: the judge profile only, 3 runs per hour per visitor, daily budget check; the development profile requires the admin token (HTTP 403 otherwise; a malformed body or unknown profile id is HTTP 422); while a reconciliation hold is open, HTTP 503 and nothing is queued (revision 9) |
 | `GET /api/runs/{id}/events` (pacing) | since 17 Oct 2026 the development profile's pacing waits and gateway rejections appear as events with stage `pacing`, next to the stage messages |
 | `GET /api/runs/{id}` | run record (with `summary`), full Proof Bundle JSON when finished, progress events, `provenance`, `exhibits` (= `attest.core.exhibits.summary(bundle)`: `decision`, `exhibits` E1 to E7, `gates`, `counterexamples`, `proves`) and `manifest` (from `manifest.json` with `recorded: true`, or computed on request with `recorded: false` for runs recorded before milestone M2; a SHA-256 integrity check, not a signature) |
 | `GET /api/runs/{id}/events?after=` | incremental progress for polling, with the run `status`, `stage`, `verdict`, live `meters` (model calls, sandbox operations, committed USD, tokens, timestamps), queue length and current run |
@@ -285,3 +285,12 @@ Evidence and acceptance tests: `reports/attest-audit-repairs-2026-10-19/console/
   and passes it as `?ticket=` on that run's artifact and zip routes only; a ticket authorises nothing else (no POST, no
   other run, no list or detail), is signed with a per-process secret, and team downloads answer `Cache-Control:
   no-store`. The home page says so. Anonymous queue counts include team runs without identifying them.
+
+Reconciliation holds (revision 9, 20 Oct 2026): a run that stops because an operation's outcome is uncertain (a sandbox spawn or a model
+call whose answer was lost or came back HTTP 5xx, an accepted sandbox operation whose outcome could not be read, a Tavily search whose
+answer was lost) or because its journal could not take a record ends ERROR with `error_code` `reconciliation_required`, and the store opens
+a hold. A restart that finds an interrupted run whose journal names a spawn without an outcome, an accepted operation never read, or a
+model call in flight does the same. While a hold is open the worker starts nothing: queued runs end `paused_for_reconciliation` before any
+provider exists, `POST /api/runs` answers 503, retention keeps the held run's directory, and the case file shows "Held for reconciliation"
+instead of "Start a new run". An operator reconciles the items listed in the run's bundle (`python -m attest reconcile <run dir>`) and
+clears the hold with a note (`python -m attest holds --db <store> --clear <hold id> --note <what was found>`); clearing sends nothing.

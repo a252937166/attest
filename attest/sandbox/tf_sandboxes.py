@@ -27,6 +27,16 @@ spawn whose bytes were written and whose answer was lost is UNCERTAIN and never 
 journaled before polling starts; when the outcome of an accepted operation cannot be read, the operation is ACCEPTED_UNREAD and the
 id is kept for reconciliation (GET /operations/{id}). The spawn request carries no client-chosen id (the API has none), so an
 uncertain spawn is reconciled by listing the account's operations around its time and source image (GET /operations).
+
+Revision 9 (20 Oct 2026): every operation is journaled as PENDING, durably and read back, before its spawn is sent, and its accepted id
+before the first poll; if either record cannot be made durable nothing further is dispatched or polled and the run halts with what is
+known (stage, image, accepted id) in the halt record and the `attest.ledger` log. A spawn answered with an HTTP 4xx is REJECTED (a
+definite refusal); one answered with an HTTP 5xx, a 2xx without an operation id, or a failure after its bytes were written is
+UNCERTAIN: the run halts (`Ledger.halt`) and nothing is sent again. Polls and reads are retried, bounded, on a transport failure or an
+answer that asks for a retry (404 for a just-accepted id, 408, 429, 5xx); an accepted operation whose outcome is still not read, or that
+never reaches a terminal state, is ACCEPTED_UNREAD and listed for reconciliation. Every request is admitted by the ledger first, so
+once the run has halted (here or in a parallel branch) no spawn, poll or cancel leaves; an operation being polled at that moment is
+ACCEPTED_UNREAD with its id kept.
 """
 
 from __future__ import annotations
@@ -36,8 +46,9 @@ import gzip
 import json
 import time
 
-from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, TransportError, backoff, request_json
-from ..ledger import Ledger, SandboxOp, utcnow
+from ..http import (NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, TransportError, backoff, post_outcome,
+                    read_retryable, request_json, retry_after_s)
+from ..ledger import Ledger, LedgerError, RunHalted, SandboxOp, utcnow
 from .base import RunResult, StepResult
 
 BASE = "https://api.tokenfactory.nebius.com/sandboxes/v1"
@@ -217,12 +228,23 @@ sys.stdout.flush()
 
 class SandboxError(RuntimeError):
     def __init__(self, message: str, uncertain: bool = False, unreachable: bool = False, accepted_unread: bool = False,
-                 operation_uuid: str | None = None):
+                 operation_uuid: str | None = None, rejected: bool = False, journal_failed: bool = False, halted: bool = False,
+                 http_status: int | None = None, op_id: str | None = None):
         super().__init__(message)
         self.uncertain = uncertain or accepted_unread  # the operation may exist or may have run: never replayed
         self.unreachable = unreachable  # every attempt failed before any byte of the request was sent: nothing exists
         self.accepted_unread = accepted_unread  # accepted (operation_uuid known), outcome not read
         self.operation_uuid = operation_uuid
+        self.rejected = rejected  # the service refused the spawn with an HTTP 4xx: nothing exists (revision 9)
+        self.journal_failed = journal_failed  # a record of this operation could not be made durable: the run halts (revision 9)
+        self.halted = halted  # refused, or polling stopped, because the run had halted for reconciliation (revision 9)
+        self.http_status = http_status
+        self.op_id = op_id
+
+    @property
+    def stops_run(self) -> bool:
+        """The run sends nothing further after this error and is held for reconciliation (revision 9)."""
+        return bool(self.uncertain or self.accepted_unread or self.journal_failed or self.halted)
 
 
 def _decode_stream(stream: dict | None) -> tuple[str, bool]:
@@ -253,20 +275,29 @@ class TokenFactorySandboxes:
     def _headers(self) -> dict:
         return {"Authorization": "Bearer " + self._key, "Project": self.project_id}
 
-    def _request(self, method: str, path: str, payload=None, timeout: float = 30, op: SandboxOp | None = None):
-        """One API request with the bounded retries its method allows. GET and DELETE are idempotent here (a read, a cancel), so any
-        transport failure is retried. A POST (a spawn creates an operation) is sent again only after an attempt that failed before
-        any byte of it was written; once its bytes were written the outcome is uncertain and the error is raised (no replay)."""
+    def _request(self, method: str, path: str, payload=None, timeout: float = 30, op: SandboxOp | None = None, stage: str | None = None,
+                 retry_statuses: tuple[int, ...] = ()):
+        """One API request with the bounded retries its method allows; every attempt is admitted by the ledger first (`RunHalted` once
+        the run has stopped). GET and DELETE are idempotent here (a read, a cancel), so a transport failure or an answer that asks for
+        a retry (408, 429, 5xx, plus `retry_statuses`) is retried, bounded, and the last failure is raised as it came (HttpError or
+        TransportError). A POST (a spawn creates an operation) is sent again only after an attempt that failed before any byte of it was
+        written; any other failure is raised for the caller to classify, and nothing is ever replayed."""
         record = {"at_utc": utcnow(), "method": method, "path": path.split("?")[0]}
         self.requests_log.append(record)
         idempotent = method in ("GET", "DELETE")
         retries = READ_RETRIES if idempotent else NOT_SENT_RETRIES
         for attempt in range(retries + 1):
+            self.ledger.admit("sandboxes", stage or (op.stage if op is not None else None))
             try:
                 status, body, headers = request_json(method, self.base + path, self._headers(), payload, timeout=timeout)
             except HttpError as error:
                 record["http_status"] = error.status
-                raise SandboxError(str(error)) from None
+                retryable = idempotent and (read_retryable(error) or error.status in retry_statuses)
+                if not retryable or attempt == retries:
+                    raise
+                record["retries"] = attempt + 1
+                self._sleep(retry_after_s(error) or backoff(READ_BACKOFF_S, attempt))
+                continue
             except TransportError as error:
                 record["transport_error"] = str(error)
                 record.setdefault("transport_failures", []).append({"phase": error.phase, "request_sent": error.request_sent})
@@ -291,6 +322,11 @@ class TokenFactorySandboxes:
 
     def describe(self) -> dict:
         return {"executor": self.name, "base_url": self.base, "project_id": self.project_id,
+                "journal_policy": ("every operation is journaled as PENDING (fsync, read back) before its spawn is sent and its accepted id before "
+                                   "the first poll; when either fails nothing further is dispatched and the run halts for reconciliation"),
+                "answer_policy": ("a spawn answered HTTP 4xx is REJECTED; HTTP 5xx, a 2xx without an operation id or a failure after the spawn was "
+                                  "written is UNCERTAIN and halts the run; polls are retried (bounded) and an accepted operation whose outcome "
+                                  "is not read is ACCEPTED_UNREAD; nothing is sent after the run halts"),
                 "operation_uid_gid": [self.uid, self.gid],
                 "test_child_uid": 65534 if self.uid == 0 else self.uid,
                 "privilege_separation": self.uid == 0,
@@ -301,31 +337,44 @@ class TokenFactorySandboxes:
                                  f"the attempt failed before any byte of it was written (at most {NOT_SENT_RETRIES} times); an uncertain spawn is "
                                  "never sent again; accepted operation ids are journaled before polling")}
 
-    def whoami(self) -> dict:
-        body, _ = self._request("GET", "/whoami")
+    def _read(self, path: str, stage: str | None = None, retry_statuses: tuple[int, ...] = ()) -> dict:
+        """A read whose last failure becomes a definite SandboxError (it changed nothing); a stopped run raises RunHalted."""
+        try:
+            body, _ = self._request("GET", path, stage=stage, retry_statuses=retry_statuses)
+        except (HttpError, TransportError) as error:
+            raise SandboxError(f"read {path.split('?')[0]} failed: {error}", http_status=getattr(error, "status", None)) from None
         return body or {}
 
+    def whoami(self) -> dict:
+        return self._read("/whoami")
+
     def resolve_image(self, tag: str) -> str:
-        body, _ = self._request("GET", f"/images?tag={tag}&limit=100")
+        body = self._read(f"/images?tag={tag}&limit=100", stage="resolve-image")
         matches = [i for i in (body or {}).get("images", []) if i.get("tag") == tag]
         if len(matches) != 1:
             raise SandboxError(f"expected exactly one public image tagged {tag!r}, found {len(matches)}")
         return matches[0]["uuid"]
 
-    def get_operation(self, operation_uuid: str) -> dict:
-        body, _ = self._request("GET", "/operations/" + operation_uuid)
+    def get_operation(self, operation_uuid: str, stage: str | None = None) -> dict:
+        """One poll; HTTP 404 is retried with the other transient answers, because a just-accepted id can be briefly unknown to reads.
+        Raises the last HttpError or TransportError when every attempt failed, RunHalted once the run has stopped."""
+        body, _ = self._request("GET", "/operations/" + operation_uuid, stage=stage, retry_statuses=(404,))
         return body or {}
 
-    def cancel(self, operation_uuid: str) -> None:
+    def cancel(self, operation_uuid: str, stage: str | None = None) -> bool:
+        """Ask the service to stop an operation (idempotent). Returns whether the request was answered; a stopped run sends nothing."""
         try:
-            self._request("DELETE", "/operations/" + operation_uuid)  # idempotent: a repeated cancel changes nothing
-        except (SandboxError, TransportError):
-            pass
+            self._request("DELETE", "/operations/" + operation_uuid, stage=stage)  # idempotent: a repeated cancel changes nothing
+            return True
+        except (HttpError, TransportError, RunHalted, SandboxError):
+            return False
 
-    def _wait(self, operation_uuid: str, deadline_s: float) -> dict:
+    def _wait(self, operation_uuid: str, deadline_s: float, stage: str | None = None) -> dict:
+        """Poll an accepted operation until it is terminal. Past the deadline it is cancelled and polled a little longer; one that is
+        still not terminal raises SandboxError(accepted_unread) and the caller keeps its id for reconciliation."""
         deadline = time.monotonic() + deadline_s
         while time.monotonic() < deadline:
-            data = self.get_operation(operation_uuid)
+            data = self.get_operation(operation_uuid, stage)
             if data.get("status") in TERMINAL:
                 return data
             retry_after = self.requests_log[-1].get("retry_after")
@@ -333,14 +382,35 @@ class TokenFactorySandboxes:
                 delay = max(self.poll_interval, float(retry_after)) if retry_after else self.poll_interval
             except ValueError:
                 delay = self.poll_interval
-            time.sleep(min(delay, max(0.0, deadline - time.monotonic())))
-        self.cancel(operation_uuid)
+            self._sleep(min(delay, max(0.0, deadline - time.monotonic())))
+        self.cancel(operation_uuid, stage)
         for _ in range(15):
-            data = self.get_operation(operation_uuid)
+            data = self.get_operation(operation_uuid, stage)
             if data.get("status") in TERMINAL:
                 return data
-            time.sleep(1)
-        raise SandboxError(f"operation {operation_uuid} did not reach a terminal state after cancellation")
+            self._sleep(1)
+        raise SandboxError(f"operation {operation_uuid} did not reach a terminal state after cancellation; reconcile with GET "
+                           f"/operations/{operation_uuid}", accepted_unread=True, operation_uuid=operation_uuid)
+
+    @staticmethod
+    def _operation(op: SandboxOp) -> dict:
+        return {"service": "sandboxes", "op_id": op.op_id, "operation_uuid": op.operation_uuid, "image_uuid": op.image_uuid,
+                "status": op.status, "started_at_utc": op.started_at_utc}
+
+    def _settle(self, op: SandboxOp, status: str, note: str | None = None, halt: str | None = None, detail: str | None = None) -> None:
+        """Record a final or unknown outcome of `op`: the state in memory first, then (for an unknown outcome, `halt`) the run's halt
+        with this cause, then the journal line. A journal that cannot take the line halts the run as well (the in-memory record keeps
+        the state, and the halt record names the operation)."""
+        op.status = status
+        op.outcome_note = note
+        op.ended_at_utc = utcnow()
+        if halt:
+            self.ledger.halt("uncertain_operation", halt, stage=op.stage, operation=self._operation(op), detail=detail)
+        try:
+            self.ledger.update_op(op)
+        except LedgerError as error:
+            self.ledger.halt("journal_failure", f"the {status} state of the {op.stage} sandbox operation could not be journaled",
+                             stage=op.stage, operation=self._operation(op), detail=str(error))
 
     @staticmethod
     def encode_job(job: dict) -> str:
@@ -366,33 +436,66 @@ class TokenFactorySandboxes:
                        disposable=disposable, networking_enabled=bool(networking), status=None, exit_code=None,
                        timed_out=None, signal=None, duration_s=None, raw_cost_diag=None, stdout_truncated=None,
                        started_at_utc=utcnow())
-        self.ledger.add_op(op)
+        try:
+            self.ledger.add_op(op)  # PENDING, durable and read back, before any byte of the spawn is sent (revision 9)
+        except LedgerError as error:
+            self.ledger.halt("journal_failure", f"the pending record of the {stage} sandbox operation could not be journaled; nothing was dispatched",
+                             stage=stage, detail=str(error),
+                             operation={"service": "sandboxes", "op_id": op.op_id, "image_uuid": image, "started_at_utc": op.started_at_utc,
+                                        "dispatched": False})
+            raise SandboxError(f"the {stage} sandbox operation was not dispatched: its pending record could not be journaled ({error})",
+                               journal_failed=True, op_id=op.op_id) from None
         try:
             accepted, _ = self._request("POST", "/instances", payload, timeout=60, op=op)
-        except TransportError as error:
-            if not error.request_sent:
-                op.status = "NOT_SENT"  # no attempt wrote a byte of the request: no operation can exist
-                self.ledger.update_op(op)
+        except RunHalted as halted:
+            # the run stopped (a parallel branch) after this operation was journaled and before its first attempt: nothing was sent
+            self._settle(op, "NOT_SENT", note="not sent: the run had stopped for reconciliation")
+            raise SandboxError(f"the {stage} sandbox operation was not sent: {halted}", halted=True, op_id=op.op_id) from None
+        except (TransportError, HttpError) as error:
+            outcome = post_outcome(error)
+            op.http_status = getattr(error, "status", None)
+            if outcome == "not_sent":
+                self._settle(op, "NOT_SENT", note="no attempt got as far as sending the spawn")
                 raise SandboxError(f"the sandbox service could not be reached: {op.attempts} attempt(s), none got as far as sending the "
-                                   f"spawn ({error})", unreachable=True) from None
-            op.status = "UNCERTAIN"
-            self.ledger.update_op(op)
-            raise SandboxError(f"spawn outcome uncertain ({error}); inspect account operations, do not replay", uncertain=True) from None
+                                   f"spawn ({error})", unreachable=True, op_id=op.op_id) from None
+            if outcome == "rejected":
+                self._settle(op, "REJECTED", note=f"the service refused the spawn (HTTP {op.http_status})")
+                raise SandboxError(f"the sandbox service refused the {stage} spawn: {error}", rejected=True, http_status=op.http_status,
+                                   op_id=op.op_id) from None
+            self._settle(op, "UNCERTAIN", note=("the spawn was answered HTTP %s after it was sent" % op.http_status) if isinstance(error, HttpError)
+                         else f"the spawn's answer was lost after it was sent ({error.phase} phase)",
+                         halt=f"the outcome of the {stage} spawn is uncertain: {self.ledger.public_error(f'{stage}-spawn', SandboxError(str(error), uncertain=True, http_status=op.http_status))}; "
+                              "it was not sent again", detail=str(error))
+            raise SandboxError(f"spawn outcome uncertain ({error}); inspect account operations, do not replay", uncertain=True,
+                               http_status=op.http_status, op_id=op.op_id) from None
         op.operation_uuid = (accepted or {}).get("uuid")
         if not op.operation_uuid:
-            op.status = "REJECTED"
-            self.ledger.update_op(op)
-            raise SandboxError("spawn response had no operation uuid")
+            # a success answer without an id: an operation may exist, and nothing identifies it
+            self._settle(op, "UNCERTAIN", note="the spawn was answered without an operation id; an operation may exist",
+                         halt=f"the {stage} spawn was answered without an operation id; an operation may exist")
+            raise SandboxError("spawn response had no operation uuid; an operation may exist: inspect account operations, do not replay",
+                               uncertain=True, op_id=op.op_id)
         op.status = "ACCEPTED"
-        self.ledger.update_op(op)  # the accepted id is in the journal before polling starts, so no interruption can lose it
         try:
-            result = self._wait(op.operation_uuid, deadline_s=timeout + 90)
-        except TransportError as error:
-            # the polls failed even after their retries: the operation exists and may still run; it is never spawned again
-            op.status = "ACCEPTED_UNREAD"
-            self.ledger.update_op(op)
-            raise SandboxError(f"operation {op.operation_uuid} was accepted but its outcome could not be read ({error}); reconcile with "
-                               f"GET /operations/{op.operation_uuid}; not replayed", accepted_unread=True, operation_uuid=op.operation_uuid) from None
+            self.ledger.update_op(op)  # the accepted id is durable before polling starts, so no interruption can lose it
+        except LedgerError as error:
+            self.ledger.halt("journal_failure", f"operation {op.operation_uuid} ({stage}) was accepted but its id could not be journaled; it was "
+                                                "not polled", stage=stage, operation=self._operation(op), detail=str(error))
+            raise SandboxError(f"operation {op.operation_uuid} was accepted but its id could not be journaled ({error}); it was not polled; "
+                               f"reconcile with GET /operations/{op.operation_uuid}", accepted_unread=True, journal_failed=True,
+                               operation_uuid=op.operation_uuid, op_id=op.op_id) from None
+        try:
+            result = self._wait(op.operation_uuid, deadline_s=timeout + 90, stage=stage)
+        except (TransportError, HttpError, SandboxError, RunHalted) as error:
+            # the polls failed even after their retries, the operation never reached a terminal state, or the run stopped while it
+            # was being polled: it exists and may still run; it is never spawned again
+            stopped = isinstance(error, RunHalted)
+            note = ("polling stopped: the run halted for reconciliation" if stopped else f"its outcome could not be read ({type(error).__name__})")
+            self._settle(op, "ACCEPTED_UNREAD", note=note,
+                         halt=None if stopped else f"operation {op.operation_uuid} ({stage}) was accepted but {note}; it was not spawned again",
+                         detail=str(error))
+            raise SandboxError(f"operation {op.operation_uuid} was accepted but {note}; reconcile with GET /operations/{op.operation_uuid}; "
+                               "not replayed", accepted_unread=True, halted=stopped, operation_uuid=op.operation_uuid, op_id=op.op_id) from None
         execution = (result.get("metadata") or {}).get("result") or {}
         state = execution.get("state") or {}
         stdout, stdout_truncated = _decode_stream(execution.get("stdout"))
@@ -405,7 +508,15 @@ class TokenFactorySandboxes:
         op.result_image_uuid = result.get("result_image_uuid") or ((result.get("result") or {}).get("image"))
         op.raw_cost_diag = (execution.get("resources") or {}).get("cost")
         op.stdout_truncated = stdout_truncated
-        self.ledger.update_op(op)
+        op.ended_at_utc = utcnow()
+        try:
+            self.ledger.update_op(op)
+        except LedgerError as error:
+            # the outcome is known here but not durable: the run goes no further
+            self.ledger.halt("journal_failure", f"the final state of operation {op.operation_uuid} ({stage}) could not be journaled",
+                             stage=stage, operation=self._operation(op), detail=str(error))
+            raise SandboxError(f"the final state of operation {op.operation_uuid} could not be journaled ({error}); the run stops",
+                               journal_failed=True, operation_uuid=op.operation_uuid, op_id=op.op_id) from None
         run = RunResult(stage=stage, operation_uuid=op.operation_uuid, status=op.status, exit_code=op.exit_code,
                         timed_out=op.timed_out, signal=op.signal, duration_s=op.duration_s, image_uuid=image,
                         result_image_uuid=op.result_image_uuid, stdout_truncated=stdout_truncated,

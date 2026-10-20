@@ -1165,37 +1165,41 @@ class R504CallRecordsStayPublic(unittest.TestCase):
         from attest.models.nebius_tokenfactory import NebiusTokenFactory
         tmp = Path(tempfile.mkdtemp(prefix="attest-r504-calls-"))
         try:
-            ledger = Ledger()
-            ledger.attach_sink(tmp / "ledger.jsonl")
-            ledger.diagnostics = self._sidecar(tmp, "calls-nebius")
-            provider = NebiusTokenFactory("offline-fake-key", ledger, usd_cap=0.5)
             body = {"error": {"message": f"{PRIVATE_MARKER} request body echo: secret-shaped-text-123456"}}
-            failures = iter([HttpError(502, body, "https://api.example.invalid/v1/chat/completions?trace=" + PRIVATE_MARKER),
-                             TransportError(f"timed out talking to https://api.example.invalid {PRIVATE_MARKER}")])
+            failures = [HttpError(502, body, "https://api.example.invalid/v1/chat/completions?trace=" + PRIVATE_MARKER),
+                        TransportError(f"timed out talking to https://api.example.invalid {PRIVATE_MARKER}")]
+            sidecar_tool = self._sidecar(tmp, "calls-nebius")
+            calls = []
+            # revision 9: each failure stops its run (a 502 after the request was sent is uncertain too), so each one gets a run of its own
+            for index, failure in enumerate(failures):
+                ledger = Ledger()
+                ledger.attach_sink(tmp / f"ledger-{index}.jsonl")
+                ledger.diagnostics = sidecar_tool
+                provider = NebiusTokenFactory("offline-fake-key", ledger, usd_cap=0.5)
 
-            def fake(method, url, headers, payload=None, timeout=60, **kw):
-                raise next(failures)
+                def fake(method, url, headers, payload=None, timeout=60, _failure=failure, **kw):
+                    raise _failure
 
-            with mock.patch("attest.models.nebius_tokenfactory.request_json", fake):
-                with self.assertRaises(ModelError):
-                    provider.structured("spec", "p", {"type": "object", "properties": {}}, "spec")
-                with self.assertRaises(ModelError) as caught:
-                    provider.structured("spec", "p", {"type": "object", "properties": {}}, "spec")
-            self.assertTrue(caught.exception.uncertain)
-            self.assertEqual(len(ledger.model_calls), 2)
-            for call in ledger.model_calls:
+                with mock.patch("attest.models.nebius_tokenfactory.request_json", fake):
+                    with self.assertRaises(ModelError) as caught:
+                        provider.structured("spec", "p", {"type": "object", "properties": {}}, "spec")
+                self.assertTrue(caught.exception.uncertain, f"failure {index} is uncertain: the request was sent")
+                self.assertEqual(len(ledger.model_calls), 1)
+                self.assertTrue(ledger.halted)
+                calls.append(ledger.model_calls[0])
+                journal = (tmp / f"ledger-{index}.jsonl").read_text(encoding="utf-8")
+                self.assertNotIn(PRIVATE_MARKER, journal)
+                self.assertNotIn(PRIVATE_MARKER, json.dumps(ledger.to_dict()))
+            for call in calls:
                 self.assertIn("[ref ", call.error or "")
                 self.assertNotIn(PRIVATE_MARKER, call.error)
                 self.assertNotIn("example.invalid", call.error)
-            self.assertIn("HTTP 502", ledger.model_calls[0].error)
-            self.assertIn("uncertain", ledger.model_calls[1].error)
-            self.assertEqual(ledger.model_calls[1].settlement, "unsettled")
-            journal = (tmp / "ledger.jsonl").read_text(encoding="utf-8")
-            self.assertNotIn(PRIVATE_MARKER, journal)
-            self.assertNotIn(PRIVATE_MARKER, json.dumps(ledger.to_dict()))
+                self.assertEqual(call.settlement, "unsettled")
+            self.assertIn("HTTP 502", calls[0].error)
+            self.assertIn("uncertain", calls[1].error)
             sidecar = (tmp / "diagnostics" / "calls-nebius.jsonl").read_text(encoding="utf-8")
             self.assertEqual(sidecar.count(PRIVATE_MARKER), 2, "both raw texts recorded privately, once each")
-            for call in ledger.model_calls:
+            for call in calls:
                 self.assertIn(call.error.rsplit("[ref ", 1)[1].rstrip("]"), sidecar)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
@@ -1207,6 +1211,7 @@ class R504CallRecordsStayPublic(unittest.TestCase):
         tmp = Path(tempfile.mkdtemp(prefix="attest-r504-gateway-"))
         try:
             ledger = Ledger()
+            ledger.attach_sink(tmp / "ledger.jsonl")  # every call takes a pending record before it is sent (revision 9)
             ledger.diagnostics = self._sidecar(tmp, "calls-gateway")
             provider = CodexGateway("offline-fake-key", ledger, base_url="https://gateway.example.invalid/v1")
             provider._catalog = {"gpt-6-sol": ["low", "medium"], "gpt-6-astra": ["low", "medium"], "gpt-6-luna": ["low"]}
@@ -1217,8 +1222,9 @@ class R504CallRecordsStayPublic(unittest.TestCase):
                 raise HttpError(500, {"error": PRIVATE_MARKER}, url)
 
             with mock.patch("attest.models.codex_gateway.request_json", fake):
-                with self.assertRaises(ModelError):
+                with self.assertRaises(ModelError) as caught:
                     provider.structured("spec", "p", {"type": "object", "properties": {}}, "spec")
+            self.assertTrue(caught.exception.uncertain, "an HTTP 500 after the request was sent may have run upstream (revision 9)")
             self.assertEqual(len(ledger.model_calls), 1)
             self.assertIn("HTTP 500", ledger.model_calls[0].error)
             self.assertNotIn(PRIVATE_MARKER, ledger.model_calls[0].error)

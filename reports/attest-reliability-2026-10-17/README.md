@@ -179,3 +179,16 @@ retry and visible failure, transport still uncertain, harness snapshot, comparis
 | Concurrency | 2 cells at a time |
 | Stop conditions | batch cap reached; 3 consecutive infrastructure errors; any transport-uncertain operation (never replayed); Codex is not involved and nothing falls back to it or from it |
 | Balance basis | $1.62 committed locally to date across 46 unique Nemotron runs (`scripts/usage_report.py`), about $1.80 with the three server-only runs, against the $26 credit seen on 15 Oct; please confirm the console figure before approving |
+
+## Correction appended 20 Oct 2026 (revision 9): two VERIFIED runs went on after an uncertain mutant spawn
+
+Two of the Attest runs above, `evaluation-paced-codex/runs/balanced-brackets-attest-a1-20261017T121900586528Z` (row 5) and
+`.../semver-is-compatible-pr368-v2-attest-a1-20261017T131508429133Z` (row 9), each recorded one mutant spawn whose outcome was
+uncertain (`mutant-m01-2f645511c4` spawned 12:23:25 UTC and `mutant-m08-64e9d487f1` spawned 13:21:22 UTC, status UNCERTAIN, no operation
+id). The pipeline of that day counted the mutant as unknown, left it out of the mutation score (8 of 8 and 11 of 11 evaluated mutants
+killed) and finished the runs, which ended VERIFIED. Under the rule of revision 9 (`reports/attest-revision9-repairs-2026-10-20/README.md`)
+a run stops at such an operation: nothing further is sent and the run ends ERROR for reconciliation. These two verdicts are historical
+records of the development profile, kept as recorded and not re-evaluated; `attest check` now reports each with a warning that an
+operation of unknown outcome stands behind a verdict other than ERROR. Neither spawn has been reconciled against the account's operation
+list, so whether either created an operation is not known. The paid M5 comparison is not affected: its three bundles with an uncertain
+operation ended ERROR.

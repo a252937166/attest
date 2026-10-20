@@ -28,7 +28,11 @@ ABORT_VERDICTS = ("INFEASIBLE", "NO CHANGE", "ERROR", "BASELINE")
 # 4 (19 Oct 2026, revision 7, review R6-1): "constrained" means conformance to the positive witness language attest-witness/1
 # (attest.core.witness) with every call origin resolved against the frozen repository; every witness carries its language
 # analysis, the bundle keeps copies of the repository files the resolution read, and attest check repeats the analysis offline.
-EVIDENCE_PROTOCOL_VERSION = 4
+# 5 (20 Oct 2026, revision 9): the bundle carries `reconciliation` (required, the halt record, every operation whose outcome is unknown
+# and how to settle it); attest check recomputes it from the ledger records, and a run that lists any such operation, or that halted,
+# must be ERROR. A bundle recorded by Attest 0.9.0 or later that declares an earlier protocol is a downgrade and is refused.
+EVIDENCE_PROTOCOL_VERSION = 5
+PROTOCOL_SINCE = {5: (0, 9, 0)}  # the Attest version from which each protocol is the one written
 LEGACY_CLEARING_CUTOFF = "2026-10-19"  # bundles started before this UTC date may carry the former explicit apply mode
 
 

@@ -10,6 +10,11 @@ authoritative number of runs ahead of a run (0 while it executes).
 
 Retention (API-06): `housekeeping()` applies the bounded retention after every job, successful or not, and whenever the
 queue has been idle for `housekeeping_s`, so a period of failures still reclaims disk.
+
+Reconciliation (revision 9, 20 Oct 2026): a run that stopped for reconciliation (its bundle's `reconciliation.required`, or a halted
+ledger when the pipeline failed) is recorded as `reconciliation_required` and opens a hold in the store. While a hold is open the
+worker starts nothing: admission raises `ReconciliationHold` (the API answers 503) and a queued run ends `paused_for_reconciliation`
+before any provider exists. Only an operator clears a hold (`python -m attest holds`).
 """
 
 from __future__ import annotations
@@ -56,6 +61,10 @@ def per_run_max_calls() -> int:
 
 class WorkerUnavailable(RuntimeError):
     """Raised by `enqueue` when no live worker thread exists; nothing was written."""
+
+
+class ReconciliationHold(RuntimeError):
+    """Raised by `enqueue` while a reconciliation hold is open; nothing was written."""
 
 
 class Worker:
@@ -179,6 +188,8 @@ class Worker:
             raise ValueError(f"unknown task {task_id}")
         if not self.ensure_alive():
             raise WorkerUnavailable("the run worker is not available; nothing was queued")
+        if self.store.active_holds():
+            raise ReconciliationHold("live runs are paused while an earlier run's operations are reconciled; nothing was queued")
         self._disk_guard()
         title = json.loads(path.read_text(encoding="utf-8"))["title"]
         visibility = visibility_for(provider)
@@ -263,6 +274,17 @@ class Worker:
                 pass
         return pruned
 
+    def _hold(self, run_id: str, halt: dict, items: list, detail: str | None = None, **fields) -> None:
+        """Record a run that stopped for reconciliation and open the hold that pauses the worker (revision 9)."""
+        message = (f"stopped for reconciliation at {halt.get('stage') or 'an unrecorded stage'} ({halt.get('kind') or 'unknown outcome'}): "
+                   f"{len(items)} operation(s) to settle; nothing was sent again")
+        self.store.record_failure(run_id, "reconciliation_required", message, detail=detail, stage="reconciliation", **fields)
+        try:
+            self.store.add_event(run_id, utcnow(), "reconciliation", message)
+        except Exception:  # noqa: BLE001 - the event is a convenience; the row and the hold are the record
+            pass
+        self.store.add_hold(run_id, message, items)
+
     def build_runtime(self, run_id: str, provider_name: str, ledger: Ledger):
         """The provider, executor and grounding client for one run (separated so tests can substitute fakes)."""
         from ..sandbox.tf_sandboxes import TokenFactorySandboxes
@@ -287,6 +309,11 @@ class Worker:
         from ..core.pipeline import Pipeline
         from ..core.task import TaskSpec
 
+        holds = self.store.active_holds()
+        if holds:  # revision 9: nothing starts while an earlier run's operations are being reconciled; no provider is built
+            self.store.record_failure(run_id, "paused_for_reconciliation", f"not started: hold {holds[0]['hold_id']} (run {holds[0]['run_id']}) is open "
+                                      "until an operator reconciles it", stage="paused")
+            return
         self.store.update_run(run_id, status="running", started_at=utcnow(), stage="starting")
         # Recheck the budget and disk at execution time; queued runs may have been waiting while others spent.
         if provider_name == "nebius":
@@ -334,12 +361,25 @@ class Worker:
             bundle = pipeline.run()
         except Exception as error:  # noqa: BLE001 - the paid calls made before the crash stay on the row and in the daily budget
             totals = ledger.totals()
+            costs = dict(out_dir=str(pipeline.out_dir), cost_usd=totals.get("cost_usd"), cost_committed_usd=totals.get("cost_usd_committed"),
+                         tokens_in=totals.get("tokens_in"), tokens_out=totals.get("tokens_out"), sandbox_ops=totals.get("sandbox_operations"),
+                         model_calls=totals.get("model_calls"))
+            items = ledger.reconciliation_items()
+            if ledger.halted or items:
+                self._hold(run_id, ledger.halted or {}, items, detail=traceback.format_exc(), **costs)
+                return
             self.store.record_failure(run_id, "pipeline_error", f"{type(error).__name__}: {str(error)[:300]}", detail=traceback.format_exc(),
-                                      stage="error", out_dir=str(pipeline.out_dir), cost_usd=totals.get("cost_usd"),
-                                      cost_committed_usd=totals.get("cost_usd_committed"), tokens_in=totals.get("tokens_in"),
-                                      tokens_out=totals.get("tokens_out"), sandbox_ops=totals.get("sandbox_operations"), model_calls=totals.get("model_calls"))
+                                      stage="error", **costs)
             return
         totals = bundle["ledger"]["totals"]
+        reconciliation = bundle.get("reconciliation") or {}
+        if reconciliation.get("required"):
+            self._hold(run_id, reconciliation.get("halt") or {}, reconciliation.get("items") or [], detail=json.dumps(reconciliation, default=str)[:20000],
+                       out_dir=str(pipeline.out_dir), cost_usd=totals.get("cost_usd"), cost_committed_usd=totals.get("cost_usd_committed"),
+                       tokens_in=totals.get("tokens_in"), tokens_out=totals.get("tokens_out"), sandbox_ops=totals.get("sandbox_operations"),
+                       model_calls=totals.get("model_calls"), verdict=bundle["verdict"]["verdict"], reasons=json.dumps(bundle["verdict"]["reasons"]),
+                       warnings=json.dumps(bundle["verdict"].get("warnings", [])))
+            return
         self.store.update_run(run_id, status="finished", verdict=bundle["verdict"]["verdict"], finished_at=utcnow(),
                               out_dir=str(pipeline.out_dir), cost_usd=totals.get("cost_usd"),
                               cost_committed_usd=totals.get("cost_usd_committed"), tokens_in=totals.get("tokens_in"),

@@ -12,7 +12,8 @@ from pathlib import Path
 from .ledger import Ledger
 from .secrets import SecretError, load_secret, project_id
 
-EXIT_CODES = "exit codes: 0 success (run: VERIFIED); 1 check found a mismatch; 2 refused or misconfigured (credentials, limits, bad input); 3 import skeleton has policy problems to fix"
+EXIT_CODES = ("exit codes: 0 success (run: VERIFIED); 1 check found a mismatch; 2 refused or misconfigured (credentials, limits, bad input); "
+              "3 import skeleton has policy problems to fix; 4 the run stopped for reconciliation (an operation's outcome is uncertain)")
 # Per-run model-call cap of the Nebius provider when --max-calls is not given (review finding R5-05, 19 Oct 2026): the same figure the
 # evaluation harness registers (scripts/run_evaluation.py NEBIUS_DEFAULT_MAX_CALLS) and the console worker reads from its environment,
 # so a CLI smoke run is governed by the cap the freeze promises. The development gateway is paced by its allowance and has no default cap.
@@ -60,7 +61,11 @@ def build_tavily():
 
 
 def cmd_preflight(args) -> int:
+    import tempfile
     ledger = Ledger()
+    # revision 9: a sandbox operation is dispatched only after its pending record is journaled, so the adapter smoke run has a journal
+    journal = Path(args.output).with_suffix(".ledger.jsonl") if args.output else Path(tempfile.mkdtemp(prefix="attest-preflight-")) / "ledger.jsonl"
+    ledger.attach_sink(journal)
     report = {}
     executor = build_executor(ledger)
     who = executor.whoami()
@@ -107,14 +112,57 @@ def cmd_run(args) -> int:
                         ("development" if args.provider == "codex" else "submission-pilot"),
                         arbitrate=not args.no_arbitration, arbitration_apply=not args.arbitration_advisory)
     bundle = pipeline.run()
+    reconciliation = bundle.get("reconciliation") or {}
     print(json.dumps({"verdict": bundle["verdict"]["verdict"], "reasons": bundle["verdict"]["reasons"],
-                      "out_dir": str(pipeline.out_dir), "totals": bundle["ledger"]["totals"]}, indent=2))
+                      "out_dir": str(pipeline.out_dir), "totals": bundle["ledger"]["totals"],
+                      **({"reconciliation": {"required": True, "items": reconciliation.get("items") or []}} if reconciliation.get("required") else {})}, indent=2))
     diagnostics = getattr(pipeline, "diagnostics", None)
     if diagnostics is not None and diagnostics.entries:
         # the bundle carries public sentences with references only; the operator's private detail is in the sidecar (R5-04)
         print(f"diagnostics: {len(diagnostics.entries)} private entr{'y' if len(diagnostics.entries) == 1 else 'ies'} "
               f"behind the [ref …] markers in {diagnostics.path}", file=sys.stderr)
+    if reconciliation.get("required"):
+        print(f"stopped for reconciliation: {len(reconciliation.get('items') or [])} operation(s) to settle, listed above with their read-only "
+              f"checks (`python -m attest reconcile {pipeline.out_dir}` prints them again); nothing was sent again", file=sys.stderr)
+        return 4
     return 0 if bundle["verdict"]["verdict"] == "VERIFIED" else 2
+
+
+def cmd_reconcile(args) -> int:
+    """List what a run left to reconcile, from its bundle or, for an interrupted run, its ledger journal. Offline: nothing is sent."""
+    from .ledger import JOURNAL_FILE, read_journal
+    run_dir = Path(args.run_dir)
+    bundle_path = run_dir / "proof_bundle.json"
+    source, items, halt = None, [], None
+    if bundle_path.is_file():
+        bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+        record = bundle.get("reconciliation")
+        if isinstance(record, dict):
+            source, items, halt = "proof_bundle.json", list(record.get("items") or []), record.get("halt")
+    if source is None:
+        journal = read_journal(run_dir / JOURNAL_FILE)
+        if journal is None:
+            print(f"no bundle with a reconciliation record and no ledger journal in {run_dir}", file=sys.stderr)
+            return 2
+        source, items, halt = JOURNAL_FILE, list(journal.get("reconciliation_items") or []), journal.get("halt")
+    print(json.dumps({"run_dir": str(run_dir), "source": source, "required": bool(items) or bool(halt), "halt": halt, "items": items}, indent=2))
+    return 4 if (items or halt) else 0
+
+
+def cmd_holds(args) -> int:
+    """List or clear the console's reconciliation holds (the store on this host). Clearing needs a note and sends nothing."""
+    from .app.db import Store
+    store = Store(Path(args.db))
+    if args.clear:
+        try:
+            cleared = store.clear_hold(args.clear, args.note or "")
+        except ValueError as error:
+            print(f"refused: {error}", file=sys.stderr)
+            return 2
+        print(json.dumps({"hold_id": args.clear, "cleared": cleared}, indent=2))
+        return 0 if cleared else 2
+    print(json.dumps({"holds": store.holds(active_only=not args.all)}, indent=2, ensure_ascii=False))
+    return 0
 
 
 def cmd_import(args) -> int:
@@ -260,6 +308,15 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("paths", nargs="+", help="run directories or downloaded bundle zips")
     check.add_argument("--json", action="store_true", help="print the report as JSON")
     check.set_defaults(func=cmd_check)
+    rec = sub.add_parser("reconcile", help="list what a run left to reconcile (from its bundle or ledger journal); offline, nothing is sent")
+    rec.add_argument("run_dir")
+    rec.set_defaults(func=cmd_reconcile)
+    holds = sub.add_parser("holds", help="list or clear the console's reconciliation holds; clearing needs a note and sends nothing")
+    holds.add_argument("--db", required=True, help="the console's store, for example /var/lib/attest/attest.db")
+    holds.add_argument("--all", action="store_true", help="include cleared holds")
+    holds.add_argument("--clear", metavar="HOLD_ID", help="close this hold after reconciling its items")
+    holds.add_argument("--note", help="what the reconciliation found (required with --clear)")
+    holds.set_defaults(func=cmd_holds)
     return parser
 
 

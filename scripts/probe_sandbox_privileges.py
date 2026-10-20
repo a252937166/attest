@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -118,6 +119,7 @@ print(json.dumps(out))
 
 def main() -> int:
     ledger = Ledger()
+    ledger.attach_sink(Path(tempfile.mkdtemp(prefix="attest-probe-ledger-")) / "ledger.jsonl")  # operations are journaled before dispatch (revision 9)
     executor = TokenFactorySandboxes(load_secret("NEBIUS_API_KEY"), project_id(), ledger, uid=0, gid=0)
     image = executor.resolve_image("python:3.12-slim")
     run = executor.run_branch(image, {"/tmp/probe/probe.py": PROBE.encode()},

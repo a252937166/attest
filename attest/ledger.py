@@ -23,16 +23,35 @@ byte before that offset must be a newline (or the offset must be 0). A reservati
 raises `LedgerError` and records nothing. A settlement whose append fails is counted in `journal_failures` and marks the ledger
 `journal_degraded`; the next `reserve` runs the same repair and verification and clears the flag only when its own line read back
 intact. `read_journal` reads bytes with replacement, so a tail cut inside a multi-byte character never raises.
+
+Stop for reconciliation (revision 9, 20 Oct 2026): the ledger is the one object the provider, the executor and the pipeline of a run
+share, so it carries the run's stop state. `halt` records why the run stopped (an operation whose outcome is uncertain, a journal
+record that could not be made durable, a generated answer that could not be priced) and from then on `admit`, which every client
+calls immediately before each request it sends (each attempt, each poll), refuses with `RunHalted`: nothing is sent after the stop.
+A request admitted before the halt was sent before the stop condition, even if its bytes leave slightly later. The first halt is the
+run's; later ones are kept in `halt_events`. `reconciliation_items` lists everything whose outcome is unknown, from the records
+themselves, with the read-only check that settles it; nothing in it is ever sent again.
+
+Operation records (revision 9): a sandbox operation is journaled as PENDING, durably and read back, before its spawn is sent
+(`add_op`), and every later state, the accepted id first, is journaled the same way before the client goes on (`update_op`). Unlike
+settlement records these must persist: when the append fails `LedgerError` is raised, the caller dispatches or polls nothing further
+and halts the run with what it knows (the stage, the image and, once accepted, the operation id), which also goes to the
+`attest.ledger` log as one `ATTEST-HALT` line, so it survives a journal on a full disk. A ledger without a journal sink does not dispatch
+sandbox operations at all. Every model call of a provider without a USD price (the development gateway) takes a zero-USD reservation
+the same way, so a call in flight when the process stops is visible after a restart as an open reservation.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 import os
 import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+
+LOG = logging.getLogger("attest.ledger")
 
 
 def utcnow() -> str:
@@ -43,6 +62,118 @@ class LedgerError(RuntimeError):
     """The journal could not take a record that must be durable before money is committed: no sink is attached, the append failed
     at open, write, flush, fsync or close, the cut tail before it could not be repaired, or the line did not read back as written.
     `reserve` raises it and records nothing; the caller must not send the request."""
+
+    stops_run = True
+
+
+class RunHalted(RuntimeError):
+    """A request was refused before it was sent because the run has stopped for reconciliation (`Ledger.halt`). `record` is the
+    run's halt record: why it stopped, where, and the operation that caused it."""
+
+    stops_run = True
+    uncertain = False
+
+    def __init__(self, record: dict):
+        self.record = dict(record or {})
+        super().__init__(f"the run stopped for reconciliation ({self.record.get('kind')} at {self.record.get('stage') or 'an earlier stage'}): "
+                         f"{self.record.get('reason') or 'no reason recorded'}; nothing further is sent")
+
+
+# Sandbox operation states that leave the account's state unknown: a spawn sent without a known outcome, and an accepted operation
+# whose final state was not read. None is the state of records written before revision 9 that never received one.
+SPAWN_UNRESOLVED = ("PENDING", "UNCERTAIN", None)
+OPERATION_UNREAD = ("ACCEPTED", "ACCEPTED_UNREAD")
+TERMINAL_OPERATION = ("SUCCESS", "FAILED", "CANCELLED")
+DEFINITE_SPAWN = ("NOT_SENT", "REJECTED")
+
+
+def _call_uncertain(call: dict) -> bool:
+    """A model call whose request may have been executed and whose outcome is unknown. Revision-9 records say so in `outcome`;
+    earlier records are recognised by their public error text and a request that was (or may have been) sent."""
+    outcome = call.get("outcome")
+    if outcome is not None:
+        return outcome == "uncertain"
+    return (not call.get("ok") and call.get("request_sent") is not False and "uncertain" in (call.get("error") or "").lower())
+
+
+def reconciliation_items_from(model_calls: list, sandbox_ops: list, halt: dict | None = None, halt_events: list | None = None,
+                              open_reservations: list | None = None) -> list[dict]:
+    """Everything a run leaves whose outcome is unknown, from its records (dicts), with the read-only check that settles it. The same
+    function serves the live ledger, the bundle's record (`attest check` recomputes it) and the journal read after a restart."""
+    items: list[dict] = []
+    for call in model_calls or []:
+        if not isinstance(call, dict):
+            continue
+        if _call_uncertain(call):
+            items.append({"kind": "model_call", "service": "inference", "provider": call.get("provider"), "stage": call.get("stage"),
+                          "started_at_utc": call.get("started_at_utc"), "elapsed_ms": call.get("elapsed_ms"), "phase": call.get("transport_phase"),
+                          "http_status": call.get("http_status"), "reserved_usd": call.get("reserved_usd"),
+                          "how": "look for a request received in [started_at, started_at + elapsed] in the provider's ingress log or billing; "
+                                 "it was never sent again"})
+        elif call.get("ok") and call.get("settlement") == "unsettled":
+            items.append({"kind": "model_call_billing", "service": "inference", "provider": call.get("provider"), "stage": call.get("stage"),
+                          "started_at_utc": call.get("started_at_utc"), "reserved_usd": call.get("reserved_usd"),
+                          "how": "the answer arrived but could not be priced from its usage; read the call's cost from the provider's billing "
+                                 "(the reservation stays committed until then)"})
+    for reservation in open_reservations or []:
+        if isinstance(reservation, dict):
+            items.append({"kind": "model_call_in_flight", "service": "inference", "provider": reservation.get("provider"), "stage": reservation.get("stage"),
+                          "started_at_utc": reservation.get("at_utc"), "reserved_usd": reservation.get("reserved_usd"), "reservation_id": reservation.get("id"),
+                          "how": "a reservation without a call record: the request may have been sent when the process stopped; look for it in the "
+                                 "provider's ingress log or billing after started_at (it stays committed at its bound)"})
+    known_uuids = set()
+    for op in sandbox_ops or []:
+        if not isinstance(op, dict):
+            continue
+        status = op.get("status")
+        base = {"service": "sandboxes", "stage": op.get("stage"), "op_id": op.get("op_id"), "status": status, "image_uuid": op.get("image_uuid"),
+                "started_at_utc": op.get("started_at_utc"), "ended_at_utc": op.get("ended_at_utc"), "attempts": op.get("attempts"),
+                "http_status": op.get("http_status"), "transport_failures": op.get("transport_failures") or []}
+        if op.get("operation_uuid"):
+            known_uuids.add(op["operation_uuid"])
+        if status in OPERATION_UNREAD and op.get("operation_uuid"):
+            items.append({"kind": "sandbox_operation", **base, "operation_uuid": op["operation_uuid"],
+                          "how": f"GET /operations/{op['operation_uuid']} for its final status (read-only); it is never spawned again"})
+        elif status in SPAWN_UNRESOLVED or (status in OPERATION_UNREAD and not op.get("operation_uuid")):
+            items.append({"kind": "sandbox_spawn", **base, "operation_uuid": None,
+                          "how": "GET /operations?kind=instance with since/until around started_at, matching image_uuid (the spawn request carries "
+                                 "no client id); it is never sent again"})
+    for record in ([halt] if halt else []) + list(halt_events or []):
+        operation = (record or {}).get("operation") or {}
+        if not operation:
+            continue
+        uuid = operation.get("operation_uuid")
+        if operation.get("service") == "tavily":
+            items.append({"kind": "search", "service": "tavily", "stage": record.get("stage"), "query_index": operation.get("query_index"),
+                          "started_at_utc": operation.get("started_at_utc"),
+                          "how": "compare the account's usage before the search (recorded in grounding) with the Tavily dashboard: at most one "
+                                 "credit; the search was never sent again"})
+        elif uuid and uuid not in known_uuids:
+            known_uuids.add(uuid)
+            items.append({"kind": "sandbox_operation", "service": "sandboxes", "stage": record.get("stage"), "op_id": operation.get("op_id"),
+                          "status": operation.get("status"), "operation_uuid": uuid, "image_uuid": operation.get("image_uuid"),
+                          "started_at_utc": operation.get("started_at_utc"),
+                          "how": f"GET /operations/{uuid} for its final status (read-only); its id is known from the halt record because the "
+                                 "journal could not take it; it is never spawned again"})
+        elif record.get("kind") == "journal_failure" and not uuid and operation.get("dispatched") is False:
+            items.append({"kind": "journal", "service": operation.get("service") or "journal", "stage": record.get("stage"), "op_id": operation.get("op_id"),
+                          "how": "nothing was dispatched for this record; the run's journal could not take it (see the halt reason), so check the "
+                                 "volume (space, I/O errors) before the service runs again"})
+        elif (record.get("kind") == "uncertain_operation" and not uuid
+              and not any(i.get("stage") == record.get("stage") and i.get("service") == operation.get("service") for i in items)):
+            # the halt names an operation that no record of the run represents (a client that keeps no records): it is listed from the
+            # halt itself, so a stop for an uncertain operation never leaves an empty list
+            items.append({"kind": "unrecorded_operation", "service": operation.get("service"), "stage": record.get("stage"), "op_id": operation.get("op_id"),
+                          "started_at_utc": operation.get("started_at_utc") or record.get("at_utc"),
+                          "how": "the client recorded no request for this operation: look for it in the provider's records around the halt time "
+                                 "(sandboxes: GET /operations?kind=instance with since/until; inference: the ingress log or billing); it was never "
+                                 "sent again"})
+    return items
+
+
+def item_key(item: dict) -> tuple:
+    """How a reconciliation item is identified when a recorded list is compared with a recomputed one."""
+    return (item.get("kind"), item.get("stage"), item.get("op_id") or item.get("operation_uuid") or item.get("reservation_id") or item.get("started_at_utc"))
 
 
 def _open_journal(path: Path):
@@ -166,6 +297,11 @@ class ModelCall:
     # again), and the phase a failed request reached ("connect", "send", "response"). None on records made before revision 8.
     request_sent: bool | None = None
     transport_phase: str | None = None
+    # Answer class (revision 9): "answered" (the provider answered 2xx, whether the output was usable or not), "rejected" (a definite
+    # refusal, HTTP 4xx), "not_sent" (no byte was written), "refused" (not sent because the run had stopped or a cap applied) or
+    # "uncertain" (the request may have been executed: an HTTP 5xx, or a failure after it was written). None on earlier records.
+    outcome: str | None = None
+    http_status: int | None = None
 
 
 @dataclass
@@ -189,6 +325,12 @@ class SandboxOp:
     # bounded) and the public text of each failed attempt with the phase it reached
     attempts: int = 1
     transport_failures: list = field(default_factory=list)
+    # Revision 9: the client-side id that links the PENDING record to its later states (the spawn request carries no client id, so the
+    # service never sees it), the HTTP status of a refused or failed spawn, when the outcome became known, and why polling ended early
+    op_id: str | None = None
+    http_status: int | None = None
+    ended_at_utc: str | None = None
+    outcome_note: str | None = None
 
 
 @dataclass
@@ -209,8 +351,16 @@ class Ledger:
     # private diagnostics sink (attest.core.diagnostics.Diagnostics, attached by the pipeline): providers route the raw text of a
     # failed call through public_error() so that call records, the journal and the bundle carry only the public vocabulary (R5-04)
     diagnostics: object = field(default=None, repr=False, compare=False)
+    # the run's stop state (revision 9): the first halt record, later ones, and an observer called once when the run first halts
+    halted: dict | None = field(default=None, compare=False)
+    halt_events: list[dict] = field(default_factory=list, compare=False)
+    on_halt: object = field(default=None, repr=False, compare=False)
+    admitted: int = field(default=0, repr=False, compare=False)  # requests admitted by `admit` (every attempt and poll)
+    refused: int = field(default=0, repr=False, compare=False)   # requests refused by `admit` because the run had stopped
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+    _halt_lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
     _reservation_seq: int = field(default=0, repr=False, compare=False)
+    _op_seq: int = field(default=0, repr=False, compare=False)
 
     # ------------------------------------------------------------------ journal
     def attach_sink(self, path: Path) -> None:
@@ -226,6 +376,8 @@ class Ledger:
                                          "failed append cut short (that record is lost, the reservation it would have settled stays open)"}) + "\n"]
             lines += [json.dumps({"event": "call", **asdict(call)}, ensure_ascii=False) + "\n" for call in self.model_calls]
             lines += [json.dumps({"event": "sandbox_op", **asdict(op)}, ensure_ascii=False) + "\n" for op in self.sandbox_ops]
+            if self.halted:
+                lines += [json.dumps({"event": "halt", **record}, ensure_ascii=False) + "\n" for record in [self.halted] + self.halt_events]
             lines += [json.dumps({"event": "reserve", **reservation}) + "\n" for reservation in self.open_reservations]
             try:
                 sink.parent.mkdir(parents=True, exist_ok=True)
@@ -314,15 +466,69 @@ class Ledger:
         self._changed()
 
     def add_op(self, op: SandboxOp) -> None:
+        """Journal a sandbox operation BEFORE its spawn is sent: it gets its client-side id and the state PENDING, and the line must be
+        durable and read back (revision 9). On any failure, including a ledger without a journal sink, `LedgerError` is raised and the
+        operation is not recorded; the caller must not send the spawn."""
         with self._lock:
+            self._op_seq += 1
+            if not op.op_id:
+                op.op_id = f"s{self._op_seq}"
+            if op.status is None:
+                op.status = "PENDING"
+            self._append({"event": "sandbox_op", **asdict(op)}, must_persist=True)
             self.sandbox_ops.append(op)
-            self._append({"event": "sandbox_op", **asdict(op)})
 
     def update_op(self, op: SandboxOp) -> None:
-        """Journal the current state of an operation already added: the operation id the service accepted (written before polling
-        starts, so an interruption never loses it), then its final or uncertain status. The in-memory record is the same object."""
+        """Journal the current state of an operation already added: the operation id the service accepted (before polling starts), then
+        its final or uncertain status. It must be durable (revision 9): on failure `LedgerError` is raised and the caller goes no further
+        (no poll, no next stage) and halts the run with what it knows. The in-memory record is the same object and already holds the state."""
         with self._lock:
-            self._append({"event": "sandbox_op_update", **asdict(op)})
+            self._append({"event": "sandbox_op_update", **asdict(op)}, must_persist=True)
+
+    # ------------------------------------------------------------------ stop for reconciliation (revision 9)
+    def halt(self, kind: str, reason: str, stage: str | None = None, operation: dict | None = None, detail: str | None = None) -> dict:
+        """Stop the run: from now on `admit` refuses every request. `kind` is `uncertain_operation`, `journal_failure`,
+        `metering_unknown` or `batch_stop`; `reason` is public text (it enters the journal and the bundle); `operation` names what has
+        to be reconciled (stage, op_id, operation_uuid, image_uuid, started_at_utc, service); `detail` is the raw error text, which only
+        the private log line receives. The first halt is the run's (`halted`); later ones are appended to `halt_events`. The record is
+        journaled (best effort), except when the journal itself is the cause: a journal that just failed is not tried again, and its own
+        records (a PENDING operation without an outcome, a cut tail) already show after a restart what was left open. Every halt is
+        logged as one `ATTEST-HALT` line. Returns the run's halt record."""
+        record = {"kind": kind, "reason": str(reason)[:600], "stage": stage, "operation": dict(operation or {}) or None, "at_utc": utcnow()}
+        with self._halt_lock:
+            first = self.halted is None
+            if first:
+                self.halted = record
+            else:
+                self.halt_events.append(record)
+        if kind != "journal_failure":
+            with self._lock:
+                self._append({"event": "halt", **record})
+        LOG.error("ATTEST-HALT %s%s", json.dumps(record, ensure_ascii=False, default=str), f" detail: {str(detail)[:2000]}" if detail else "")
+        if first and self.on_halt is not None:
+            try:
+                self.on_halt(self, record)
+            except Exception:  # noqa: BLE001 - an observer never prevents the stop itself
+                LOG.exception("halt observer failed")
+        self._changed()
+        return self.halted
+
+    def admit(self, service: str, stage: str | None = None) -> None:
+        """Called by every client immediately before each request it sends (every attempt, every poll, every read). Raises `RunHalted`
+        once the run has stopped, so nothing is sent after the stop condition; a request admitted before the halt is one the run had
+        already sent when it stopped."""
+        with self._halt_lock:
+            if self.halted is not None:
+                self.refused += 1
+                raise RunHalted(self.halted)
+            self.admitted += 1
+
+    def reconciliation_items(self) -> list[dict]:
+        """Everything this run leaves whose outcome is unknown (see `reconciliation_items_from`)."""
+        with self._halt_lock:
+            halt, events = self.halted, list(self.halt_events)
+        return reconciliation_items_from([asdict(c) for c in self.model_calls], [asdict(o) for o in self.sandbox_ops], halt, events,
+                                         list(self.open_reservations))
 
     # ------------------------------------------------------------------ totals
     def totals(self) -> dict:
@@ -370,9 +576,13 @@ class Ledger:
             "pacing_wait_ms": sum(c.pacing_wait_ms or 0 for c in self.model_calls),
             "by_model": by_model,
             "calls_not_sent": sum(1 for c in self.model_calls if c.request_sent is False),
+            "calls_uncertain": sum(1 for c in self.model_calls if _call_uncertain(asdict(c))),
+            "halted": self.halted is not None,
+            "reconciliation_items": len(self.reconciliation_items()),
             "sandbox_operations": len(self.sandbox_ops),
             "sandbox_spawn_retries": sum(max(0, (o.attempts or 1) - 1) for o in self.sandbox_ops),
             "sandbox_uncertain": sum(1 for o in self.sandbox_ops if o.status in ("UNCERTAIN", "ACCEPTED_UNREAD")),
+            "sandbox_rejected": sum(1 for o in self.sandbox_ops if o.status == "REJECTED"),
             "sandbox_duration_s": round(sum(o.duration_s or 0 for o in self.sandbox_ops), 3),
             "sandbox_retained_images": [o.result_image_uuid for o in self.sandbox_ops if o.result_image_uuid],
             "sandbox_raw_cost_diag_sum": round(sum(o.raw_cost_diag or 0 for o in self.sandbox_ops), 8),
@@ -385,6 +595,7 @@ class Ledger:
                 "journal_failures": list(self.journal_failures),
                 "journal_repairs": list(self.journal_repairs),
                 "journal_degraded": self.journal_degraded,
+                "halt": self.halted, "halt_events": list(self.halt_events), "reconciliation": self.reconciliation_items(),
                 "totals": self.totals()}
 
 
@@ -395,12 +606,20 @@ def read_journal(path: Path) -> dict | None:
     """Read a run's ledger journal back: known costs, calls, and reservations never closed by a call record. Returns None
     when the file is missing or holds no ledger header. Lines that do not parse (a write cut short by the interruption)
     are skipped and counted, `journal_repair` records are counted, and the bytes are decoded with replacement so a tail cut
-    inside a multi-byte character never raises; `tail_framed` says whether the file ends with a newline."""
+    inside a multi-byte character never raises; `tail_framed` says whether the file ends with a newline.
+
+    Revision 9: sandbox operations are followed by their client-side id from the PENDING record to their last journaled state, so a
+    spawn that was sent but never answered (`spawns_unresolved`) and an accepted operation never read to its end (`operations_unread`)
+    are both named; so are the halt records, the model calls whose outcome is uncertain, and every reservation never closed (a call in
+    flight when the process stopped). `reconciliation_items` is the same list the live ledger would give, and
+    `reconciliation_required` says whether anything is on it or the run had halted."""
     path = Path(path)
     if not path.is_file():
         return None
     calls, reservations, closed, ops, bad, repairs = [], {}, set(), 0, 0, 0
     accepted: dict[str, dict] = {}  # operation id -> its latest journaled state (revision 8: written before polling)
+    by_op_id: dict[str, dict] = {}  # client-side id -> the operation's latest journaled record (revision 9)
+    halts: list[dict] = []
     header = False
     with path.open("rb") as handle:
         handle.seek(0, os.SEEK_END)
@@ -429,14 +648,27 @@ def read_journal(path: Path) -> dict | None:
                     closed.add(record["reservation_id"])
             elif kind == "sandbox_op":
                 ops += 1
+                if record.get("op_id"):
+                    by_op_id[record["op_id"]] = record
             elif kind == "sandbox_op_update":
+                if record.get("op_id"):
+                    by_op_id[record["op_id"]] = record
                 if record.get("operation_uuid"):
                     accepted[record["operation_uuid"]] = {"stage": record.get("stage"), "status": record.get("status")}
+            elif kind == "halt":
+                halts.append({k: v for k, v in record.items() if k != "event"})
             elif kind == "journal_repair":
                 repairs += 1
     if not header and not calls and not reservations:
         return None
     open_reservations = [r for rid, r in reservations.items() if rid not in closed]
+    tracked = [{k: v for k, v in record.items() if k != "event"} for record in by_op_id.values()]
+    items = reconciliation_items_from(calls, tracked, halts[0] if halts else None, halts[1:], open_reservations)
+    tracked_uuids = {op.get("operation_uuid") for op in tracked if op.get("operation_uuid")}
+    for uuid, state in sorted(accepted.items()):  # records written before revision 9 carry no client-side id
+        if uuid not in tracked_uuids and state.get("status") not in TERMINAL_OPERATION:
+            items.append({"kind": "sandbox_operation", "service": "sandboxes", "stage": state.get("stage"), "op_id": None, "status": state.get("status"),
+                          "operation_uuid": uuid, "how": f"GET /operations/{uuid} for its final status (read-only); it is never spawned again"})
     known = [c["cost_usd"] for c in calls if c.get("cost_usd") is not None]
     committed = sum(c["cost_usd"] if c.get("cost_usd") is not None else (c.get("reserved_usd") or 0.0) for c in calls)
     committed += sum(r.get("reserved_usd") or 0.0 for r in open_reservations)
@@ -445,5 +677,11 @@ def read_journal(path: Path) -> dict | None:
             "open_reservations": len(open_reservations), "open_reserved_usd": round(sum(r.get("reserved_usd") or 0.0 for r in open_reservations), 6),
             "sandbox_operations": ops, "unparsable_lines": bad, "journal_repairs": repairs, "tail_framed": tail_framed,
             # accepted operations whose final status was never journaled (the process stopped while polling): reconcile them
-            "operations_unread": sorted(uuid for uuid, state in accepted.items() if state.get("status") not in ("SUCCESS", "FAILED", "CANCELLED")),
+            "operations_unread": sorted(uuid for uuid, state in accepted.items() if state.get("status") not in TERMINAL_OPERATION),
+            "spawns_unresolved": [{"op_id": op.get("op_id"), "stage": op.get("stage"), "status": op.get("status"), "image_uuid": op.get("image_uuid"),
+                                   "started_at_utc": op.get("started_at_utc")} for op in tracked
+                                  if op.get("status") in SPAWN_UNRESOLVED and not op.get("operation_uuid")],
+            "calls_uncertain": sum(1 for c in calls if _call_uncertain(c)),
+            "halt": halts[0] if halts else None, "halt_events": halts[1:],
+            "reconciliation_items": items, "reconciliation_required": bool(items) or bool(halts),
             "tokens_in": sum(c.get("tokens_in") or 0 for c in calls), "tokens_out": sum(c.get("tokens_out") or 0 for c in calls)}

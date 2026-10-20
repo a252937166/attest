@@ -396,7 +396,11 @@ class Bound04GuestRunnerCapturesBoundedlyAndCleansUpGroups(unittest.TestCase):
     def test_the_host_adapter_reads_the_report_and_flags_exhaustion_as_a_step_error(self):
         from attest.ledger import Ledger
         from attest.sandbox.tf_sandboxes import TokenFactorySandboxes
-        executor = TokenFactorySandboxes("key", "project", Ledger())
+        ledger = Ledger()
+        journal_dir = Path(tempfile.mkdtemp(prefix="attest-bound04-"))
+        self.addCleanup(lambda: shutil.rmtree(journal_dir, ignore_errors=True))
+        ledger.attach_sink(journal_dir / "ledger.jsonl")  # an operation is journaled before its spawn is sent (revision 9)
+        executor = TokenFactorySandboxes("key", "project", ledger)
         report = {"runner": "attest-guest/3", "steps": [{"name": "tests", "cmd": ["x"], "cwd": "/tmp", "exit_code": None, "timed_out": False,
                                                         "output_exhausted": True, "stdout": "y", "stderr": "", "stdout_bytes": 2_000_000,
                                                         "stderr_bytes": 0, "stdout_truncated": True, "stderr_truncated": False,

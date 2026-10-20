@@ -37,6 +37,12 @@ PUBLIC = {
     "provider_unreachable": "the model provider could not be reached: no attempt got as far as sending the request, so nothing was executed or billed",
     "sandbox_unreachable": "the sandbox service could not be reached: no attempt got as far as sending the request, so nothing was executed",
     "sandbox_accepted_unread": "a sandbox operation was accepted but its outcome could not be read; it was not replayed, and its operation id is recorded for reconciliation",
+    # revision 9: answers whose execution is unknown, refusals, a stopped run and journal failures
+    "provider_http_uncertain": "the model provider answered HTTP {status} after the request was sent, so its outcome is uncertain; the request was not retried",
+    "sandbox_http_uncertain": "the sandbox service answered HTTP {status} after the spawn was sent, so its outcome is uncertain; it was not replayed",
+    "sandbox_rejected": "the sandbox service refused the operation (HTTP {status}); nothing was executed",
+    "run_halted": "not sent: the run had stopped for reconciliation after an operation whose outcome is uncertain",
+    "journal_failure": "a record of this run could not be journaled durably, so nothing further was sent and the run stopped",
     "internal_error": "an internal error occurred ({type})",
 }
 
@@ -49,6 +55,17 @@ def classify_error(error: BaseException | str) -> tuple[str, str]:
     lower = text.lower()
     uncertain = bool(getattr(error, "uncertain", False)) or "uncertain" in lower
     rate_limited = bool(getattr(error, "rate_limited", False))
+    status = getattr(error, "http_status", None)
+    if name == "RunHalted" or (getattr(error, "halted", False) is True and not getattr(error, "journal_failed", False)
+                               and "journal" not in lower and "metering" not in lower):
+        return "run_halted", PUBLIC["run_halted"]
+    if name == "LedgerError" or getattr(error, "journal_failed", False) is True:
+        return "journal_failure", PUBLIC["journal_failure"]
+    if name == "SandboxError" and getattr(error, "rejected", False) is True:
+        return "sandbox_rejected", PUBLIC["sandbox_rejected"].format(status=status if isinstance(status, int) else "4xx")
+    if isinstance(status, int) and status >= 500 and uncertain and name in ("ModelError", "SandboxError"):
+        key = "provider_http_uncertain" if name == "ModelError" else "sandbox_http_uncertain"
+        return key, PUBLIC[key].format(status=status)
     if name == "HttpError" and isinstance(getattr(error, "status", None), int):
         status = error.status
         if status == 429:

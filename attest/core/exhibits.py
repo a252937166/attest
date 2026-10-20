@@ -285,9 +285,17 @@ def exhibits(bundle: dict) -> list[dict]:
     if verdict == "ERROR":
         reasons = (bundle.get("verdict") or {}).get("reasons") or []
         first = reasons[0] if reasons else "unknown failure"
-        component = ("inference provider" if first.startswith("model provider") else
-                     "sandbox executor" if "Sandbox" in first or "sandbox" in first else
-                     "verifier" if "verification" in first else "pipeline")
+        reconciliation = bundle.get("reconciliation") or {}
+        halt = reconciliation.get("halt") or {}
+        service = ((halt.get("operation") or {}).get("service")) if halt else None
+        if halt.get("kind") == "journal_failure":
+            component = "ledger journal"
+        elif service:
+            component = {"sandboxes": "sandbox executor", "inference": "inference provider", "tavily": "grounding search (Tavily)"}.get(service, "pipeline")
+        else:
+            component = ("inference provider" if first.startswith("model provider") else
+                         "sandbox executor" if "Sandbox" in first or "sandbox" in first else
+                         "verifier" if "verification" in first else "pipeline")
         items.append({"ref": "E7", "title": EXHIBIT_TITLE["E7"], "gate": None, "status": "fail", "shown": True,
                       "summary": f"{component} failed {('at stage ' + bundle['stage']) if bundle.get('stage') else 'before the first stage was recorded'}: {_clip(first, 200)}",
                       "why": WHY["E7"], "evidence_class": "bound",
@@ -295,7 +303,9 @@ def exhibits(bundle: dict) -> list[dict]:
                                  "model_calls": totals.get("model_calls"), "model_calls_failed": totals.get("model_calls_failed"),
                                  "cost_usd_committed": totals.get("cost_usd_committed"), "uncertain_unpriced_calls": totals.get("uncertain_unpriced_calls"),
                                  "sandbox_operations": totals.get("sandbox_operations"), "retried": False,
-                                 "uncertain": any("uncertain" in r for r in reasons)}})
+                                 "uncertain": any("uncertain" in r for r in reasons) or halt.get("kind") == "uncertain_operation",
+                                 "reconciliation_required": bool(reconciliation.get("required")),
+                                 "reconciliation_items": len(reconciliation.get("items") or []), "halt_kind": halt.get("kind")}})
     else:
         items.append({"ref": "E7", "title": EXHIBIT_TITLE["E7"], "gate": None, "status": "none", "shown": False,
                       "summary": "no infrastructure failure recorded", "why": WHY["E7"], "evidence_class": "bound", "detail": {}})
@@ -656,6 +666,18 @@ def decision(bundle: dict) -> dict:
                        "and the candidate was judged only by the harness. It certifies nothing.")
         evidence = {"ref": "trajectory", "text": "candidate produced for the independent judge; no gates recorded"}
         decide = ["Compare with the Attest run of the same task in the evaluation report."]
+    elif e7["detail"].get("reconciliation_required"):  # ERROR, stopped for reconciliation (revision 9)
+        d = e7["detail"]
+        first = (reasons[0] if reasons else "unknown failure")
+        statement = "This run stopped for reconciliation."
+        cause = ("a record of the run could not be made durable" if d.get("halt_kind") == "journal_failure" else
+                 "a generated answer could not be priced" if d.get("halt_kind") == "metering_unknown" else
+                 "another run of its batch stopped" if d.get("halt_kind") == "batch_stop" else "an operation's outcome became uncertain")
+        explanation = (f"At stage {d.get('stage') or 'unknown'} {cause} ({d.get('component', 'pipeline')}), so Attest sent nothing further, replayed "
+                       "nothing and certified nothing. The repository was not changed by this run.")
+        evidence = {"ref": "E7", "text": f"{d.get('reconciliation_items') or 0} operation(s) to reconcile: {_clip(first, 220)}"}
+        decide = ["Reconcile the listed operations against the providers' records (each item names its read-only check) before this task is run "
+                  "again; nothing of this run is ever sent again."]
     else:  # ERROR
         statement = "This run did not complete."
         d = e7["detail"]
@@ -666,7 +688,8 @@ def decision(bundle: dict) -> dict:
                           else "Attest did not retry it and certified nothing.") + " The repository was not changed by this run.")
         evidence = {"ref": "E7", "text": (f"{d.get('component', 'pipeline')} error after {d.get('model_calls') or 0} model call(s): {_clip(first, 220)}"
                                           + (f"; {d['uncertain_unpriced_calls']} call(s) counted at the reservation" if d.get("uncertain_unpriced_calls") else ""))}
-        decide = ["Start a new run. This failure is infrastructure, not a judgement about the task."]
+        decide = (["Do not start a new run before the uncertain call is reconciled against the provider's records; it was not retried."]
+                  if d.get("uncertain") else ["Start a new run. This failure is infrastructure, not a judgement about the task."])
     return {"verdict": verdict, "statement": statement, "explanation": explanation, "evidence": evidence, "weak": weak, "decide": decide,
             "reason_class": klass, "title": task_title}
 

@@ -44,10 +44,17 @@ them come from the environment (ATTEST_NEBIUS_ROLES, ATTEST_NEBIUS_REASONING_EFF
 carries the profile its bundle recorded, a row whose profile differs from the registration invalidates its task's comparison, and a
 process that would build a different provider (on resume, or at the start of a cell) refuses before any paid call.
 
+Stop for reconciliation (revision 9, 20 Oct 2026): every cell's ledger is registered with the batch; the first cell whose run halts
+(an operation whose outcome is uncertain, a record that could not be made durable) stops the batch and halts every other cell in flight
+(`batch_stop`), so no cell sends anything further and none is started; a halted cell is not judged, and the judge of a finished cell
+writes its own journal next to the sealed run directory. Reconciliation items come from the ledger's records, not from error text. A
+resumed batch whose interrupted run directories leave operations to reconcile starts nothing unless `--reconciled NOTE` records that
+they were reconciled.
+
 Usage:
   run_evaluation.py [--provider codex|nebius] [--tasks id,id] [--systems baseline,attest] [--attempts 1] [--workers 2]
                     [--usd-cap 0.5] [--approve-usd TOTAL] [--max-calls N] [--max-turns 14] [--out DIR] [--label TEXT]
-                    [--suite PATH] [--resume DIR]
+                    [--suite PATH] [--resume DIR [--reconciled NOTE]]
 """
 
 from __future__ import annotations
@@ -296,6 +303,27 @@ class Budget:
         self.consecutive_infra = 0
         self.stopped: str | None = None
         self.lock = threading.Lock()
+        self.active: dict[int, Ledger] = {}  # the ledgers of the cells in flight (revision 9), by id(): a Ledger is not hashable
+
+    def register(self, ledger: Ledger) -> None:
+        """Follow a cell's ledger: when its run halts, the batch stops and every other cell in flight is halted too (revision 9)."""
+        with self.lock:
+            self.active[id(ledger)] = ledger
+        ledger.on_halt = self.cell_halted
+
+    def unregister(self, ledger: Ledger) -> None:
+        with self.lock:
+            self.active.pop(id(ledger), None)
+
+    def cell_halted(self, ledger: Ledger, record: dict) -> None:
+        with self.lock:
+            if not self.stopped:
+                self.stopped = (f"a run of the batch stopped for reconciliation ({record.get('kind')} at {record.get('stage')}); the batch stopped, "
+                                "every cell in flight was halted and nothing further was sent")
+            others = [other for key, other in self.active.items() if key != id(ledger)]
+        for other in others:
+            if not other.halted:
+                other.halt("batch_stop", "another run of this batch stopped for reconciliation; this run sent nothing further")
 
     def try_reserve(self) -> str | None:
         """Return None when a run may start (reservation taken), otherwise the reason it may not."""
@@ -367,7 +395,10 @@ def services_summary(rows: list[dict], provider_name: str) -> dict:
 def reconciliation_items(ledger: Ledger) -> list[dict]:
     """Every operation of a cell whose outcome is unknown, with what is needed to settle it by hand: a model call whose request was
     written but never answered, a spawn that may or may not have created an operation, an accepted operation whose outcome was
-    not read. Nothing here is ever sent again; the batch stops when the list is not empty."""
+    not read. Nothing here is ever sent again; the batch stops when the list is not empty. Since revision 9 the list comes from the
+    ledger's records (`Ledger.reconciliation_items`), so an HTTP 5xx answer counts as uncertain whatever its public text says."""
+    if hasattr(ledger, "reconciliation_items"):
+        return ledger.reconciliation_items()
     items = []
     for c in ledger.model_calls:
         if not c.ok and c.request_sent is not False and "uncertain" in (c.error or ""):
@@ -386,12 +417,23 @@ def reconciliation_items(ledger: Ledger) -> list[dict]:
 
 
 # ----------------------------------------------------------------------------- one cell
-def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root: Path, registered_profile: dict | None = None) -> dict:
+def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root: Path, registered_profile: dict | None = None,
+               budget: Budget | None = None) -> dict:
+    ledger = Ledger()
+    if budget is not None:
+        budget.register(ledger)
+    try:
+        return _one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root, registered_profile, ledger)
+    finally:
+        if budget is not None:
+            budget.unregister(ledger)
+
+
+def _one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root: Path, registered_profile: dict | None, ledger: Ledger) -> dict:
     task = TaskSpec.load(task_root / cell["task_path"])
     stripped = sorted(task.heldout_tests)
     task.heldout_tests = {}  # the system under test never sees the judge's suite
     heldout_src = (task_root / cell["heldout"]).read_text(encoding="utf-8")
-    ledger = Ledger()
     provider = build_provider(provider_name, ledger, usd_cap, max_calls, notify=lambda m: log(f"[{cell['task']} {cell['system']}] {m}"))
     actual_profile = provider_profile(provider.describe())
     if registered_profile is not None:
@@ -425,14 +467,29 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
                 "wall_s": round(time.monotonic() - t0, 1), "reasons": [message], "warnings": [], "gates": {}, "out_dir": str(pipeline.out_dir),
                 "run_id": pipeline.run_id, "revision_digest": revision_of(pipeline.bundle), "arbitration": None, "error": message,
                 "provider_profile": provider_profile(((pipeline.bundle or {}).get("profile") or {}).get("provider")),
-                "infra_error": True, "uncertain": "uncertain" in message.lower() or bool(totals.get("uncertain_unpriced_calls")) or bool(reconciliation)}
+                "halted": ledger.halted,
+                "infra_error": True, "uncertain": "uncertain" in message.lower() or bool(totals.get("uncertain_unpriced_calls")) or bool(reconciliation)
+                or bool(ledger.halted)}
     wall = round(time.monotonic() - t0, 1)
     judge_error = None
-    try:
-        judge = pipeline.judge_heldout(heldout_src) if pipeline.checkpoint_uuid else {"correct": None, "summary_line": "no checkpoint; not judged"}
-    except Exception as error:  # noqa: BLE001 - the verdict stands; the judge result is simply missing and the costs stay accounted for
-        judge_error = f"{type(error).__name__}: {str(error)[:200]}"
-        judge = {"correct": None, "summary_line": f"judge failed: {judge_error}"}
+    stopped = bool((bundle.get("reconciliation") or {}).get("required")) or bool(ledger.halted)
+    if stopped:
+        # revision 9: a run that stopped for reconciliation sends nothing further, the judge included
+        judge = {"correct": None, "summary_line": "not judged: the run stopped for reconciliation; nothing further was sent"}
+    else:
+        try:
+            if pipeline.checkpoint_uuid:
+                # the run directory is sealed by its manifest and its journal detached; the judge's sandbox operation is journaled (PENDING
+                # before dispatch, the accepted id before polling) in a file of its own next to the run directory
+                ledger.attach_sink(Path(out_dir) / f"{pipeline.run_id}.judge.jsonl")
+                judge = pipeline.judge_heldout(heldout_src)
+            else:
+                judge = {"correct": None, "summary_line": "no checkpoint; not judged"}
+        except Exception as error:  # noqa: BLE001 - the verdict stands; the judge result is simply missing and the costs stay accounted for
+            judge_error = f"{type(error).__name__}: {str(error)[:200]}"
+            judge = {"correct": None, "summary_line": f"judge failed: {judge_error}"}
+        finally:
+            ledger.detach_sink()
     totals = ledger.totals()  # after judging, so the judge's sandbox operation is included
     verdict = bundle["verdict"]["verdict"]
     accepted = (verdict in ACCEPTED_VERDICTS) if system == "attest" else bool(bundle["verdict"].get("finished"))
@@ -447,7 +504,7 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
     reasons = bundle["verdict"].get("reasons", [])
     reconciliation = reconciliation_items(ledger)
     uncertain = (any("uncertain" in r for r in reasons) or bool(totals.get("uncertain_unpriced_calls")) or bool(judge_error and "uncertain" in judge_error.lower())
-                 or bool(reconciliation))
+                 or bool(reconciliation) or bool(ledger.halted) or bool(judge.get("halted")))
     roles = ((bundle.get("profile") or {}).get("provider") or {}).get("roles")
     recorded_profile = provider_profile((bundle.get("profile") or {}).get("provider"))  # what the bundle says ran, not what we built
     candidate = bundle.get("candidate") or {}
@@ -467,7 +524,7 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
             "out_dir": str(pipeline.out_dir), "run_id": bundle["run_id"], "roles": roles, "provider_profile": recorded_profile,
             "revision_digest": revision_of(bundle), "supervisor": ((bundle.get("provenance") or {}).get("supervisor") or {}).get("version"),
             "arbitration": ({"counts": arb["counts"], "cleared": arb["cleared"], "headline": arb["headline"]} if arb else None),
-            "infra_error": verdict in INFRA_VERDICTS, "uncertain": uncertain}
+            "halted": ledger.halted, "infra_error": verdict in INFRA_VERDICTS, "uncertain": uncertain}
 
 
 def run_cell(cell, budget: Budget, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root: Path, governor=None,
@@ -486,7 +543,7 @@ def run_cell(cell, budget: Budget, provider_name, usd_cap, max_calls, out_dir, m
     try:
         if governor is not None:
             paced = governor.wait_for_headroom(CALLS_PER_CELL.get(cell["system"], 15), notify=lambda m: log(f"[{cell['task']} {cell['system']}] {m}"))
-        row = one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root, registered_profile=registered_profile)
+        row = one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root, registered_profile=registered_profile, budget=budget)
     except Exception as error:  # noqa: BLE001 - retain the failure as an attempt
         message = f"{type(error).__name__}: {str(error)[:200]}"
         row = {**cell, "status": "completed", "verdict": "HARNESS_ERROR", "accepted": False, "held_out_correct": None,
@@ -541,7 +598,14 @@ def recover_spend(run_dir: Path) -> dict | None:
     if not candidates:
         return None
     source, record = max(candidates, key=lambda item: float(item[1].get("cost_usd_committed") or 0.0))
-    return {"source": source, **{key: record.get(key) for key in SPEND_FIELDS}}
+    # revision 9: what the run (or its judge, in its own journal next to the run directory) left whose outcome is unknown
+    items = list((journal or {}).get("reconciliation_items") or []) if journal is not None else []
+    judge = read_journal(run_dir.parent / f"{run_dir.name}.judge.jsonl")
+    if judge is not None:
+        known = {str(i) for i in items}
+        items += [i for i in judge.get("reconciliation_items") or [] if str(i) not in known]
+    return {"source": source, **{key: record.get(key) for key in SPEND_FIELDS}, "reconciliation": items,
+            "reconciliation_required": bool(items) or bool((journal or {}).get("halt"))}
 
 
 def interrupted_cells(runs_dir: Path, rows: list[dict], already: list[dict], per_run_cap: float | None = None) -> list[dict]:
@@ -579,6 +643,7 @@ def interrupted_cells(runs_dir: Path, rows: list[dict], already: list[dict], per
         entry = {"out_dir": str(run_dir), "run_id": run_dir.name, "kind": "finished_unreported" if finished else "interrupted",
                  "source": source, "cost_usd_committed": committed, "included_in_batch_total": committed is not None,
                  **{key: (record or {}).get(key) for key in SPEND_FIELDS if key != "cost_usd_committed"},
+                 "reconciliation": (record or {}).get("reconciliation") or [], "reconciliation_required": bool((record or {}).get("reconciliation_required")),
                  "first_listed_at_utc": earlier.get("first_listed_at_utc") or utcnow(), "listed_by_earlier_resumption": bool(earlier),
                  # kept for readers of earlier reports: it meant "left out of this process's total because an earlier process counted
                  # it", which no longer happens (every process rebuilds the total from disk), so it is always False
@@ -666,6 +731,8 @@ def parse_args(argv=None):
     ap.add_argument("--label", default="", help="short label for the report directory and schedule")
     ap.add_argument("--suite", default="examples/eval/SUITE.json", help="suite file, relative to the project root")
     ap.add_argument("--resume", default="", help="continue the batch in this report directory: only cells never executed are run")
+    ap.add_argument("--reconciled", default="", help="with --resume: the operations that interrupted runs left to reconcile were reconciled (this "
+                                                     "note says how); without it such a batch starts nothing")
     ap.add_argument("--register-only", action="store_true", help="snapshot, pre-register the schedule and exit before any cell runs (proves the command)")
     ap.add_argument("--snapshot-root", default="", help=argparse.SUPPRESS)  # set by the launcher when re-executing from the snapshot
     ap.add_argument("--source-root", default="", help=argparse.SUPPRESS)
@@ -939,6 +1006,16 @@ def run_batch(args) -> int:
             f"owns (${unowned_usd:.4f} from their ledger records); starting committed total ${committed:.4f}")
 
     budget = Budget(args.approve_usd if args.provider == "nebius" else None, args.usd_cap, committed=committed)
+    unsettled = [i for i in interrupted if i.get("reconciliation_required")]
+    if unsettled:
+        names = ", ".join(i["run_id"] for i in unsettled[:5])
+        if getattr(args, "reconciled", ""):
+            starting_total["reconciled"] = {"at_utc": utcnow(), "note": args.reconciled, "runs": [i["run_id"] for i in unsettled]}
+            log(f"{len(unsettled)} interrupted run(s) left operations to reconcile ({names}); recorded as reconciled: {args.reconciled}")
+        else:
+            budget.stopped = (f"{len(unsettled)} interrupted run(s) left operations to reconcile ({names}); nothing is started until they are reconciled "
+                              "(resume with --reconciled NOTE once they are)")
+            log(budget.stopped)
     rows: list[dict] = list(previous_rows)
 
     def persist(complete: bool, finished: str | None = None):

@@ -400,14 +400,23 @@
     return `<p class="provenance"><span class="dot ${prov === "live" ? "live" : prov === "synthetic" ? "synthetic" : ""}"></span>${esc(text)}. Run ${esc(run.run_id)}</p>`;
   }
 
+  // Revision 9: a run that stopped because an operation's outcome is uncertain is held for reconciliation, and so is a run the service
+  // paused meanwhile; the console offers no new run for either (the service refuses one until an operator has reconciled the operations).
+  function heldForReconciliation(run, detail) {
+    return run.error_code === "reconciliation_required" || run.error_code === "paused_for_reconciliation" || !!detail?.bundle?.reconciliation?.required;
+  }
+
   function actionsHtml(run, detail) {
     const has = !!run.has_artifacts && !!(detail && detail.bundle);
     const art = (name) => artUrl(run.run_id, name);
     const verdict = detail?.bundle?.verdict?.verdict || (run.status === "error" ? "ERROR" : null);
     if (verdict === "ERROR") {
+      const again = heldForReconciliation(run, detail)
+        ? `<span class="btn" aria-disabled="true" title="An operation's outcome is uncertain: no new run starts until it is reconciled">Held for reconciliation</span>`
+        : `<button type="button" class="btn secondary" data-new-run="${esc(run.task_id)}" data-focus="act-new">Start a new run</button>`;
       return `${has ? `<a class="btn" href="${zipUrl(run.run_id)}">Download run record</a>` : `<span class="btn" aria-disabled="true" title="No run record was written">Download run record</span>`}
         ${has ? `<a class="btn secondary" href="${art("PROOF.md")}" target="_blank" rel="noopener">Open PROOF.md</a>` : ""}
-        <button type="button" class="btn secondary" data-new-run="${esc(run.task_id)}" data-focus="act-new">Start a new run</button>`;
+        ${again}`;
     }
     return `<a class="btn primary" href="${zipUrl(run.run_id)}">Download Proof Bundle</a>
       ${detail?.bundle?.candidate?.diff ? `<button type="button" class="btn secondary" data-copy-patch="${esc(run.run_id)}" data-focus="act-copy">Copy patch</button>` : ""}
@@ -570,7 +579,7 @@
     if (e7.shown) {
       html += `<section class="exhibit" aria-labelledby="e7-h"><header><span class="exref">E7</span><h3 id="e7-h">${esc(e7.title)}</h3><span class="sum">infrastructure, not the patch</span></header>
         <p class="why">${esc(e7.why)}</p>
-        <div class="counter error"><div><span class="k">component</span>${esc(d7.component)}</div><div><span class="k">stage</span>${esc(d7.stage || "unknown")}</div><div><span class="k">model calls</span>${d7.model_calls ?? 0}, ${d7.model_calls_failed ?? 0} failed, ${d7.uncertain_unpriced_calls ?? 0} uncertain</div><div><span class="k">sandbox operations</span>${d7.sandbox_operations ?? 0}</div><div><span class="k">committed inference</span>${esc(inferenceCost(bundleProvider(d.bundle), d7.cost_usd_committed))}${d7.uncertain_unpriced_calls ? " (uncertain calls counted at their reservation)" : ""}</div><div><span class="k">retried</span>no: Attest never replays an uncertain request</div></div>
+        <div class="counter error"><div><span class="k">component</span>${esc(d7.component)}</div><div><span class="k">stage</span>${esc(d7.stage || "unknown")}</div><div><span class="k">model calls</span>${d7.model_calls ?? 0}, ${d7.model_calls_failed ?? 0} failed, ${d7.uncertain_unpriced_calls ?? 0} uncertain</div><div><span class="k">sandbox operations</span>${d7.sandbox_operations ?? 0}</div><div><span class="k">committed inference</span>${esc(inferenceCost(bundleProvider(d.bundle), d7.cost_usd_committed))}${d7.uncertain_unpriced_calls ? " (uncertain calls counted at their reservation)" : ""}</div><div><span class="k">retried</span>no: Attest never replays an uncertain request</div><div><span class="k">reconciliation</span>${d7.reconciliation_required ? `${d7.reconciliation_items ?? 0} operation(s) held: nothing further was sent` : "none needed"}</div></div>
         <ul class="plain">${(d7.reasons || []).map((r) => `<li>${esc(r)}</li>`).join("")}</ul></section>`;
     }
     return html;

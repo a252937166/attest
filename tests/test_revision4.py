@@ -102,7 +102,7 @@ class LedgerJournal(unittest.TestCase):
         self.assertAlmostEqual(ledger.totals()["cost_usd_committed"], call.reserved_usd)
         self.assertAlmostEqual(client.spent_usd(), call.reserved_usd)  # the per-run cap binds on the unsettled reservation too
         events = [json.loads(l)["event"] for l in (self.tmp / JOURNAL_FILE).read_text().splitlines()]
-        self.assertEqual(events, ["ledger", "reserve", "call"])
+        self.assertEqual(events, ["ledger", "reserve", "call", "halt"])  # revision 9: the uncertain call halts the run, and the halt is journaled
 
     def test_provider_refusals_are_free_but_server_failures_stay_reserved(self):
         from attest.http import HttpError
@@ -136,12 +136,19 @@ class LedgerJournal(unittest.TestCase):
         self.assertAlmostEqual(journal["cost_usd_committed"], ledger.totals()["cost_usd_committed"], places=6)
         manifest = json.loads((pipeline.out_dir / "manifest.json").read_text())
         self.assertIn(JOURNAL_FILE, {f["path"] for f in manifest["files"]})
-        # the harness's judge records a sandbox operation after the bundle is sealed: the journal must not change under its manifest
-        from attest.ledger import SandboxOp
-        ledger.add_op(SandboxOp(stage="judge", operation_uuid="op-judge", image_uuid="i", result_image_uuid=None, disposable=True, networking_enabled=False,
-                                status="SUCCESS", exit_code=0, timed_out=False, signal=None, duration_s=1.0, raw_cost_diag=None, stdout_truncated=False,
-                                started_at_utc=utcnow()))
+        # the harness's judge records a sandbox operation after the bundle is sealed: the journal must not change under its manifest. Since
+        # revision 9 an operation is journaled before dispatch, so the judge gets a journal of its own next to the run directory
+        from attest.ledger import LedgerError, SandboxOp
+        judge_op = SandboxOp(stage="judge", operation_uuid="op-judge", image_uuid="i", result_image_uuid=None, disposable=True, networking_enabled=False,
+                             status="SUCCESS", exit_code=0, timed_out=False, signal=None, duration_s=1.0, raw_cost_diag=None, stdout_truncated=False,
+                             started_at_utc=utcnow())
+        with self.assertRaises(LedgerError):
+            ledger.add_op(judge_op)  # without a journal nothing is dispatched
+        judge_journal = pipeline.out_dir.parent / f"{pipeline.run_id}.judge.jsonl"
+        ledger.attach_sink(judge_journal)
+        ledger.add_op(judge_op)
         self.assertEqual(read_journal(pipeline.out_dir / JOURNAL_FILE)["sandbox_operations"], journal["sandbox_operations"])
+        self.assertEqual(read_journal(judge_journal)["sandbox_operations"], journal["sandbox_operations"] + 1)
         self.assertTrue(check_bundle(pipeline.out_dir)["ok"], [c for c in check_bundle(pipeline.out_dir)["checks"] if c["ok"] is False])
 
 

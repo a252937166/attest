@@ -8,6 +8,8 @@ machine's proxy). Connections to any address other than 127.0.0.1 are refused fo
 
 from __future__ import annotations
 
+import contextlib
+import os
 import socket
 import threading
 import time
@@ -16,6 +18,16 @@ from unittest import mock
 
 import attest.http as http_module
 from attest.http import TransportError, request_json
+
+
+@contextlib.contextmanager
+def explicit_proxy_allowed():
+    """The offline suite sets no_proxy=* (tests/_isolation.py), so that no request takes this machine's proxy; a test that drives a proxy
+    of its own on the loopback interface lifts that for its duration."""
+    with mock.patch.dict(os.environ):
+        os.environ.pop("no_proxy", None)
+        os.environ.pop("NO_PROXY", None)
+        yield
 
 _real_create_connection = socket.create_connection
 
@@ -102,7 +114,7 @@ class Phases(unittest.TestCase):
             conn.close()  # the proxy's upstream failed: the client's TLS handshake sees an end of file
         server = self.serve(proxy)
         via_proxy = http_module.build_opener(proxies={"https": f"http://127.0.0.1:{server.port}"})
-        with mock.patch.object(http_module, "opener", lambda: via_proxy):
+        with explicit_proxy_allowed(), mock.patch.object(http_module, "opener", lambda: via_proxy):
             with self.assertRaises(TransportError) as caught:
                 request_json("POST", "https://gateway.invalid/v1/run", {"Authorization": "Bearer secret"}, {"prompt": "x"}, timeout=5)
         self.assertFalse(caught.exception.request_sent)
@@ -116,7 +128,7 @@ class Phases(unittest.TestCase):
             conn.sendall(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n")
         server = self.serve(proxy)
         via_proxy = http_module.build_opener(proxies={"https": f"http://127.0.0.1:{server.port}"})
-        with mock.patch.object(http_module, "opener", lambda: via_proxy):
+        with explicit_proxy_allowed(), mock.patch.object(http_module, "opener", lambda: via_proxy):
             with self.assertRaises(TransportError) as caught:
                 request_json("POST", "https://gateway.invalid/v1/run", {}, {"prompt": "x"}, timeout=5)
         self.assertFalse(caught.exception.request_sent)
@@ -186,6 +198,16 @@ LOST = lambda: TransportError("RemoteDisconnected: Remote end closed connection 
 SCHEMA = {"type": "object", "properties": {"result": {"type": "integer"}}, "required": ["result"]}
 
 
+def journaled(test: unittest.TestCase) -> Ledger:
+    """A ledger with a journal in a temporary directory: every call and operation takes a pending record before it is sent (revision 9)."""
+    import shutil
+    directory = Path(tempfile.mkdtemp(prefix="attest-transport-journal-"))
+    test.addCleanup(lambda: shutil.rmtree(directory, ignore_errors=True))
+    ledger = Ledger()
+    ledger.attach_sink(directory / JOURNAL_FILE)
+    return ledger
+
+
 class FakeClock:
     def __init__(self):
         self.now, self.slept = 1_700_000_000.0, []
@@ -206,7 +228,7 @@ class GatewayRetries(unittest.TestCase):
         clock = FakeClock()
         gov = RateGovernor("k", time_fn=clock.time, sleep_fn=clock.sleep)
         gov.configure_from_status({"limits": {"hourly_requests": None, "hourly_requests_enforced": False}})
-        ledger = Ledger()
+        ledger = journaled(self)
         client = CodexGateway("cxk_test", ledger, base_url="https://gateway.invalid/v1", governor=gov, notify=lambda m: None)
         client._catalog = {"gpt-6-sol": ["medium"], "gpt-6-astra": ["low", "medium"], "gpt-6-luna": ["low"]}
         sent = []
@@ -447,9 +469,9 @@ class Reconciliation(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("run_evaluation", Path(__file__).resolve().parents[1] / "scripts" / "run_evaluation.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        ledger = Ledger()
         clock = FakeClock()
         gov = RateGovernor("k2", time_fn=clock.time, sleep_fn=clock.sleep)
+        ledger = journaled(self)
         client = CodexGateway("cxk_test", ledger, base_url="https://gateway.invalid/v1", governor=gov)
         client._catalog = {"gpt-6-sol": ["medium"]}
         outcomes = [NOT_SENT(), LOST()]
@@ -461,12 +483,15 @@ class Reconciliation(unittest.TestCase):
         with mock.patch("attest.models.codex_gateway.request_json", fake):
             with self.assertRaises(ModelError):
                 client.structured("implement", "p", SCHEMA, "implement-1")
+        ledger.halted, ledger.halt_events = None, []  # the second half is another run's spawn on the same records (revision 9 halts the first)
         ex = TokenFactorySandboxes("synthetic-key", "project", ledger)
         with mock.patch("attest.sandbox.tf_sandboxes.request_json", lambda *a, **k: (_ for _ in ()).throw(LOST())):
             with self.assertRaises(SandboxError):
                 ex.run_branch("image-1", {}, [], stage="verify")
         items = module.reconciliation_items(ledger)
-        self.assertEqual([i["kind"] for i in items], ["model_call", "sandbox_operation"], "the unsent attempt needs no reconciliation")
+        # revision 9: a spawn without a known id is a `sandbox_spawn` (settled by listing the account's operations), one with its id a
+        # `sandbox_operation` (settled by reading it)
+        self.assertEqual([i["kind"] for i in items], ["model_call", "sandbox_spawn"], "the unsent attempt needs no reconciliation")
         self.assertEqual(items[0]["phase"], "response")
         self.assertIn("GET /operations?kind=instance", items[1]["how"])
         self.assertEqual(items[1]["image_uuid"], "image-1")

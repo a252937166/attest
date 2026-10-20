@@ -12,6 +12,14 @@ Transport (revision 8, 19 Oct 2026): a request whose connection, proxy tunnel or
 written never reached the gateway, so it is sent again, at most NOT_SENT_RETRIES times after a short wait; each attempt is its own
 failed call record (`request_sent` false). Reads (status, catalog) have no side effect and are retried on any transport failure.
 A request whose bytes were written stays uncertain and is never sent again: the run stops for reconciliation.
+
+Answer classes (revision 9, 20 Oct 2026): an HTTP 4xx answer to a run is a definite rejection (nothing ran) and fails the call; an
+HTTP 5xx answer is uncertain like a lost answer, because the gateway's proxy answers 502 or 504 when the backend is slow or drops the
+connection after the request was forwarded, and the backend may still have run it: the call is recorded with its status and phase,
+the run is halted (`Ledger.halt`) and nothing is sent again. Every call takes a zero-USD pending record before it is sent (a
+reservation journaled durably and read back; when that fails nothing is sent and the run halts) and is admitted by the ledger
+immediately before each attempt, so nothing leaves after the run has stopped. Reads (status, catalog) are retried, bounded, on a
+transport failure or an answer that asks for it (408, 429, 5xx). The policy refresh window uses the governor's clock.
 """
 
 from __future__ import annotations
@@ -21,8 +29,9 @@ import json
 import os
 import time
 
-from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, TransportError, backoff, request_json
-from ..ledger import Ledger, ModelCall, utcnow
+from ..http import (NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, TransportError, backoff, post_outcome,
+                    read_retryable, request_json, retry_after_s)
+from ..ledger import Ledger, LedgerError, ModelCall, RunHalted, utcnow
 from ..secrets import config_value
 from .base import ModelError, ModelResult, extract_usage, validate_json
 from .pacing import MAX_429_RETRIES, PacingError, RateGovernor, governor_for
@@ -74,13 +83,16 @@ class CodexGateway:
     def adopt_gateway_policy(self, force: bool = False) -> None:
         """Read `GET /v1/status` once per policy window and let the governor adopt the declared limits. Unreadable status
         keeps the conservative default; the outcome is recorded in the governor's snapshot (provenance)."""
+        if getattr(self.ledger, "halted", None):
+            return  # the run has stopped: nothing is sent, not even a read
         checked = self.governor.policy_checked_at
-        if not force and checked is not None and time.time() - checked < self.POLICY_REFRESH_S:
+        now = self.governor._time()  # the clock that stamped policy_checked_at (a test's fake clock included)
+        if not force and checked is not None and now - checked < self.POLICY_REFRESH_S:
             return
         try:
             self.governor.configure_from_status(self.status(), source="gateway status")
-        except (HttpError, TransportError) as error:
-            self.governor.policy_checked_at = time.time()
+        except (HttpError, TransportError, ModelError) as error:
+            self.governor.policy_checked_at = self.governor._time()
             self.governor.policy_source = f"status unreadable ({type(error).__name__}); keeping {self.governor.policy_source}"
 
     def _headers(self) -> dict:
@@ -89,16 +101,25 @@ class CodexGateway:
     def _sleep(self, seconds: float) -> None:
         self.governor._sleep(seconds)  # the governor's clock, so a test's fake clock covers the transport waits too
 
+    def _admit(self, stage: str) -> None:
+        """The ledger's admission right before a request leaves; a stopped run refuses it (ModelError with `halted`)."""
+        try:
+            self.ledger.admit("inference", stage)
+        except RunHalted as halted:
+            raise ModelError(self._public(str(halted)), halted=True) from None
+
     def _read(self, path: str) -> dict:
-        """A GET (status, catalog): it has no side effect, so any transport failure is retried, bounded; the last one is raised."""
+        """A GET (status, catalog): it has no side effect, so a transport failure or an answer that asks for a retry (408, 429, 5xx) is
+        retried, bounded; the last failure is raised. Each attempt is admitted by the ledger first."""
         for retry in range(READ_RETRIES + 1):
+            self._admit(f"read {path}")
             try:
                 _, body, _ = request_json("GET", self.base + path, self._headers(), timeout=30)
                 return body or {}
-            except TransportError:
-                if retry == READ_RETRIES:
+            except (TransportError, HttpError) as error:
+                if not read_retryable(error) or retry == READ_RETRIES:
                     raise
-                self._sleep(backoff(READ_BACKOFF_S, retry))
+                self._sleep(retry_after_s(error) or backoff(READ_BACKOFF_S, retry))
         return {}
 
     def status(self) -> dict:
@@ -106,7 +127,10 @@ class CodexGateway:
 
     def catalog(self) -> dict:
         if self._catalog is None:
-            body = self._read("/models")
+            try:
+                body = self._read("/models")
+            except (HttpError, TransportError) as error:
+                raise ModelError(self._public(f"the gateway's model catalog could not be read ({error})")) from None
             self._catalog = {item.get("id"): item.get("supported_reasoning_efforts") or []
                              for item in (body or {}).get("data", [])}
         return self._catalog
@@ -135,6 +159,9 @@ class CodexGateway:
                                  f"proxy tunnel or TLS handshake failed before any byte of it was written) sent again at most {NOT_SENT_RETRIES} "
                                  f"times after {'/'.join(f'{w:g}' for w in NOT_SENT_BACKOFF_S)} s, each attempt recorded; transport-uncertain "
                                  "failures (the request was written) never retried"),
+                "answer_policy": ("HTTP 4xx: a definite rejection, the call fails; HTTP 5xx or a failure after the request was written: uncertain, "
+                                  "recorded with its status and phase, never sent again, and the run stops for reconciliation"),
+                "journal_policy": "every call takes a zero-USD pending record, journaled durably and read back, before it is sent",
                 "pacing": {k: pacing[k] for k in ("model", "policy_source", "hourly_limit_assumed", "budget", "max_concurrency", "max_wait_s",
                                                    "state_shared_across_processes")}}
 
@@ -151,6 +178,8 @@ class CodexGateway:
     def structured(self, role: str, prompt: str, schema: dict, stage: str) -> ModelResult:
         if len(prompt) > self.MAX_PROMPT_CHARS:
             raise ModelError(f"prompt of {len(prompt)} chars exceeds the {self.MAX_PROMPT_CHARS}-char input bound")
+        if getattr(self.ledger, "halted", None):
+            raise ModelError(self._public(str(RunHalted(self.ledger.halted))), halted=True)
         model, effort = self.resolve(role)
         payload = {"model": model, "prompt": prompt, "output_schema": schema,
                    "timeout_s": self.timeout_s, "deadline_s": self.deadline_s}
@@ -167,57 +196,88 @@ class CodexGateway:
                 slot = self.governor.acquire(self.notify)
             except PacingError as error:
                 raise ModelError(f"codex gateway hourly budget exhausted: {error}", rate_limited=True) from None
-            started = utcnow()
-            t0 = time.monotonic()
-            call = ModelCall(provider=self.name, role=role, stage=stage, requested_model=model,
-                             requested_effort=effort, returned_model=None, returned_effort=None,
-                             started_at_utc=started, elapsed_ms=0, gateway_duration_ms=None,
-                             prompt_chars=len(prompt), tokens_in=None, tokens_out=None, tokens_cached=None,
-                             usage_raw={}, cost_usd=None, cost_note="ChatGPT allowance via Codex gateway; not USD",
-                             ok=False, pacing_wait_ms=int(slot["waited_s"] * 1000) or None, attempt=attempt)
             try:
-                _, body, _ = request_json("POST", self.base + "/run", self._headers(), payload,
-                                          timeout=self.deadline_s + 90)
-            except TransportError as error:
-                call.elapsed_ms = int((time.monotonic() - t0) * 1000)
-                call.request_sent, call.transport_phase = error.request_sent, error.phase
-                call.error = self.ledger.public_error(f"{stage}-transport", error)
-                self.ledger.add_call(call)
-                if not error.request_sent:
-                    # nothing reached the gateway (the failure came before any byte of the request was written), so sending it
-                    # again cannot run anything twice; bounded, and every attempt keeps its own record
-                    if unsent < NOT_SENT_RETRIES:
-                        wait_s = backoff(NOT_SENT_BACKOFF_S, unsent)
-                        unsent += 1
+                try:
+                    # the pending record (revision 9): a zero-USD reservation, durable and read back before anything is sent
+                    reservation_id = self.ledger.reserve(self.name, role, stage, model, 0.0)
+                except LedgerError as error:
+                    self.ledger.halt("journal_failure", f"the pending record of the {stage} call could not be journaled; the request was not sent",
+                                     stage=stage, detail=str(error), operation={"service": "inference", "provider": self.name, "dispatched": False})
+                    raise ModelError(f"refusing the request: the pending record of the {stage} call could not be journaled; the request was not "
+                                     "sent and the run stops", halted=True) from None
+                started = utcnow()
+                t0 = time.monotonic()
+                call = ModelCall(provider=self.name, role=role, stage=stage, requested_model=model,
+                                 requested_effort=effort, returned_model=None, returned_effort=None,
+                                 started_at_utc=started, elapsed_ms=0, gateway_duration_ms=None,
+                                 prompt_chars=len(prompt), tokens_in=None, tokens_out=None, tokens_cached=None,
+                                 usage_raw={}, cost_usd=None, cost_note="ChatGPT allowance via Codex gateway; not USD",
+                                 ok=False, pacing_wait_ms=int(slot["waited_s"] * 1000) or None, attempt=attempt)
+                try:
+                    self.ledger.admit("inference", stage)
+                except RunHalted as halted:
+                    call.request_sent, call.outcome = False, "refused"
+                    call.error = "not sent: the run had stopped for reconciliation"
+                    self.ledger.add_call(call, reservation_id)
+                    raise ModelError(self._public(str(halted)), halted=True) from None
+                try:
+                    _, body, _ = request_json("POST", self.base + "/run", self._headers(), payload, timeout=self.deadline_s + 90)
+                except TransportError as error:
+                    call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+                    call.request_sent, call.transport_phase, call.http_status = error.request_sent, error.phase, getattr(error, "status", None)
+                    call.error = self.ledger.public_error(f"{stage}-transport", error)
+                    call.outcome = post_outcome(error)
+                    self.ledger.add_call(call, reservation_id)
+                    if call.outcome == "not_sent":
+                        # nothing reached the gateway (the failure came before any byte of the request was written), so sending it
+                        # again cannot run anything twice; bounded, and every attempt keeps its own record
+                        if unsent < NOT_SENT_RETRIES:
+                            wait_s = backoff(NOT_SENT_BACKOFF_S, unsent)
+                            unsent += 1
+                            if self.notify:
+                                self.notify(f"transport: the request was never sent ({error.phase} failed); sending it again in {wait_s:.0f} s "
+                                            f"(attempt {attempt + 1})")
+                            continue
+                        raise ModelError(self._public(f"the development gateway could not be reached: {attempt} attempts, none got as far as "
+                                                      f"sending the request ({error})"), unreachable=True) from None
+                    self.ledger.halt("uncertain_operation", f"the outcome of the {stage} call to the development gateway is uncertain (failure in the "
+                                                            f"{error.phase} phase after the request was written); it was not sent again", stage=stage,
+                                     operation={"service": "inference", "provider": self.name, "started_at_utc": started}, detail=self._public(str(error)))
+                    raise ModelError(self._public(f"inference outcome uncertain ({error}); not retried"), uncertain=True,
+                                     http_status=getattr(error, "status", None)) from None
+                except HttpError as error:
+                    call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+                    call.request_sent, call.transport_phase, call.http_status = True, "response", error.status
+                    call.error = self.ledger.public_error(f"{stage}-http", error)
+                    call.outcome = post_outcome(error)
+                    self.ledger.add_call(call, reservation_id)
+                    if error.status == 429:
+                        # a definite rejection: nothing executed and no allowance was consumed upstream, so the same request may
+                        # be sent again once the key's budget reopens; the rejected attempt stays in the ledger
+                        rejections += 1
+                        until = self.governor.record_rejection(self._retry_after(error))
                         if self.notify:
-                            self.notify(f"transport: the request was never sent ({error.phase} failed); sending it again in {wait_s:.0f} s "
-                                        f"(attempt {attempt + 1})")
-                        continue
-                    raise ModelError(self._public(f"the development gateway could not be reached: {attempt} attempts, none got as far as "
-                                                  f"sending the request ({error})"), unreachable=True) from None
-                raise ModelError(self._public(f"inference outcome uncertain ({error}); not retried"), uncertain=True) from None
-            except HttpError as error:
-                call.elapsed_ms = int((time.monotonic() - t0) * 1000)
-                call.request_sent = True
-                call.error = self.ledger.public_error(f"{stage}-http", error)
-                self.ledger.add_call(call)
-                if error.status == 429:
-                    # a definite rejection: nothing executed and no allowance was consumed upstream, so the same request may
-                    # be sent again once the key's budget reopens; the rejected attempt stays in the ledger
-                    rejections += 1
-                    until = self.governor.record_rejection(self._retry_after(error))
-                    if self.notify:
-                        self.notify(self._public(f"pacing: the gateway rejected the request ({str(error)[:120]}); blocked for about "
-                                                 f"{max(0, until - time.time()):.0f} s, rejection {rejections} of {MAX_429_RETRIES + 1}"))
-                    if rejections <= MAX_429_RETRIES:
-                        continue
-                    raise ModelError(self._public(f"{error} (after {attempt} attempts; bounded wait exhausted)"), rate_limited=True) from None
-                raise ModelError(self._public(str(error))) from None
+                            self.notify(self._public(f"pacing: the gateway rejected the request ({str(error)[:120]}); blocked for about "
+                                                     f"{max(0, until - time.time()):.0f} s, rejection {rejections} of {MAX_429_RETRIES + 1}"))
+                        if rejections <= MAX_429_RETRIES:
+                            continue
+                        raise ModelError(self._public(f"{error} (after {attempt} attempts; bounded wait exhausted)"), rate_limited=True,
+                                         http_status=429) from None
+                    if call.outcome == "rejected":
+                        raise ModelError(self._public(str(error)), http_status=error.status) from None
+                    # an HTTP 5xx: the gateway's proxy answers 502/504 when the backend is slow or drops the connection after the request was
+                    # forwarded, so the backend may have run it: uncertain, never sent again, and the run stops (revision 9)
+                    self.ledger.halt("uncertain_operation", f"the development gateway answered HTTP {error.status} to the {stage} call; it may have "
+                                                            "run upstream, so it was not sent again", stage=stage,
+                                     operation={"service": "inference", "provider": self.name, "started_at_utc": started, "http_status": error.status})
+                    raise ModelError(self._public(f"inference outcome uncertain (HTTP {error.status} from the gateway after the request was sent); "
+                                                  "not retried"), uncertain=True, http_status=error.status) from None
             finally:
                 self.governor.release()
             break
         call.elapsed_ms = int((time.monotonic() - t0) * 1000)
         call.request_sent = True
+        call.outcome = "answered"
         body = body or {}
         call.returned_model = body.get("model")
         call.returned_effort = body.get("effort")
@@ -235,8 +295,8 @@ class CodexGateway:
         if problem:
             call.malformed_output = True
             call.error = f"schema violation: {problem}"
-            self.ledger.add_call(call)
+            self.ledger.add_call(call, reservation_id)
             raise ModelError(f"model output violated the schema: {problem}")
         call.ok = True
-        self.ledger.add_call(call)
+        self.ledger.add_call(call, reservation_id)
         return ModelResult(json=parsed, text=text, call=call)

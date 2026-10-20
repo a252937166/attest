@@ -112,14 +112,15 @@ class HarnessRowAccounting(unittest.TestCase):
 
     def test_uncertain_call_keeps_its_reservation_and_stops_the_batch(self):
         row, budget = self.run_cell_with(provider_scenario="uncertain_at_break")
-        # an uncertain breaker call makes the adversarial gate unusable (NEEDS HUMAN); the accounting is what matters here
-        self.assertIn(row["verdict"], ("NEEDS HUMAN", "ERROR"))
+        # an uncertain breaker call stops the run for reconciliation (ERROR, revision 9); the accounting is what matters here
+        self.assertEqual(row["verdict"], "ERROR")
+        self.assertTrue(row["halted"])
         self.assertTrue(row["uncertain"])
         self.assertEqual(row["uncertain_calls"], 1)
         known = (row["model_calls"] - 1) * COST
         self.assertAlmostEqual(row["cost_committed_usd"], known + RESERVE, places=6)  # the unknown call counts at its reservation
         self.assertAlmostEqual(row["cost_usd"], known, places=6)
-        self.assertIn("transport-uncertain", budget.snapshot()["stopped"])
+        self.assertIn("stopped for reconciliation", budget.snapshot()["stopped"])
         self.assertAlmostEqual(budget.snapshot()["committed_usd"], known + RESERVE, places=4)
 
     def test_failed_judge_keeps_the_verdict_and_the_costs(self):
@@ -185,7 +186,9 @@ class InterruptedBatch(unittest.TestCase):
             self.assertAlmostEqual(resumed["starting_total"]["committed_usd"], first["cost_committed_usd"] + dropped["cost_committed_usd"], places=6)
             schedule = json.loads((tmp / "schedule.json").read_text())
             self.assertEqual(schedule["resumptions"][0]["cells"], [1])
-            self.assertEqual(len([d for d in (tmp / "runs").iterdir()]), 3)  # two from the first batch, one from the resumption
+            self.assertEqual(len([d for d in (tmp / "runs").iterdir() if d.is_dir()]), 3)  # two from the first batch, one from the resumption
+            # revision 9: each judge's sandbox operation was journaled next to its sealed run directory
+            self.assertEqual(len(list((tmp / "runs").glob("*.judge.jsonl"))), 3)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 

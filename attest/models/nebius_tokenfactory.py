@@ -3,6 +3,11 @@
 OpenAI-compatible chat completions with a JSON-schema response format. Cost is
 computed from the public price table and capped per run. Unverified until the
 native pilot runs; keep results labeled separately from Codex development runs.
+
+Answer classes (revision 9, 20 Oct 2026): an HTTP 4xx answer is a definite rejection (nothing generated, nothing billed); an HTTP 5xx
+answer may come after the generation was metered, so like a lost answer it keeps its reservation committed, is never sent again and
+halts the run for reconciliation (`Ledger.halt`). A reservation that cannot be journaled and a generation that cannot be priced halt
+the run the same way, and every attempt is admitted by the ledger right before it is sent, so nothing leaves after the stop.
 """
 
 from __future__ import annotations
@@ -12,8 +17,8 @@ import os
 import re
 import time
 
-from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, HttpError, TransportError, backoff, request_json
-from ..ledger import Ledger, LedgerError, ModelCall, utcnow
+from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, HttpError, TransportError, backoff, post_outcome, request_json
+from ..ledger import Ledger, LedgerError, ModelCall, RunHalted, utcnow
 from .base import ModelError, ModelResult, extract_usage, usage_problem, validate_json
 
 # USD per 1M tokens (input, output), read from tokenfactory.nebius.com/api/public/models_info on 2026-10-14.
@@ -92,7 +97,19 @@ class NebiusTokenFactory:
 
     def _refuse_if_halted(self) -> None:
         if self.halted:
-            raise ModelError(f"refusing the request: {self.halted}")
+            raise ModelError(f"refusing the request: {self.halted}", halted=True)
+        run_halt = getattr(self.ledger, "halted", None)
+        if run_halt:
+            raise ModelError(f"refusing the request: {RunHalted(run_halt)}", halted=True)
+
+    def _halt(self, kind: str, reason: str, stage: str, public: str | None = None, **operation) -> None:
+        """Stop this instance's paid calls and the whole run (revision 9): `reason` (it may carry raw error text) is kept on the
+        instance and in the private log line; the ledger's halt record, which the bundle carries, gets `public` (or the reason when it
+        is already public)."""
+        self.halted = self.halted or reason
+        if hasattr(self.ledger, "halt"):
+            self.ledger.halt(kind, public or reason, stage=stage, detail=reason if public else None,
+                             operation={"service": "inference", "provider": self.name, **operation})
 
     def describe(self) -> dict:
         """The effective configuration of this instance (recorded as the bundle's `profile.provider`; the evaluation harness freezes
@@ -111,6 +128,8 @@ class NebiusTokenFactory:
                                       "terminated with a journal_repair record; if it cannot be, the request is not sent and the run stops paid calls",
                 "metering_policy": "an HTTP 200 whose usage cannot price the generation (missing, empty, partial or malformed counters) keeps its "
                                    "reservation unsettled and stops further paid calls of the run pending reconciliation; explicit zero counters settle as 0",
+                "answer_policy": "HTTP 4xx: a definite rejection at a known $0; HTTP 5xx or a failure after the request was written: uncertain, the "
+                                 "reservation stays committed, nothing is sent again and the run stops for reconciliation",
                 "call_cap_policy": (f"at most {self.max_calls} model calls per run (failed calls and retries count); the call that would exceed it is refused "
                                     f"before dispatch" if self.max_calls is not None else "no per-run call cap; only the USD cap binds"),
                 "halted": self.halted,
@@ -186,9 +205,10 @@ class NebiusTokenFactory:
         except LedgerError as error:
             # a definite refusal (nothing left the process): without a durable reservation the request is not sent, and this
             # instance sends nothing further, so no call of the run can ever be billed without a record that survives the process
-            self.halted = (f"the USD reservation for {stage} could not be journaled ({error}); the request was not sent, and this provider "
-                           f"instance accepts no further paid requests because nothing may be dispatched without a durable reservation")
-            raise ModelError(self.halted) from None
+            self._halt("journal_failure", f"the USD reservation for {stage} could not be journaled ({error}); the request was not sent, and this provider "
+                                          f"instance accepts no further paid requests because nothing may be dispatched without a durable reservation",
+                       stage, public=f"the USD reservation for {stage} could not be journaled; the request was not sent", dispatched=False)
+            raise ModelError(self.halted, halted=True) from None
         started = utcnow()
         t0 = time.monotonic()
         flags = payload.get("chat_template_kwargs") or {}
@@ -200,12 +220,20 @@ class NebiusTokenFactory:
                          usage_raw={}, cost_usd=None, cost_note="USD from public Token Factory price table", ok=False,
                          reserved_usd=round(reservation, 6), attempt=unsent + 1)
         try:
+            self.ledger.admit("inference", stage)  # immediately before the request: a stopped run sends nothing (revision 9)
+        except RunHalted as halted:
+            call.request_sent, call.outcome, call.cost_usd, call.settlement = False, "refused", 0.0, "known"
+            call.cost_note = "not sent: the run had stopped for reconciliation; nothing was billed"
+            self.ledger.add_call(call, reservation_id)
+            raise ModelError(f"refusing the request: {halted}", halted=True) from None
+        try:
             _, body, _ = request_json("POST", self.base + "/chat/completions", self._headers(), payload,
                                       timeout=self.timeout)
         except TransportError as error:
             call.elapsed_ms = int((time.monotonic() - t0) * 1000)
-            call.request_sent, call.transport_phase = error.request_sent, error.phase
+            call.request_sent, call.transport_phase, call.http_status = error.request_sent, error.phase, getattr(error, "status", None)
             call.error = self.ledger.public_error(f"{stage}-transport", error)
+            call.outcome = post_outcome(error)
             if not error.request_sent:
                 # no byte of the request was written (the connection, the proxy tunnel or the TLS handshake failed first), so the
                 # provider cannot have received it: nothing was generated or billed, the reservation closes at a known zero, and the
@@ -222,20 +250,30 @@ class NebiusTokenFactory:
                                  f"({error})", unreachable=True) from None
             call.settlement = "unsettled"  # the request may have been billed: the reservation stays committed until reconciled
             self.ledger.add_call(call, reservation_id)
-            raise ModelError(f"inference outcome uncertain ({error}); not retried", uncertain=True) from None
+            self._halt("uncertain_operation", f"the outcome of the {stage} call is uncertain (failure in the {error.phase} phase after the request "
+                                              "was written); its reservation stays committed and it was not sent again", stage,
+                       started_at_utc=started, reserved_usd=round(reservation, 6))
+            raise ModelError(f"inference outcome uncertain ({error}); not retried", uncertain=True, http_status=getattr(error, "status", None)) from None
         except HttpError as error:
             call.elapsed_ms = int((time.monotonic() - t0) * 1000)
-            call.request_sent = True
+            call.request_sent, call.transport_phase, call.http_status = True, "response", error.status
             call.error = self.ledger.public_error(f"{stage}-http", error)
-            if 400 <= error.status < 500:
+            call.outcome = post_outcome(error)
+            if call.outcome == "rejected":
                 call.cost_usd = 0.0  # the provider refused the request (quota, schema, auth): nothing was generated, nothing is billed
                 call.settlement = "known"
-            else:
-                call.settlement = "unsettled"  # a server-side failure may or may not have been metered: the reservation stays committed
+                self.ledger.add_call(call, reservation_id)
+                raise ModelError(str(error), rate_limited=error.status == 429, http_status=error.status) from None
+            call.settlement = "unsettled"  # a server-side failure may or may not have been metered: the reservation stays committed
             self.ledger.add_call(call, reservation_id)
-            raise ModelError(str(error)) from None
+            self._halt("uncertain_operation", f"the provider answered HTTP {error.status} to the {stage} call after the request was sent; it may "
+                                              "have been metered, so its reservation stays committed and it was not sent again", stage,
+                       started_at_utc=started, reserved_usd=round(reservation, 6), http_status=error.status)
+            raise ModelError(f"inference outcome uncertain (HTTP {error.status} after the request was sent); not retried", uncertain=True,
+                             http_status=error.status) from None
         call.elapsed_ms = int((time.monotonic() - t0) * 1000)
         call.request_sent = True
+        call.outcome = "answered"
         body = body or {}
         call.returned_model = body.get("model")
         usage = body.get("usage")
@@ -253,7 +291,8 @@ class NebiusTokenFactory:
             call.settlement = "unsettled"
             call.cost_note = (f"metering failed: {metering}; the reservation (${reservation:.6f}) stays committed pending reconciliation "
                               f"against the provider's billing")
-            self.halted = f"metering failed on {call.stage} ({metering}); paid calls of this run stop pending reconciliation"
+            self._halt("metering_unknown", f"metering failed on {call.stage} ({metering}); paid calls of this run stop pending reconciliation",
+                       call.stage, started_at_utc=started, reserved_usd=round(reservation, 6))
         choices = body.get("choices") or []
         message = (choices[0].get("message") or {}) if choices else {}
         text = message.get("content") or ""

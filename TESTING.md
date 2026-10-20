@@ -50,6 +50,17 @@ Public copies of development-profile runs are redacted (the team's gateway host 
 `REDACTION.json` naming its source run and the original manifest's digest, and its manifest is the export's own, so the
 check still passes and says so.
 
+Isolation (revision 9): the suite needs no credential, no private configuration and no network, and proves it. `tests/_isolation.py`,
+imported by `tests/__init__.py` before any test, removes provider credentials and private configuration from the test process,
+disables urllib's proxy discovery, and turns every connection or name lookup outside the loopback interface into a failure of the
+test that caused it; `tests/test_zz_isolation.py`, the last module of a discovery run, fails if any was attempted. Revision 9's own
+tests (`tests/test_revision9.py`) stop a run at an uncertain sandbox operation at every stage and check that nothing is sent afterwards,
+classify cut and stalled HTTP error bodies, 4xx and 5xx answers to spawns, polls and model calls, make the journal fail (disk full, I/O
+error, a half-written line, a read-back mismatch) before a spawn and before a poll, recover interrupted runs from their journals, and
+hold the console and the harness after a stop. `reports/attest-revision9-repairs-2026-10-20/repro/repro_revision9.py --code <checkout>`
+reproduces each of the revision-8 defects against a checkout and reports PASS or FAIL per check, so it can be run on the code before
+and after the repair.
+
 ## 2. The live console (no credentials; one click costs us, not you)
 
 https://attest.axiqo.xyz shows recorded evidence first. Open any run: the decision header, the exhibits E1 to E7, the
@@ -83,4 +94,6 @@ each batch bundle's package digest and provider profile with its batch's registr
 Final-tree rule (revision 7): the suite counts that a pin records come from a clean checkout of the pinned commit of the
 review repository (`git worktree add --detach <dir> <commit>`, then `python -m unittest discover -s tests -t .` inside it),
 run after the batch, the reports and the export exist. A run in the private working tree is reported separately: it holds
-private evidence and file modes that a clean checkout does not have.
+private evidence and file modes that a clean checkout does not have. Since revision 9 that run is made with an empty environment
+(no credential, HOME pointing to an empty directory) and with outbound network access blocked by the operating system, in addition
+to the suite's own guard.

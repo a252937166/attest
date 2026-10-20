@@ -7,7 +7,8 @@ What it recomputes, without any network or sandbox access:
 3. the sealed, adversarial, existing and held-out bindings from the raw supervisor results in verify_raw.json, the per-test
    outcomes the bundle summarises from them, every evaluated mutant's classification, and the base and mutant evidence of
    every validated correction;
-4. the ledger totals from the individual model calls;
+4. the ledger totals from the individual model calls, and (protocol 5, revision 9) the reconciliation record from the ledger's records:
+   every operation whose outcome is unknown must be listed, and a run that lists one, or that halted, must be ERROR;
 5. the gate records against the stage records they summarise, and the gate-to-verdict rule;
 6. PROOF.md, re-rendered from proof_bundle.json (compared byte for byte when the bundle was produced by this Attest revision).
 
@@ -43,7 +44,8 @@ from .pipeline import (base_discrimination, classification_problems, classify_mu
                        requirement_provenance)
 from .prompts import WITNESS_EXIT_CODE, WITNESS_MARKER
 from .sealed import bind_modules, bind_verification, static_test_ids, summarize
-from .verdict import EVIDENCE_PROTOCOL_VERSION, expected_verdict, legacy_clearing_allowed, protocol_version
+from ..ledger import item_key, reconciliation_items_from
+from .verdict import EVIDENCE_PROTOCOL_VERSION, PROTOCOL_SINCE, expected_verdict, legacy_clearing_allowed, protocol_version
 from .witness import WITNESS_LANGUAGE, Repository, analyze_witness
 
 RAW_FILE = "verify_raw.json"
@@ -356,7 +358,17 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
     elif protocol > EVIDENCE_PROTOCOL_VERSION:
         report.add("evidence_protocol", False, f"evidence protocol {protocol} is newer than this checker supports ({EVIDENCE_PROTOCOL_VERSION})")
     else:
-        report.add("evidence_protocol", True, f"evidence protocol version {protocol}: the complete evidence for the verdict is required")
+        recorded_version = str((bundle.get("provenance") or {}).get("attest_version") or "")
+        try:
+            version_tuple = tuple(int(part) for part in recorded_version.split(".")[:3])
+        except ValueError:
+            version_tuple = ()
+        expected = max((p for p, since in PROTOCOL_SINCE.items() if version_tuple and version_tuple >= since), default=None)
+        if expected is not None and protocol < expected:
+            report.add("evidence_protocol", False, f"the bundle records Attest {recorded_version}, which writes evidence protocol {expected}, but declares "
+                                                   f"{protocol}; a downgraded protocol claim is not accepted")
+        else:
+            report.add("evidence_protocol", True, f"evidence protocol version {protocol}: the complete evidence for the verdict is required")
     redaction_path = run_dir / REDACTION_FILE
     if redaction_path.is_file():
         try:
@@ -674,7 +686,20 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
             problems.append("sandbox_uncertain")
         if any(c.get("request_sent") is False and (c.get("cost_usd") or 0.0) != 0.0 for c in calls):
             problems.append("a call recorded as never sent carries a cost")
+        # revision 9 counters, recomputed when present
+        recomputed_items = reconciliation_items_from(calls, ops, ledger.get("halt"), ledger.get("halt_events"), ledger.get("open_reservations"))
+        if totals.get("sandbox_rejected") is not None and totals["sandbox_rejected"] != sum(1 for o in ops if o.get("status") == "REJECTED"):
+            problems.append("sandbox_rejected")
+        if totals.get("calls_uncertain") is not None and totals["calls_uncertain"] != sum(1 for i in recomputed_items if i["kind"] == "model_call"):
+            problems.append("calls_uncertain")
+        if totals.get("halted") is not None and bool(totals["halted"]) != bool(ledger.get("halt")):
+            problems.append("halted")
+        if totals.get("reconciliation_items") is not None and totals["reconciliation_items"] != len(recomputed_items):
+            problems.append("reconciliation_items")
         report.add("ledger_totals", not problems, "totals recomputed from the individual records " + ("match" if not problems else "differ: " + "; ".join(problems)))
+
+    # 4b. reconciliation (revision 9): an operation whose outcome is unknown never stands behind a verdict other than ERROR
+    reconciliation_check(bundle, report, protocol)
 
     # 5. gates against stage records, then the verdict rule
     gates = bundle.get("gates") or {}
@@ -775,6 +800,42 @@ def check_run_dir(run_dir: Path, report: Report) -> dict:
     else:
         report.add("proof_md_present", False, "PROOF.md missing", severity="error" if current else "warning")
     return bundle
+
+
+def reconciliation_check(bundle: dict, report: Report, protocol: int | None) -> None:
+    """Protocol 5: the bundle's reconciliation record must equal the one recomputed from its ledger (the same items, required exactly
+    when an item exists or the run halted, the same halt record), and a required record goes with verdict ERROR. Earlier bundles have
+    no record; when their ledger shows an operation whose outcome was unknown under a verdict other than ERROR (the run went on after it,
+    as runs did before revision 9), that is reported as a warning."""
+    ledger = bundle.get("ledger") or {}
+    items = reconciliation_items_from(ledger.get("model_calls") or [], ledger.get("sandbox_ops") or [], ledger.get("halt"), ledger.get("halt_events"),
+                                      ledger.get("open_reservations"))
+    verdict = (bundle.get("verdict") or {}).get("verdict")
+    if protocol is not None and protocol >= 5:
+        record = bundle.get("reconciliation")
+        if not isinstance(record, dict):
+            report.add("reconciliation_record", False, "evidence protocol 5 requires the reconciliation record; the bundle has none")
+            return
+        problems = []
+        should = bool(items) or bool(ledger.get("halt"))
+        if bool(record.get("required")) != should:
+            problems.append(f"required is {bool(record.get('required'))} but the ledger gives {should}")
+        recorded_keys = sorted(map(str, (item_key(i) for i in record.get("items") or [] if isinstance(i, dict))))
+        recomputed_keys = sorted(map(str, (item_key(i) for i in items)))
+        if recorded_keys != recomputed_keys:
+            problems.append(f"{len(record.get('items') or [])} item(s) recorded, {len(items)} recomputed from the ledger")
+        if (record.get("halt") or None) != (ledger.get("halt") or None):
+            problems.append("the halt record differs from the ledger's")
+        if should and verdict != "ERROR":
+            problems.append(f"operations to reconcile under verdict {verdict}")
+        report.add("reconciliation_record", not problems,
+                   (f"{len(items)} operation(s) to reconcile, verdict ERROR as required" if should else "nothing to reconcile")
+                   if not problems else "reconciliation record inconsistent: " + "; ".join(problems))
+        return
+    if items and verdict != "ERROR":
+        kinds = ", ".join(sorted({f"{i['kind']} at {i.get('stage')}" for i in items}))[:200]
+        report.add("reconciliation_record", None, f"{len(items)} operation(s) with an unknown outcome ({kinds}) under verdict {verdict}: recorded before "
+                   "revision 9, when a run went on after such an operation; reconcile them before relying on this verdict", severity="warning")
 
 
 def check_bundle(path: str | Path) -> dict:

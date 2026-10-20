@@ -145,6 +145,22 @@ the home page's replay, which claimed "offline check 24 of 24 OK" for a 17 Oct b
 historical bundle with two warnings; 0.8.3, deployed at 23:55 UTC (`reports/attest-deployment-2026-10-19h/README.md`), is the
 version the console runs.
 
+Revision 9 (20 Oct 2026, version 0.9.0, `reports/attest-revision9-repairs-2026-10-20/README.md`) makes the stop rule hold for every
+operation, not only for model calls. A run now stops where an operation's outcome becomes uncertain, whatever the stage: a sandbox spawn
+whose answer was lost or came back HTTP 5xx, an accepted operation whose outcome could not be read, a model call answered 5xx after it was
+sent, a Tavily search whose answer was lost, or a journal that could not take a record. Nothing is sent afterwards (every client asks the
+run's ledger to admit each request, and a stopped run refuses), the bundle ends ERROR with a `reconciliation` record that lists every
+operation to settle and the read-only check that settles it (evidence protocol 5, recomputed by `attest check`), and nothing suggests
+running the stage again. Revision 8 had stopped only uncertain model calls: an uncertain sandbox operation in the breaker became a plain
+model error and the run went on to the drift audit, and after an uncertain witness or mutant spawn a run could still end VERIFIED, as two
+recorded development runs of 17 Oct did. A sandbox operation is journaled durably as PENDING before its spawn is sent and its accepted id
+before the first poll; when the journal cannot take either, nothing further is dispatched. HTTP answers are classified once: 4xx is a
+refusal, 5xx is uncertain, reads are retried with bounded backoff, and a cut error body keeps its status. The console holds new runs while a
+stopped run awaits reconciliation, the evaluation harness halts every cell in flight and never judges a stopped one, and the offline
+suite runs without credentials, private configuration or network (it fails if any test reaches outside the loopback interface). The
+review repository stays the private record; `scripts/build_publication_history.py` replays its history into a separate, publishable
+repository with the private gateway host removed from every historical file, keeping every recorded digest (`FREEZE.md`).
+
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).
@@ -154,7 +170,8 @@ The Attest application was not redeployed and the recorded evaluation was not re
 
 Start with `TESTING.md` (offline tests in 15 seconds, `attest check` on a recorded bundle, the live console, your own
 repository), `METHOD.md` (the frozen evaluation method) and `FREEZE.md` (the pinned commit, digests, models, limits and
-the exact evaluation command). Every dated report under `reports/` keeps its failed and inconclusive runs; rehearsals by
+the exact evaluation command; since revision 9 each pinned commit is named in the publication repository too, where
+`publication-map.json` translates the review-repository commit ids that historical records cite). Every dated report under `reports/` keeps its failed and inconclusive runs; rehearsals by
 the project's own agents are labelled as rehearsals, not as user testing.
 
 ## Deployment targets
@@ -167,8 +184,10 @@ The final console, API, orchestration, and application data/database when needed
 attest/
   secrets.py              private credential loading (env, then the private vault notes; never written to artifacts)
   http.py                 TLS-verified JSON client; records how far each request got: a request that was never sent may be
-                          sent again (bounded), an uncertain POST is never replayed
-  ledger.py               model-call and sandbox-operation ledgers
+                          sent again (bounded), an uncertain POST is never replayed; one classification of a failed POST
+                          (not sent, rejected by a 4xx, uncertain) and of a retryable read; cut error bodies keep their status
+  ledger.py               model-call and sandbox-operation ledgers and their journal; the run's stop state (halt, admit) and
+                          the list of everything left to reconcile
   models/codex_gateway.py        development provider: self-hosted Codex gateway, POST /v1/run with output_schema
   models/nebius_tokenfactory.py  submission provider: NVIDIA Nemotron on Token Factory, json_schema response format, USD cap
   sandbox/tf_sandboxes.py        Token Factory Sandboxes REST adapter: checkpoint + disposable networking-off branches
@@ -187,8 +206,8 @@ attest/
   core/provenance.py      Attest revision digest, supervisor/child/canary/runner digests, sampling parameters, limits, upstream
   core/manifest.py        manifest.json (v2): sha256, size and purpose of every artifact, complete listing required, no links (written last)
   core/check.py           `attest check`: offline recomputation of digests, bindings, mutants, corrections, ledger totals, verdict rule and
-                          PROOF.md; strict for current bundles (evidence protocol 2 or 3, mandatory records derived from the
-                          frozen task and the execution mode), historical mode for older ones
+                          PROOF.md; strict for current bundles (evidence protocol 2 to 5, mandatory records derived from the
+                          frozen task and the execution mode; under 5 the reconciliation record), historical mode for older ones
   core/witness.py         the constrained witness language attest-witness/1: positive grammar, static call-origin resolution
                           against the frozen repository, shared by the pipeline and `attest check`
   core/diagnostics.py     public error vocabulary with correlation references; the raw text of every failure goes to a private
@@ -205,6 +224,8 @@ scripts/usage_report.py   deduplicated usage by provider and day (keyed by bundl
 scripts/sandbox_adversarial_tests.py  real-sandbox adversarial scenarios for the supervisor (forgery, hook planting, legacy order)
 scripts/check_export_provenance.py   every exported bundle: attest check, identity with its source, its batch's registration
 scripts/console_layout_audit.py      the console in Chrome at 320 to 1440 px: anything wider than the viewport, every non-GET blocked
+scripts/scan_publication_history.py  every object of a git repository: the private hosts in any spelling, secret-like tokens
+scripts/build_publication_history.py the review history replayed into a separate publishable repository, private strings removed
 examples/durationkit-task/     sample repository (unittest) and task.json
 examples/semver-is-compatible/ python-semver at the parent of PR #368, pinned pytest, upstream held-out tests
 tests/                    offline harness tests: adversarial verification scenarios, verification order, canaries, bound
@@ -237,6 +258,10 @@ python3 -m attest import --github https://github.com/<owner>/<repo> --commit <40
 python3 scripts/replay_holds.py --run <run-dir> --task <task.json> --module original=<tests.py> --out replay.json [--sandbox]  # re-run breaker tests on candidate and base
 python3 scripts/run_evaluation.py --resume reports/<batch-dir>     # continue an interrupted batch from its own snapshot and registered configuration (cells never executed only; conflicting flags are refused)
 python3 scripts/export_public.py --out dist/public                 # allowlisted, redacted copy for the public repository, with a secret scan
+python3 scripts/build_publication_history.py --review dist/public --out dist/publication --map map.json --verify verify.json   # publishable history
+python3 scripts/scan_publication_history.py --repo dist/publication   # every object, every spelling; exit 1 on any hit
+python3 -m attest reconcile runs/<run-id>                          # what a stopped or interrupted run left to reconcile (offline)
+python3 -m attest holds --db data/attest.db [--clear HOLD_ID --note TEXT]   # the console's reconciliation holds
 python3 -m attest run --task examples/eval/rle-encode/task.json --out runs --provider codex --arbitration-advisory   # record corrections, never re-run a gate on them
 ```
 
@@ -315,8 +340,9 @@ least one sealed test failed with an authentic child result under a structurally
 passed authentically, and otherwise as unknown (excluded from the score). The policy is recorded in the bundle and `attest
 check` reclassifies every mutant from its raw result.
 
-Evidence protocol (revisions 5 to 7): every bundle declares `evidence_protocol.version` (2 for revision 5, 3 for revision 6,
-4 since revision 7). `attest check` requires the complete evidence for a current bundle's verdict and reports `EVIDENCE COMPLETE` only when
+Evidence protocol (revisions 5 to 9): every bundle declares `evidence_protocol.version` (2 for revision 5, 3 for revision 6,
+4 for revisions 7 and 8, 5 since revision 9, whose bundles carry the reconciliation record that `attest check` recomputes from the
+ledger: a bundle that lists an operation of unknown outcome, or whose run halted, must be ERROR). `attest check` requires the complete evidence for a current bundle's verdict and reports `EVIDENCE COMPLETE` only when
 the digests, the complete manifest and that evidence all check; a bundle without the field is historical (internal
 consistency only, never fully verified), and the former explicit apply mode (`cleared_by_arbitration`) is honoured only for
 historical bundles started before 19 Oct 2026. Under version 3 the mandatory records are derived from the frozen task and
@@ -336,7 +362,9 @@ restart reconciliation and the harness's resume use for interrupted runs. Transp
 their reservation; nothing uncertain is ever replayed. Since revision 6 every append is written, flushed, fsynced and read back;
 a line that an earlier failed append cut short is terminated by a `journal_repair` record before anything else is appended
 (the cut record is lost, its reservation stays open at its bound), a reservation that cannot be journaled and verified halts
-paid dispatch, and a failed settlement marks the ledger `journal_degraded` until a later reservation reads back intact.
+paid dispatch, and a failed settlement marks the ledger `journal_degraded` until a later reservation reads back intact. Since
+revision 9 sandbox operations are journaled the same way, as PENDING before the spawn and with their accepted id before the first
+poll, development-gateway calls take a zero-USD pending record, and any of these failures halts the run.
 
 Order rule: the sealed supervisor is the only step of the verification branch; nothing that imports candidate code runs
 before it in the same sandbox operation. The repository's own suite and the held-out suite run afterwards in their own

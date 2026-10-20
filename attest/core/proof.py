@@ -343,6 +343,22 @@ def render_markdown(bundle: dict) -> str:
             "\n".join(f"- {r}" for r in d.get("reasons") or []),
             "",
         ]
+    reconciliation = bundle.get("reconciliation") or {}
+    if reconciliation.get("required"):
+        halt = reconciliation.get("halt") or {}
+        parts += [
+            "## 12b. Reconciliation (nothing of this run is sent again)",
+            f"The run stopped at stage `{halt.get('stage') or '-'}` ({halt.get('kind') or 'unknown cause'}) at {halt.get('at_utc') or '-'}: "
+            f"{halt.get('reason') or '-'}. Each item below is settled by a human with the read-only check it names.",
+            "",
+            _table([[i.get("kind"), i.get("service"), i.get("stage"), i.get("operation_uuid") or i.get("op_id") or i.get("reservation_id") or "-",
+                     i.get("status") or i.get("phase") or "-", i.get("started_at_utc") or "-", i.get("how")] for i in reconciliation.get("items") or []],
+                   ["Item", "Service", "Stage", "Operation", "State", "Started", "How to settle it"])
+            if reconciliation.get("items") else "No operation is left to settle on a provider's side; the stop concerns this run's own record.",
+            "",
+            f"Rule: {reconciliation.get('rule') or ''}",
+            "",
+        ]
     parts += [
         "## 13. Artifacts",
         f"Every file of the run directory is listed in `{MANIFEST_FILE}` with its sha256 and size (written last, so it covers this file and "

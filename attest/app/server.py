@@ -30,6 +30,9 @@ must also carry the header `X-Attest-Confirm: start-run`, which the console send
 after the cost is shown. Without it the answer is 428 before anything else happens: no row, queue entry, reservation or provider.
 Automated checks, crawlers and probes that copy a body therefore cannot start a run by accident.
 
+Reconciliation holds (revision 9): while a run that stopped for reconciliation is held, admission is refused with 503 (nothing is
+queued) and `/api/health` reports the open holds under `reconciliation` (their run ids only to the team).
+
 Requester identity (API-01): the hourly visitor quota uses the peer address, unless the peer is one of the trusted proxies
 (`ATTEST_TRUSTED_PROXIES`, default the loopback addresses of the nginx vhost on the same host), in which case the LAST
 X-Forwarded-For item is used, validated as an IP literal. A caller cannot choose its own identity.
@@ -452,7 +455,12 @@ def health(request: Request):
     # executing=False: the health report describes the service as it is; an idle service has zero active reservations
     budget_ok, budget_detail = store.nebius_budget_ok(worker.per_run_usd_cap, worker.daily_usd_cap, today, executing=False)
     remaining = store.nebius_remaining(worker.per_run_usd_cap, worker.daily_usd_cap, today)
-    return {"ok": True, "version": __version__, "worker_alive": alive, "worker_restarts": worker.restarts,
+    holds = store.active_holds()
+    reconciliation = {"holds_open": len(holds), "accepting_runs": not holds,
+                      "policy": "a run that stopped because an operation's outcome is uncertain is held; no run starts until an operator reconciles it"}
+    if team:
+        reconciliation["held_runs"] = [h.get("run_id") for h in holds]
+    return {"ok": True, "version": __version__, "worker_alive": alive, "worker_restarts": worker.restarts, "reconciliation": reconciliation,
             "ready": alive and not disk.get("low"), "queue": worker.queue.qsize(), "busy": worker.current is not None,
             "current": _current_ref(team), "time_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
             "disk": {"free_mb": disk.get("free_mb"), "free_frac": disk.get("free_frac"), "low": disk.get("low"),

@@ -118,6 +118,7 @@ def run_sandbox(task: TaskSpec, snapshot: dict[str, bytes], changed_by_module: l
     from attest.sandbox.tf_sandboxes import TokenFactorySandboxes
     from attest.secrets import load_secret, project_id
     ledger = Ledger()
+    ledger.attach_sink(Path(tempfile.mkdtemp(prefix="attest-replay-ledger-")) / "ledger.jsonl")  # operations are journaled before dispatch (revision 9)
     executor = TokenFactorySandboxes(load_secret("NEBIUS_API_KEY"), project_id(), ledger)
     image = executor.resolve_image(task.base_image)
     steps = []

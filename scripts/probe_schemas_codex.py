@@ -41,6 +41,7 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     ledger = Ledger()
+    ledger.attach_sink(Path(args.out).with_suffix(".ledger.jsonl"))  # every call takes a pending record before it is sent (revision 9)
     client = CodexGateway(load_secret("CODEX_API_KEY"), ledger, notify=lambda m: print(f"[pacing] {m}", flush=True))
     results = []
     for name, (role, prompt) in PROBES.items():

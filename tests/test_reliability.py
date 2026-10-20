@@ -191,6 +191,20 @@ class ExhibitsTimeouts(unittest.TestCase):
         self.assertEqual(example["duration_s"], 60.0)
 
 
+SYNTHETIC_GATEWAY = "https://gateway.invalid/v1"  # never resolved: the offline suite blocks every name outside the loopback interface
+
+
+def journaled_ledger(test: unittest.TestCase) -> Ledger:
+    """A ledger with a journal in a temporary directory: every model call takes a pending record before it is sent (revision 9)."""
+    import shutil
+    import tempfile
+    directory = Path(tempfile.mkdtemp(prefix="attest-reliability-"))
+    test.addCleanup(lambda: shutil.rmtree(directory, ignore_errors=True))
+    ledger = Ledger()
+    ledger.attach_sink(directory / "ledger.jsonl")
+    return ledger
+
+
 class FakeClock:
     def __init__(self, start=1_700_000_000.0):
         self.now = start
@@ -297,9 +311,10 @@ class CodexClientPacing(unittest.TestCase):
     def client(self, responses, max_wait_s=3900):
         clock = FakeClock()
         gov = RateGovernor("k", max_wait_s=max_wait_s, time_fn=clock.time, sleep_fn=clock.sleep)
-        ledger = Ledger()
+        ledger = journaled_ledger(self)
         messages = []
-        client = CodexGateway("cxk_test", ledger, governor=gov, notify=messages.append)
+        # an explicit synthetic gateway: the test never depends on the developer's private configuration (revision 9)
+        client = CodexGateway("cxk_test", ledger, base_url=SYNTHETIC_GATEWAY, governor=gov, notify=messages.append)
         client._catalog = {"gpt-6-sol": ["low", "medium"], "gpt-6-astra": ["low", "medium"], "gpt-6-luna": ["low"]}
         calls = []
 
@@ -461,8 +476,8 @@ class GovernorPolicy(unittest.TestCase):
     def test_client_adopts_the_gateway_policy_before_the_first_request(self):
         clock = FakeClock()
         gov = RateGovernor("k", time_fn=clock.time, sleep_fn=clock.sleep)
-        ledger = Ledger()
-        client = CodexGateway("cxk_test", ledger, governor=gov)
+        ledger = journaled_ledger(self)
+        client = CodexGateway("cxk_test", ledger, base_url=SYNTHETIC_GATEWAY, governor=gov)
         client._catalog = {"gpt-6-sol": ["medium"]}
         ok = {"model": "gpt-6-sol", "effort": "medium", "json": {"result": 4}, "output": "{}", "usage": {}, "duration_ms": 1}
         status = {"limits": {"hourly_requests": None, "hourly_requests_enforced": False, "max_concurrent_requests": 1}}
@@ -471,13 +486,22 @@ class GovernorPolicy(unittest.TestCase):
             if url.endswith("/status"):
                 return 200, status, {}
             return 200, ok, {}
-        with mock.patch("attest.models.codex_gateway.request_json", fake_request):
+        requests_made = []
+
+        def counting(method, url, headers, payload=None, timeout=60, max_bytes=0):
+            requests_made.append(url)
+            return fake_request(method, url, headers, payload, timeout, max_bytes)
+        with mock.patch("attest.models.codex_gateway.request_json", counting):
             client.structured("implement", "p", {"type": "object", "properties": {"result": {"type": "integer"}}, "required": ["result"]}, "s")
-        self.assertIsNone(gov.budget)
-        self.assertIn("not enforced", client.describe()["pacing"]["policy_source"])
+            self.assertIsNone(gov.budget)
+            before = len(requests_made)
+            # inside the mock: until revision 9 this ran after the mock had ended and, because the refresh window compared the governor's
+            # fake clock with the real one, sent a real GET /status to whatever gateway the developer's configuration named
+            self.assertIn("not enforced", client.describe()["pacing"]["policy_source"])
+            self.assertEqual(len(requests_made), before, "describe() within the policy window sends nothing")
         # describe() itself adopts the policy, so a bundle's provenance shows the adopted policy even before the first call
         gov3 = RateGovernor("k3", time_fn=clock.time, sleep_fn=clock.sleep)
-        client3 = CodexGateway("cxk_test", ledger, governor=gov3)
+        client3 = CodexGateway("cxk_test", ledger, base_url=SYNTHETIC_GATEWAY, governor=gov3)
         with mock.patch("attest.models.codex_gateway.request_json", fake_request):
             self.assertIn("not enforced", client3.describe()["pacing"]["policy_source"])
         self.assertIsNone(gov3.budget)
@@ -487,7 +511,7 @@ class GovernorPolicy(unittest.TestCase):
                 raise TransportError("timed out")
             return 200, ok, {}
         gov2 = RateGovernor("k2", time_fn=clock.time, sleep_fn=clock.sleep)
-        client2 = CodexGateway("cxk_test", ledger, governor=gov2)
+        client2 = CodexGateway("cxk_test", ledger, base_url=SYNTHETIC_GATEWAY, governor=gov2)
         client2._catalog = {"gpt-6-sol": ["medium"]}
         with mock.patch("attest.models.codex_gateway.request_json", failing_status):
             client2.structured("implement", "p", {"type": "object", "properties": {"result": {"type": "integer"}}, "required": ["result"]}, "s")

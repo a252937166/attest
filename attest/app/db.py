@@ -16,6 +16,12 @@ migrated and back-filled at startup.
 
 Failures (API-09): `record_failure` keeps the operator-facing message in `error`, the full traceback in `error_detail` and a
 correlation reference in `error_ref`; the API publishes only `error_code` and a neutral message carrying the reference.
+
+Reconciliation holds (revision 9, 20 Oct 2026): a run that stopped for reconciliation (an operation whose outcome is uncertain, a record
+that could not be made durable), or that a restart found with operations whose outcome is unknown in its journal, is recorded with
+`error_code` `reconciliation_required` and opens a hold (table `holds`). While any hold is open the worker starts nothing (queued runs
+end `paused_for_reconciliation`, admission is refused) and retention keeps the held run's directory. Only an operator clears a hold,
+with a note, after reconciling its items (`python -m attest holds`); clearing never sends anything.
 """
 
 from __future__ import annotations
@@ -45,6 +51,10 @@ CREATE TABLE IF NOT EXISTS events (
   PRIMARY KEY (run_id, seq)
 );
 CREATE INDEX IF NOT EXISTS runs_created ON runs(created_at DESC);
+CREATE TABLE IF NOT EXISTS holds (
+  hold_id TEXT PRIMARY KEY, run_id TEXT, created_at TEXT NOT NULL, reason TEXT NOT NULL, items TEXT,
+  cleared_at TEXT, cleared_note TEXT
+);
 """
 
 # Columns added after the first release, with the DDL that adds them to an older database.
@@ -76,6 +86,8 @@ ERROR_TEXT = {
     "budget_exhausted": "the daily inference budget was exhausted before this run could start",
     "disk_low": "the service paused new runs because disk space was low",
     "queue_full": "the run queue was full when this run was admitted",
+    "reconciliation_required": "the run stopped because an operation's outcome is uncertain; nothing was sent again and it is held for reconciliation",
+    "paused_for_reconciliation": "the run was not started: the service pauses new runs while an earlier run is reconciled",
 }
 
 
@@ -289,6 +301,40 @@ class Store:
                         error_detail=(detail or message)[-20000:], **fields)
         return ref
 
+    # ------------------------------------------------------------------ reconciliation holds (revision 9)
+    def add_hold(self, run_id: str | None, reason: str, items: list | None = None) -> str:
+        """Open a hold: the worker starts nothing until an operator clears it. Returns the hold id."""
+        hold_id = uuid.uuid4().hex[:12]
+        self._write("INSERT INTO holds (hold_id, run_id, created_at, reason, items) VALUES (?, ?, ?, ?, ?)",
+                    (hold_id, run_id, utcnow(), str(reason)[:2000], json.dumps(items or [], ensure_ascii=False, default=str)[:200_000]))
+        LOG.error("reconciliation hold %s opened for run %s: %s", hold_id, run_id, reason)
+        return hold_id
+
+    def holds(self, active_only: bool = True) -> list[dict]:
+        rows = self._rows("SELECT * FROM holds " + ("WHERE cleared_at IS NULL " if active_only else "") + "ORDER BY created_at, hold_id")
+        out = []
+        for row in rows:
+            data = dict(row)
+            try:
+                data["items"] = json.loads(data.get("items") or "[]")
+            except json.JSONDecodeError:
+                data["items"] = []
+            out.append(data)
+        return out
+
+    def active_holds(self) -> list[dict]:
+        return self.holds(active_only=True)
+
+    def clear_hold(self, hold_id: str, note: str) -> bool:
+        """Close a hold after reconciliation; the note says what was found. Returns False when no open hold has this id."""
+        if not str(note or "").strip():
+            raise ValueError("a hold is cleared only with a note saying what the reconciliation found")
+        changed = self._write("UPDATE holds SET cleared_at = ?, cleared_note = ? WHERE hold_id = ? AND cleared_at IS NULL",
+                              (utcnow(), str(note)[:2000], hold_id))
+        if changed:
+            LOG.warning("reconciliation hold %s cleared: %s", hold_id, note)
+        return bool(changed)
+
     def finalize_interrupted(self, run_id: str, per_run_cap: float | None = None, detail: str | None = None) -> dict:
         """Settle one queued or running row whose worker is gone (a restart, or the worker thread dying mid-run). A run whose
         bundle landed on disk is finalized from it. Otherwise it is marked errored (interrupted); a Nebius run takes its
@@ -333,9 +379,20 @@ class Store:
         if unread:  # revision 8: accepted sandbox operations whose outcome the run never read; the ids stay for reconciliation
             message += (f"; {len(unread)} sandbox operation(s) were accepted but their outcome was never read ({', '.join(unread[:5])}); "
                         "reconcile with GET /operations/<id>; nothing is replayed")
-        self.record_failure(run_id, "interrupted" if detail is None else "worker_interrupted", message, detail=detail, **fields)
+        unresolved = list((journal or {}).get("spawns_unresolved") or [])
+        if unresolved:  # revision 9: spawns that were sent (or being sent) and never answered
+            message += (f"; {len(unresolved)} sandbox spawn(s) were sent but never answered ({', '.join(str(u.get('stage')) for u in unresolved[:5])}); "
+                        "reconcile by listing the account's operations around their start; nothing is replayed")
+        items = list((journal or {}).get("reconciliation_items") or [])
+        in_flight = [i for i in items if i.get("kind") == "model_call_in_flight"]
+        if in_flight:
+            message += f"; {len(in_flight)} model call(s) were in flight (a pending record without a call record)"
+        needs = bool((journal or {}).get("reconciliation_required"))
+        code = "reconciliation_required" if needs else ("interrupted" if detail is None else "worker_interrupted")
+        self.record_failure(run_id, code, message, detail=detail, **fields)
+        hold = self.add_hold(run_id, f"interrupted with {len(items)} operation(s) whose outcome is unknown", items) if needs else None
         return {"run_id": run_id, "action": "interrupted", "cost_committed_usd": fields.get("cost_committed_usd"), "journal": bool(journal),
-                "operations_unread": unread}
+                "operations_unread": unread, "spawns_unresolved": unresolved, "reconciliation_items": len(items), "hold": hold}
 
     def reconcile_interrupted(self, per_run_cap: float | None = None) -> list[dict]:
         """After a restart, no worker is running the rows left 'queued'/'running': settle each one (`finalize_interrupted`).
@@ -349,6 +406,7 @@ class Store:
         `keep_errors` errored runs; delete the directories of older ones (their rows and accounting stay). Never touches a
         queued or running run, a protected verdict, or a directory outside `data_runs_dir` (imported evidence lives elsewhere)."""
         base = str(Path(data_runs_dir).resolve())
+        held = {h.get("run_id") for h in self.active_holds()}  # a held run's evidence stays until its hold is cleared (revision 9)
         rows = self._rows("SELECT run_id, out_dir, verdict, status FROM runs WHERE status IN ('finished', 'error') AND out_dir IS NOT NULL "
                           "ORDER BY created_at DESC")
         budgets = {"finished": keep, "error": keep_errors}
@@ -363,7 +421,7 @@ class Store:
                 continue  # imported evidence, the run root itself, or anything outside the console's own run directory is left alone
             kind = row["status"]
             seen[kind] += 1
-            if seen[kind] <= budgets[kind] or row["verdict"] in protect:
+            if seen[kind] <= budgets[kind] or row["verdict"] in protect or row["run_id"] in held:
                 continue
             try:
                 if Path(resolved).is_dir():

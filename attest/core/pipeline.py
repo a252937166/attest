@@ -13,6 +13,14 @@ than the candidate, is at fault); only a test the supervisor killed at its timeo
 incomplete or non-isolated execution results are never evidence of anything (CORE-01/03): they leave a mutant unknown and a
 correction unvalidated. NO CHANGE distinguishes "finished without editing" from "turn budget exhausted without a patch"
 (an unfinished task, never a successful repair).
+
+Stop for reconciliation (revision 9, 20 Oct 2026): every model call and every sandbox operation of a run goes through `ask`,
+`_branch`, `_create_checkpoint` or `_resolve_image`, which refuse once the run has stopped and turn any error that stops a run (an
+operation whose outcome is uncertain, an accepted operation whose outcome was not read, a record that could not be made durable, a
+request refused because the run had stopped) into `ReconciliationRequired`. Stage handlers that record an ordinary failure and go on
+(an unknown mutant, an unusable witness, an unavailable audit) let it pass, so the first such error ends the run where it happened:
+nothing further is sent, the bundle is written with verdict ERROR and a `reconciliation` record that lists every operation to settle
+and how, and no reason suggests running the stage again. An uncertain Tavily search ends the run the same way.
 """
 
 from __future__ import annotations
@@ -25,7 +33,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from ..ledger import JOURNAL_FILE, Ledger, utcnow
+from ..ledger import JOURNAL_FILE, Ledger, LedgerError, utcnow
 from ..models.base import ModelError
 from .diagnostics import SIDECAR_DIR, Diagnostics
 from .external import LIMITS as EXTERNAL_LIMITS, external_policy_problems, repository_problems
@@ -70,6 +78,32 @@ class PipelineAbort(RuntimeError):
         super().__init__(reason)
         self.verdict = verdict
         self.reason = reason
+
+
+class ReconciliationRequired(RuntimeError):
+    """The run stopped where an operation's outcome became uncertain or a record could not be made durable (revision 9). Raised at the
+    stop and handled by `run`, `run_baseline` and `judge_heldout`, never by a stage handler; `record` is the run's halt record."""
+
+    stops_run = True
+
+    def __init__(self, record: dict | None, stage: str | None = None):
+        self.record = dict(record or {})
+        self.stage = stage
+        super().__init__(f"stopped for reconciliation at {self.record.get('stage') or stage}: {self.record.get('reason')}")
+
+
+RECONCILIATION_RULE = ("once an operation's outcome is uncertain (a request that may have been executed and whose answer is unknown, an accepted "
+                       "operation whose outcome was not read, an answer that could not be priced) or a record of the run could not be made durable, "
+                       "the run sends nothing further: no model call, no sandbox operation, no poll; it ends ERROR with every such operation listed "
+                       "here with the read-only check that settles it, and none of them is ever sent again")
+
+
+def stops_run(error: BaseException) -> bool:
+    """Whether an error ends the run for reconciliation: its own `stops_run` when it has one, otherwise an uncertain outcome."""
+    flag = getattr(error, "stops_run", None)
+    if flag is not None:
+        return bool(flag)
+    return bool(getattr(error, "uncertain", False) or getattr(error, "accepted_unread", False))
 
 
 def _tail(text: str, limit: int = 3500) -> str:
@@ -408,8 +442,9 @@ class Pipeline:
                                   "note": ("a VERIFIED bundle of this protocol carries every gate with its raw supervisor result, every evaluated mutant's raw "
                                            "result, the base and mutant evidence of any validated correction, the contract audit and the ledger; an INFEASIBLE "
                                            "bundle carries the executed witness, its digest, output and operation, its analysis in the constrained witness "
-                                           "language and copies of the repository files that analysis resolved call origins through; a bundle without this "
-                                           "field is historical and is checked for internal consistency only"),
+                                           "language and copies of the repository files that analysis resolved call origins through; every bundle carries the "
+                                           "reconciliation record, and one that lists an operation whose outcome is unknown, or whose run halted, is ERROR; a "
+                                           "bundle without this field is historical and is checked for internal consistency only"),
                                   "witness_language": WITNESS_LANGUAGE}}
         self.bundle["provenance"] = build_provenance(provider.describe(), self.limits(), task.upstream)
 
@@ -526,7 +561,7 @@ class Pipeline:
             files.update(repo_suite_files(suite_dir, modules, GUEST_REPO, task.sealed_extra_paths(), canary=True))
             steps = sealed_steps(GUEST_PYTHON, GUEST_REPO, suite_dir, nonce, env=task.guest_env(), timeout=task.test_timeout,
                                  per_test_timeout=min(60, task.test_timeout), step_prefix=name)
-            run = self.executor.run_branch(checkpoint_uuid, files, steps, stage=name, deletes=deletes, timeout=task.test_timeout + 60)
+            run = self._branch(checkpoint_uuid, files, steps, stage=name, deletes=deletes, timeout=task.test_timeout + 60)
             result, summary = self.suite_outcome(run, nonce, name)
             self.raw_results[name] = result
             binding = bind_modules(result, modules, nonce)
@@ -538,8 +573,8 @@ class Pipeline:
                       "nonce": nonce, "canary_ok": summary.get("canary_ok"),
                       "modules": [{"name": m["name"], "sha256": m["sha256"], "tests": len(m["ids"]), "ids": m["ids"]} for m in modules]}
         else:
-            run = self.executor.run_branch(checkpoint_uuid, files, [self.existing_step(name)], stage=name, deletes=deletes,
-                                           timeout=task.test_timeout + 60)
+            run = self._branch(checkpoint_uuid, files, [self.existing_step(name)], stage=name, deletes=deletes,
+                               timeout=task.test_timeout + 60)
             parsed = self.parsed_step(run, name)
             parsed.update({"evidence_class": "stdout", "evidence_note": note, "binding": None})
         if heldout:
@@ -567,36 +602,129 @@ class Pipeline:
         return result, summary
 
 
+    # ----------------------------------------------------------------- stop for reconciliation (revision 9)
+    def _ensure_running(self, stage: str) -> None:
+        """Refuse before anything is sent once the run has stopped."""
+        halted = getattr(self.ledger, "halted", None)
+        if halted:
+            raise ReconciliationRequired(halted, stage)
+
+    def _stop_if_needed(self, error: BaseException, stage: str) -> None:
+        """Raise ReconciliationRequired when `error` ends the run; the run is halted here if the client did not do it already (a test
+        double, or an error raised before the client could record it). Returns quietly for an ordinary failure."""
+        if isinstance(error, ReconciliationRequired):
+            raise error
+        if not stops_run(error):
+            return
+        halted = getattr(self.ledger, "halted", None)
+        if not halted and hasattr(self.ledger, "halt"):
+            journal = isinstance(error, LedgerError) or bool(getattr(error, "journal_failed", False))
+            operation = {k: getattr(error, k, None) for k in ("operation_uuid", "op_id") if getattr(error, k, None)}
+            operation["service"] = "sandboxes" if type(error).__name__ == "SandboxError" else "inference" if isinstance(error, ModelError) else None
+            halted = self.ledger.halt("journal_failure" if journal else "uncertain_operation", self.diagnostics.public_text(stage, error), stage=stage,
+                                      operation=operation, detail=str(error))
+        raise ReconciliationRequired(halted or {"kind": "uncertain_operation", "stage": stage, "reason": self.diagnostics.public_text(stage, error)},
+                                     stage) from error
+
+    def _branch(self, image, files, steps, stage, deletes=None, timeout=120, networking=False):
+        """Every disposable sandbox branch of the run goes through here (revision 9)."""
+        self._ensure_running(stage)
+        kwargs = {"deletes": deletes, "timeout": timeout}
+        if networking:
+            kwargs["networking"] = networking
+        try:
+            return self.executor.run_branch(image, files, steps, stage=stage, **kwargs)
+        except Exception as error:  # noqa: BLE001 - a stop is converted, anything else is the caller's to handle
+            self._stop_if_needed(error, stage)
+            raise
+
+    def _create_checkpoint(self, image, files, steps, stage, timeout=120, networking=False):
+        self._ensure_running(stage)
+        try:
+            return self.executor.create_checkpoint(image, files, steps, stage=stage, timeout=timeout, networking=networking)
+        except Exception as error:  # noqa: BLE001
+            self._stop_if_needed(error, stage)
+            raise
+
+    def _resolve_image(self, tag: str) -> str:
+        self._ensure_running("resolve-image")
+        try:
+            return self.executor.resolve_image(tag)
+        except Exception as error:  # noqa: BLE001
+            self._stop_if_needed(error, "resolve-image")
+            raise
+
+    def _record_stop(self, stop: ReconciliationRequired) -> None:
+        """The verdict of a run that stopped for reconciliation: ERROR, one reason naming where and why, nothing suggesting a re-run."""
+        halt = getattr(self.ledger, "halted", None) or stop.record
+        where = halt.get("stage") or stop.stage or self.bundle.get("stage") or "an unrecorded stage"
+        kind = halt.get("kind")
+        tail = {"journal_failure": "a record of the run could not be made durable; nothing further was sent",
+                "metering_unknown": "a generated answer could not be priced; nothing further was sent",
+                "batch_stop": "another run of the batch stopped for reconciliation; nothing further was sent"}.get(
+                    kind, "outcome uncertain; not retried; nothing further was sent")
+        reason = (f"stopped for reconciliation at {where}: {halt.get('reason') or 'an operation whose outcome is uncertain'} ({tail}); every operation "
+                  "to settle is listed under reconciliation with the read-only check that settles it")
+        self.log(f"STOPPED FOR RECONCILIATION at {where} ({kind})", "reconciliation")
+        self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [reason], "warnings": self.bundle["verdict"].get("warnings", []),
+                                  "reconciliation_required": True}
+
     REPAIR_SUFFIX = ("\n\nYOUR PREVIOUS ANSWER WAS NOT A VALID JSON OBJECT FOR THE REQUIRED SCHEMA ({problem}). "
                      "Answer again with exactly one JSON object that matches the schema, with every required field, and nothing else.")
 
     def ask(self, role: str, prompt: str, schema: dict, stage: str):
-        """Structured call with one repair retry on a malformed answer; transport-uncertain failures are never retried."""
+        """Structured call with one repair retry on a malformed answer (a definite outcome: the answer arrived). A call whose outcome is
+        uncertain, or one refused because the run stopped, ends the run here (ReconciliationRequired); it is never retried."""
+        self._ensure_running(stage)
         try:
             return self.provider.structured(role, prompt, schema, stage)
-        except ModelError as error:
-            if error.uncertain or "schema" not in str(error):
+        except Exception as error:  # noqa: BLE001 - a stop is converted; an ordinary ModelError is the stage's to handle
+            self._stop_if_needed(error, stage)
+            if not isinstance(error, ModelError) or "schema" not in str(error):
                 raise
+            problem = self.diagnostics.public_text(f"{stage}-schema", error)
             self.log(f"{stage}: malformed answer, one repair retry ({self.diagnostics.public_text(stage, error)})")
-            return self.provider.structured(role, prompt + self.REPAIR_SUFFIX.format(problem=self.diagnostics.public_text(f"{stage}-schema", error)), schema, f"{stage}-repair")
+        repair = f"{stage}-repair"
+        self._ensure_running(repair)
+        try:
+            return self.provider.structured(role, prompt + self.REPAIR_SUFFIX.format(problem=problem), schema, repair)
+        except Exception as error:  # noqa: BLE001
+            self._stop_if_needed(error, repair)
+            raise
 
     # ----------------------------------------------------------------- lifecycle
+    def _as_stop(self, error: BaseException) -> ReconciliationRequired | None:
+        """A stopping error that reached `run` unconverted, as ReconciliationRequired (None for an ordinary error)."""
+        try:
+            self._stop_if_needed(error, self.bundle.get("stage") or "run")
+        except ReconciliationRequired as stop:
+            return stop
+        return None
+
     def run(self) -> dict:
         try:
             self._run()
+        except ReconciliationRequired as stop:
+            self._record_stop(stop)
         except PipelineAbort as abort:
             self.log(f"ABORT {abort.verdict}: {abort.reason}", "aborted")
             self.bundle["verdict"] = {"verdict": abort.verdict, "reasons": [abort.reason], "warnings": self.bundle["verdict"].get("warnings", [])}
         except ModelError as error:
-            public = self.diagnostics.public_text(self.bundle.get("stage") or "run", error)
-            self.log(f"MODEL ERROR: {public}", "error")
-            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [f"model provider: {public}" + (" (outcome uncertain; not retried)" if error.uncertain else "")],
-                                      "warnings": []}
-        except Exception as error:  # noqa: BLE001 - keep the evidence, then re-raise
-            public = self.diagnostics.public_text(self.bundle.get("stage") or "run", error)
-            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [public], "warnings": []}
-            self.finish()
-            raise
+            stop = self._as_stop(error)
+            if stop is not None:
+                self._record_stop(stop)
+            else:
+                public = self.diagnostics.public_text(self.bundle.get("stage") or "run", error)
+                self.log(f"MODEL ERROR: {public}", "error")
+                self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [f"model provider: {public}"], "warnings": []}
+        except Exception as error:  # noqa: BLE001 - keep the evidence, then re-raise (a stop is recorded and not re-raised)
+            stop = self._as_stop(error)
+            if stop is None:
+                public = self.diagnostics.public_text(self.bundle.get("stage") or "run", error)
+                self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [public], "warnings": []}
+                self.finish()
+                raise
+            self._record_stop(stop)
         return self.finish()
 
     def run_baseline(self) -> dict:
@@ -626,17 +754,31 @@ class Pipeline:
                                         "implementer_finished": finished}
             self.bundle["verdict"] = {"verdict": "BASELINE", "reasons": [] if finished else ["implementer did not finish"],
                                       "warnings": [], "finished": finished, "summary": finish_summary}
+        except ReconciliationRequired as stop:
+            self._record_stop(stop)
         except PipelineAbort as abort:
             self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [abort.reason], "warnings": []}
         except ModelError as error:
-            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [f"model provider: {self.diagnostics.public_text(self.bundle.get('stage') or 'baseline', error)}"],
-                                      "warnings": []}
+            stop = self._as_stop(error)
+            if stop is not None:
+                self._record_stop(stop)
+            else:
+                self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [f"model provider: {self.diagnostics.public_text(self.bundle.get('stage') or 'baseline', error)}"],
+                                          "warnings": []}
+        except Exception as error:  # noqa: BLE001 - a stop is recorded; anything else keeps the evidence and is re-raised
+            stop = self._as_stop(error)
+            if stop is None:
+                self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [self.diagnostics.public_text(self.bundle.get("stage") or "baseline", error)],
+                                          "warnings": []}
+                self.finish()
+                raise
+            self._record_stop(stop)
         return self.finish()
 
     def _checkpoint(self, snapshot: dict[str, bytes]) -> str:
         """Create the retained checkpoint (optional pinned install) and assert the existing suite passes on base."""
         task = self.task
-        base_image = self.executor.resolve_image(task.base_image)
+        base_image = self._resolve_image(task.base_image)
         self.bundle["execution"]["base_image_uuid"] = base_image
         steps = []
         if task.install_command:
@@ -644,8 +786,8 @@ class Pipeline:
                           "timeout": max(60, task.checkpoint_timeout - 60), "env": task.guest_env(), "stop_on_failure": True})
         steps.append(self.existing_step())
         self.log(f"creating checkpoint from {task.base_image} ({base_image}); networking={'on' if task.checkpoint_networking else 'off'}", "checkpoint")
-        checkpoint = self.executor.create_checkpoint(base_image, self.guest_files(snapshot), steps, stage="checkpoint",
-                                                     timeout=task.checkpoint_timeout, networking=task.checkpoint_networking)
+        checkpoint = self._create_checkpoint(base_image, self.guest_files(snapshot), steps, stage="checkpoint",
+                                             timeout=task.checkpoint_timeout, networking=task.checkpoint_networking)
         install = checkpoint.step("install")
         baseline = self.parsed_step(checkpoint, "existing")
         self.bundle["execution"].update({"checkpoint_operation_uuid": checkpoint.operation_uuid,
@@ -665,10 +807,16 @@ class Pipeline:
         final candidate in a fresh branch from the checkpoint. 'correct' means both pass. Reuses the checkpoint."""
         if not self.checkpoint_uuid:
             return {"error": "no checkpoint to judge against", "correct": False}
+        if getattr(self.ledger, "halted", None):
+            # the run stopped for reconciliation: the judge sends nothing either (revision 9)
+            return {"error": "not judged: the run stopped for reconciliation", "correct": None, "halted": True}
         guest_rel = "tests/test_heldout_eval.py"
         deletes = [f"{GUEST_REPO}/{rel}" for rel in self.final_deleted]
-        parsed = self.run_repo_suite("judge", self.checkpoint_uuid, self.final_changed, deletes,
-                                     heldout={guest_rel: heldout_src}, include_existing=True)
+        try:
+            parsed = self.run_repo_suite("judge", self.checkpoint_uuid, self.final_changed, deletes,
+                                         heldout={guest_rel: heldout_src}, include_existing=True)
+        except ReconciliationRequired:
+            return {"error": "not judged: the judge's sandbox operation stopped the run for reconciliation", "correct": None, "halted": True}
         return {"operation_uuid": parsed.get("operation_uuid"), "summary_line": parsed["summary_line"], "ran": parsed["ran"],
                 "passed": parsed["passed"], "failing": parsed["failing"], "correct": parsed["all_passed"],
                 "runner_error": parsed.get("runner_error"), "evidence_class": parsed.get("evidence_class"),
@@ -676,6 +824,17 @@ class Pipeline:
 
     def finish(self) -> dict:
         self.bundle["finished_at_utc"] = utcnow()
+        # the reconciliation record (revision 9, evidence protocol 5): required when the run stopped or when any operation's outcome is
+        # unknown; a run that stopped is ERROR, and a record listing an unknown outcome never stands behind another verdict
+        halt = getattr(self.ledger, "halted", None)
+        items = self.ledger.reconciliation_items() if hasattr(self.ledger, "reconciliation_items") else []
+        required = bool(halt) or bool(items)
+        if required and self.bundle["verdict"].get("verdict") != "ERROR":
+            self.bundle["verdict"] = {"verdict": "ERROR", "reasons": ["the run's record lists operations whose outcome is unknown, so no verdict about the "
+                                                                      "candidate can stand; they are listed under reconciliation"] + list(self.bundle["verdict"].get("reasons") or []),
+                                      "warnings": self.bundle["verdict"].get("warnings", []), "reconciliation_required": True}
+        self.bundle["reconciliation"] = {"required": required, "halt": halt, "halt_events": list(getattr(self.ledger, "halt_events", []) or []),
+                                         "items": items, "rule": RECONCILIATION_RULE}
         self.bundle["ledger"] = self.ledger.to_dict()
         self.bundle["limitations"] = self.limitations()
         self.save("ledger.json", self.bundle["ledger"])
@@ -716,6 +875,9 @@ class Pipeline:
             "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
             "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
             "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+            "Once an operation's outcome is uncertain, or a record of the run cannot be made durable, the run sends nothing further and ends ERROR "
+            "with every unsettled operation listed under reconciliation; such operations are settled by a human against the providers' records, "
+            "never by sending them again. Operations being polled in parallel when the run stops are not read further and are listed too.",
             "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial "
             "bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves.",
         ]
@@ -781,7 +943,7 @@ class Pipeline:
         self.log(f"frozen task {task.id} with {len(snapshot)} files, spec sha256 {frozen['spec_sha256'][:12]}", "freeze")
 
         # Stage 1: checkpoint (optional pinned install with networking), baseline existing tests.
-        base_image = self.executor.resolve_image(task.base_image)
+        base_image = self._resolve_image(task.base_image)
         self.bundle["execution"]["base_image_uuid"] = base_image
         steps = []
         if task.install_command:
@@ -789,8 +951,8 @@ class Pipeline:
                           "timeout": max(60, task.checkpoint_timeout - 60), "env": task.guest_env(), "stop_on_failure": True})
         steps.append(self.existing_step())
         self.log(f"creating checkpoint from {task.base_image} ({base_image}); networking={'on' if task.checkpoint_networking else 'off'}", "checkpoint")
-        checkpoint = self.executor.create_checkpoint(base_image, self.guest_files(snapshot), steps, stage="checkpoint",
-                                                     timeout=task.checkpoint_timeout, networking=task.checkpoint_networking)
+        checkpoint = self._create_checkpoint(base_image, self.guest_files(snapshot), steps, stage="checkpoint",
+                                             timeout=task.checkpoint_timeout, networking=task.checkpoint_networking)
         install = checkpoint.step("install")
         self.bundle["execution"]["install"] = ({"exit_code": install.exit_code, "duration_s": install.duration_s,
                                                 "stdout_tail": _tail(install.stdout, 1500), "stderr_tail": _tail(install.stderr, 1500)}
@@ -856,9 +1018,18 @@ class Pipeline:
 
         # Stage 2b: grounding of external references (Tavily), only when the specification asks for it.
         queries = list(spec.get("external_references_needed") or []) + list(task.extra.get("grounding_queries") or [])
+        if queries and self.tavily is not None:
+            self._ensure_running("ground")
         grounding = ground(queries, self.tavily)
         self.bundle["grounding"] = grounding
         self.save("grounding.json", grounding)
+        if grounding.get("uncertain"):
+            uncertain = grounding["uncertain"]
+            halted = self.ledger.halt("uncertain_operation", "a Tavily search's outcome is uncertain (its answer was lost after it was sent, or Tavily "
+                                                             "answered HTTP 5xx); no further search was sent", stage="ground",
+                                      operation={"service": "tavily", "query_index": uncertain.get("query_index"),
+                                                 "started_at_utc": uncertain.get("started_at_utc")})
+            raise ReconciliationRequired(halted, "ground")
         sources = sources_text(grounding)
         if grounding["calls"]:
             self.log(f"grounding: {grounding['calls']} Tavily calls, {len(grounding['sources'])} sources", "ground")
@@ -888,8 +1059,8 @@ class Pipeline:
                 self.log(f"seal attempt {attempt} rejected: {feedback}")
                 continue
             nonce = new_nonce()
-            red_run = self.executor.run_branch(checkpoint_uuid, self.sealed_files(GUEST_SEALED_DIR, "test_sealed", candidate_src),
-                                               self.suite_steps(nonce), stage=f"red-{attempt}", timeout=task.test_timeout + 60)
+            red_run = self._branch(checkpoint_uuid, self.sealed_files(GUEST_SEALED_DIR, "test_sealed", candidate_src),
+                                   self.suite_steps(nonce), stage=f"red-{attempt}", timeout=task.test_timeout + 60)
             red_result, summary = self.suite_outcome(red_run, nonce)
             self.save(f"red.attempt{attempt}.json", {"summary": summary, "result": red_result})
             sha = sha256_text(candidate_src)
@@ -1006,7 +1177,9 @@ class Pipeline:
         if task.heldout_tests:
             try:
                 heldout = self.run_repo_suite("heldout", checkpoint_uuid, changed, deletes, heldout=task.heldout_tests, include_existing=False)
-            except Exception as error:  # noqa: BLE001 - uncertain spawn: gate fails with the reason, no replay
+            except ReconciliationRequired:
+                raise  # an uncertain branch ends the run here; nothing further is sent (revision 9)
+            except Exception as error:  # noqa: BLE001 - a definite branch failure: the gate fails with the reason
                 heldout = {"ran": 0, "tests": [], "passed": 0, "failing": 0, "all_passed": False, "module_error": True,
                            "summary_line": f"held-out branch could not be executed: {self.diagnostics.public_text('heldout', error)}",
                            "operation_uuid": None, "evidence_class": (self.bound_plan or {}).get("mode", "stdout"),
@@ -1049,9 +1222,7 @@ class Pipeline:
                 if score >= 0.3 or drift.get("scope_widened") or drift.get("unsupported_claims"):
                     warnings.append(f"drift audit: score {score:.2f}, widened {len(drift.get('scope_widened') or [])}, unsupported claims {len(drift.get('unsupported_claims') or [])}")
             self.log(f"drift audit: score {score} ({drift.get('assessment')})")
-        except ModelError as error:
-            if error.uncertain:
-                raise  # an uncertain call stops the run for reconciliation; nothing further is sent (revision 8)
+        except ModelError as error:  # a definite failure; an uncertain call already ended the run in `ask` (revision 9)
             public = self.diagnostics.public_text("drift-audit", error)
             self.bundle["drift"] = {"error": public}
             gates["drift_audit"] = {"ok": False, "detail": f"audit call failed: {public}", "evidence_class": "model"}
@@ -1157,7 +1328,7 @@ class Pipeline:
         verify_steps = self.suite_steps(nonce)
         if not is_supervisor_step(verify_steps[0]):
             raise PipelineAbort("ERROR", "verification order violated: the sealed supervisor must be the first step of the verify branch")
-        run = self.executor.run_branch(checkpoint_uuid, files, verify_steps, stage=stage, deletes=deletes, timeout=self.task.test_timeout + 60)
+        run = self._branch(checkpoint_uuid, files, verify_steps, stage=stage, deletes=deletes, timeout=self.task.test_timeout + 60)
         result, summary = self.suite_outcome(run, nonce)
         binding = bind_verification(result, expected_ids, sealed_sha, nonce)
         return {"run": run, "result": result, "summary": summary, "binding": binding, "nonce": nonce}
@@ -1197,7 +1368,8 @@ class Pipeline:
                 warnings.append(f"{unknown} mutant(s) were unknown and excluded from the score")
         if adversarial.get("unusable"):
             gates["adversarial_tests"] = {"ok": False, "detail": adversarial["unusable"][:160], "evidence_class": "bound"}
-            blame["adversarial_tests"] = [f"model-written adversarial tests could not be produced: {adversarial['unusable'][:160]}; rerun the breaker stage or review manually"]
+            blame["adversarial_tests"] = [f"model-written adversarial tests could not be produced: {adversarial['unusable'][:160]}; review the patch "
+                                          "manually (this record holds no structural test of it)"]
         elif adversarial["summary"]["all_passed"] and adversarial["binding"]["ok"]:
             gates["adversarial_tests"] = {"ok": True, "detail": adversarial["summary"]["summary_line"], "evidence_class": "bound"}
         else:
@@ -1227,9 +1399,7 @@ class Pipeline:
                            "criteria cannot all hold is the model's reasoning, recorded with its execution, not a formal proof of impossibility")}
         try:
             answer = self.ask("audit", contract_audit_prompt(self.task, spec, snapshot), CONTRACT_AUDIT_SCHEMA, "contract-audit")
-        except ModelError as error:
-            if error.uncertain:
-                raise
+        except ModelError as error:  # a definite failure; an uncertain call already ended the run in `ask` (revision 9)
             record.update({"error": f"audit call failed: {self.diagnostics.public_text('contract-audit', error)}", "outcome": "unavailable"})
             return record
         record["model"] = answer.call.requested_model
@@ -1283,9 +1453,11 @@ class Pipeline:
                 steps = [{"name": f"witness-{index}", "cmd": [GUEST_PYTHON, guest_path], "cwd": GUEST_REPO, "timeout": WITNESS_TIMEOUT,
                           "env": self.task.guest_env()}]
                 try:
-                    run = self.executor.run_branch(checkpoint_uuid, {guest_path: witness.encode("utf-8")}, steps, stage=f"witness-{index}",
-                                                   timeout=WITNESS_TIMEOUT + 60)
-                except Exception as error:  # noqa: BLE001 - an uncertain spawn is recorded, never replayed
+                    run = self._branch(checkpoint_uuid, {guest_path: witness.encode("utf-8")}, steps, stage=f"witness-{index}",
+                                       timeout=WITNESS_TIMEOUT + 60)
+                except ReconciliationRequired:
+                    raise  # an uncertain witness spawn ends the run here; nothing further is sent (revision 9)
+                except Exception as error:  # noqa: BLE001 - a definite failure: the witness is recorded as not executed
                     entry["status"] = f"witness could not be executed: {self.diagnostics.public_text(f'witness-{index}', error)}"
                     record["conflicts"].append(entry)
                     continue
@@ -1351,9 +1523,11 @@ class Pipeline:
             base = {"id": mutant.id, "path": mutant.path, "lineno": mutant.lineno, "operator": mutant.operator, "description": mutant.description,
                     "nonce": nonce}
             try:
-                run = self.executor.run_branch(checkpoint_uuid, files, self.suite_steps(nonce), stage=f"mutant-{mutant.id}",
-                                               deletes=deletes, timeout=self.task.test_timeout + 60)
-            except Exception as error:  # noqa: BLE001 - an uncertain or failed spawn makes this mutant unknown, never replayed
+                run = self._branch(checkpoint_uuid, files, self.suite_steps(nonce), stage=f"mutant-{mutant.id}",
+                                   deletes=deletes, timeout=self.task.test_timeout + 60)
+            except ReconciliationRequired:
+                raise  # an uncertain mutant spawn ends the run; mutants not yet started are refused before dispatch (revision 9)
+            except Exception as error:  # noqa: BLE001 - a definite failure makes this mutant unknown
                 return {**base, "status": "unknown", "operation_uuid": None, "failing_methods": 0, "killed_by": [],
                         "evidence": "no execution", "error": self.diagnostics.public_text(f"mutant-{mutant.id}", error)}
             result, summary = self.suite_outcome(run, nonce)
@@ -1422,9 +1596,13 @@ class Pipeline:
                 files = {f"{GUEST_REPO}/{rel}": data for rel, data in changed.items()}
                 files.update(self.sealed_files(GUEST_BREAKER_DIR, "test_breaker", src))
                 try:
-                    run = self.executor.run_branch(checkpoint_uuid, files, self.suite_steps(nonce, "test_breaker", GUEST_BREAKER_DIR, "breaker"),
-                                                   stage="breaker-tests", deletes=deletes, timeout=self.task.test_timeout + 60)
-                except Exception as error:  # noqa: BLE001 - uncertain spawn: the adversarial stage is unusable, not replayed
+                    run = self._branch(checkpoint_uuid, files, self.suite_steps(nonce, "test_breaker", GUEST_BREAKER_DIR, "breaker"),
+                                       stage="breaker-tests", deletes=deletes, timeout=self.task.test_timeout + 60)
+                except ReconciliationRequired:
+                    # revision 9: an uncertain branch used to become a plain ModelError here, losing `uncertain`, and the run went on to the
+                    # drift audit; it now ends the run where it happened
+                    raise
+                except Exception as error:  # noqa: BLE001 - a definite failure: the adversarial stage is unusable
                     # classified and recorded privately here, as a sandbox failure; the ModelError below carries only the public text
                     raise ModelError(f"adversarial branch could not be executed: {self.diagnostics.public_text('break-tests-sandbox', error)}") from None
                 result, summary = self.suite_outcome(run, nonce, "breaker")
@@ -1435,9 +1613,7 @@ class Pipeline:
                                "expected_ids": host_ids, "summary": summary, "binding": binding, "notes": authored.json.get("notes", ""),
                                "operation_uuid": run.operation_uuid}
                 self.log(f"breaker tests: {summary['summary_line']}; binding {'ok' if binding['ok'] else 'FAILED'}")
-        except ModelError as error:
-            if error.uncertain:
-                raise  # an uncertain call stops the run for reconciliation; nothing further is sent (revision 8)
+        except ModelError as error:  # a definite failure; an uncertain call or branch already ended the run (revision 9)
             public = self.diagnostics.public_text("break-tests", error)
             adversarial = {"unusable": f"adversarial test authoring failed: {public}",
                            "summary": {"ran": 0, "tests": [], "passed": 0, "failing": 0, "all_passed": False, "summary_line": f"authoring failed: {public}"},
@@ -1535,9 +1711,7 @@ class Pipeline:
         try:
             answer = self.ask("arbitrate", arbitrate_prompt(self.task, spec, diff, module_src, module_name, failing),
                               ARBITRATION_SCHEMA, f"arbitrate-{label}").json
-        except ModelError as error:
-            if error.uncertain:
-                raise  # an uncertain call stops the run for reconciliation; nothing further is sent (revision 8)
+        except ModelError as error:  # a definite failure; an uncertain call already ended the run in `ask` (revision 9)
             record["error"] = f"arbiter call failed: {self.diagnostics.public_text(f'arbitrate-{label}', error)}"
             return record
         record["classifications"] = answer.get("classifications") or []
@@ -1582,14 +1756,16 @@ class Pipeline:
         files = self.guest_files(changed)
         files.update(self.sealed_files(guest_dir, module_name, corrected))
         try:
-            run = self.executor.run_branch(checkpoint_uuid, files, self.suite_steps(nonce, module_name, guest_dir, "arb"),
-                                           stage=f"arbitrate-{label}-candidate", deletes=deletes, timeout=self.task.test_timeout + 60)
+            run = self._branch(checkpoint_uuid, files, self.suite_steps(nonce, module_name, guest_dir, "arb"),
+                               stage=f"arbitrate-{label}-candidate", deletes=deletes, timeout=self.task.test_timeout + 60)
             result, summary = self.suite_outcome(run, nonce, "arb")
             cand_binding = bind_verification(result, corrected_ids, corrected_sha, nonce)
             record["candidate_rerun"] = {"summary_line": summary["summary_line"], "all_passed": summary["all_passed"],
                                          "binding_ok": cand_binding["ok"], "operation_uuid": run.operation_uuid}
             candidate_ok = summary["all_passed"] and cand_binding["ok"]
-        except Exception as error:  # noqa: BLE001
+        except ReconciliationRequired:
+            raise  # an uncertain re-run ends the run here (revision 9)
+        except Exception as error:  # noqa: BLE001 - a definite failure: the correction is not validated
             record["error"] = f"candidate re-run failed: {self.diagnostics.public_text(f'arbitrate-{label}-candidate', error)}"
             return record
         # The corrected tests must still DISCRIMINATE: fail on the unmodified base (every corrected sealed test must, since the
@@ -1600,11 +1776,13 @@ class Pipeline:
         discrimination = None
         nonce_b = new_nonce()
         try:
-            run_b = self.executor.run_branch(checkpoint_uuid, self.sealed_files(guest_dir, module_name, corrected),
-                                             self.suite_steps(nonce_b, module_name, guest_dir, "arbbase"),
-                                             stage=f"arbitrate-{label}-base", timeout=self.task.test_timeout + 60)
+            run_b = self._branch(checkpoint_uuid, self.sealed_files(guest_dir, module_name, corrected),
+                                 self.suite_steps(nonce_b, module_name, guest_dir, "arbbase"),
+                                 stage=f"arbitrate-{label}-base", timeout=self.task.test_timeout + 60)
             result_b, summary_b = self.suite_outcome(run_b, nonce_b, "arbbase")
-        except Exception as error:  # noqa: BLE001
+        except ReconciliationRequired:
+            raise  # an uncertain re-run ends the run here (revision 9)
+        except Exception as error:  # noqa: BLE001 - a definite failure: the correction is not validated
             record["error"] = f"base re-run failed: {self.diagnostics.public_text(f'arbitrate-{label}-base', error)}"
             return record
         self.raw_results[f"{label}_corrected_base"] = result_b
@@ -1646,10 +1824,12 @@ class Pipeline:
             files.update(self.sealed_files(guest_dir, module_name, corrected, canary=False))
             nonce = new_nonce()
             try:
-                run = self.executor.run_branch(checkpoint_uuid, files, self.suite_steps(nonce, module_name, guest_dir, "arbmut"),
-                                               stage=f"arbitrate-adversarial-{mutant['id']}", deletes=deletes, timeout=self.task.test_timeout + 60)
+                run = self._branch(checkpoint_uuid, files, self.suite_steps(nonce, module_name, guest_dir, "arbmut"),
+                                   stage=f"arbitrate-adversarial-{mutant['id']}", deletes=deletes, timeout=self.task.test_timeout + 60)
                 result_m, summary = self.suite_outcome(run, nonce, "arbmut")
-            except Exception as error:  # noqa: BLE001 - an uncertain spawn makes this mutant unknown, never replayed
+            except ReconciliationRequired:
+                raise  # an uncertain re-run ends the run here; the next mutant is not tried (revision 9)
+            except Exception as error:  # noqa: BLE001 - a definite failure: this mutant is not evidence
                 record["mutant_reruns"].append({"mutant": mutant["id"], "error": self.diagnostics.public_text(f"arbitrate-adversarial-{mutant['id']}", error)})
                 continue
             raw[mutant["id"]] = result_m
@@ -1701,8 +1881,8 @@ class Pipeline:
                 rel = workspace.undo()
                 return f"reverted the last edit to {rel}" if rel else "nothing to undo"
             if kind == "run_tests":
-                run = self.executor.run_branch(checkpoint, self.guest_files(workspace.changed()), [self.existing_step()],
-                                               stage=f"impl-tests-{turn}", deletes=deletes, timeout=self.task.test_timeout + 60)
+                run = self._branch(checkpoint, self.guest_files(workspace.changed()), [self.existing_step()],
+                                   stage=f"impl-tests-{turn}", deletes=deletes, timeout=self.task.test_timeout + 60)
                 parsed = self.parsed_step(run, "existing")
                 failing = [f"{t['id']}: {t['outcome']}" for t in parsed["tests"] if t["outcome"] != "ok"]
                 return (f"existing test suite: {parsed['summary_line']} (ran {parsed['ran']}, passed {parsed['passed']}, exit {parsed.get('exit_code')})\n"
@@ -1711,10 +1891,10 @@ class Pipeline:
             if kind == "run_python":
                 if not action.get("code"):
                     return "INVALID ACTION: run_python needs code"
-                run = self.executor.run_branch(checkpoint, self.guest_files(workspace.changed()),
-                                               [{"name": "python", "cmd": [GUEST_PYTHON, "-c", action["code"]], "cwd": GUEST_REPO,
-                                                 "timeout": 60, "env": self.task.guest_env()}],
-                                               stage=f"impl-python-{turn}", deletes=deletes, timeout=90)
+                run = self._branch(checkpoint, self.guest_files(workspace.changed()),
+                                   [{"name": "python", "cmd": [GUEST_PYTHON, "-c", action["code"]], "cwd": GUEST_REPO,
+                                     "timeout": 60, "env": self.task.guest_env()}],
+                                   stage=f"impl-python-{turn}", deletes=deletes, timeout=90)
                 step = run.step("python")
                 if run.runner_error or step is None:
                     return f"sandbox run failed: {self.diagnostics.public_text(f'impl-python-{turn}', run.runner_error)}"

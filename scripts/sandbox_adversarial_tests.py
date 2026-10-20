@@ -100,6 +100,7 @@ def main() -> int:
     parser.add_argument("--only", default="", help="comma-separated scenario names (default: all)")
     args = parser.parse_args()
     ledger = Ledger()
+    ledger.attach_sink(Path(args.output).with_suffix(".ledger.jsonl"))  # operations are journaled before dispatch (revision 9)
     executor = TokenFactorySandboxes(load_secret("NEBIUS_API_KEY"), project_id(), ledger)
     base_image = executor.resolve_image("python:3.12-slim")
     checkpoint = executor.create_checkpoint(base_image, {f"{REPO}/pkg/__init__.py": BASE.encode()},

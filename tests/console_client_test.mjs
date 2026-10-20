@@ -209,4 +209,23 @@ const TOKEN = "synthetic-" + "team-token";
   results.live_run_needs_confirmation = "ok";
 }
 
+// Revision 9: a run held for reconciliation (an operation's outcome is uncertain) is offered no new run; an ordinary ERROR still is.
+{
+  const ctx = { esc: (s) => String(s), artUrl: (id, name) => `/a/${id}/${name}`, zipUrl: (id) => `/z/${id}` };
+  vm.createContext(ctx);
+  vm.runInContext(extract("  function heldForReconciliation(", "  function caseBar("), ctx);
+  const held = vm.runInContext(`actionsHtml({run_id: "r1", task_id: "t", status: "error", error_code: "reconciliation_required", has_artifacts: true},
+                                           {bundle: {verdict: {verdict: "ERROR"}, reconciliation: {required: true}}})`, ctx);
+  assert.ok(!held.includes("data-new-run"), "a held run offers no new run");
+  assert.match(held, /Held for reconciliation/);
+  const paused = vm.runInContext(`actionsHtml({run_id: "r2", task_id: "t", status: "error", error_code: "paused_for_reconciliation"}, null)`, ctx);
+  assert.ok(!paused.includes("data-new-run"), "a run the service paused offers no new run either");
+  const fromBundle = vm.runInContext(`actionsHtml({run_id: "r3", task_id: "t", status: "finished", has_artifacts: true},
+                                                 {bundle: {verdict: {verdict: "ERROR"}, reconciliation: {required: true}}})`, ctx);
+  assert.ok(!fromBundle.includes("data-new-run"), "the bundle's reconciliation record alone is enough");
+  const ordinary = vm.runInContext(`actionsHtml({run_id: "r4", task_id: "t", status: "error", error_code: "pipeline_error"}, null)`, ctx);
+  assert.ok(ordinary.includes("data-new-run"), "an ordinary infrastructure error still offers a new run");
+  results.held_run_offers_no_new_run = "ok";
+}
+
 console.log(JSON.stringify({ ok: true, checks: results }));

@@ -14,6 +14,16 @@ The investigation behind this (reports/attest-revision7-repairs-2026-10-19/trans
 revision-7 development batches, four happened while the connection was being set up (TLS end-of-file or handshake timeout through
 this machine's proxy) and the two others after the request had been written; the gateway's ingress log shows that neither of the
 two gateway requests that failed during setup reached it.
+
+Error bodies and answer classes (revision 9, 20 Oct 2026): an HTTP error status arrives before its body, so the server's answer is
+known even when the body is cut. Reading the error body used to run inside the `except HTTPError` handler, where a chunked body cut
+short raised a raw `http.client.IncompleteRead` (and a stalled one a raw timeout) past the transport wrapper. Both bodies, the error's
+and the success's, are now read under their own guard: an error answer is always an `HttpError` that keeps its status, says that the
+request was sent and the phase it reached (`response`), and whether its body arrived complete (`body_complete`); a success whose body
+is cut is a `TransportError` that keeps the status. `post_outcome` is the one classification of a failed POST that every adapter uses:
+`not_sent` (no byte left this machine: safe to send again), `rejected` (an HTTP 4xx answer: the server refused the request, so it did
+not execute it) or `uncertain` (an HTTP 5xx or any other answer, or a failure after the request was written: it may have executed, so
+it is never sent again and the run stops for reconciliation). `read_retryable` says which failures of an idempotent read are retried.
 """
 
 from __future__ import annotations
@@ -147,11 +157,20 @@ def opener():
 
 
 class HttpError(Exception):
-    def __init__(self, status: int, body, url: str, headers: dict | None = None):
+    """The server answered with an HTTP error status. The request was sent and answered (`request_sent`, `phase` "response");
+    `body_complete` is False when the error body was cut or stalled while being read (`body_error` says how), which leaves the status
+    itself, and so the classification of the answer, intact."""
+
+    request_sent = True
+    phase = "response"
+
+    def __init__(self, status: int, body, url: str, headers: dict | None = None, body_complete: bool = True, body_error: str | None = None):
         self.status = status
         self.body = body
         self.url = url
         self.headers = {k.lower(): v for k, v in (headers or {}).items()}  # Retry-After and rate-limit headers, when sent
+        self.body_complete = body_complete
+        self.body_error = body_error
         message = ""
         if isinstance(body, dict):
             err = body.get("error")
@@ -161,18 +180,76 @@ class HttpError(Exception):
                 message = str(err)
             else:
                 message = str(body.get("message") or body.get("detail") or "")[:300]
-        super().__init__(f"HTTP {status} from {url.split('?')[0]}: {message[:300]}")
+        suffix = "" if body_complete else f" (error body incomplete: {body_error or 'cut short'})"
+        super().__init__(f"HTTP {status} from {url.split('?')[0]}: {message[:300]}{suffix}")
 
 
 class TransportError(Exception):
     """The request failed in transit. `request_sent` is False only when the failure happened while the connection was being set
     up, before any byte of the request was written: the server cannot have received it, and it may be sent again. Otherwise the
-    outcome is uncertain (timeout, reset, a cut response): never auto-replay a POST after this."""
+    outcome is uncertain (timeout, reset, a cut response): never auto-replay a POST after this. `status` is the HTTP status when an
+    answer had started to arrive (a success whose body was cut), None otherwise."""
 
-    def __init__(self, message: str, request_sent: bool = True, phase: str = "unknown"):
+    def __init__(self, message: str, request_sent: bool = True, phase: str = "unknown", status: int | None = None):
         super().__init__(message)
         self.request_sent = request_sent
         self.phase = phase
+        self.status = status
+
+
+def post_outcome(error: BaseException) -> str:
+    """The outcome of a POST that failed: `not_sent` (a transport failure before any byte was written), `rejected` (an HTTP 4xx
+    answer: the server refused the request and did not execute it) or `uncertain` (an HTTP 5xx or any other non-success answer, a
+    transport failure after the request was written, or anything unrecognised). Only `not_sent` may be sent again automatically; an
+    `uncertain` request is never replayed and stops the run for reconciliation. A 5xx is uncertain because a proxy or the server may
+    answer it after the request was executed (a gateway timeout, a crash while answering)."""
+    if isinstance(error, TransportError):
+        return "uncertain" if getattr(error, "request_sent", True) else "not_sent"
+    if isinstance(error, HttpError) and isinstance(error.status, int) and 400 <= error.status < 500:
+        return "rejected"
+    return "uncertain"
+
+
+def read_retryable(error: BaseException) -> bool:
+    """Whether an idempotent read (a GET or a DELETE) that failed this way is tried again (bounded): any transport failure, and the
+    answers that say "try again" (408, 429, 5xx). Other 4xx answers are definite and are not retried."""
+    if isinstance(error, TransportError):
+        return True
+    if isinstance(error, HttpError):
+        return error.status in (408, 429) or (isinstance(error.status, int) and error.status >= 500)
+    return False
+
+
+def retry_after_s(error: BaseException, cap: float = 30.0) -> float | None:
+    """A server's Retry-After (seconds) on an answer that carries one, bounded by `cap`."""
+    value = (getattr(error, "headers", None) or {}).get("retry-after")
+    try:
+        return min(cap, max(0.0, float(value))) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _remaining_length(response) -> int | None:
+    """Bytes of a Content-Length body that never arrived (http.client clips `read(n)` at the end of the stream without raising)."""
+    length = getattr(response, "length", None)
+    return length if isinstance(length, int) and length > 0 else None
+
+
+def _read_body(response, limit: int) -> tuple[bytes, str | None]:
+    """Read at most `limit` bytes of a response body. Returns (bytes, None) when the body arrived complete or reached the limit, and
+    (the bytes that arrived, what went wrong) when it was cut (a chunked body ended early, a Content-Length body came up short) or the
+    read failed (a timeout or a reset while reading)."""
+    try:
+        raw = response.read(limit)
+    except http.client.IncompleteRead as error:
+        partial = error.partial if isinstance(error.partial, bytes) else b""
+        return partial[:limit], f"IncompleteRead after {len(partial)} bytes"
+    except (http.client.HTTPException, OSError, ValueError) as error:
+        return b"", f"{type(error).__name__}: {str(error)[:120]}"
+    missing = _remaining_length(response)
+    if missing and len(raw) < limit:
+        return raw, f"Content-Length body cut short: {len(raw)} bytes arrived, {missing} missing"
+    return raw, None
 
 
 def request_json(method: str, url: str, headers: dict, payload=None, timeout: float = 60,
@@ -188,21 +265,34 @@ def request_json(method: str, url: str, headers: dict, payload=None, timeout: fl
     try:
         with opener().open(req, timeout=timeout) as resp:
             progress.phase = "response"  # an answer exists, so the request was sent
-            raw = resp.read(max_bytes)
+            raw, cut = _read_body(resp, max_bytes)
+            if cut:
+                raise TransportError(f"the body of the HTTP {resp.status} answer was cut ({cut}); the request was sent and may have been executed",
+                                     request_sent=True, phase="response", status=resp.status) from None
             try:
                 body = json.loads(raw) if raw.strip() else None
             except json.JSONDecodeError as error:
                 snippet = raw[:160].decode("utf-8", "replace").replace("\n", " ")
                 raise TransportError(f"JSONDecodeError after HTTP {resp.status}: {error.msg} at char {error.pos}; "
-                                     f"{len(raw)} bytes received, starts with: {snippet!r}", request_sent=True, phase="response") from None
+                                     f"{len(raw)} bytes received, starts with: {snippet!r}", request_sent=True, phase="response",
+                                     status=resp.status) from None
             return resp.status, body, {k.lower(): v for k, v in resp.headers.items()}
     except urllib.error.HTTPError as error:
-        raw = error.read(200_000)
+        # the status line and headers arrived: the answer is known whatever happens to its body, which is read under its own guard so
+        # that a cut or stalled error body never escapes as a raw IncompleteRead or timeout (revision 9)
+        progress.phase = "response"
+        raw, cut = _read_body(error, 200_000)
         try:
             body = json.loads(raw)
         except Exception:
             body = {"raw": raw.decode("utf-8", "replace")[:2000]}
-        raise HttpError(error.code, body, url, dict(error.headers.items()) if error.headers else None) from None
+        try:
+            headers = dict(error.headers.items()) if error.headers else None
+        except Exception:  # noqa: BLE001 - headers that cannot be listed are not needed to classify the answer
+            headers = None
+        raise HttpError(error.code, body, url, headers, body_complete=cut is None, body_error=cut) from None
+    except TransportError:
+        raise
     except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, http.client.HTTPException) as error:
         # http.client.IncompleteRead (a chunked body cut short while reading) is an HTTPException, not an OSError: it is
         # a transport failure like any other, so GET polls retry it and a POST after it stays uncertain
