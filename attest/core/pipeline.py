@@ -665,7 +665,7 @@ class Pipeline:
                     kind, "outcome uncertain; not retried; nothing further was sent")
         reason = (f"stopped for reconciliation at {where}: {halt.get('reason') or 'an operation whose outcome is uncertain'} ({tail}); every operation "
                   "to settle is listed under reconciliation with the read-only check that settles it")
-        self.log(f"STOPPED FOR RECONCILIATION at {where} ({kind})", "reconciliation")
+        self.log(f"STOPPED FOR RECONCILIATION at {where} ({kind})")  # the bundle keeps the stage label it reached; the halt names the operation's stage
         self.bundle["verdict"] = {"verdict": "ERROR", "reasons": [reason], "warnings": self.bundle["verdict"].get("warnings", []),
                                   "reconciliation_required": True}
 

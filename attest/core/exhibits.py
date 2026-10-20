@@ -288,6 +288,7 @@ def exhibits(bundle: dict) -> list[dict]:
         reconciliation = bundle.get("reconciliation") or {}
         halt = reconciliation.get("halt") or {}
         service = ((halt.get("operation") or {}).get("service")) if halt else None
+        stage = halt.get("stage") or bundle.get("stage")  # a stopped run names the stage of the operation that stopped it
         if halt.get("kind") == "journal_failure":
             component = "ledger journal"
         elif service:
@@ -297,9 +298,9 @@ def exhibits(bundle: dict) -> list[dict]:
                          "sandbox executor" if "Sandbox" in first or "sandbox" in first else
                          "verifier" if "verification" in first else "pipeline")
         items.append({"ref": "E7", "title": EXHIBIT_TITLE["E7"], "gate": None, "status": "fail", "shown": True,
-                      "summary": f"{component} failed {('at stage ' + bundle['stage']) if bundle.get('stage') else 'before the first stage was recorded'}: {_clip(first, 200)}",
+                      "summary": f"{component} failed {('at stage ' + stage) if stage else 'before the first stage was recorded'}: {_clip(first, 200)}",
                       "why": WHY["E7"], "evidence_class": "bound",
-                      "detail": {"component": component, "stage": bundle.get("stage"), "reasons": reasons,
+                      "detail": {"component": component, "stage": stage, "reasons": reasons,
                                  "model_calls": totals.get("model_calls"), "model_calls_failed": totals.get("model_calls_failed"),
                                  "cost_usd_committed": totals.get("cost_usd_committed"), "uncertain_unpriced_calls": totals.get("uncertain_unpriced_calls"),
                                  "sandbox_operations": totals.get("sandbox_operations"), "retried": False,

@@ -843,6 +843,7 @@ class PipelineStopsEverywhere(unittest.TestCase):
                 from attest.core.exhibits import decision
                 verdict_decision = decision(bundle)
                 self.assertEqual(verdict_decision["statement"], "This run stopped for reconciliation.")
+                self.assertIn(f"At stage {record['halt']['stage']} ", verdict_decision["explanation"], "the stage of the operation, not a label")
                 self.assertNotIn("Start a new run", " ".join(verdict_decision["decide"]))
                 proof = (pipeline.out_dir / "PROOF.md").read_text(encoding="utf-8")
                 self.assertIn("12b. Reconciliation", proof)
