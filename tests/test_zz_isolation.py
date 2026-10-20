@@ -26,7 +26,10 @@ class SuiteIsolation(unittest.TestCase):
         before = len(_isolation.ATTEMPTS)
         with self.assertRaises(_isolation.NetworkForbidden):
             socket.getaddrinfo("example.invalid", 443)
-        del _isolation.ATTEMPTS[before:]  # this deliberate attempt is the control, not a finding
+        for port in sorted(_isolation.PROXY_PORTS)[:1]:  # this machine's proxy, when one is configured, is refused too
+            with self.assertRaises(_isolation.NetworkForbidden):
+                socket.create_connection(("127.0.0.1", port), timeout=1)
+        del _isolation.ATTEMPTS[before:]  # these deliberate attempts are the control, not a finding
 
 
 if __name__ == "__main__":

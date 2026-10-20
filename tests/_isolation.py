@@ -8,7 +8,9 @@ run from this package (`python -m unittest discover -s tests -t .`, or a single 
   machine's proxy (on macOS it would otherwise read the system proxy configuration, and a loopback proxy forwards anywhere).
 - Network: a connection or a name lookup outside the loopback interface raises `NetworkForbidden` (an AssertionError, which no
   transport handler catches, so the test that caused it fails where it happened) and is recorded in ATTEMPTS;
-  tests/test_zz_isolation.py, the last module of a discovery run, fails when any attempt was recorded.
+  tests/test_zz_isolation.py, the last module of a discovery run, fails when any attempt was recorded. A connection to the loopback
+  port of a proxy this machine is configured to use (read from the environment and the system settings before they are removed) is
+  refused the same way: through it a request would leave the machine.
 """
 
 from __future__ import annotations
@@ -27,6 +29,30 @@ ATTEMPTS: list[str] = []
 _lock = threading.Lock()
 
 
+def _configured_proxy_ports() -> set[int]:
+    """Loopback ports of the proxies this machine is configured to use (environment variables and, on macOS, the system settings)."""
+    import urllib.request
+    from urllib.parse import urlsplit
+    try:
+        configured = dict(urllib.request.getproxies())
+    except Exception:  # noqa: BLE001 - no readable proxy configuration: nothing to refuse
+        return set()
+    ports = set()
+    for scheme, value in configured.items():
+        if scheme == "no" or not value:
+            continue
+        try:
+            parts = urlsplit(value if "://" in value else "http://" + value)
+            if parts.hostname in LOOPBACK and parts.port:
+                ports.add(parts.port)
+        except ValueError:
+            continue
+    return ports
+
+
+PROXY_PORTS: set[int] = set()
+
+
 class NetworkForbidden(AssertionError):
     """A test tried to reach something outside the loopback interface."""
 
@@ -42,6 +68,14 @@ def _host(address):
     return address[0] if isinstance(address, tuple) and address else None
 
 
+def _check(address) -> None:
+    host = _host(address)
+    if host not in LOOPBACK:
+        _forbid("connection to", host)
+    if isinstance(address, tuple) and len(address) > 1 and address[1] in PROXY_PORTS:
+        _forbid("connection to this machine's proxy at", f"{host}:{address[1]}")
+
+
 _real_connect = socket.socket.connect
 _real_connect_ex = socket.socket.connect_ex
 _real_create_connection = socket.create_connection
@@ -49,20 +83,19 @@ _real_getaddrinfo = socket.getaddrinfo
 
 
 def _connect(self, address):
-    if self.family in (socket.AF_INET, socket.AF_INET6) and _host(address) not in LOOPBACK:
-        _forbid("connection to", _host(address))
+    if self.family in (socket.AF_INET, socket.AF_INET6):
+        _check(address)
     return _real_connect(self, address)
 
 
 def _connect_ex(self, address):
-    if self.family in (socket.AF_INET, socket.AF_INET6) and _host(address) not in LOOPBACK:
-        _forbid("connection to", _host(address))
+    if self.family in (socket.AF_INET, socket.AF_INET6):
+        _check(address)
     return _real_connect_ex(self, address)
 
 
 def _create_connection(address, *args, **kwargs):
-    if _host(address) not in LOOPBACK:
-        _forbid("connection to", _host(address))
+    _check(address)
     return _real_create_connection(address, *args, **kwargs)
 
 
@@ -74,6 +107,7 @@ def _getaddrinfo(host, *args, **kwargs):
 
 
 def install() -> None:
+    PROXY_PORTS.update(_configured_proxy_ports())  # before the configuration is removed below
     for name in PRIVATE_VARIABLES + PROXY_VARIABLES:
         os.environ.pop(name, None)
     os.environ["ATTEST_SECRETS_NOTES"] = os.path.join(tempfile.gettempdir(), "attest-tests-no-private-notes", "notes.json")
