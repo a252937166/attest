@@ -1209,12 +1209,14 @@ class R504CallRecordsStayPublic(unittest.TestCase):
         from attest.http import HttpError
         from attest.models.base import ModelError
         from attest.models.codex_gateway import CodexGateway
+        from attest.models.pacing import RateGovernor
         tmp = Path(tempfile.mkdtemp(prefix="attest-r504-gateway-"))
         try:
             ledger = Ledger()
             ledger.attach_sink(tmp / "ledger.jsonl")  # every call takes a pending record before it is sent (revision 9)
             ledger.diagnostics = self._sidecar(tmp, "calls-gateway")
-            provider = CodexGateway("offline-fake-key", ledger, base_url="https://gateway.example.invalid/v1")
+            governor = RateGovernor("offline-fake-key", state_path=None)  # explicit pacing in memory: nothing under HOME
+            provider = CodexGateway("offline-fake-key", ledger, base_url="https://gateway.example.invalid/v1", governor=governor)
             provider._catalog = {"gpt-6-sol": ["low", "medium"], "gpt-6-astra": ["low", "medium"], "gpt-6-luna": ["low"]}
 
             def fake(method, url, headers, payload=None, timeout=60, **kw):

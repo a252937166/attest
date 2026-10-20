@@ -1,6 +1,6 @@
 """The last module of a discovery run (revision 9, 20 Oct 2026): the offline suite ran isolated. No test reached outside the loopback
-interface (tests/_isolation.py records every attempt, even one a handler swallowed), and no credential or private configuration was
-visible to it."""
+interface (tests/_isolation.py records every attempt, even one a handler swallowed), no credential or private configuration was
+visible to it, and no test left anything in the run's own home directory."""
 
 import os
 import unittest
@@ -20,6 +20,13 @@ class SuiteIsolation(unittest.TestCase):
         for name in KNOWN:
             with self.assertRaises(SecretError):
                 load_secret(name)
+
+    def test_no_test_wrote_into_the_home_directory(self):
+        self.assertTrue(_isolation.SUITE_HOME, "the isolation module gives the run its own home directory")
+        self.assertEqual(os.environ.get("HOME"), _isolation.SUITE_HOME, "HOME still points at the run's own directory")
+        self.assertEqual(os.path.expanduser("~"), _isolation.SUITE_HOME)
+        left = _isolation.home_contents()
+        self.assertEqual(left, [], f"tests wrote into the home directory (state that would persist on a developer's machine): {left[:10]}")
 
     def test_the_guard_refuses_outside_the_loopback_interface(self):
         import socket

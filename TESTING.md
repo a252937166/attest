@@ -53,7 +53,9 @@ check still passes and says so.
 Isolation (revision 9): the suite needs no credential, no private configuration and no network, and proves it. `tests/_isolation.py`,
 imported by `tests/__init__.py` before any test, removes provider credentials and private configuration from the test process,
 disables urllib's proxy discovery, and turns every connection or name lookup outside the loopback interface into a failure of the
-test that caused it; `tests/test_zz_isolation.py`, the last module of a discovery run, fails if any was attempted. Revision 9's own
+test that caused it; `tests/test_zz_isolation.py`, the last module of a discovery run, fails if any was attempted. The run also gets
+its own new home directory (HOME, with the XDG base-directory variables removed), and the same module fails if a test left anything
+in it, so no test reads or writes a developer's home and no run sees what an earlier one left there. Revision 9's own
 tests (`tests/test_revision9.py`) stop a run at an uncertain sandbox operation at every stage and check that nothing is sent afterwards,
 classify cut and stalled HTTP error bodies, 4xx and 5xx answers to spawns, polls and model calls, make the journal fail (disk full, I/O
 error, a half-written line, a read-back mismatch) before a spawn and before a poll, recover interrupted runs from their journals, and
@@ -96,4 +98,7 @@ review repository (`git worktree add --detach <dir> <commit>`, then `python -m u
 run after the batch, the reports and the export exist. A run in the private working tree is reported separately: it holds
 private evidence and file modes that a clean checkout does not have. Since revision 9 that run is made with an empty environment
 (no credential, HOME pointing to an empty directory) and with outbound network access blocked by the operating system, in addition
-to the suite's own guard.
+to the suite's own guard. Correction (20 Oct 2026): the directory given as HOME to the first clean runs of revision 9 was reused from
+run to run, and one test wrote the gateway pacing state of its dummy key there, so from the second run on it was not empty; the suite
+now moves HOME to a new directory of its own on every run and fails if anything is left in it
+(`reports/attest-revision9-repairs-2026-10-20/README.md`, "Correction: the suite's home directory").

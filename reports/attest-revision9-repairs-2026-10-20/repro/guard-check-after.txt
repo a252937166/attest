@@ -1,0 +1,19 @@
+=== guard check: the same archive with the fixed tests/test_audit_core.py (an explicit in-memory pacing governor); 2026-10-20T08:47:48Z
+=== env -i PATH LANG HOME=<new empty directory>; python -m unittest tests.test_audit_core.R504CallRecordsStayPublic tests.test_zz_isolation -v
+test_gateway_failures_are_recorded_publicly_too (tests.test_audit_core.R504CallRecordsStayPublic.test_gateway_failures_are_recorded_publicly_too) ... ATTEST-HALT {"kind": "uncertain_operation", "reason": "the development gateway answered HTTP 500 to the spec call; it may have run upstream, so it was not sent again", "stage": "spec", "operation": {"service": "inference", "provider": "codex_gateway", "started_at_utc": "2026-10-20T08:47:48.202241+00:00", "http_status": 500}, "at_utc": "2026-10-20T08:47:48.202552+00:00"}
+ok
+test_nebius_http_and_transport_failures_are_recorded_publicly (tests.test_audit_core.R504CallRecordsStayPublic.test_nebius_http_and_transport_failures_are_recorded_publicly) ... ATTEST-HALT {"kind": "uncertain_operation", "reason": "the provider answered HTTP 502 to the spec call after the request was sent; it may have been metered, so its reservation stays committed and it was not sent again", "stage": "spec", "operation": {"service": "inference", "provider": "nebius_tokenfactory", "started_at_utc": "2026-10-20T08:47:48.203731+00:00", "reserved_usd": 0.049, "http_status": 502}, "at_utc": "2026-10-20T08:47:48.203990+00:00"}
+ATTEST-HALT {"kind": "uncertain_operation", "reason": "the outcome of the spec call is uncertain (failure in the unknown phase after the request was written); its reservation stays committed and it was not sent again", "stage": "spec", "operation": {"service": "inference", "provider": "nebius_tokenfactory", "started_at_utc": "2026-10-20T08:47:48.204554+00:00", "reserved_usd": 0.049}, "at_utc": "2026-10-20T08:47:48.204736+00:00"}
+ok
+test_without_a_sink_the_record_still_carries_only_the_public_sentence (tests.test_audit_core.R504CallRecordsStayPublic.test_without_a_sink_the_record_still_carries_only_the_public_sentence) ... ok
+test_no_credential_or_private_configuration_is_visible (tests.test_zz_isolation.SuiteIsolation.test_no_credential_or_private_configuration_is_visible) ... ok
+test_no_test_reached_outside_the_loopback_interface (tests.test_zz_isolation.SuiteIsolation.test_no_test_reached_outside_the_loopback_interface) ... ok
+test_no_test_wrote_into_the_home_directory (tests.test_zz_isolation.SuiteIsolation.test_no_test_wrote_into_the_home_directory) ... ok
+test_the_guard_refuses_outside_the_loopback_interface (tests.test_zz_isolation.SuiteIsolation.test_the_guard_refuses_outside_the_loopback_interface) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.008s
+
+OK
+exit 0
+=== the given HOME afterwards: 0 entries

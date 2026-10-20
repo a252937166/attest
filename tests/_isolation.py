@@ -13,12 +13,18 @@ run from this package (`python -m unittest discover -s tests -t .`, or a single 
   refused the same way: through it a request would leave the machine. So is a connection to any loopback port that something was
   already listening on when the suite started (a local proxy, a resolver, another service could forward it); a test's own servers
   open new ports, and every port this process binds itself stays allowed.
+- Home directory: HOME points at a new empty directory for the run, and the XDG base-directory variables are removed, so no test
+  reads or writes the developer's home (the Codex pacing state under ~/.cache/attest, ~/.config/attest) and no run sees what an
+  earlier one left there; subprocesses inherit it. tests/test_zz_isolation.py fails when the suite left anything in it. The
+  directory is removed when the process exits.
 """
 
 from __future__ import annotations
 
+import atexit
 import os
 import re
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -28,8 +34,10 @@ import traceback
 PRIVATE_VARIABLES = ("NEBIUS_API_KEY", "CODEX_API_KEY", "TAVILY_API_KEY", "ATTEST_CODEX_BASE_URL", "ATTEST_EXPORT_PRIVATE_HOSTS", "NEBIUS_PROJECT_ID",
                      "NEBIUS_AI_PROJECT", "ATTEST_CODEX_KEY_LABEL", "ATTEST_NEBIUS_NOTE", "ATTEST_CODEX_NOTE", "ATTEST_TAVILY_NOTE")
 PROXY_VARIABLES = ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "https_proxy", "http_proxy", "all_proxy")
+HOME_VARIABLES = ("XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME")
 LOOPBACK = {"127.0.0.1", "::1", "localhost", "0.0.0.0", ""}
 ATTEMPTS: list[str] = []
+SUITE_HOME = ""  # the run's own home directory (install)
 _lock = threading.Lock()
 
 
@@ -166,12 +174,24 @@ def _getaddrinfo(host, *args, **kwargs):
     return _real_getaddrinfo(host, *args, **kwargs)
 
 
+def home_contents() -> list[str]:
+    """Everything under the run's home directory, relative to it (empty when no test wrote there)."""
+    found = []
+    for root, dirs, files in os.walk(SUITE_HOME):
+        found.extend(os.path.relpath(os.path.join(root, name), SUITE_HOME) for name in dirs + files)
+    return sorted(found)
+
+
 def install() -> None:
+    global SUITE_HOME
     PROXY_PORTS.update(_configured_proxy_ports())  # before the configuration is removed below
     for kind, ports in _listening_ports().items():
         PREEXISTING[kind].update(ports)
-    for name in PRIVATE_VARIABLES + PROXY_VARIABLES:
+    for name in PRIVATE_VARIABLES + PROXY_VARIABLES + HOME_VARIABLES:
         os.environ.pop(name, None)
+    SUITE_HOME = tempfile.mkdtemp(prefix="attest-tests-home-")
+    os.environ["HOME"] = SUITE_HOME
+    atexit.register(shutil.rmtree, SUITE_HOME, True)
     os.environ["ATTEST_SECRETS_NOTES"] = os.path.join(tempfile.gettempdir(), "attest-tests-no-private-notes", "notes.json")
     os.environ["no_proxy"] = os.environ["NO_PROXY"] = "*"
     socket.socket.connect = _connect

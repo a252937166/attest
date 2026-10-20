@@ -204,3 +204,26 @@ the transactional installer, after a backup of the store and the data directory;
 `/opt/attest/app`; systemd `MemoryLimit` and the cgroup's memory and memory-plus-swap limits all 209,715,200 bytes on the new main
 process, no fail count, no OOM kill; queue 0, no reservation, $0.00 committed on the new UTC day; no reconciliation hold open; the
 other services on the host unchanged.
+
+## Correction: the suite's home directory (20 Oct 2026, after the deployment)
+
+The clean runs above were described as running with "HOME pointing to an empty directory". That held for the first macOS run only.
+One test, `tests.test_audit_core.R504CallRecordsStayPublic.test_gateway_failures_are_recorded_publicly_too`, built the gateway client
+without an explicit pacing governor, so the process-wide governor of its dummy key (`offline-fake-key`, key id `9e2fd4a37ed0`) kept its
+state at the default path, `~/.cache/attest/codex-pacing-9e2fd4a37ed0.json`, in the home directory of whoever ran the suite. No other
+test writes under HOME: `repro/find_home_writers.py` runs each of the 458 tests one by one with HOME at a new empty directory and lists
+every test after which something there changed; on a clean checkout of `5229e14` (the tests as pinned at `7664742`) it lists this one
+test and nothing else (`repro/home-writers-before-5229e14.txt`).
+
+Effect on the records: the macOS runs reused one scratch directory as HOME. It was empty for the run of `58d2520` (07:30 UTC), and
+suites 12 (`697d0e7`), 14 (`7664742`) and 16 (`65d81f7`) and a run of `5229e14` found this file with the dummy key's earlier call
+times (at most four within the hour). The file paces only that dummy key, and the test's mocked gateway status declares no hourly
+limit, so no result depended on it; the description was still inaccurate from the second run on. The Linux runs were not affected:
+each ran in a new container whose HOME (`/work/home`) started empty. Runs in the private working tree had written the same file into
+the developer's real home since 19 Oct; it was removed on 20 Oct (the pacing file of the real key there was not touched).
+
+Repair (tests only; the `attest/` package and its digest are unchanged): the test passes an explicit in-memory governor;
+`tests/_isolation.py` gives every run its own new home directory (HOME, with the XDG base-directory variables removed; deleted when
+the process exits), which subprocesses inherit; `tests/test_zz_isolation.py` fails when a test left anything in it. With the new guard
+and the old test the suite fails and names the file (`repro/guard-check-before.txt`); with the fixed test it passes and the HOME given
+to the process stays empty (`repro/guard-check-after.txt`). The suite now has 459 tests.
