@@ -24,7 +24,8 @@ From a clean checkout of the pinned commit (the harness snapshots the tree into 
 the snapshot in a fresh process; the schedule records the digests above and the commit):
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout 6b786a2e51bba634d63cc8b4ee75bb215c168fa7
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 550568285af7d572b70a48d4a2de729f570f94c3
+# the same tree as review-repository commit 6b786a2e51bba634d63cc8b4ee75bb215c168fa7; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 20 --max-turns 14 --approve-usd 9.00 --label m5-final \
@@ -96,7 +97,8 @@ sandbox runner (same digests as the M5 pin), the gate-to-verdict rule's structur
 ## The exact command (unchanged in shape; a new report directory)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout 4437b29a233603bf8a0523a6c0092493a92d2aa3
+git clone <publication repository> attest-eval && cd attest-eval && git checkout f4bf5f48eb698ccd1b7bb5d2c7c1c450de993ca7
+# the same tree as review-repository commit 4437b29a233603bf8a0523a6c0092493a92d2aa3; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 20 --max-turns 14 --approve-usd 9.00 --label r4-final \
@@ -166,7 +168,8 @@ so the correction path is covered by the offline acceptance tests only.
 ## The exact command (revision 5)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout 320651d3bd4011538fe2f6d240a1e5769b019051
+git clone <publication repository> attest-eval && cd attest-eval && git checkout ad2f633c555898a8a6e47e7e410aff0ddb15e1b7
+# the same tree as review-repository commit 320651d3bd4011538fe2f6d240a1e5769b019051; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r5-final \
@@ -236,7 +239,8 @@ the held-out judge establishes the two acceptances; nothing establishes the hold
 ## The exact command (revision 6)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout da00f41a5542a1c114c2ba1a57a6f0ee7e7ff906
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 0dd0b425b8aa6ea9fe03160a8eb6aef82dbf21e8
+# the same tree as review-repository commit da00f41a5542a1c114c2ba1a57a6f0ee7e7ff906; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r6-final \
@@ -319,7 +323,8 @@ checking, not correct patches: the held-out judge establishes the two judged out
 ## The exact command (revision 7)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout a95e2614d643bc057a1877f81b5ebe774fabaf7e
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 00a3e2a76b1fa5b24b5e96cb1387d5bf7de381af
+# the same tree as review-repository commit a95e2614d643bc057a1877f81b5ebe774fabaf7e; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r7-final \
@@ -399,7 +404,8 @@ judge establishes the judged outcomes.
 ## The exact command (revision 8)
 
 ```bash
-git clone <repository> attest-eval && cd attest-eval && git checkout 459fe8dd97bb1f719edff42921c04fa43bb50196
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 84d3d8b774b3e4a1aa5cef77cecc17e67e5d4b89
+# the same tree as review-repository commit 459fe8dd97bb1f719edff42921c04fa43bb50196; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r8-final \
@@ -412,3 +418,90 @@ Unchanged in scope and budget, re-pinned to revision 8: the two-run Nemotron smo
 $1.00) and the revised 32-cell evaluation with the command above (about $3.00 to $4.00, at most $9.00 through `--approve-usd`).
 Total maximum **$10.00**; stop rules as before. No paid Nebius call was made in revision 8. The credit reading and the
 journal-accounted spend are as stated in the revision-7 proposal; none of these figures is a billing-page reading.
+
+## What changed (revision 8 to revision 9, 20 Oct 2026, version 0.9.0)
+
+`reports/attest-revision9-repairs-2026-10-20/README.md` records the six repairs: a run stops at the first operation whose outcome is
+uncertain at every stage, sandbox operations as well as model calls (revision 8 stopped only model calls; the breaker turned an
+uncertain sandbox operation into a plain model error and went on to the drift audit); ambiguous HTTP answers are classified once (4xx
+refused, 5xx uncertain; reads retried, bounded); sandbox operations are journaled durably as PENDING before the spawn and with their
+accepted id before the first poll, and a journal failure stops the run; a cut HTTP error body keeps its status; the offline suite runs
+without credentials, private configuration or network; and the review history is replayed into a separate publishable repository.
+Evidence protocol 5 adds the bundle's reconciliation record. Every code path that sends a request changed (the providers, the sandbox
+client, the transport, the pipeline, the console worker, the harness), so the pin is new; the guest programs, the examples, the task
+suite, the method, the models and the sampling are unchanged, and the effective Nemotron profile computed from the pinned package equals
+the revision-7 registration.
+
+## The pin (revision 9)
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `7664742309216676c7a0bc9188df0aac932fe35b` on branch `main` of the review repository, version 0.9.0; in the publication repository `12a541dc6da91e55955b561e6ac9d64465028d33` (the same tree; the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 37 files) | `ab5b1705ae2b921141d01d77e4728f4e63c5233bcc629e93636809e32039e3c1` (`808137c`, `58d2520` and `697d0e7` share `2449ab27262c…`; `7664742` changes how a stopped run names its stage) |
+| Harness `scripts/run_evaluation.py` sha256 | `bc515984ccc65746846e368898b0abe393841d815a6ba584fe10c432affe5176` (changed: every cell's ledger registered with the batch, a halted cell halts every other cell in flight and is not judged, the judge's own journal, reconciliation items from the records, `--reconciled`) |
+| `examples/` tree digest | unchanged: `e95a28aa363366160062107128950e9ff4c1888d52dccfdf578299e14e341b78` from a clean checkout (`6db7a2e9…` in the working and exported trees, see revision 5) |
+| Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
+| Method `METHOD.md` sha256 | `ec415afcf1649040a219968d49a469553058d8299a1dfd3ad557bafe71c138dc` (unchanged) |
+| Guest programs | unchanged: supervisor `attest-sealed-supervisor/7` `97d3d47d1d5b4fed…`; per-test child `e4e7b0b294a2004c…`; canary `9cdc57c1348fae5c…`; sandbox runner `attest-guest/3` `db8e2a76834b83ac…` |
+| Evidence protocol and witness language | version 5 (the reconciliation record) and `attest-witness/1`; manifest version 2 |
+| Effective provider configuration, proposed paid run | computed offline from the pinned package (placeholder key, outbound network denied): equal to the revision-7 registration; the provider's description adds its answer and journal policies |
+| Limits | revision-8 limits; deployment memory limit 200M (memory and memory plus swap) |
+| Offline suite on the final tree | **458 tests, 0 failures, 0 errors, 0 skips** on a clean checkout of `7664742` with no credential, no private configuration and outbound network denied by the operating system except to the loopback interface (macOS `sandbox-exec`; the suite's own guard also refuses this machine's proxy and every loopback port listening before it started): `reports/attest-revision9-repairs-2026-10-20/suites/final-tree-suite-14-clean-7664742-macos-no-network.log`; and **458 tests, 0 failures, 0 errors, 26 skipped** on a clean `git archive` of `7664742` in a Linux container whose only network interface is the loopback one (Alpine 3.24, Python 3.12.15, uid 65534, all capabilities dropped; the 26 skips are the tests that need bash, git or node, which the image lacks): `final-tree-suite-15-clean-7664742-linux-no-network.log` (the same results for `697d0e7`: suites 12 and 13) |
+
+History of this pin (20 Oct 2026, before the deployment of revision 9): the code of the repairs is `808137c`; `58d2520` and `697d0e7`
+tighten the offline suite's own guard (the machine's configured proxy, then every loopback port listening before the suite started)
+and let the three export tests that need git skip without it, as the bash and node ones do (the same package digest for all three).
+The record first named `697d0e7`, whose clean checkout passed both offline set-ups. A browser check of a held run's case file then read
+"At stage reconciliation" for a run stopped at `breaker-tests`: recording the stop relabelled the bundle's stage. `7664742` names the
+stage of the operation from the halt record (decision header, exhibit E7, PROOF.md) and asserts it in the tests; its clean checkout
+passed both offline set-ups again, and the pin names it. A live development run of `697d0e7` on the team's gateway (one task, 11
+gateway calls, 15 Sandboxes operations, no Nebius inference, no Tavily) ended VERIFIED under evidence protocol 5 with every operation
+journaled PENDING, ACCEPTED and SUCCESS (`reports/attest-revision9-repairs-2026-10-20/live-codex/`); `7664742` does not change any request path.
+
+## The exact command (revision 9)
+
+```bash
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 12a541dc6da91e55955b561e6ac9d64465028d33
+# the same tree as review-repository commit 7664742309216676c7a0bc9188df0aac932fe35b
+export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
+python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
+    --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r9-final \
+    --out reports/attest-evaluation-2026-10-XX-nebius-r9
+```
+
+## Publication repository (revision 9)
+
+The review repository (`dist/public`, private) keeps the record as it was written. Its commits from before revision 8 carry the
+development gateway's host in 125 historical REDACTION.json files and 16 versions of the export script, and two early EXPORT.json files
+carry a local home directory, so its history is not published. `scripts/build_publication_history.py` replays that history, commit by
+commit with the same authors, dates and messages, into a separate repository (`dist/publication`, not pushed): only the 143 blobs that
+hold a private string change (through the export's own redaction) and the 324 derived manifests that list one of them get that entry's
+digest and size recomputed; every other file, the package, the harness, the examples and the evidence included, is byte-identical.
+`--verify` found the publication history clean (every object, every spelling, including escaped, base64 and compressed forms), every
+commit differing from its review commit only by those rewrites, every pinned digest below equal in both, and the 849 run copies whose
+manifest changed passing `attest check` at the commits where they changed
+(`reports/attest-revision9-repairs-2026-10-20/publication/`). The replay is deterministic, so a review commit always maps to the same
+publication commit (the build up to `697d0e7` and the later one up to `7664742` agree on every earlier commit);
+`publication-map-to-7664742.json` lists every one. Historical records cite review-repository commit ids; this table
+translates the pinned ones (the `git checkout` lines of every pin above now name the publication commits):
+
+| Pin | Review repository | Publication repository |
+| --- | --- | --- |
+| M5 evaluation (17 Oct) | `6b786a2e51bba634d63cc8b4ee75bb215c168fa7` | `550568285af7d572b70a48d4a2de729f570f94c3` |
+| Revision 4 | `4437b29a233603bf8a0523a6c0092493a92d2aa3` | `f4bf5f48eb698ccd1b7bb5d2c7c1c450de993ca7` |
+| Revision 5 | `320651d3bd4011538fe2f6d240a1e5769b019051` | `ad2f633c555898a8a6e47e7e410aff0ddb15e1b7` |
+| Revision 6 | `da00f41a5542a1c114c2ba1a57a6f0ee7e7ff906` | `0dd0b425b8aa6ea9fe03160a8eb6aef82dbf21e8` |
+| Revision 7 | `a95e2614d643bc057a1877f81b5ebe774fabaf7e` | `00a3e2a76b1fa5b24b5e96cb1387d5bf7de381af` |
+| Revision 8 (0.8.3) | `459fe8dd97bb1f719edff42921c04fa43bb50196` | `84d3d8b774b3e4a1aa5cef77cecc17e67e5d4b89` |
+| Revision 9 (0.9.0) | `7664742309216676c7a0bc9188df0aac932fe35b` | `12a541dc6da91e55955b561e6ac9d64465028d33` |
+
+For every row the publication commit reproduces the recorded `attest/` package digest and harness digest exactly (for example
+`166cdcbd46a74cd0…` and `3214d2b3a1fd1fbc…` for the M5 pin). Who may publish the publication repository, and under which author identity,
+is the owner's decision; nothing has been pushed.
+
+## Proposed paid work (revision 9; awaiting the owner's approval; nothing runs before it)
+
+Unchanged in scope and budget, re-pinned to revision 9: the two-run Nemotron smoke test through the CLI (about $0.15, at most $1.00) and
+the revised 32-cell evaluation with the command above (about $3.00 to $4.00, at most $9.00 through `--approve-usd`). Total maximum
+**$10.00**, stop rules as before plus the revision-9 rule: any operation of uncertain outcome stops its run and the batch, every cell in
+flight included. No paid Nebius call was made in revision 9.
