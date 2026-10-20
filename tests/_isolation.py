@@ -10,13 +10,17 @@ run from this package (`python -m unittest discover -s tests -t .`, or a single 
   transport handler catches, so the test that caused it fails where it happened) and is recorded in ATTEMPTS;
   tests/test_zz_isolation.py, the last module of a discovery run, fails when any attempt was recorded. A connection to the loopback
   port of a proxy this machine is configured to use (read from the environment and the system settings before they are removed) is
-  refused the same way: through it a request would leave the machine.
+  refused the same way: through it a request would leave the machine. So is a connection to any loopback port that something was
+  already listening on when the suite started (a local proxy, a resolver, another service could forward it); a test's own servers
+  open new ports, and every port this process binds itself stays allowed.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import socket
+import subprocess
 import tempfile
 import threading
 import traceback
@@ -51,6 +55,43 @@ def _configured_proxy_ports() -> set[int]:
 
 
 PROXY_PORTS: set[int] = set()
+PREEXISTING: dict[str, set[int]] = {"tcp": set(), "udp": set()}  # loopback-reachable ports listened on before the suite started
+OWN_PORTS: set[tuple[str, int]] = set()                          # ports this process bound itself (a test's own servers)
+
+
+def _listening_ports() -> dict[str, set[int]]:
+    """TCP ports in LISTEN state and bound UDP ports on this machine (Linux: /proc/net; elsewhere: netstat)."""
+    found: dict[str, set[int]] = {"tcp": set(), "udp": set()}
+    proc = [("tcp", "/proc/net/tcp"), ("tcp", "/proc/net/tcp6"), ("udp", "/proc/net/udp"), ("udp", "/proc/net/udp6")]
+    if any(os.path.exists(path) for _, path in proc):
+        for kind, path in proc:
+            try:
+                with open(path, encoding="ascii", errors="replace") as handle:
+                    lines = handle.read().splitlines()[1:]
+            except OSError:
+                continue
+            for line in lines:
+                cols = line.split()
+                if len(cols) < 4 or (kind == "tcp" and cols[3] != "0A"):  # 0A: LISTEN
+                    continue
+                try:
+                    found[kind].add(int(cols[1].rsplit(":", 1)[1], 16))
+                except (IndexError, ValueError):
+                    continue
+        return found
+    for kind in ("tcp", "udp"):
+        try:
+            out = subprocess.run(["netstat", "-an", "-p", kind], capture_output=True, text=True, timeout=15).stdout
+        except (OSError, subprocess.SubprocessError):
+            continue
+        for line in out.splitlines()[2:]:
+            cols = line.split()
+            if len(cols) < 4 or (kind == "tcp" and cols[-1] != "LISTEN"):
+                continue
+            match = re.search(r"[.:](\d+)$", cols[3])
+            if match:
+                found[kind].add(int(match.group(1)))
+    return found
 
 
 class NetworkForbidden(AssertionError):
@@ -68,30 +109,49 @@ def _host(address):
     return address[0] if isinstance(address, tuple) and address else None
 
 
-def _check(address) -> None:
+def _check(address, kind: str = "tcp") -> None:
     host = _host(address)
     if host not in LOOPBACK:
         _forbid("connection to", host)
-    if isinstance(address, tuple) and len(address) > 1 and address[1] in PROXY_PORTS:
-        _forbid("connection to this machine's proxy at", f"{host}:{address[1]}")
+    port = address[1] if isinstance(address, tuple) and len(address) > 1 else None
+    if port in PROXY_PORTS and (kind, port) not in OWN_PORTS:
+        _forbid("connection to this machine's proxy at", f"{host}:{port}")
+    if port in PREEXISTING.get(kind, ()) and (kind, port) not in OWN_PORTS:
+        _forbid(f"connection to a {kind} port that was listening before the suite started:", f"{host}:{port}")
+
+
+def _kind(sock) -> str:
+    return "udp" if sock.type == socket.SOCK_DGRAM else "tcp"
 
 
 _real_connect = socket.socket.connect
 _real_connect_ex = socket.socket.connect_ex
+_real_bind = socket.socket.bind
 _real_create_connection = socket.create_connection
 _real_getaddrinfo = socket.getaddrinfo
 
 
 def _connect(self, address):
     if self.family in (socket.AF_INET, socket.AF_INET6):
-        _check(address)
+        _check(address, _kind(self))
     return _real_connect(self, address)
 
 
 def _connect_ex(self, address):
     if self.family in (socket.AF_INET, socket.AF_INET6):
-        _check(address)
+        _check(address, _kind(self))
     return _real_connect_ex(self, address)
+
+
+def _bind(self, address):
+    result = _real_bind(self, address)
+    if self.family in (socket.AF_INET, socket.AF_INET6):
+        try:
+            with _lock:
+                OWN_PORTS.add((_kind(self), self.getsockname()[1]))
+        except OSError:
+            pass
+    return result
 
 
 def _create_connection(address, *args, **kwargs):
@@ -108,12 +168,15 @@ def _getaddrinfo(host, *args, **kwargs):
 
 def install() -> None:
     PROXY_PORTS.update(_configured_proxy_ports())  # before the configuration is removed below
+    for kind, ports in _listening_ports().items():
+        PREEXISTING[kind].update(ports)
     for name in PRIVATE_VARIABLES + PROXY_VARIABLES:
         os.environ.pop(name, None)
     os.environ["ATTEST_SECRETS_NOTES"] = os.path.join(tempfile.gettempdir(), "attest-tests-no-private-notes", "notes.json")
     os.environ["no_proxy"] = os.environ["NO_PROXY"] = "*"
     socket.socket.connect = _connect
     socket.socket.connect_ex = _connect_ex
+    socket.socket.bind = _bind
     socket.create_connection = _create_connection
     socket.getaddrinfo = _getaddrinfo
 

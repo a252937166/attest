@@ -477,6 +477,7 @@ class Rel01ReleaseExclusionsAndWholeTreeScan(unittest.TestCase):
         completed = subprocess.run([str(out / "rehearsal" / "shims" / "systemctl")], capture_output=True)
         self.assertEqual(completed.returncode, 0, "an exported shim runs as it does in the source tree")
 
+    @unittest.skipUnless(shutil.which("git"), "git is needed by the export's check that git records every exported file")
     def test_the_review_repository_records_every_exported_file(self):
         """Revision 7: the exported .gitignore carried unanchored `runs/` and `data/` patterns, so git kept every
         reports/**/runs/ directory, most of the recorded run evidence, out of the review repository. The export now fails when
@@ -534,6 +535,7 @@ class Rel01ReleaseExclusionsAndWholeTreeScan(unittest.TestCase):
         self.assertEqual(len(default_hits), 1)
         self.assertIn("archive in the staged tree", default_hits[0])                   # and one that got in anyway is a hit
 
+    @unittest.skipUnless(shutil.which("git"), "git is needed by the export's check that git records every exported file")
     def test_main_fails_closed_on_a_planted_secret_and_leaves_the_previous_export_intact(self):
         root = self.tmp / "project"
         (root / "deploy").mkdir(parents=True)
@@ -608,6 +610,7 @@ class Rel02ExportDestinationsAreRefusedBeforeDeletion(unittest.TestCase):
         self.assertIn("not a previous export", err)
         self.assertTrue((other / "mine.txt").exists())
 
+    @unittest.skipUnless(shutil.which("git"), "git is needed by the export's check that git records every exported file")
     def test_a_normal_export_replaces_only_the_previous_export_and_keeps_its_git(self):
         dest = self.root / "dist" / "public"
         (dest / ".git").mkdir(parents=True)

@@ -29,6 +29,14 @@ class SuiteIsolation(unittest.TestCase):
         for port in sorted(_isolation.PROXY_PORTS)[:1]:  # this machine's proxy, when one is configured, is refused too
             with self.assertRaises(_isolation.NetworkForbidden):
                 socket.create_connection(("127.0.0.1", port), timeout=1)
+        for port in sorted(_isolation.PREEXISTING["tcp"] - {p for k, p in _isolation.OWN_PORTS if k == "tcp"})[:1]:  # and any earlier listener
+            with self.assertRaises(_isolation.NetworkForbidden):
+                socket.create_connection(("127.0.0.1", port), timeout=1)
+        server = socket.socket()  # a server of the test's own is reachable
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        socket.create_connection(server.getsockname(), timeout=1).close()
+        server.close()
         del _isolation.ATTEMPTS[before:]  # these deliberate attempts are the control, not a finding
 
 
