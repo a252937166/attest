@@ -160,6 +160,8 @@ stopped run awaits reconciliation, the evaluation harness halts every cell in fl
 suite runs without credentials, private configuration or network (it fails if any test reaches outside the loopback interface). The
 review repository stays the private record; `scripts/build_publication_history.py` replays its history into a separate, publishable
 repository with the private gateway host removed from every historical file, keeping every recorded digest (`FREEZE.md`).
+Revision 9 was deployed at https://attest.axiqo.xyz on 20 Oct 08:22 UTC (`reports/attest-deployment-2026-10-20/README.md`); the console
+runs 0.9.0, with the memory limit in force as before (200M for memory and for memory plus swap) and no reconciliation hold open.
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,

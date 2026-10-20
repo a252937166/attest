@@ -457,6 +457,7 @@ stage of the operation from the halt record (decision header, exhibit E7, PROOF.
 passed both offline set-ups again, and the pin names it. A live development run of `697d0e7` on the team's gateway (one task, 11
 gateway calls, 15 Sandboxes operations, no Nebius inference, no Tavily) ended VERIFIED under evidence protocol 5 with every operation
 journaled PENDING, ACCEPTED and SUCCESS (`reports/attest-revision9-repairs-2026-10-20/live-codex/`); `7664742` does not change any request path.
+0.9.0, built from a clean checkout of the pin record `65d81f7`, was deployed on 20 Oct at 08:22 UTC (`reports/attest-deployment-2026-10-20/`).
 
 ## The exact command (revision 9)
 

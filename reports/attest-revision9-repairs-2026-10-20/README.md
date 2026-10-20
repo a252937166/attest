@@ -193,5 +193,14 @@ journaled PENDING, ACCEPTED and SUCCESS in that order. `7664742` changes no requ
 | Development gateway (team allowance, not USD) | 11 calls, one live development run |
 | Token Factory Sandboxes | 15 operations of that run (50.3 s of guest time; raw cost diagnostics 0.393, no confirmed currency); no other Sandboxes request |
 | Tavily | none |
-| Production console | the deployment of 0.9.0 with the transactional installer, and otherwise read-only checks (GET requests, read-only SSH); see the deployment record |
+| Production console | the deployment of 0.9.0 with the transactional installer (20 Oct 08:22 UTC), and otherwise read-only checks (GET requests, read-only SSH; `reports/attest-deployment-2026-10-20/`) |
 | Aliyun host | two runs of the offline suite in a container with no network interface on the dedicated Docker daemon, removed afterwards |
+
+## Deployment
+
+0.9.0 (package `ab5b1705…`), built from a clean checkout of the pin record `65d81f7`, was installed on yungou on 20 Oct at 08:22 UTC with
+the transactional installer, after a backup of the store and the data directory; the previous release 0.8.3 stays selectable with
+`rollback.sh` (`reports/attest-deployment-2026-10-20/README.md`). Read back afterwards: version 0.9.0 and the package digest through
+`/opt/attest/app`; systemd `MemoryLimit` and the cgroup's memory and memory-plus-swap limits all 209,715,200 bytes on the new main
+process, no fail count, no OOM kill; queue 0, no reservation, $0.00 committed on the new UTC day; no reconciliation hold open; the
+other services on the host unchanged.
