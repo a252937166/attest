@@ -8,6 +8,11 @@ Answer classes (revision 9, 20 Oct 2026): an HTTP 4xx answer is a definite rejec
 answer may come after the generation was metered, so like a lost answer it keeps its reservation committed, is never sent again and
 halts the run for reconciliation (`Ledger.halt`). A reservation that cannot be journaled and a generation that cannot be priced halt
 the run the same way, and every attempt is admitted by the ledger right before it is sent, so nothing leaves after the stop.
+
+Malformed answers (revision 10, 20 Oct 2026): a 2xx answer that cannot be read (not UTF-8, not JSON, not an object, or without a
+non-empty `choices` array whose first entry holds a `message` object with string-or-null `content`; `completion_problem`) was generated
+and may have been metered: its reservation stays committed (unsettled), the call's outcome is uncertain, the answer's `id` is kept
+when it could be read, and the run halts at once. No repair or low-effort retry follows a malformed answer.
 """
 
 from __future__ import annotations
@@ -17,7 +22,7 @@ import os
 import re
 import time
 
-from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, HttpError, TransportError, backoff, post_outcome, request_json
+from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, HttpError, MalformedResponse, TransportError, backoff, kind_of, post_outcome, request_json, unreadable_text
 from ..ledger import Ledger, LedgerError, ModelCall, RunHalted, utcnow
 from .base import ModelError, ModelResult, extract_usage, usage_problem, validate_json
 
@@ -38,6 +43,31 @@ DEFAULT_ROLES = {
     "summary": "nvidia/Nemotron-3_5-Lightning",
 }
 THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+
+
+def completion_problem(body) -> str | None:
+    """Why a 2xx chat-completions answer cannot be read, or None (revision 10): it must be an object whose `choices` is a non-empty array,
+    the first choice an object with a `message` object, the message's `content` a string or null, and `model`, `id` and `finish_reason`
+    strings when present. `usage` is checked separately (a missing or malformed usage is a metering failure, not a malformed answer)."""
+    if not isinstance(body, dict):
+        return f"the answer is {kind_of(body)}, not an object"
+    for key in ("id", "model"):
+        if body.get(key) is not None and not isinstance(body[key], str):
+            return f"the answer's {key} is {kind_of(body[key])}, not a string"
+    choices = body.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return "the answer has no choices array" if not isinstance(choices, list) else "the answer's choices array is empty"
+    choice = choices[0]
+    if not isinstance(choice, dict):
+        return f"the first choice is {kind_of(choice)}, not an object"
+    if choice.get("finish_reason") is not None and not isinstance(choice["finish_reason"], str):
+        return "the first choice's finish_reason is not a string"
+    message = choice.get("message")
+    if not isinstance(message, dict):
+        return f"the first choice's message is {kind_of(message)}, not an object"
+    if message.get("content") is not None and not isinstance(message["content"], str):
+        return f"the message content is {kind_of(message['content'])}, not a string"
+    return None
 
 
 def roles_from_env(default: dict) -> dict:
@@ -229,6 +259,27 @@ class NebiusTokenFactory:
         try:
             _, body, _ = request_json("POST", self.base + "/chat/completions", self._headers(), payload,
                                       timeout=self.timeout)
+            problem = completion_problem(body)
+            if problem:
+                raise MalformedResponse(problem, status=200, known={"answer_id": body.get("id") if isinstance(body, dict) else None})
+        except MalformedResponse as error:
+            # generated and possibly metered, and unreadable (revision 10): the reservation stays committed, the outcome is uncertain, nothing
+            # is sent again (no repair, no low-effort retry) and the run stops at once
+            call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+            call.request_sent, call.transport_phase, call.http_status = True, "response", error.status
+            call.error = self.ledger.public_error(f"{stage}-malformed", error)
+            call.outcome = "uncertain"
+            call.settlement = "unsettled"
+            call.cost_note = (f"the answer could not be read ({error.problem}); the reservation (${reservation:.6f}) stays committed pending reconciliation "
+                              "against the provider's billing")
+            self.ledger.add_call(call, reservation_id)
+            self._halt("uncertain_operation", f"the provider's answer to the {stage} call could not be read ({error.problem}); it may have been metered, so its "
+                                              "reservation stays committed and it was not sent again", stage,
+                       public=f"the provider's answer to the {stage} call could not be read ({error.problem}); its reservation stays committed and it was "
+                              "not sent again",
+                       started_at_utc=started, reserved_usd=round(reservation, 6), http_status=error.status, answer_id=error.known.get("answer_id"))
+            raise ModelError(f"inference answer unreadable ({error.problem}); not retried", uncertain=True, malformed=True,
+                             http_status=error.status) from None
         except TransportError as error:
             call.elapsed_ms = int((time.monotonic() - t0) * 1000)
             call.request_sent, call.transport_phase, call.http_status = error.request_sent, error.phase, getattr(error, "status", None)
@@ -274,7 +325,6 @@ class NebiusTokenFactory:
         call.elapsed_ms = int((time.monotonic() - t0) * 1000)
         call.request_sent = True
         call.outcome = "answered"
-        body = body or {}
         call.returned_model = body.get("model")
         usage = body.get("usage")
         call.usage_raw = usage if isinstance(usage, dict) else ({} if usage is None else {"malformed_usage": repr(usage)[:200]})
@@ -293,21 +343,23 @@ class NebiusTokenFactory:
                               f"against the provider's billing")
             self._halt("metering_unknown", f"metering failed on {call.stage} ({metering}); paid calls of this run stop pending reconciliation",
                        call.stage, started_at_utc=started, reserved_usd=round(reservation, 6))
-        choices = body.get("choices") or []
-        message = (choices[0].get("message") or {}) if choices else {}
+        choices = body["choices"]  # checked by completion_problem: a non-empty array whose first entry holds a message object
+        message = choices[0]["message"]
         text = message.get("content") or ""
         cleaned = THINK_RE.sub("", text).strip()
         parsed = None
         try:
             parsed = json.loads(cleaned)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, RecursionError):
             match = re.search(r"\{.*\}", cleaned, re.DOTALL)
             if match:
                 try:
                     parsed = json.loads(match.group(0))
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, RecursionError):
                     parsed = None
-        problem = "no JSON output" if parsed is None else validate_json(parsed, schema)
+        # the model's output: text that is not valid Unicode is a schema violation like any other bad output (revision 10)
+        problem = ("no JSON output" if parsed is None else "the output holds text that is not valid Unicode" if unreadable_text(parsed)
+                   else validate_json(parsed, schema))
         if problem:
             call.malformed_output = True
             head = (text or "").strip().replace("\n", " ")[:240]

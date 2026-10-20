@@ -43,6 +43,11 @@ PUBLIC = {
     "sandbox_rejected": "the sandbox service refused the operation (HTTP {status}); nothing was executed",
     "run_halted": "not sent: the run had stopped for reconciliation after an operation whose outcome is uncertain",
     "journal_failure": "a record of this run could not be journaled durably, so nothing further was sent and the run stopped",
+    # revision 10: answers that arrived but could not be read
+    "provider_malformed": "the model provider's answer could not be read (it did not have the documented form); its outcome is uncertain, it was not retried and the run stopped",
+    "provider_read_malformed": "the model provider's answer to a read could not be read (it did not have the documented form); nothing further was sent and the run stopped",
+    "sandbox_malformed": "the sandbox service's answer to a spawn could not be read (it did not have the documented form); an operation may exist, it was not replayed and the run stopped",
+    "sandbox_read_malformed": "the sandbox service's answer to a read could not be read (it did not have the documented form); nothing further was sent and the run stopped",
     "internal_error": "an internal error occurred ({type})",
 }
 
@@ -56,6 +61,14 @@ def classify_error(error: BaseException | str) -> tuple[str, str]:
     uncertain = bool(getattr(error, "uncertain", False)) or "uncertain" in lower
     rate_limited = bool(getattr(error, "rate_limited", False))
     status = getattr(error, "http_status", None)
+    if name == "MalformedResponse" or getattr(error, "malformed", False) is True:  # revision 10: an answer that could not be read
+        if name == "SandboxError" or "/sandboxes" in str(getattr(error, "url", "") or ""):
+            if getattr(error, "accepted_unread", False):
+                return "sandbox_accepted_unread", PUBLIC["sandbox_accepted_unread"]
+            return ("sandbox_malformed", PUBLIC["sandbox_malformed"]) if (uncertain or name == "MalformedResponse") else ("sandbox_read_malformed", PUBLIC["sandbox_read_malformed"])
+        if name == "ModelError" and not uncertain:
+            return "provider_read_malformed", PUBLIC["provider_read_malformed"]
+        return "provider_malformed", PUBLIC["provider_malformed"]
     if name == "RunHalted" or (getattr(error, "halted", False) is True and not getattr(error, "journal_failed", False)
                                and "journal" not in lower and "metering" not in lower):
         return "run_halted", PUBLIC["run_halted"]
@@ -122,8 +135,9 @@ class Diagnostics:
             try:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 with self.path.open("a", encoding="utf-8") as handle:
-                    handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
-            except OSError:
+                    # ensure_ascii: an error text may carry characters that are not valid Unicode (an unpaired surrogate from an answer)
+                    handle.write(json.dumps(entry, ensure_ascii=True) + "\n")
+            except (OSError, ValueError):
                 pass  # the private sidecar is best effort; the public text below is produced regardless
         return {"code": code, "public": public, "reference": reference}
 

@@ -63,7 +63,8 @@ ALLOW_REPORTS = ["attest-first-slice-2026-10-15", "attest-verification-2026-10-1
                  "attest-deployment-2026-10-19b", "attest-deployment-2026-10-19c",
                  "attest-revision6-review-2026-10-19", "attest-revision6-repairs-2026-10-19", "attest-deployment-2026-10-19d",
                  "attest-revision7-repairs-2026-10-19", "attest-deployment-2026-10-19e", "attest-deployment-2026-10-19f", "attest-deployment-2026-10-19g", "attest-deployment-2026-10-19h",
-                 "attest-revision9-repairs-2026-10-20", "attest-deployment-2026-10-20"]  # the gateway operations report stays private (internal infrastructure)
+                 "attest-revision9-repairs-2026-10-20", "attest-deployment-2026-10-20",
+                 "attest-revision10-repairs-2026-10-20", "attest-deployment-2026-10-20b"]  # the gateway operations report stays private (internal infrastructure)
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".venv", "snapshot", "screens", "refresh-sequence", "runs-private",
                 # the 19 Oct audit's synthetic bundles are deliberately defective (they fail `attest check` by design) and its
                 # synthetic work directory is scratch; the audit report describes both
@@ -76,7 +77,10 @@ EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".venv", "snapshot", "screens", 
 # Specific directories (relative to the project root) that stay private although same-named directories elsewhere are exported:
 # the first (stopped) development batch of 19 Oct 2026 ran the revision before the ledger journal was sealed under the
 # manifest, so its three bundles fail the digest check by construction (the defect it exposed).
-EXCLUDE_PATHS = {"reports/attest-revision-2026-10-19/evaluation-codex"}
+EXCLUDE_PATHS = {"reports/attest-revision-2026-10-19/evaluation-codex",
+                 # revision 10: the host's disk inventories name the other services' and projects' directories, and the archive holds
+                 # copies of server-side files taken before pruning; both stay in the private record (the README carries the figures)
+                 "reports/attest-revision10-repairs-2026-10-20/disk"}
 MAX_FILE_BYTES = 2_000_000
 EXPORT_RECORD = "EXPORT.json"  # written at the root of every export; its presence marks a tree this tool produced
 

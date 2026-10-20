@@ -7,13 +7,18 @@ answer was lost is not.
 
 Revision 9 (20 Oct 2026): a search whose outcome is uncertain (its answer was lost after it was sent, or Tavily answered HTTP 5xx) ends
 the grounding stage at once: no further search and no usage read are sent, the record carries `uncertain`, and the pipeline stops the
-run for reconciliation. An HTTP 4xx answer is a definite refusal and the next query is still tried."""
+run for reconciliation. An HTTP 4xx answer is a definite refusal and the next query is still tried.
+
+Revision 10 (20 Oct 2026): answers are checked before use. A search answer that cannot be read (`search_problem`, or a body the HTTP
+layer could not decode) reached Tavily, so it is uncertain like a lost answer and ends grounding the same way; a usage answer that
+cannot be read sets `malformed` (no search is sent when it is the first read) and the pipeline stops the run (`malformed_response`)."""
 
 from __future__ import annotations
 
 import time
 
-from ..http import NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, TransportError, backoff, post_outcome, request_json
+from ..http import (NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, MalformedResponse, TransportError, backoff, is_number,
+                    kind_of, post_outcome, request_json)
 from ..ledger import utcnow
 
 BASE = "https://api.tavily.com"
@@ -32,10 +37,14 @@ class Tavily:
         return {"Authorization": "Bearer " + self._key}
 
     def usage(self) -> dict | None:
+        """The account's usage (advisory). A malformed answer raises MalformedResponse (revision 10: `ground` stops the run); any other
+        failure gives None (unknown)."""
         for retry in range(READ_RETRIES + 1):
             try:
                 _, body, _ = request_json("GET", BASE + "/usage", self._headers(), timeout=30)
                 return body
+            except MalformedResponse:
+                raise
             except HttpError:
                 return None
             except TransportError:
@@ -62,9 +71,30 @@ class Tavily:
                 self.calls += 1
                 raise
             self.calls += 1
+            problem = search_problem(body)
+            if problem:
+                # it reached Tavily (a credit may be spent) and the answer cannot be read: uncertain, the run stops (revision 10)
+                raise MalformedResponse(problem, status=200)
             return [{"title": r.get("title"), "url": r.get("url"), "excerpt": (r.get("content") or "")[:600], "score": r.get("score")}
-                    for r in (body or {}).get("results", [])]
+                    for r in body["results"]]
         return []
+
+
+def search_problem(body) -> str | None:
+    """Why a search answer cannot be read, or None (revision 10): an object whose `results` is an array of objects with string-or-null
+    title, url and content and a numeric-or-null score."""
+    results = body.get("results") if isinstance(body, dict) else None
+    if not isinstance(results, list):
+        return f"the search answer's results are {kind_of(results)}, not an array" if isinstance(body, dict) else f"the search answer is {kind_of(body)}"
+    for item in results:
+        if not isinstance(item, dict):
+            return f"a search result is {kind_of(item)}, not an object"
+        for key in ("title", "url", "content"):
+            if item.get(key) is not None and not isinstance(item[key], str):
+                return f"a search result's {key} is {kind_of(item[key])}, not a string"
+        if item.get("score") is not None and not is_number(item["score"]):
+            return "a search result's score is not a number"
+    return None
 
 
 def ground(queries: list[str], tavily: Tavily | None) -> dict:
@@ -76,8 +106,14 @@ def ground(queries: list[str], tavily: Tavily | None) -> dict:
     if tavily is None:
         record["skipped"] = "no Tavily client configured"
         return record
-    record["usage_before"] = tavily.usage()
     record["uncertain"] = None
+    record["malformed"] = None
+    try:
+        record["usage_before"] = tavily.usage()
+    except MalformedResponse as error:  # revision 10: an unreadable answer stops the run before any search is sent
+        record["malformed"] = {"read": "/usage", "problem": error.problem, "when": "before the searches"}
+        record["calls"], record["not_sent"] = tavily.calls, tavily.not_sent
+        return record
     for index, query in enumerate(queries[: tavily.max_queries]):
         started = utcnow()
         try:
@@ -97,7 +133,11 @@ def ground(queries: list[str], tavily: Tavily | None) -> dict:
     record["calls"] = tavily.calls
     record["not_sent"] = tavily.not_sent
     record["billing"] = "Tavily API credits (one per basic search request that reached Tavily); separate from inference and Sandboxes"
-    record["usage_after"] = None if record["uncertain"] else tavily.usage()
+    if not record["uncertain"]:
+        try:
+            record["usage_after"] = tavily.usage()
+        except MalformedResponse as error:
+            record["malformed"] = {"read": "/usage", "problem": error.problem, "when": "after the searches"}
     return record
 
 

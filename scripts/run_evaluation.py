@@ -47,14 +47,22 @@ process that would build a different provider (on resume, or at the start of a c
 Stop for reconciliation (revision 9, 20 Oct 2026): every cell's ledger is registered with the batch; the first cell whose run halts
 (an operation whose outcome is uncertain, a record that could not be made durable) stops the batch and halts every other cell in flight
 (`batch_stop`), so no cell sends anything further and none is started; a halted cell is not judged, and the judge of a finished cell
-writes its own journal next to the sealed run directory. Reconciliation items come from the ledger's records, not from error text. A
-resumed batch whose interrupted run directories leave operations to reconcile starts nothing unless `--reconciled NOTE` records that
-they were reconciled.
+writes its own journal next to the sealed run directory. Reconciliation items come from the ledger's records, not from error text.
+
+Resume over unresolved operations (revision 10, 20 Oct 2026): before a resumed batch builds anything it collects every unresolved item
+of the batch from every record that can hold one: each persisted row (its reconciliation list and halt record; a halted row whose halt
+names nothing else becomes an item itself, except a `batch_stop`), each row's run directory (the proof bundle's reconciliation record,
+the run journal, the judge's journal) and every run directory no row owns. Each item has a stable id (`u-` + 12 hex digits of its run
+and its record key). While any item is not acknowledged the batch starts nothing: it writes `reconciliation-pending.json`, prints the
+items with the read-only check that settles each, and exits 4. `--resume DIR` alone is never an approval. An acknowledgement is
+`--reconciled NOTE --items ID[,ID...]`: the note says what the reconciliation found, the ids must be items the batch currently lists (an
+unknown id refuses everything), and the record is appended durably (fsync, read back) to `reconciliations.jsonl` in the report
+directory, so later restarts honour it without a new note; an item that appears afterwards needs its own acknowledgement.
 
 Usage:
   run_evaluation.py [--provider codex|nebius] [--tasks id,id] [--systems baseline,attest] [--attempts 1] [--workers 2]
                     [--usd-cap 0.5] [--approve-usd TOTAL] [--max-calls N] [--max-turns 14] [--out DIR] [--label TEXT]
-                    [--suite PATH] [--resume DIR [--reconciled NOTE]]
+                    [--suite PATH] [--resume DIR [--reconciled NOTE --items ID[,ID...]]]
 """
 
 from __future__ import annotations
@@ -281,13 +289,32 @@ def executor_for(ledger):
     return TokenFactorySandboxes(load_secret("NEBIUS_API_KEY"), project_id(), ledger)
 
 
+class UpstreamUnreadable(RuntimeError):
+    """The gateway's status answer could not be read before the batch started (revision 10); no cell is started."""
+
+
 def codex_governor():
-    """The process-wide governor for the Codex key, configured from the gateway's declared policy before the batch starts."""
+    """The process-wide governor for the Codex key, configured from the gateway's declared policy before the batch starts. A status answer
+    that cannot be read halts the probe's ledger (revision 10) and the batch does not start: UpstreamUnreadable."""
     from attest.models.codex_gateway import CodexGateway
-    client = CodexGateway(load_secret("CODEX_API_KEY"), Ledger())
+    probe = Ledger()
+    client = CodexGateway(load_secret("CODEX_API_KEY"), probe)
     client.adopt_gateway_policy(force=True)
+    if probe.halted:
+        raise UpstreamUnreadable(probe.halted.get("reason") or "the gateway's status answer could not be read")
     log(f"codex pacing policy: {client.governor.policy_source}")
     return client.governor
+
+
+def batch_governor(provider: str, out_root: Path):
+    """The batch's governor, or (None, exit code 2) when the gateway's status answer could not be read: nothing is started."""
+    if provider != "codex":
+        return None, None
+    try:
+        return codex_governor(), None
+    except UpstreamUnreadable as error:
+        print(f"refusing: {error}; no cell of {out_root} was started", file=sys.stderr)
+        return None, 2
 
 
 class Budget:
@@ -424,6 +451,14 @@ def one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task
         budget.register(ledger)
     try:
         return _one_system(cell, provider_name, usd_cap, max_calls, out_dir, max_turns, task_root, registered_profile, ledger)
+    except Exception as error:  # noqa: BLE001 - outside the pipeline (provider, executor, run directory): the row keeps the ledger's stop state
+        if not (ledger.halted or ledger.reconciliation_items()):
+            raise
+        message = f"{type(error).__name__}: {str(error)[:200]}"
+        return {**cell, "status": "completed", "verdict": "HARNESS_ERROR", "accepted": False, "held_out_correct": None, "cost_usd": None,
+                "cost_committed_usd": ledger.totals().get("cost_usd_committed"), "wall_s": None, "infra_error": True, "uncertain": True,
+                "reasons": [message], "arbitration": None, "revision_digest": None, "halted": ledger.halted,
+                "reconciliation": reconciliation_items(ledger)}
     finally:
         if budget is not None:
             budget.unregister(ledger)
@@ -655,6 +690,179 @@ def interrupted_cells(runs_dir: Path, rows: list[dict], already: list[dict], per
     return found
 
 
+# ----------------------------------------------------------------------------- unresolved items and acknowledgements (revision 10)
+ACK_FILE = "reconciliations.jsonl"
+PENDING_FILE = "reconciliation-pending.json"
+
+
+def item_id(run_id: str | None, item: dict) -> str:
+    """The stable id of one unresolved item: its run and its record key (`attest.ledger.item_key`), hashed."""
+    from attest.ledger import item_key
+    key = json.dumps([run_id or "", [None if k is None else str(k) for k in item_key(item)]], sort_keys=True)
+    return "u-" + hashlib.sha256(key.encode("utf-8")).hexdigest()[:12]
+
+
+def _directory_records(run_dir: Path) -> tuple[list[tuple[str, dict]], dict | None]:
+    """The unresolved items a run directory's own records list (the bundle's reconciliation record, the run journal, the judge's
+    journal next to it) and the first halt record found."""
+    from attest.ledger import JOURNAL_FILE, read_journal
+    found: list[tuple[str, dict]] = []
+    halt = None
+    bundle_path = run_dir / "proof_bundle.json"
+    if bundle_path.is_file():
+        try:
+            bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            bundle = None
+            found.append(("proof bundle", {"kind": "unreadable_bundle", "stage": None, "how": "the run's proof bundle exists but cannot be read; check "
+                                                                                             "its journal and the providers' records"}))
+        record = (bundle or {}).get("reconciliation") if isinstance(bundle, dict) else None
+        if isinstance(record, dict) and record.get("required"):
+            halt = record.get("halt")
+            found += [("proof bundle", i) for i in record.get("items") or [] if isinstance(i, dict)]
+    for label, path in (("run journal", run_dir / JOURNAL_FILE), ("judge journal", run_dir.parent / f"{run_dir.name}.judge.jsonl")):
+        try:
+            journal = read_journal(path)
+        except (OSError, ValueError):
+            journal = None
+        if journal is not None:
+            halt = halt or journal.get("halt")
+            found += [(label, i) for i in journal.get("reconciliation_items") or [] if isinstance(i, dict)]
+    return found, halt
+
+
+def unresolved_items(rows: list[dict], interrupted: list[dict]) -> list[dict]:
+    """Every unresolved item of the batch (revision 10), from every persisted row (all statuses: its reconciliation list and halt
+    record), each row's run directory and every run directory no row owns (`interrupted`). A halted run whose records name nothing else
+    is an item itself (a `batch_stop` halt is not: its cause is another run's item); so is a row an earlier harness marked uncertain
+    without saying what. Each item once, by id, with every record that lists it."""
+    found: dict[str, dict] = {}
+
+    def add(run_id, out_dir, source, item):
+        iid = item_id(run_id, item)
+        entry = found.setdefault(iid, {"id": iid, "run_id": run_id, "out_dir": out_dir, "kind": item.get("kind"), "stage": item.get("stage"),
+                                       "how": item.get("how"), "item": item, "sources": []})
+        if source not in entry["sources"]:
+            entry["sources"].append(source)
+
+    def one(run_id, out_dir, listed: list, halt: dict | None, row: dict | None):
+        for item in listed:
+            if isinstance(item, dict):
+                add(run_id, out_dir, "evaluation.json row" if row is not None else "unowned run directory", item)
+        if out_dir and Path(out_dir).is_dir():
+            records, directory_halt = _directory_records(Path(out_dir))
+            for source, item in records:
+                add(run_id, out_dir, source, item)
+            halt = halt or directory_halt
+        if any(e["run_id"] == run_id for e in found.values()):
+            return
+        if halt and halt.get("kind") != "batch_stop":
+            add(run_id, out_dir, "halt record", {"kind": "halt", "stage": halt.get("stage"), "halt_kind": halt.get("kind"), "reason": halt.get("reason"),
+                                                "started_at_utc": halt.get("at_utc"),
+                                                "how": "the run halted for reconciliation without another record naming the cause; settle what the reason names "
+                                                       "against the providers' records"})
+        elif row is not None and row.get("uncertain") and not halt:
+            add(run_id, out_dir, "evaluation.json row", {"kind": "uncertain_row", "stage": None, "started_at_utc": row.get("started_at_utc"),
+                                                         "how": "an earlier harness marked this cell uncertain without listing the operation; check its "
+                                                                "ledger and the providers' records"})
+
+    for row in rows:
+        if row.get("run_id") or row.get("out_dir") or row.get("halted") or row.get("reconciliation"):
+            one(row.get("run_id") or f"cell-{row.get('scheduled_index')}", row.get("out_dir"), row.get("reconciliation") or [], row.get("halted"), row)
+    for entry in interrupted:
+        one(entry.get("run_id"), entry.get("out_dir"), entry.get("reconciliation") or [], None, None)
+    return sorted(found.values(), key=lambda e: (e["run_id"] or "", e["id"]))
+
+
+def read_acknowledgements(out_root: Path) -> list[dict]:
+    """The acknowledgements recorded in the report directory; a line that does not parse (a write cut short) is skipped, so its items
+    count as unacknowledged again (the safe reading)."""
+    path = Path(out_root) / ACK_FILE
+    records = []
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(record, dict) and record.get("event") == "reconciled" and str(record.get("note") or "").strip():
+                records.append(record)
+    return records
+
+
+def acknowledged_ids(records: list[dict]) -> set[str]:
+    return {i.get("id") for record in records for i in record.get("items") or [] if isinstance(i, dict) and i.get("id")}
+
+
+def record_acknowledgement(out_root: Path, note: str, items: list[dict]) -> dict:
+    """Append one acknowledgement durably: written, flushed, fsynced, then read back from the offset where it started. Raises OSError or
+    ValueError when it does not read back; nothing is approved then."""
+    record = {"event": "reconciled", "at_utc": utcnow(), "note": note.strip(), "attest_version": __version__,
+              "items": [{"id": e["id"], "run_id": e["run_id"], "kind": e["kind"], "stage": e["stage"], "item": e["item"]} for e in items]}
+    path = Path(out_root) / ACK_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = (json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n").encode("utf-8")
+    offset = path.stat().st_size if path.exists() else 0
+    if offset:
+        with path.open("rb") as handle:
+            handle.seek(offset - 1)
+            if handle.read(1) != b"\n":
+                data = b"\n" + data  # a line cut short by an earlier crash stays its own (unparsable, skipped) line
+    with path.open("ab") as handle:
+        handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())
+    with path.open("rb") as handle:
+        handle.seek(offset)
+        back = handle.read(len(data))
+    if back != data:
+        raise ValueError(f"the acknowledgement did not read back from {path}")
+    return record
+
+
+def resume_gate(out_root: Path, rows: list[dict], interrupted: list[dict], note: str = "", ids: list[str] | None = None) -> tuple[int | None, list[dict], list[dict]]:
+    """Decide whether a resumed batch may start anything (revision 10). Returns (exit code or None to go on, the pending items, the
+    acknowledgement records in force). With `note` and `ids` the acknowledgement is validated against the current items and recorded
+    first; an unknown id, or a note without ids, refuses everything (exit 2) and records nothing."""
+    items = unresolved_items(rows, interrupted)
+    records = read_acknowledgements(out_root)
+    if note or ids:
+        wanted = [i.strip() for i in (ids or []) if i and i.strip()]
+        if not note.strip() or not wanted:
+            print("refusing: a reconciliation note must say what was found (--reconciled NOTE) and name the items it settles (--items ID[,ID...]); "
+                  f"`--resume {out_root}` lists them. Nothing was recorded or started.", file=sys.stderr)
+            return 2, items, records
+        known = {e["id"]: e for e in items}
+        unknown = [i for i in wanted if i not in known]
+        if unknown:
+            print(f"refusing: {', '.join(unknown)} {'is' if len(unknown) == 1 else 'are'} not among this batch's unresolved items; nothing was recorded "
+                  "or started.", file=sys.stderr)
+            return 2, items, records
+        try:
+            records.append(record_acknowledgement(out_root, note, [known[i] for i in dict.fromkeys(wanted)]))
+        except (OSError, ValueError) as error:
+            print(f"refusing: the acknowledgement could not be recorded durably ({error}); nothing was started.", file=sys.stderr)
+            return 2, items, records
+        log(f"recorded the reconciliation of {len(set(wanted))} item(s) in {out_root / ACK_FILE}: {note.strip()[:200]}")
+    done = acknowledged_ids(records)
+    pending = [e for e in items if e["id"] not in done]
+    pending_path = Path(out_root) / PENDING_FILE
+    if pending or pending_path.exists():  # the latest check (an earlier refusal's list is replaced, not left stale)
+        pending_path.parent.mkdir(parents=True, exist_ok=True)
+        pending_path.write_text(json.dumps({"checked_at_utc": utcnow(), "pending": len(pending), "acknowledged": len(items) - len(pending),
+                                            "items": pending, "acknowledgements": len(records),
+                                            "how_to_acknowledge": "--resume DIR --reconciled NOTE --items ID[,ID...] (the note says what the read-only "
+                                                                  "checks found)"}, indent=2) + "\n", encoding="utf-8")
+    if pending:
+        print(f"refusing to start: {len(pending)} unresolved item(s) in this batch; nothing was started (`--resume` alone never approves them):", file=sys.stderr)
+        for e in pending:
+            print(f"  {e['id']}  {e['run_id']}  {e['kind']} at {e['stage']}: {e['how']}", file=sys.stderr)
+        print(f"They are listed in {Path(out_root) / PENDING_FILE}. After the read-only checks: --resume {out_root} --reconciled NOTE --items "
+              + ",".join(e["id"] for e in pending), file=sys.stderr)
+        return 4, pending, records
+    return None, pending, records
+
+
 def classify(row):
     """Confusion label against ground truth (held-out correctness). A cell that produced no patch at all (Attest's NO CHANGE,
     or a baseline that neither finished nor changed a file) is `no_patch`: an unfinished task, never a correct rejection. A hold
@@ -731,8 +939,9 @@ def parse_args(argv=None):
     ap.add_argument("--label", default="", help="short label for the report directory and schedule")
     ap.add_argument("--suite", default="examples/eval/SUITE.json", help="suite file, relative to the project root")
     ap.add_argument("--resume", default="", help="continue the batch in this report directory: only cells never executed are run")
-    ap.add_argument("--reconciled", default="", help="with --resume: the operations that interrupted runs left to reconcile were reconciled (this "
-                                                     "note says how); without it such a batch starts nothing")
+    ap.add_argument("--reconciled", default="", help="with --resume and --items: what the read-only reconciliation of the named items found; "
+                                                     "a resumed batch with an unacknowledged item starts nothing")
+    ap.add_argument("--items", default="", help="with --reconciled: the comma-separated ids of the items the note settles (as `--resume DIR` lists them)")
     ap.add_argument("--register-only", action="store_true", help="snapshot, pre-register the schedule and exit before any cell runs (proves the command)")
     ap.add_argument("--snapshot-root", default="", help=argparse.SUPPRESS)  # set by the launcher when re-executing from the snapshot
     ap.add_argument("--source-root", default="", help=argparse.SUPPRESS)
@@ -880,6 +1089,23 @@ def run_batch(args) -> int:
             print(conflict_refusal(out_root, conflicts), file=sys.stderr)
             return 2
     apply_defaults(args)
+    runs_dir = out_root / "runs"
+    previous_rows: list[dict] = []
+    existing: dict = {"rows": []}
+    if args.resume:
+        existing = json.loads((out_root / "evaluation.json").read_text(encoding="utf-8")) if (out_root / "evaluation.json").is_file() else {"rows": []}
+        previous_rows = [r for r in existing.get("rows", []) if r.get("status") == "completed"]
+    # Revision 10: the gate comes before anything is constructed, read from a provider or written as a resumption. Every unresolved item of
+    # the batch (rows, bundles, run and judge journals, run directories no row owns) must be acknowledged by a note naming its id; a fresh
+    # batch over a report directory whose runs/ already holds unresolved run directories is gated the same way. Registering only starts
+    # nothing and is not gated.
+    acknowledgements: list[dict] = []
+    if not getattr(args, "register_only", False):
+        unowned = interrupted_cells(runs_dir, previous_rows, existing.get("interrupted") or [], per_run_cap=args.usd_cap)
+        code, _, acknowledgements = resume_gate(out_root, existing.get("rows", []), unowned, getattr(args, "reconciled", "") or "",
+                                                [i for i in (getattr(args, "items", "") or "").split(",") if i.strip()])
+        if code is not None:
+            return code
     if args.resume:
         # the provider this process would build (its code, the restored command line and ITS environment) must carry the registered
         # profile (R5-06): an environment override such as ATTEST_NEBIUS_ROLES is refused here, before any cell runtime exists
@@ -891,20 +1117,16 @@ def run_batch(args) -> int:
     source_root = Path(args.source_root).resolve() if args.source_root else None
     provenance = runtime_provenance(snapshot_root, source_root)
     systems = [s.strip() for s in args.systems.split(",") if s.strip()]
-    runs_dir = out_root / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
-    governor = codex_governor() if args.provider == "codex" else None
+    governor = None  # built after the gate: a refused batch sends nothing, not even the gateway's status read
     resumed_at = None
-    previous_rows: list[dict] = []
-    existing: dict = {"rows": []}
 
     if args.resume:
-        existing = json.loads((out_root / "evaluation.json").read_text(encoding="utf-8")) if (out_root / "evaluation.json").is_file() else {"rows": []}
-        previous_rows = [r for r in existing.get("rows", []) if r.get("status") == "completed"]
         done_indices = {r["scheduled_index"] for r in previous_rows}
         cells = [c for c in schedule["cells"] if c["scheduled_index"] not in done_indices]
         resumed_at = utcnow()
         schedule.setdefault("resumptions", []).append({"at_utc": resumed_at, "cells": [c["scheduled_index"] for c in cells],
+                                                       "reconciliation_acknowledgements": sorted(acknowledged_ids(acknowledgements)),
                                                        "provenance_check": "snapshot digests verified by the launcher",
                                                        "configuration": "restored from this schedule (provider, per-run USD cap, call cap, turn cap, workers, "
                                                                         "attempts, systems, approved total); a conflicting command line is refused",
@@ -912,7 +1134,13 @@ def run_batch(args) -> int:
                                                                                   if schedule.get("provider_profile") is not None else
                                                                                   "no profile registered (schedule written before the profile freeze)")})
         (out_root / "schedule.json").write_text(json.dumps(schedule, indent=2) + "\n", encoding="utf-8")
+        governor, refused = batch_governor(args.provider, out_root)
+        if refused:
+            return refused
     else:
+        governor, refused = batch_governor(args.provider, out_root)
+        if refused:
+            return refused
         suite = json.loads((snapshot_root / args.suite).read_text(encoding="utf-8"))["tasks"]
         if args.tasks:
             wanted = set(args.tasks.split(","))
@@ -1006,16 +1234,9 @@ def run_batch(args) -> int:
             f"owns (${unowned_usd:.4f} from their ledger records); starting committed total ${committed:.4f}")
 
     budget = Budget(args.approve_usd if args.provider == "nebius" else None, args.usd_cap, committed=committed)
-    unsettled = [i for i in interrupted if i.get("reconciliation_required")]
-    if unsettled:
-        names = ", ".join(i["run_id"] for i in unsettled[:5])
-        if getattr(args, "reconciled", ""):
-            starting_total["reconciled"] = {"at_utc": utcnow(), "note": args.reconciled, "runs": [i["run_id"] for i in unsettled]}
-            log(f"{len(unsettled)} interrupted run(s) left operations to reconcile ({names}); recorded as reconciled: {args.reconciled}")
-        else:
-            budget.stopped = (f"{len(unsettled)} interrupted run(s) left operations to reconcile ({names}); nothing is started until they are reconciled "
-                              "(resume with --reconciled NOTE once they are)")
-            log(budget.stopped)
+    if acknowledgements:  # revision 10: the acknowledgements in force (reconciliations.jsonl), each tied to its item ids
+        starting_total["reconciled"] = [{"at_utc": r.get("at_utc"), "note": r.get("note"), "items": [i.get("id") for i in r.get("items") or []]}
+                                        for r in acknowledgements]
     rows: list[dict] = list(previous_rows)
 
     def persist(complete: bool, finished: str | None = None):

@@ -673,6 +673,7 @@ def decision(bundle: dict) -> dict:
         statement = "This run stopped for reconciliation."
         cause = ("a record of the run could not be made durable" if d.get("halt_kind") == "journal_failure" else
                  "a generated answer could not be priced" if d.get("halt_kind") == "metering_unknown" else
+                 "an upstream answer could not be read" if d.get("halt_kind") == "malformed_response" else
                  "another run of its batch stopped" if d.get("halt_kind") == "batch_stop" else "an operation's outcome became uncertain")
         explanation = (f"At stage {d.get('stage') or 'unknown'} {cause} ({d.get('component', 'pipeline')}), so Attest sent nothing further, replayed "
                        "nothing and certified nothing. The repository was not changed by this run.")

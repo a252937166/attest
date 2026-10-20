@@ -228,4 +228,19 @@ const TOKEN = "synthetic-" + "team-token";
   results.held_run_offers_no_new_run = "ok";
 }
 
+// Revision 10: while a run is held for reconciliation or the service has failed closed, the status chip says runs are paused and the
+// live start is not offered (the API would answer 503); low disk keeps its own wording.
+{
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(extract("  function pausedReason(", "  async function loadHealth("), ctx);
+  assert.equal(vm.runInContext(`pausedReason({disk: {accepting_runs: true}, reconciliation: {accepting_runs: true}})`, ctx), null);
+  assert.equal(vm.runInContext(`pausedReason({disk: {accepting_runs: true}, reconciliation: {accepting_runs: false, holds_open: 1}})`, ctx), "paused for reconciliation");
+  assert.equal(vm.runInContext(`pausedReason({disk: {accepting_runs: true}, reconciliation: {accepting_runs: false, holds_open: 0, fail_closed: true}})`, ctx),
+               "paused for reconciliation", "failed closed with no hold in the store is paused too");
+  assert.equal(vm.runInContext(`pausedReason({disk: {accepting_runs: false}, reconciliation: {accepting_runs: false}})`, ctx), "paused, low disk");
+  assert.equal(vm.runInContext(`pausedReason({})`, ctx), null, "an older service without the field is not paused by the page");
+  results.paused_state_is_shown = "ok";
+}
+
 console.log(JSON.stringify({ ok: true, checks: results }));

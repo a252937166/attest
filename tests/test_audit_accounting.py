@@ -511,13 +511,18 @@ def _provenance_stub() -> dict:
 def _batch_args(out: Path, resume: bool = False, **over) -> argparse.Namespace:
     values = dict(provider="nebius", tasks="durationkit-units-001", systems="baseline,attest", attempts=2, workers=1, usd_cap=0.20, approve_usd=0.80,
                   max_calls=None, max_turns=4, out=str(out), label="offline", suite="examples/eval/SUITE.json", resume=str(out) if resume else "",
-                  snapshot_root=str(ROOT), source_root=str(ROOT), register_only=False, reconciled="")
+                  snapshot_root=str(ROOT), source_root=str(ROOT), register_only=False, reconciled="", items="")
     values.update(over)
     return argparse.Namespace(**values)
 
 
-# the operator's note on a resume after an interrupted run left a request in flight (revision 9: without it nothing starts)
+# the operator's note on a resume after an interrupted run left a request in flight (revision 9: without it nothing starts; revision 10:
+# it must name the item ids the batch lists, and it is kept in reconciliations.jsonl for every later resume)
 RECONCILED = "the in-flight request of the interrupted run was found in the provider's billing (offline test)"
+
+
+def _pending_ids(out: Path) -> list[str]:
+    return [item["id"] for item in json.loads((out / harness.PENDING_FILE).read_text(encoding="utf-8"))["items"]]
 
 
 def _profile_reasons(report: dict) -> list[str]:
@@ -563,17 +568,25 @@ class BatchResumeAccounting(unittest.TestCase):
         self.assertEqual([r["scheduled_index"] for r in report["rows"]], [0])
         self.assertEqual(report["schedule"]["max_calls_per_run"], 22)  # the default per-run call cap is recorded
 
+        # process 2a: --resume alone never approves orphan A's open reservation (revision 10): nothing runs, nothing is rewritten
+        before = (self.tmp / "evaluation.json").read_text(encoding="utf-8")
+        executed = list(self.cells.executed)
+        self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, resume=True)), 4)
+        self.assertEqual(self.cells.executed, executed)
+        self.assertEqual((self.tmp / "evaluation.json").read_text(encoding="utf-8"), before)
+        ids = _pending_ids(self.tmp)
+        self.assertEqual(len(ids), 1)
         self.cells.restart({2: "after_finish"})  # process 2: cell 1 completes, cell 2 finishes its bundle and dies before its row (orphan B)
         with self.assertRaises(Interrupted):
-            quiet(harness.run_batch, _batch_args(self.tmp, resume=True, reconciled=RECONCILED))
+            quiet(harness.run_batch, _batch_args(self.tmp, resume=True, reconciled=RECONCILED, items=",".join(ids)))
         report = self._report()
         self.assertEqual([r["scheduled_index"] for r in report["rows"]], [0, 1])
         self.assertAlmostEqual(report["starting_total"]["committed_usd"], 0.10 + 0.15, places=6)
         self.assertAlmostEqual(report["budget"]["committed_usd"], 0.10 + 0.15 + 0.10, places=4)
         first_seen = {i["run_id"]: i["first_listed_at_utc"] for i in report["interrupted"]}
 
-        self.cells.restart()  # process 3: cells 2 and 3 complete
-        self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, resume=True, reconciled=RECONCILED)), 0)
+        self.cells.restart()  # process 3: cells 2 and 3 complete; the acknowledgement recorded by process 2 is honoured without a new note
+        self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, resume=True)), 0)
         report = self._report()
         self.assertTrue(report["complete"])
         self.assertEqual([r["status"] for r in sorted(report["rows"], key=lambda r: r["scheduled_index"])], ["completed"] * 4)
@@ -588,7 +601,7 @@ class BatchResumeAccounting(unittest.TestCase):
         # the next per-run reservation would reach $0.85 against the approved $0.80 and is refused.
         self._drop_rows_after(2)
         self.cells.restart()
-        self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, resume=True, reconciled=RECONCILED)), 0)
+        self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, resume=True)), 0)
         report = self._report()
         self.assertEqual(len(report["interrupted"]), 3)
         self.assertEqual(len({i["run_id"] for i in report["interrupted"]}), 3)  # each distinct directory once
@@ -609,23 +622,24 @@ class BatchResumeAccounting(unittest.TestCase):
         ledger.attach_sink(orphan / JOURNAL_FILE)
         ledger.reserve("nebius_tokenfactory", "seal", "seal-1", "m", 0.33)
         self.cells.restart()
-        # revision 9: the left-over reservation is a request that may have been in flight; nothing starts until it is reconciled
-        self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, approve_usd=5.0)), 0)
-        report = self._report()
+        # revision 9: the left-over reservation is a request that may have been in flight; nothing starts until it is reconciled. Revision 10:
+        # the gate refuses before anything is registered or run (exit 4) and lists the item with its id.
+        self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, approve_usd=5.0)), 4)
         self.assertEqual(self.cells.executed, [])
-        self.assertEqual({r["status"] for r in report["rows"]}, {"not_run"})
-        self.assertIn("left operations to reconcile (left-over)", report["rows"][0]["reason"])
-        self.assertTrue(report["interrupted"][0]["reconciliation_required"])
-        self.assertEqual([i["kind"] for i in report["interrupted"][0]["reconciliation"]], ["model_call_in_flight"])
-        self.assertAlmostEqual(report["budget"]["committed_usd"], 0.33, places=4)  # still counted, conservatively, at its reservation
-        (self.tmp / "evaluation.json").unlink()
-        (self.tmp / "schedule.json").unlink()
+        self.assertFalse((self.tmp / "schedule.json").exists())
+        self.assertFalse((self.tmp / "evaluation.json").exists())
+        pending = json.loads((self.tmp / harness.PENDING_FILE).read_text(encoding="utf-8"))["items"]
+        self.assertEqual([(i["run_id"], i["kind"]) for i in pending], [("left-over", "model_call_in_flight")])
+        with contextlib.redirect_stderr(io.StringIO()) as err:  # a bare note is no approval
+            self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, approve_usd=5.0, reconciled=RECONCILED)), 2)
+        self.assertEqual(self.cells.executed, [])
         self.cells.restart()
-        self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, approve_usd=5.0, reconciled=RECONCILED)), 0)
+        self.assertEqual(quiet(harness.run_batch, _batch_args(self.tmp, approve_usd=5.0, reconciled=RECONCILED, items=pending[0]["id"])), 0)
         report = self._report()
         self.assertEqual([(i["run_id"], i["cost_usd_committed"]) for i in report["interrupted"]], [("left-over", 0.33)])
-        self.assertAlmostEqual(report["starting_total"]["committed_usd"], 0.33, places=6)
-        self.assertEqual(report["starting_total"]["reconciled"]["note"], RECONCILED)
+        self.assertAlmostEqual(report["starting_total"]["committed_usd"], 0.33, places=6)  # still counted, conservatively, at its reservation
+        self.assertEqual(report["starting_total"]["reconciled"][0]["note"], RECONCILED)
+        self.assertEqual(report["starting_total"]["reconciled"][0]["items"], [pending[0]["id"]])
         self.assertAlmostEqual(report["budget"]["committed_usd"], 0.33 + 4 * 0.10, places=4)
 
 

@@ -48,6 +48,8 @@ from tests.test_verification import HELDOUT_SRC, TASK, FakeExecutor, FakeProvide
 
 ROOT = Path(__file__).resolve().parent.parent
 STEPS = [{"name": "s", "cmd": ["true"]}]
+# operation ids as the service writes them (UUIDs; revision 10 refuses any other shape before it reaches a request path)
+OP, OP7, OP9 = "0199a000-0000-7000-8000-000000000001", "0199a000-0000-7000-8000-000000000007", "0199a000-0000-7000-8000-000000000009"
 SCHEMA = {"type": "object", "properties": {"result": {"type": "integer"}}, "required": ["result"]}
 
 
@@ -73,7 +75,7 @@ def events(journal: Path) -> list[dict]:
     return [json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def done(uuid="op-1", status="SUCCESS"):
+def done(uuid=OP, status="SUCCESS"):
     report = {"runner": "attest-guest/3", "steps": [{"name": "s", "cmd": ["true"], "exit_code": 0, "timed_out": False, "stdout": "", "stderr": "", "duration_s": 0.1}]}
     stdout = "ATTEST-RESULT-BEGIN\n" + json.dumps(report) + "\nATTEST-RESULT-END\n"
     return {"uuid": uuid, "status": status, "duration": 0.5, "metadata": {"result": {"state": {"exit_code": 0, "timed_out": False, "signal": -1},
@@ -91,7 +93,7 @@ class Sandbox:
         self.script = script
         self.lock = threading.Lock()
 
-    def fake(self, method, url, headers, payload=None, timeout=60, max_bytes=0):
+    def fake(self, method, url, headers, payload=None, timeout=60, max_bytes=0, expect=dict, allow_empty=False):
         with self.lock:
             self.seen.append(f"{method} {url.split('/v1')[-1].split('?')[0]}")
             n = len(self.seen)
@@ -285,7 +287,7 @@ class SandboxPolls(unittest.TestCase):
     def test_transient_poll_answers_are_retried(self):
         for status in (404, 408, 429, 500, 502, 503, 504):
             with self.subTest(status=status):
-                box = Sandbox(self, lambda m, p, n, _s=status: {"uuid": "op-1"} if m == "POST" else (HttpError(_s, {}, p) if n == 2 else done()))
+                box = Sandbox(self, lambda m, p, n, _s=status: {"uuid": OP} if m == "POST" else (HttpError(_s, {}, p) if n == 2 else done()))
                 self.assertTrue(box.run().ok)
                 self.assertEqual((box.posts(), box.gets()), (1, 2))
                 self.assertIsNone(box.ledger.halted)
@@ -293,21 +295,21 @@ class SandboxPolls(unittest.TestCase):
     def test_polls_that_keep_failing_leave_the_operation_accepted_unread_with_its_id(self):
         for failure in (HttpError(503, {}, "p"), lost(), HttpError(404, {}, "p")):
             with self.subTest(failure=type(failure).__name__ + str(getattr(failure, "status", ""))):
-                box = Sandbox(self, lambda m, p, n, _f=failure: {"uuid": "op-1"} if m == "POST" else _f)
+                box = Sandbox(self, lambda m, p, n, _f=failure: {"uuid": OP} if m == "POST" else _f)
                 with self.assertRaises(SandboxError) as caught:
                     box.run()
                 self.assertTrue(caught.exception.accepted_unread)
-                self.assertEqual(caught.exception.operation_uuid, "op-1")
+                self.assertEqual(caught.exception.operation_uuid, OP)
                 self.assertEqual(box.gets(), 5, "one poll plus four bounded retries")
                 self.assertEqual(box.posts(), 1, "an accepted operation is never spawned again")
                 self.assertEqual(box.ledger.sandbox_ops[0].status, "ACCEPTED_UNREAD")
                 self.assertEqual([i["kind"] for i in box.ledger.reconciliation_items()], ["sandbox_operation"])
-                self.assertIn("GET /operations/op-1", box.ledger.reconciliation_items()[0]["how"])
-                self.assertEqual(read_journal(box.journal)["operations_unread"], ["op-1"])
+                self.assertIn(f"GET /operations/{OP}", box.ledger.reconciliation_items()[0]["how"])
+                self.assertEqual(read_journal(box.journal)["operations_unread"], [OP])
                 self.assertTrue(box.ledger.halted)
 
     def test_a_definite_poll_refusal_is_not_retried_and_still_kept_for_reconciliation(self):
-        box = Sandbox(self, lambda m, p, n: {"uuid": "op-1"} if m == "POST" else HttpError(403, {}, p))
+        box = Sandbox(self, lambda m, p, n: {"uuid": OP} if m == "POST" else HttpError(403, {}, p))
         with self.assertRaises(SandboxError) as caught:
             box.run()
         self.assertTrue(caught.exception.accepted_unread)
@@ -315,12 +317,12 @@ class SandboxPolls(unittest.TestCase):
         self.assertEqual(box.ledger.sandbox_ops[0].status, "ACCEPTED_UNREAD")
 
     def test_an_operation_that_never_ends_is_accepted_unread(self):
-        box = Sandbox(self, lambda m, p, n: {"uuid": "op-1"} if m == "POST" else ({} if m == "DELETE" else {"uuid": "op-1", "status": "RUNNING"}))
+        box = Sandbox(self, lambda m, p, n: {"uuid": OP} if m == "POST" else ({} if m == "DELETE" else {"uuid": OP, "status": "EXECUTING"}))
         with mock.patch("attest.sandbox.tf_sandboxes.request_json", box.fake):
             with self.assertRaises(SandboxError) as caught:
                 box.ex._execute("image-1", box.ex._job({}, STEPS), "verify", disposable=True, timeout=-90)
         self.assertTrue(caught.exception.accepted_unread)
-        self.assertIn("DELETE /operations/op-1", box.seen)
+        self.assertIn(f"DELETE /operations/{OP}", box.seen)
         self.assertEqual(box.ledger.sandbox_ops[0].status, "ACCEPTED_UNREAD")
         self.assertEqual(len(box.ledger.reconciliation_items()), 1)
 
@@ -330,17 +332,17 @@ class SandboxPolls(unittest.TestCase):
 
         def script(m, p, n):
             if m == "POST":
-                return {"uuid": "op-1"}
+                return {"uuid": OP}
             state["polls"] += 1
             if state["polls"] == 2:
                 ledger.halt("uncertain_operation", "a parallel branch's spawn is uncertain", stage="mutant-x")
-            return {"uuid": "op-1", "status": "RUNNING"}
+            return {"uuid": OP, "status": "EXECUTING"}
         box = Sandbox(self, script, ledger=ledger)
         with self.assertRaises(SandboxError) as caught:
             box.run()
         self.assertTrue(caught.exception.accepted_unread and caught.exception.halted)
         self.assertEqual(box.gets(), 2, "no poll after the halt")
-        self.assertNotIn("DELETE /operations/op-1", box.seen)
+        self.assertNotIn(f"DELETE /operations/{OP}", box.seen)
         op = box.ledger.sandbox_ops[0]
         self.assertEqual((op.status, op.outcome_note), ("ACCEPTED_UNREAD", "polling stopped: the run halted for reconciliation"))
         self.assertEqual(ledger.halted["stage"], "mutant-x", "the run's halt stays the first one")
@@ -362,7 +364,7 @@ class ConcurrentBranches(unittest.TestCase):
                     raise lost()
                 return {"uuid": f"op-{number}"}
             time.sleep(0.01)
-            return {"uuid": p.rsplit("/", 1)[-1], "status": "RUNNING"}
+            return {"uuid": p.rsplit("/", 1)[-1], "status": "EXECUTING"}
         box = Sandbox(self, script, ledger=ledger, poll_interval=0.005)
         box.ex._sleep = lambda s: time.sleep(min(s, 0.005))
 
@@ -410,7 +412,7 @@ class SandboxJournal(unittest.TestCase):
         def script(m, p, n):
             if m == "POST":
                 seen_journal.extend(events(box.journal))  # what was on disk when the spawn left
-                return {"uuid": "op-1"}
+                return {"uuid": OP}
             seen_journal.append({"poll_saw": [e.get("status") for e in events(box.journal) if e["event"].startswith("sandbox_op")]})
             return done()
         box = Sandbox(self, script)
@@ -424,7 +426,7 @@ class SandboxJournal(unittest.TestCase):
                  "a half-written line": self.failing("sandbox_op", partial=True)}
         for label, writer in cases.items():
             with self.subTest(case=label):
-                box = Sandbox(self, lambda m, p, n: {"uuid": "op-1"} if m == "POST" else done())
+                box = Sandbox(self, lambda m, p, n: {"uuid": OP} if m == "POST" else done())
                 with mock.patch.object(ledger_module, "_write_durably", writer), self.assertLogs("attest.ledger", "ERROR") as logs:
                     with self.assertRaises(SandboxError) as caught:
                         box.run()
@@ -438,7 +440,7 @@ class SandboxJournal(unittest.TestCase):
                 self.assertEqual(restored["spawns_unresolved"], [])
 
     def test_a_read_back_mismatch_of_the_pending_record_dispatches_nothing(self):
-        box = Sandbox(self, lambda m, p, n: {"uuid": "op-1"})
+        box = Sandbox(self, lambda m, p, n: {"uuid": OP})
         real = ledger_module._write_durably
 
         def corrupting(path, lines):
@@ -452,32 +454,32 @@ class SandboxJournal(unittest.TestCase):
         self.assertEqual(box.seen, [])
 
     def test_no_poll_when_the_accepted_id_cannot_be_journaled_and_the_id_is_kept(self):
-        box = Sandbox(self, lambda m, p, n: {"uuid": "op-7"} if m == "POST" else done("op-7"))
+        box = Sandbox(self, lambda m, p, n: {"uuid": OP7} if m == "POST" else done(OP7))
         with mock.patch.object(ledger_module, "_write_durably", self.failing("sandbox_op_update", status="ACCEPTED")), \
                 self.assertLogs("attest.ledger", "ERROR") as logs:
             with self.assertRaises(SandboxError) as caught:
                 box.run()
         self.assertEqual((box.posts(), box.gets()), (1, 0))
         self.assertTrue(caught.exception.journal_failed and caught.exception.accepted_unread)
-        self.assertEqual(caught.exception.operation_uuid, "op-7")
-        self.assertEqual(box.ledger.halted["operation"]["operation_uuid"], "op-7")
-        self.assertTrue(any("op-7" in line and "ATTEST-HALT" in line for line in logs.output), "the id reaches the operator's log")
-        self.assertIn("op-7", {i.get("operation_uuid") for i in box.ledger.reconciliation_items()})
+        self.assertEqual(caught.exception.operation_uuid, OP7)
+        self.assertEqual(box.ledger.halted["operation"]["operation_uuid"], OP7)
+        self.assertTrue(any(OP7 in line and "ATTEST-HALT" in line for line in logs.output), "the id reaches the operator's log")
+        self.assertIn(OP7, {i.get("operation_uuid") for i in box.ledger.reconciliation_items()})
         restored = read_journal(box.journal)
         self.assertEqual(len(restored["spawns_unresolved"]), 1, "on disk the spawn is PENDING: after a restart it is found by listing")
 
     def test_a_final_state_that_cannot_be_journaled_stops_the_run(self):
-        box = Sandbox(self, lambda m, p, n: {"uuid": "op-1"} if m == "POST" else done())
+        box = Sandbox(self, lambda m, p, n: {"uuid": OP} if m == "POST" else done())
         with mock.patch.object(ledger_module, "_write_durably", self.failing("sandbox_op_update", status="SUCCESS")), self.assertLogs("attest.ledger", "ERROR"):
             with self.assertRaises(SandboxError) as caught:
                 box.run()
         self.assertTrue(caught.exception.journal_failed)
         self.assertEqual(box.ledger.halted["kind"], "journal_failure")
-        self.assertEqual(read_journal(box.journal)["operations_unread"], ["op-1"])
+        self.assertEqual(read_journal(box.journal)["operations_unread"], [OP])
 
     def test_a_ledger_without_a_journal_dispatches_nothing(self):
         ledger = Ledger()
-        box = Sandbox(self, lambda m, p, n: {"uuid": "op-1"}, ledger=ledger)
+        box = Sandbox(self, lambda m, p, n: {"uuid": OP}, ledger=ledger)
         with self.assertLogs("attest.ledger", "ERROR"):
             with self.assertRaises(SandboxError) as caught:
                 box.run()
@@ -521,9 +523,9 @@ class RestartRecovery(unittest.TestCase):
         self.assertEqual([h["run_id"] for h in store.active_holds()], ["r1"])
 
     def test_a_process_that_died_while_polling_leaves_the_accepted_id(self):
-        root, run_dir = self.interrupted(lambda m, p, n: {"uuid": "op-9"} if m == "POST" else self.Died())
+        root, run_dir = self.interrupted(lambda m, p, n: {"uuid": OP9} if m == "POST" else self.Died())
         journal = read_journal(run_dir / JOURNAL_FILE)
-        self.assertEqual(journal["operations_unread"], ["op-9"])
+        self.assertEqual(journal["operations_unread"], [OP9])
         self.assertEqual(journal["spawns_unresolved"], [])
         self.assertEqual([i["kind"] for i in journal["reconciliation_items"]], ["sandbox_operation"])
 

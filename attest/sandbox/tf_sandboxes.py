@@ -37,6 +37,15 @@ answer that asks for a retry (404 for a just-accepted id, 408, 429, 5xx); an acc
 never reaches a terminal state, is ACCEPTED_UNREAD and listed for reconciliation. Every request is admitted by the ledger first, so
 once the run has halted (here or in a parallel branch) no spawn, poll or cancel leaves; an operation being polled at that moment is
 ACCEPTED_UNREAD with its id kept.
+
+Malformed answers (revision 10, 20 Oct 2026): every answer is checked before it is used (attest/http.py decodes the body strictly; the
+checks here cover the fields). A spawn answer that is not an object, or whose operation id is missing or not a UUID, is UNCERTAIN: an
+operation may exist, a malformed id is kept escaped in the operation's note and never used in a request path. A poll answer that is not
+an object, names another operation, has no documented status, or (for a terminal state) carries a result whose fields have the wrong
+type or a stream that is not valid base64, leaves the operation ACCEPTED_UNREAD with its id. Either way the run halts at once and
+nothing further is sent (no further poll, no cancel). A malformed answer to an image lookup halts the run too (kind
+`malformed_response`): nothing was executed, and the service is checked before the next run. Malformed answers are never retried; a
+cut body is a transport failure and keeps its bounded retries.
 """
 
 from __future__ import annotations
@@ -44,15 +53,17 @@ from __future__ import annotations
 import base64
 import gzip
 import json
+import re
 import time
 
-from ..http import (NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, TransportError, backoff, post_outcome,
-                    read_retryable, request_json, retry_after_s)
+from ..http import (NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, MalformedResponse, TransportError, backoff,
+                    is_number, is_uuid, kind_of, post_outcome, read_retryable, request_json, retry_after_s, safe_text)
 from ..ledger import Ledger, LedgerError, RunHalted, SandboxOp, utcnow
 from .base import RunResult, StepResult
 
 BASE = "https://api.tokenfactory.nebius.com/sandboxes/v1"
 TERMINAL = {"SUCCESS", "FAILED", "CANCELLED"}
+STATUSES = TERMINAL | {"PENDING", "ASSIGNED", "EXECUTING"}  # the documented operation states (OperationResponse.status)
 MAX_REQUEST_BYTES = 400_000  # base64 text of the compressed job; the measured acceptance point was 534 KB, refusal at ~860 KB
 MARK_BEGIN = "ATTEST-RESULT-BEGIN"
 MARK_END = "ATTEST-RESULT-END"
@@ -229,7 +240,7 @@ sys.stdout.flush()
 class SandboxError(RuntimeError):
     def __init__(self, message: str, uncertain: bool = False, unreachable: bool = False, accepted_unread: bool = False,
                  operation_uuid: str | None = None, rejected: bool = False, journal_failed: bool = False, halted: bool = False,
-                 http_status: int | None = None, op_id: str | None = None):
+                 http_status: int | None = None, op_id: str | None = None, malformed: bool = False):
         super().__init__(message)
         self.uncertain = uncertain or accepted_unread  # the operation may exist or may have run: never replayed
         self.unreachable = unreachable  # every attempt failed before any byte of the request was sent: nothing exists
@@ -240,19 +251,118 @@ class SandboxError(RuntimeError):
         self.halted = halted  # refused, or polling stopped, because the run had halted for reconciliation (revision 9)
         self.http_status = http_status
         self.op_id = op_id
+        self.malformed = malformed  # the service's answer could not be read (revision 10): the run has halted
 
     @property
     def stops_run(self) -> bool:
         """The run sends nothing further after this error and is held for reconciliation (revision 9)."""
-        return bool(self.uncertain or self.accepted_unread or self.journal_failed or self.halted)
+        return bool(self.uncertain or self.accepted_unread or self.journal_failed or self.halted or self.malformed)
 
 
 def _decode_stream(stream: dict | None) -> tuple[str, bool]:
-    stream = stream or {}
-    value = stream.get("value", "") or ""
-    if stream.get("encoding") == "base64":
-        value = base64.b64decode(value).decode("utf-8", "replace")
+    """A result stream (`{value, encoding, truncated}`) as text. Raises MalformedResponse when its fields have the wrong type or a base64
+    value does not decode (revision 10)."""
+    if stream is None:
+        return "", False
+    if not isinstance(stream, dict):
+        raise MalformedResponse(f"a result stream is {kind_of(stream)}, not an object", status=200)
+    value = stream.get("value")
+    encoding = stream.get("encoding")
+    if value is not None and not isinstance(value, str):
+        raise MalformedResponse(f"a result stream's value is {kind_of(value)}, not a string", status=200)
+    if encoding is not None and not isinstance(encoding, str):
+        raise MalformedResponse(f"a result stream's encoding is {kind_of(encoding)}", status=200)
+    if stream.get("truncated") is not None and not isinstance(stream.get("truncated"), bool):
+        raise MalformedResponse("a result stream's truncated flag is not a boolean", status=200)
+    value = value or ""
+    if encoding == "base64":
+        try:
+            value = base64.b64decode(value, validate=True).decode("utf-8", "replace")
+        except (ValueError, TypeError):
+            raise MalformedResponse("a result stream marked base64 does not decode as base64", status=200) from None
     return value, bool(stream.get("truncated"))
+
+
+LOCATION_RE = re.compile(r"/operations/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/?\Z")
+
+
+def location_uuid(headers: dict | None) -> str | None:
+    """The operation id a spawn answer's `Location` header names (documented: `/v1/operations/<uuid>`), or None. Kept as a known
+    identifier when the body cannot be read (revision 10); it is never polled automatically, the spawn stays UNCERTAIN."""
+    value = (headers or {}).get("location")
+    match = LOCATION_RE.search(value) if isinstance(value, str) else None
+    return match.group(1) if match else None
+
+
+def accepted_uuid(body) -> str:
+    """The operation id of a spawn answer (revision 10). Raises MalformedResponse when the answer is not an object or the id is missing
+    or not a UUID; a malformed id is kept, escaped, under `known['reported_uuid']` and is never used in a request."""
+    if not isinstance(body, dict):
+        raise MalformedResponse(f"the spawn answer is {kind_of(body)}, not an object", status=200)
+    value = body.get("uuid")
+    if value is None:
+        raise MalformedResponse("the spawn answer carries no operation id", status=200)
+    if not is_uuid(value):
+        raise MalformedResponse(f"the spawn answer's operation id is {kind_of(value)} that is not a UUID", status=200,
+                                known={"reported_uuid": value if isinstance(value, str) else repr(value)})
+    return value
+
+
+def operation_record(body, operation_uuid: str) -> dict:
+    """A poll answer checked before use (revision 10): an object about this operation, with a documented status and, for a terminal
+    state, result fields of the documented types. Raises MalformedResponse otherwise. Absent optional fields are fine."""
+    if not isinstance(body, dict):
+        raise MalformedResponse(f"the operation record is {kind_of(body)}, not an object", status=200)
+    reported = body.get("uuid")
+    if reported is not None and reported != operation_uuid:
+        raise MalformedResponse("the operation record names another operation", status=200, known={"reported_uuid": reported})
+    status = body.get("status")
+    if not isinstance(status, str) or status not in STATUSES:
+        raise MalformedResponse(f"the operation record's status is {kind_of(status) if not isinstance(status, str) else 'not one of the documented states'}",
+                                status=200, known={"reported_status": status})
+    if status not in TERMINAL:
+        return body
+    for key in ("duration",):
+        if body.get(key) is not None and not is_number(body[key]):
+            raise MalformedResponse(f"the operation record's {key} is {kind_of(body[key])}, not a number", status=200)
+    for key in ("error",):
+        if body.get(key) is not None and not isinstance(body[key], str):
+            raise MalformedResponse(f"the operation record's {key} is {kind_of(body[key])}, not a string", status=200)
+    if body.get("result_image_uuid") is not None and not is_uuid(body["result_image_uuid"]):
+        raise MalformedResponse("the operation record's result_image_uuid is not a UUID", status=200)
+    top_result = body.get("result")
+    if top_result is not None:
+        if not isinstance(top_result, dict):
+            raise MalformedResponse(f"the operation record's result is {kind_of(top_result)}, not an object", status=200)
+        if top_result.get("image") is not None and not is_uuid(top_result["image"]):
+            raise MalformedResponse("the operation record's result image is not a UUID", status=200)
+    metadata = body.get("metadata")
+    if metadata is not None and not isinstance(metadata, dict):
+        raise MalformedResponse(f"the operation record's metadata is {kind_of(metadata)}, not an object", status=200)
+    execution = (metadata or {}).get("result")
+    if execution is None:
+        if status == "SUCCESS":
+            raise MalformedResponse("a SUCCESS operation record carries no result", status=200)
+        return body
+    if not isinstance(execution, dict):
+        raise MalformedResponse(f"the operation record's metadata.result is {kind_of(execution)}, not an object", status=200)
+    state = execution.get("state")
+    if state is not None and not isinstance(state, dict):
+        raise MalformedResponse(f"the operation record's result state is {kind_of(state)}, not an object", status=200)
+    if status == "SUCCESS" and state is None:
+        raise MalformedResponse("a SUCCESS operation record carries no result state", status=200)
+    for key in ("exit_code", "signal"):
+        value = (state or {}).get(key)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
+            raise MalformedResponse(f"the result state's {key} is {kind_of(value)}, not an integer", status=200)
+    if (state or {}).get("timed_out") is not None and not isinstance(state["timed_out"], bool):
+        raise MalformedResponse("the result state's timed_out is not a boolean", status=200)
+    resources = execution.get("resources")
+    if resources is not None and (not isinstance(resources, dict) or (resources.get("cost") is not None and not is_number(resources["cost"]))):
+        raise MalformedResponse("the result's resources are not an object with a numeric cost", status=200)
+    _decode_stream(execution.get("stdout"))
+    _decode_stream(execution.get("stderr"))
+    return body
 
 
 class TokenFactorySandboxes:
@@ -286,10 +396,16 @@ class TokenFactorySandboxes:
         self.requests_log.append(record)
         idempotent = method in ("GET", "DELETE")
         retries = READ_RETRIES if idempotent else NOT_SENT_RETRIES
+        shape = {"expect": None, "allow_empty": True} if method == "DELETE" else {}  # a cancel's answer is not read
         for attempt in range(retries + 1):
             self.ledger.admit("sandboxes", stage or (op.stage if op is not None else None))
             try:
-                status, body, headers = request_json(method, self.base + path, self._headers(), payload, timeout=timeout)
+                status, body, headers = request_json(method, self.base + path, self._headers(), payload, timeout=timeout, **shape)
+            except MalformedResponse as error:
+                # answered, but not readably: never retried (revision 10); the caller keeps what is known and halts the run
+                record["http_status"] = error.status
+                record["malformed"] = error.problem
+                raise
             except HttpError as error:
                 record["http_status"] = error.status
                 retryable = idempotent and (read_retryable(error) or error.status in retry_statuses)
@@ -337,29 +453,50 @@ class TokenFactorySandboxes:
                                  f"the attempt failed before any byte of it was written (at most {NOT_SENT_RETRIES} times); an uncertain spawn is "
                                  "never sent again; accepted operation ids are journaled before polling")}
 
+    def _malformed_read(self, path: str, stage: str | None, error: MalformedResponse) -> SandboxError:
+        """A read answered outside its documented shape: nothing was executed by it, but the run stops here (revision 10) so that no
+        decision rests on an unreadable answer; the halt record names the read."""
+        where = path.split("?")[0]
+        self.ledger.halt("malformed_response", f"the sandbox service's answer to GET {where} could not be read ({error.problem}); nothing was executed "
+                                               "by this read and nothing further was sent", stage=stage,
+                         operation={"service": "sandboxes", "read": where, "http_status": error.status}, detail=str(error))
+        return SandboxError(f"read {where} answered malformed ({error.problem}); the run stops", malformed=True, http_status=error.status)
+
     def _read(self, path: str, stage: str | None = None, retry_statuses: tuple[int, ...] = ()) -> dict:
-        """A read whose last failure becomes a definite SandboxError (it changed nothing); a stopped run raises RunHalted."""
+        """A read whose last failure becomes a definite SandboxError (it changed nothing); a stopped run raises RunHalted; a malformed
+        answer halts the run (revision 10)."""
         try:
             body, _ = self._request("GET", path, stage=stage, retry_statuses=retry_statuses)
+        except MalformedResponse as error:
+            raise self._malformed_read(path, stage, error) from None
         except (HttpError, TransportError) as error:
             raise SandboxError(f"read {path.split('?')[0]} failed: {error}", http_status=getattr(error, "status", None)) from None
-        return body or {}
+        return body
 
     def whoami(self) -> dict:
         return self._read("/whoami")
 
     def resolve_image(self, tag: str) -> str:
-        body = self._read(f"/images?tag={tag}&limit=100", stage="resolve-image")
-        matches = [i for i in (body or {}).get("images", []) if i.get("tag") == tag]
+        path = f"/images?tag={tag}&limit=100"
+        body = self._read(path, stage="resolve-image")
+        images = body.get("images")
+        problem = (f"the image list is {kind_of(images)}, not an array" if not isinstance(images, list) else
+                   "an image entry is not an object with a string tag and a UUID" if any(
+                       not isinstance(i, dict) or (i.get("tag") is not None and not isinstance(i.get("tag"), str))
+                       or (i.get("tag") == tag and not is_uuid(i.get("uuid"))) for i in images) else None)
+        if problem:
+            raise self._malformed_read(path, "resolve-image", MalformedResponse(problem, status=200))
+        matches = [i for i in images if i.get("tag") == tag]
         if len(matches) != 1:
             raise SandboxError(f"expected exactly one public image tagged {tag!r}, found {len(matches)}")
         return matches[0]["uuid"]
 
     def get_operation(self, operation_uuid: str, stage: str | None = None) -> dict:
         """One poll; HTTP 404 is retried with the other transient answers, because a just-accepted id can be briefly unknown to reads.
-        Raises the last HttpError or TransportError when every attempt failed, RunHalted once the run has stopped."""
+        Raises the last HttpError or TransportError when every attempt failed, MalformedResponse for an answer that cannot be read
+        (revision 10: `operation_record`), RunHalted once the run has stopped."""
         body, _ = self._request("GET", "/operations/" + operation_uuid, stage=stage, retry_statuses=(404,))
-        return body or {}
+        return operation_record(body, operation_uuid)
 
     def cancel(self, operation_uuid: str, stage: str | None = None) -> bool:
         """Ask the service to stop an operation (idempotent). Returns whether the request was answered; a stopped run sends nothing."""
@@ -397,15 +534,17 @@ class TokenFactorySandboxes:
         return {"service": "sandboxes", "op_id": op.op_id, "operation_uuid": op.operation_uuid, "image_uuid": op.image_uuid,
                 "status": op.status, "started_at_utc": op.started_at_utc}
 
-    def _settle(self, op: SandboxOp, status: str, note: str | None = None, halt: str | None = None, detail: str | None = None) -> None:
+    def _settle(self, op: SandboxOp, status: str, note: str | None = None, halt: str | None = None, detail: str | None = None,
+                known: dict | None = None) -> None:
         """Record a final or unknown outcome of `op`: the state in memory first, then (for an unknown outcome, `halt`) the run's halt
         with this cause, then the journal line. A journal that cannot take the line halts the run as well (the in-memory record keeps
-        the state, and the halt record names the operation)."""
+        the state, and the halt record names the operation). `known` adds identifiers the answer carried (revision 10) to the halt record."""
         op.status = status
         op.outcome_note = note
         op.ended_at_utc = utcnow()
         if halt:
-            self.ledger.halt("uncertain_operation", halt, stage=op.stage, operation=self._operation(op), detail=detail)
+            self.ledger.halt("uncertain_operation", halt, stage=op.stage, operation={**self._operation(op), **{k: v for k, v in (known or {}).items() if v}},
+                             detail=detail)
         try:
             self.ledger.update_op(op)
         except LedgerError as error:
@@ -446,7 +585,7 @@ class TokenFactorySandboxes:
             raise SandboxError(f"the {stage} sandbox operation was not dispatched: its pending record could not be journaled ({error})",
                                journal_failed=True, op_id=op.op_id) from None
         try:
-            accepted, _ = self._request("POST", "/instances", payload, timeout=60, op=op)
+            accepted, spawn_headers = self._request("POST", "/instances", payload, timeout=60, op=op)
         except RunHalted as halted:
             # the run stopped (a parallel branch) after this operation was journaled and before its first attempt: nothing was sent
             self._settle(op, "NOT_SENT", note="not sent: the run had stopped for reconciliation")
@@ -454,6 +593,16 @@ class TokenFactorySandboxes:
         except (TransportError, HttpError) as error:
             outcome = post_outcome(error)
             op.http_status = getattr(error, "status", None)
+            if isinstance(error, MalformedResponse):
+                # answered, but unreadably (revision 10): an operation may exist; an id the Location header names is kept, not polled
+                reported = location_uuid(error.headers)
+                self._settle(op, "UNCERTAIN", note=f"the spawn was answered HTTP {op.http_status} but its answer could not be read ({error.problem}); "
+                                                   "an operation may exist" + (f" (the Location header names operation {reported}; check it with "
+                                                                               f"GET /operations/{reported})" if reported else ""),
+                             halt=f"the {stage} spawn's answer could not be read ({error.problem}); an operation may exist, so it was not sent again",
+                             detail=f"{error}; body sha256 {error.body_sha256}; starts {error.excerpt!r}", known={"reported_uuid": reported})
+                raise SandboxError(f"spawn answer unreadable ({error.problem}); an operation may exist: inspect account operations, do not replay",
+                                   uncertain=True, malformed=True, http_status=op.http_status, op_id=op.op_id) from None
             if outcome == "not_sent":
                 self._settle(op, "NOT_SENT", note="no attempt got as far as sending the spawn")
                 raise SandboxError(f"the sandbox service could not be reached: {op.attempts} attempt(s), none got as far as sending the "
@@ -468,13 +617,21 @@ class TokenFactorySandboxes:
                               "it was not sent again", detail=str(error))
             raise SandboxError(f"spawn outcome uncertain ({error}); inspect account operations, do not replay", uncertain=True,
                                http_status=op.http_status, op_id=op.op_id) from None
-        op.operation_uuid = (accepted or {}).get("uuid")
-        if not op.operation_uuid:
-            # a success answer without an id: an operation may exist, and nothing identifies it
-            self._settle(op, "UNCERTAIN", note="the spawn was answered without an operation id; an operation may exist",
-                         halt=f"the {stage} spawn was answered without an operation id; an operation may exist")
-            raise SandboxError("spawn response had no operation uuid; an operation may exist: inspect account operations, do not replay",
-                               uncertain=True, op_id=op.op_id)
+        try:
+            op.operation_uuid = accepted_uuid(accepted)
+        except MalformedResponse as error:
+            # a success answer without a usable id (revision 10: not an object, no id, or an id that is not a UUID): an operation may
+            # exist and nothing usable identifies it; a malformed id is kept, escaped, in the note and never used in a request
+            reported = error.known.get("reported_uuid")
+            located = location_uuid(spawn_headers)
+            op.http_status = 200
+            self._settle(op, "UNCERTAIN", note=f"the spawn was answered HTTP 200 but {error.problem}; an operation may exist"
+                                               + (f" (the answer named {reported!r}; not used)" if reported else "")
+                                               + (f" (the Location header names operation {located}; check it with GET /operations/{located})" if located else ""),
+                         halt=f"the {stage} spawn was answered without a usable operation id ({error.problem}); an operation may exist",
+                         known={"reported_uuid": located})
+            raise SandboxError(f"spawn answer without a usable operation id ({error.problem}); an operation may exist: inspect account operations, "
+                               "do not replay", uncertain=True, malformed=True, http_status=200, op_id=op.op_id) from None
         op.status = "ACCEPTED"
         try:
             self.ledger.update_op(op)  # the accepted id is durable before polling starts, so no interruption can lose it
@@ -490,12 +647,15 @@ class TokenFactorySandboxes:
             # the polls failed even after their retries, the operation never reached a terminal state, or the run stopped while it
             # was being polled: it exists and may still run; it is never spawned again
             stopped = isinstance(error, RunHalted)
-            note = ("polling stopped: the run halted for reconciliation" if stopped else f"its outcome could not be read ({type(error).__name__})")
+            note = ("polling stopped: the run halted for reconciliation" if stopped else
+                    f"its answer could not be read ({error.problem})" if isinstance(error, MalformedResponse) else
+                    f"its outcome could not be read ({type(error).__name__})")
             self._settle(op, "ACCEPTED_UNREAD", note=note,
                          halt=None if stopped else f"operation {op.operation_uuid} ({stage}) was accepted but {note}; it was not spawned again",
                          detail=str(error))
             raise SandboxError(f"operation {op.operation_uuid} was accepted but {note}; reconcile with GET /operations/{op.operation_uuid}; "
-                               "not replayed", accepted_unread=True, halted=stopped, operation_uuid=op.operation_uuid, op_id=op.op_id) from None
+                               "not replayed", accepted_unread=True, halted=stopped, operation_uuid=op.operation_uuid, op_id=op.op_id,
+                               malformed=isinstance(error, MalformedResponse)) from None
         execution = (result.get("metadata") or {}).get("result") or {}
         state = execution.get("state") or {}
         stdout, stdout_truncated = _decode_stream(execution.get("stdout"))
@@ -530,10 +690,14 @@ class TokenFactorySandboxes:
             return run
         try:
             report = json.loads(stdout[begin + len(MARK_BEGIN):end].strip())
-        except json.JSONDecodeError as error:
-            run.runner_error = f"guest report unparsable: {error}"
+        except (json.JSONDecodeError, RecursionError) as error:
+            run.runner_error = f"guest report unparsable: {safe_text(str(error), 200)}"
             return run
-        for record in report.get("steps", []):
+        steps = report.get("steps") if isinstance(report, dict) else None
+        if not isinstance(steps, list) or any(not isinstance(record, dict) for record in steps):
+            run.runner_error = "guest report malformed: not an object with a list of step records"  # the guest's output, not the service's
+            return run
+        for record in steps:
             error = record.get("error")
             if record.get("output_exhausted") and not error:
                 error = (f"output exhausted: the step wrote more than the guest's output limit (stdout {record.get('stdout_bytes')} bytes, "

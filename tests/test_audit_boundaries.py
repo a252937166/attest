@@ -408,7 +408,7 @@ class Bound04GuestRunnerCapturesBoundedlyAndCleansUpGroups(unittest.TestCase):
         stdout = MARK_BEGIN + "\n" + json.dumps(report) + "\n" + MARK_END + "\n"
         operation = {"status": "SUCCESS", "duration": 1.0, "metadata": {"result": {"state": {"exit_code": 0, "timed_out": False},
                                                                                      "stdout": {"value": stdout}, "stderr": {"value": ""}}}}
-        with mock.patch.object(executor, "_request", return_value=({"uuid": "op-1"}, {})), mock.patch.object(executor, "_wait", return_value=operation):
+        with mock.patch.object(executor, "_request", return_value=({"uuid": "0199a000-0000-7000-8000-000000000001"}, {})), mock.patch.object(executor, "_wait", return_value=operation):
             run = executor.run_branch("image", {}, [{"name": "tests", "cmd": ["x"], "cwd": "/tmp", "timeout": 10}], stage="tests")
         self.assertTrue(run.ok)
         self.assertIsNone(run.steps[0].exit_code)

@@ -22,6 +22,17 @@ that could not be made durable), or that a restart found with operations whose o
 `error_code` `reconciliation_required` and opens a hold (table `holds`). While any hold is open the worker starts nothing (queued runs
 end `paused_for_reconciliation`, admission is refused) and retention keeps the held run's directory. Only an operator clears a hold,
 with a note, after reconciling its items (`python -m attest holds`); clearing never sends anything.
+
+Atomic holds and restart recovery (revision 10, 20 Oct 2026): `record_reconciliation` writes the run's `reconciliation_required` state,
+its event and its hold in ONE transaction (BEGIN IMMEDIATE ... COMMIT), so no crash or failed insert can leave one without the other; on
+any failure it rolls back, changes nothing and raises (the worker then fails closed). It is idempotent: a run has at most one hold, ever
+(a partial unique index enforces it where the database allows), and recording a run that already has one, open or cleared, returns
+that hold. After a restart (`startup_recovery`): every queued or running row is settled from its run directory, where the proof bundle's
+reconciliation record AND the ledger journal are both read before the row is finalized, so a run that stopped for reconciliation keeps
+its hold even when its bundle was written before the process died (`finalize_interrupted`); then `repair_holds` gives every run recorded
+as `reconciliation_required` without a hold its hold, and records as held a console run whose own bundle requires reconciliation but
+whose row says otherwise (0.9.0 finalized such rows as finished). A hold an operator cleared is never reopened: repair only acts on
+runs that have no hold row at all.
 """
 
 from __future__ import annotations
@@ -95,6 +106,52 @@ class BudgetError(RuntimeError):
     """Raised when creating a run would exceed the daily budget; the run is not created."""
 
 
+class StoreError(RuntimeError):
+    """A write that must be atomic (the reconciliation state of a run and its hold) did not happen; nothing was changed (revision 10)."""
+
+
+# Requesters whose rows were not executed by this console: imported evidence and synthetic replay fixtures. Start-up repair never holds
+# them for their own historical records (revision 10).
+FOREIGN_REQUESTERS = ("import", "replay")
+
+
+def read_run_reconciliation(out_dir) -> dict:
+    """What a run directory says about reconciliation (revision 10): the proof bundle's record (when the bundle exists and parses) and
+    the ledger journal, both read. `required` when either says so; `items` merges both lists (each item once); `bundle` is the parsed
+    bundle or None."""
+    from ..ledger import JOURNAL_FILE, item_key, read_journal
+    state = {"bundle": None, "bundle_required": False, "journal": None, "journal_required": False, "required": False, "items": [], "halt": None,
+             "bundle_unreadable": False}
+    if not out_dir:
+        return state
+    bundle_path = Path(out_dir) / "proof_bundle.json"
+    if bundle_path.is_file():
+        try:
+            bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+            state["bundle"] = bundle if isinstance(bundle, dict) else None
+        except (OSError, ValueError):
+            state["bundle_unreadable"] = True
+    record = (state["bundle"] or {}).get("reconciliation")
+    items: list = []
+    if isinstance(record, dict) and record.get("required"):
+        state["bundle_required"] = True
+        state["halt"] = record.get("halt")
+        items += [i for i in record.get("items") or [] if isinstance(i, dict)]
+    try:
+        journal = read_journal(Path(out_dir) / JOURNAL_FILE)
+    except (OSError, ValueError):
+        journal = None
+    state["journal"] = journal
+    if journal is not None and journal.get("reconciliation_required"):
+        state["journal_required"] = True
+        state["halt"] = state["halt"] or journal.get("halt")
+        known = {str(item_key(i)) for i in items}
+        items += [i for i in journal.get("reconciliation_items") or [] if isinstance(i, dict) and str(item_key(i)) not in known]
+    state["items"] = items
+    state["required"] = state["bundle_required"] or state["journal_required"]
+    return state
+
+
 class QuotaError(RuntimeError):
     """Raised when a visitor has used its hourly allowance; the run is not created."""
 
@@ -166,6 +223,12 @@ class Store:
         # Back-fill: rows of the development gateway recorded before the visibility column existed belong to the team.
         marks = ", ".join("?" for _ in TEAM_PROVIDERS)
         self._conn.execute(f"UPDATE runs SET visibility = ? WHERE provider IN ({marks}) AND visibility != ?", (TEAM, *sorted(TEAM_PROVIDERS), TEAM))
+        # One hold per run, ever (revision 10): enforced by the database where no earlier duplicate prevents the index; the code checks too.
+        duplicates = self._conn.execute("SELECT COUNT(*) FROM (SELECT run_id FROM holds WHERE run_id IS NOT NULL GROUP BY run_id HAVING COUNT(*) > 1)").fetchone()[0]
+        if duplicates:
+            LOG.warning("holds: %d run(s) have more than one hold; the one-hold-per-run index is not created", duplicates)
+        else:
+            self._conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS holds_one_per_run ON holds(run_id) WHERE run_id IS NOT NULL")
 
     # ------------------------------------------------------------------ lock-through-fetch primitives (API-03)
     def _rows(self, sql: str, params=()) -> list[sqlite3.Row]:
@@ -303,11 +366,72 @@ class Store:
 
     # ------------------------------------------------------------------ reconciliation holds (revision 9)
     def add_hold(self, run_id: str | None, reason: str, items: list | None = None) -> str:
-        """Open a hold: the worker starts nothing until an operator clears it. Returns the hold id."""
+        """Open a hold: the worker starts nothing until an operator clears it. Returns the hold id. A run that already has a hold, open
+        or cleared, keeps it (revision 10: one hold per run; the run's row is recorded with `record_reconciliation`)."""
+        if run_id is not None:
+            existing = self.hold_for_run(run_id)
+            if existing is not None:
+                return existing["hold_id"]
         hold_id = uuid.uuid4().hex[:12]
         self._write("INSERT INTO holds (hold_id, run_id, created_at, reason, items) VALUES (?, ?, ?, ?, ?)",
-                    (hold_id, run_id, utcnow(), str(reason)[:2000], json.dumps(items or [], ensure_ascii=False, default=str)[:200_000]))
+                    (hold_id, run_id, utcnow(), str(reason)[:2000], json.dumps(items or [], ensure_ascii=True, default=str)[:200_000]))
         LOG.error("reconciliation hold %s opened for run %s: %s", hold_id, run_id, reason)
+        return hold_id
+
+    def hold_for_run(self, run_id: str) -> dict | None:
+        """The run's hold, open or cleared (a run has at most one), or None."""
+        row = self._row_one("SELECT * FROM holds WHERE run_id = ? ORDER BY created_at, hold_id LIMIT 1", (run_id,))
+        return dict(row) if row else None
+
+    def record_reconciliation(self, run_id: str, message: str, items: list | None = None, detail: str | None = None, source: str = "worker",
+                              **fields) -> str:
+        """The run stopped for reconciliation: in ONE transaction its row becomes `reconciliation_required` (status error, the message,
+        the detail, a correlation reference, `fields`), an event is added and its hold is opened (revision 10). Idempotent: a run that
+        already has a hold, open or cleared, keeps that one (no second hold, a cleared one is not reopened) and a row already recorded
+        as `reconciliation_required` is not rewritten. Returns the hold id. On any failure the transaction is rolled back, nothing is
+        changed, and StoreError is raised."""
+        from ..ledger import utcnow as now
+        ref = uuid.uuid4().hex[:12]
+        at = now()
+        with self._lock:
+            conn = self._conn
+            try:
+                conn.execute("BEGIN IMMEDIATE")
+                row = conn.execute("SELECT status, error_code FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+                if row is None:
+                    raise StoreError(f"no run {run_id} to record")
+                existing = conn.execute("SELECT hold_id FROM holds WHERE run_id = ? ORDER BY created_at, hold_id LIMIT 1", (run_id,)).fetchone()
+                if row["error_code"] != "reconciliation_required":
+                    values = {"status": "error", "error": str(message)[-1500:], "error_code": "reconciliation_required", "error_ref": ref,
+                              "error_detail": (detail or message)[-20000:], "stage": "reconciliation", **fields}
+                    values.setdefault("finished_at", at)
+                    sets = ", ".join(f"{k} = ?" for k in values)
+                    conn.execute(f"UPDATE runs SET {sets} WHERE run_id = ?", (*values.values(), run_id))
+                if existing is None:
+                    hold_id = uuid.uuid4().hex[:12]
+                    conn.execute("INSERT INTO holds (hold_id, run_id, created_at, reason, items) VALUES (?, ?, ?, ?, ?)",
+                                 (hold_id, run_id, at, str(message)[:2000], json.dumps(items or [], ensure_ascii=True, default=str)[:200_000]))
+                    seq = conn.execute("SELECT COALESCE(MAX(seq), 0) + 1 FROM events WHERE run_id = ?", (run_id,)).fetchone()[0]
+                    conn.execute("INSERT INTO events (run_id, seq, at_utc, stage, message) VALUES (?, ?, ?, ?, ?)",
+                                 (run_id, seq, at, "reconciliation", str(message)[:2000]))
+                else:
+                    hold_id = existing["hold_id"]
+                conn.execute("COMMIT")
+            except BaseException as error:
+                try:
+                    if conn.in_transaction:
+                        conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    LOG.exception("rollback failed while recording the reconciliation of run %s", run_id)
+                if isinstance(error, StoreError):
+                    raise
+                if isinstance(error, Exception):
+                    raise StoreError(f"the reconciliation state and hold of run {run_id} could not be recorded ({type(error).__name__}: "
+                                     f"{str(error)[:200]}); nothing was changed") from error
+                raise
+        if existing is None:
+            LOG.error("run %s stopped for reconciliation [%s] reference %s, hold %s opened (%s): %s\n%s", run_id, "reconciliation_required", ref, hold_id,
+                      source, message, (detail or "").rstrip()[:4000])
         return hold_id
 
     def holds(self, active_only: bool = True) -> list[dict]:
@@ -336,35 +460,43 @@ class Store:
         return bool(changed)
 
     def finalize_interrupted(self, run_id: str, per_run_cap: float | None = None, detail: str | None = None) -> dict:
-        """Settle one queued or running row whose worker is gone (a restart, or the worker thread dying mid-run). A run whose
-        bundle landed on disk is finalized from it. Otherwise it is marked errored (interrupted); a Nebius run takes its
-        committed cost from the run's ledger journal when one exists (known costs plus every reservation never closed by a
-        call record, which stays committed until reconciled against the provider's billing); without a journal it keeps
-        `per_run_cap` (its real spend is unknown and at most the cap). The daily budget therefore never undercounts it."""
-        from ..ledger import JOURNAL_FILE, read_journal
+        """Settle one queued or running row whose worker is gone (a restart, or the worker thread dying mid-run). The run directory is
+        read first, the proof bundle's reconciliation record and the ledger journal both (revision 10, `read_run_reconciliation`): a run
+        that either says must be reconciled is recorded as `reconciliation_required` with its hold, in one transaction, whether or not
+        its bundle was written. A run whose bundle landed on disk and needs no reconciliation is finalized from it. Otherwise it is marked
+        errored (interrupted); a Nebius run takes its committed cost from the run's ledger journal when one exists (known costs plus every
+        reservation never closed by a call record, which stays committed until reconciled against the provider's billing); without a
+        journal it keeps `per_run_cap` (its real spend is unknown and at most the cap). The daily budget therefore never undercounts it."""
         row = self._row_one("SELECT run_id, out_dir, provider, cost_committed_usd FROM runs WHERE run_id = ?", (run_id,))
         if row is None:
             return {"run_id": run_id, "action": "missing"}
         out_dir = row["out_dir"]
-        bundle_path = (Path(out_dir) / "proof_bundle.json") if out_dir else None
-        if bundle_path and bundle_path.is_file():
-            try:
-                bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
-                totals = (bundle.get("ledger") or {}).get("totals") or {}
-                committed = totals.get("cost_usd_committed")
-                if committed is None:
-                    committed = committed_from_ledger(bundle.get("ledger"), totals.get("cost_usd"))
-                self.update_run(run_id, status="finished", verdict=(bundle.get("verdict") or {}).get("verdict"),
-                                finished_at=bundle.get("finished_at_utc") or utcnow(), stage="finished",
-                                cost_usd=totals.get("cost_usd"), cost_committed_usd=committed,
-                                reasons=json.dumps((bundle.get("verdict") or {}).get("reasons") or []),
-                                warnings=json.dumps((bundle.get("verdict") or {}).get("warnings") or []))
-                return {"run_id": run_id, "action": "finalized"}
-            except Exception:  # noqa: BLE001 - fall through to error marking
-                pass
+        state = read_run_reconciliation(out_dir)
+        bundle, journal = state["bundle"], state["journal"]
+        if bundle is not None:
+            totals = (bundle.get("ledger") or {}).get("totals") or {}
+            committed = totals.get("cost_usd_committed")
+            if committed is None:
+                committed = committed_from_ledger(bundle.get("ledger"), totals.get("cost_usd"))
+            if journal is not None and row["provider"] == "nebius":
+                committed = max(float(committed or 0.0), float(journal.get("cost_usd_committed") or 0.0))
+            verdict = bundle.get("verdict") or {}
+            bundle_fields = dict(verdict=verdict.get("verdict"), finished_at=bundle.get("finished_at_utc") or utcnow(), cost_usd=totals.get("cost_usd"),
+                                 cost_committed_usd=committed, reasons=json.dumps(verdict.get("reasons") or []),
+                                 warnings=json.dumps(verdict.get("warnings") or []), tokens_in=totals.get("tokens_in"), tokens_out=totals.get("tokens_out"),
+                                 sandbox_ops=totals.get("sandbox_operations"), model_calls=totals.get("model_calls"))
+            if state["required"]:
+                halt = state["halt"] or {}
+                source = "its proof bundle" if state["bundle_required"] else "its ledger journal (the bundle's record says otherwise)"
+                message = (f"stopped for reconciliation at {halt.get('stage') or 'an unrecorded stage'} ({halt.get('kind') or 'unknown outcome'}): "
+                           f"{len(state['items'])} operation(s) to settle, found after a restart in {source}; nothing was sent again")
+                hold = self.record_reconciliation(run_id, message, state["items"], detail=detail or json.dumps({"halt": halt}, default=str)[:20000],
+                                                  source="restart", **bundle_fields)
+                return {"run_id": run_id, "action": "held", "hold": hold, "reconciliation_items": len(state["items"]), "from": "bundle"}
+            self.update_run(run_id, status="finished", stage="finished", **bundle_fields)
+            return {"run_id": run_id, "action": "finalized"}
         message = "interrupted by a service restart before completion" if detail is None else "interrupted before completion"
         fields: dict = {"stage": "interrupted"}
-        journal = read_journal(Path(out_dir) / JOURNAL_FILE) if out_dir else None
         if row["provider"] == "nebius":
             if journal is not None:
                 fields["cost_committed_usd"] = max(float(row["cost_committed_usd"] or 0.0), float(journal["cost_usd_committed"]))
@@ -383,22 +515,66 @@ class Store:
         if unresolved:  # revision 9: spawns that were sent (or being sent) and never answered
             message += (f"; {len(unresolved)} sandbox spawn(s) were sent but never answered ({', '.join(str(u.get('stage')) for u in unresolved[:5])}); "
                         "reconcile by listing the account's operations around their start; nothing is replayed")
-        items = list((journal or {}).get("reconciliation_items") or [])
+        items = list(state["items"])
         in_flight = [i for i in items if i.get("kind") == "model_call_in_flight"]
         if in_flight:
             message += f"; {len(in_flight)} model call(s) were in flight (a pending record without a call record)"
-        needs = bool((journal or {}).get("reconciliation_required"))
-        code = "reconciliation_required" if needs else ("interrupted" if detail is None else "worker_interrupted")
+        if state["bundle_unreadable"]:
+            message += "; the run's proof bundle exists but could not be read"
+        if state["required"]:
+            fields.pop("stage", None)  # a held run's stage is `reconciliation`
+            hold = self.record_reconciliation(run_id, f"{message}; held: {len(items)} operation(s) whose outcome is unknown", items, detail=detail,
+                                              source="restart", **fields)
+            return {"run_id": run_id, "action": "held", "hold": hold, "cost_committed_usd": fields.get("cost_committed_usd"), "journal": bool(journal),
+                    "operations_unread": unread, "spawns_unresolved": unresolved, "reconciliation_items": len(items), "from": "journal"}
+        code = "interrupted" if detail is None else "worker_interrupted"
         self.record_failure(run_id, code, message, detail=detail, **fields)
-        hold = self.add_hold(run_id, f"interrupted with {len(items)} operation(s) whose outcome is unknown", items) if needs else None
         return {"run_id": run_id, "action": "interrupted", "cost_committed_usd": fields.get("cost_committed_usd"), "journal": bool(journal),
-                "operations_unread": unread, "spawns_unresolved": unresolved, "reconciliation_items": len(items), "hold": hold}
+                "operations_unread": unread, "spawns_unresolved": unresolved, "reconciliation_items": len(items), "hold": None}
 
     def reconcile_interrupted(self, per_run_cap: float | None = None) -> list[dict]:
         """After a restart, no worker is running the rows left 'queued'/'running': settle each one (`finalize_interrupted`).
         Finished rows and their evidence are left untouched."""
         rows = self._rows("SELECT run_id FROM runs WHERE status IN ('queued', 'running') ORDER BY created_at, run_id")
         return [self.finalize_interrupted(row["run_id"], per_run_cap) for row in rows]
+
+    def repair_holds(self) -> list[dict]:
+        """Start-up repair (revision 10). (1) Every run recorded as `reconciliation_required` that has no hold row gets its hold, with
+        the items its run directory lists. (2) Every run this console executed (not imported evidence, not a replay fixture) whose own
+        proof bundle carries a reconciliation record that is required, but whose row is neither held nor recorded as such (0.9.0's restart
+        recovery finalized those as finished), is recorded as `reconciliation_required` with its hold. A run with any hold row, open or
+        cleared, is never touched: an operator's clearing stands. Idempotent. Returns what it did."""
+        done = []
+        missing = self._rows("SELECT run_id, out_dir, error FROM runs WHERE error_code = 'reconciliation_required' "
+                             "AND NOT EXISTS (SELECT 1 FROM holds h WHERE h.run_id = runs.run_id) ORDER BY created_at, run_id")
+        for row in missing:
+            state = read_run_reconciliation(row["out_dir"])
+            hold = self.record_reconciliation(row["run_id"], row["error"] or "stopped for reconciliation", state["items"], source="repair")
+            done.append({"run_id": row["run_id"], "action": "hold_restored", "hold": hold, "reconciliation_items": len(state["items"])})
+        marks = ", ".join("?" for _ in FOREIGN_REQUESTERS)
+        candidates = self._rows("SELECT run_id, out_dir FROM runs WHERE status IN ('finished', 'error') AND out_dir IS NOT NULL "
+                                "AND COALESCE(error_code, '') != 'reconciliation_required' "
+                                f"AND COALESCE(requester, '') NOT IN ({marks}) "
+                                "AND NOT EXISTS (SELECT 1 FROM holds h WHERE h.run_id = runs.run_id) ORDER BY created_at, run_id", FOREIGN_REQUESTERS)
+        for row in candidates:
+            state = read_run_reconciliation(row["out_dir"])
+            if not state["bundle_required"]:
+                continue
+            bundle = state["bundle"] or {}
+            halt = state["halt"] or {}
+            message = (f"stopped for reconciliation at {halt.get('stage') or 'an unrecorded stage'} ({halt.get('kind') or 'unknown outcome'}): "
+                       f"{len(state['items'])} operation(s) to settle; the row had been finalized without its hold and was repaired at start-up")
+            hold = self.record_reconciliation(row["run_id"], message, state["items"], source="repair",
+                                              verdict=(bundle.get("verdict") or {}).get("verdict"))
+            done.append({"run_id": row["run_id"], "action": "held_from_bundle", "hold": hold, "reconciliation_items": len(state["items"])})
+        return done
+
+    def startup_recovery(self, per_run_cap: float | None = None) -> dict:
+        """Everything a restart does to the store before the worker starts (revision 10): settle the rows a restart orphaned, then
+        repair holds. Raises StoreError (or a database error) when a record could not be written; the caller then fails closed."""
+        settled = self.reconcile_interrupted(per_run_cap)
+        repaired = self.repair_holds()
+        return {"settled": settled, "repaired": repaired}
 
     # ------------------------------------------------------------------ retention (API-06)
     def prune_runs(self, data_runs_dir, keep: int = 40, protect: tuple[str, ...] = ("VERIFIED",), keep_errors: int = 10) -> list[str]:
@@ -502,7 +678,7 @@ class Store:
                 seen[key] = row
         return removed
 
-    def import_run_dir(self, out_dir: Path, requester: str = "import", providers: set[str] | None = None) -> bool:
+    def import_run_dir(self, out_dir: Path, requester: str = "import", providers: set[str] | None = None, hold_if_required: bool = False) -> bool:
         """Register a finished run directory (proof_bundle.json present) that the store does not know yet. `providers`
         restricts imports to runs of those providers (short names such as `nebius`, `codex`): a public console imports
         only the judge profile's runs. A development-gateway bundle that is imported becomes a team row. The conservative
@@ -548,6 +724,15 @@ class Store:
                     self.add_event(run_id, event.get("at_utc") or "", event.get("stage"), event.get("message") or "")
             except (json.JSONDecodeError, OSError, AttributeError):
                 pass
+        if hold_if_required:
+            # the console's own run directory (revision 10): a run found there without a row (a store restored from an older backup) whose
+            # records require reconciliation is held like any other; imported evidence from elsewhere is never held for its history
+            state = read_run_reconciliation(out_dir)
+            if state["required"]:
+                halt = state["halt"] or {}
+                self.record_reconciliation(run_id, f"stopped for reconciliation at {halt.get('stage') or 'an unrecorded stage'} "
+                                                   f"({halt.get('kind') or 'unknown outcome'}): {len(state['items'])} operation(s) to settle; found in the "
+                                                   "console's run directory without a row", state["items"], source="import")
         return True
 
     def active_count(self) -> int:

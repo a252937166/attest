@@ -391,7 +391,7 @@ class SandboxRetries(unittest.TestCase):
         return ex, ledger, run_dir, seen, fake
 
     @staticmethod
-    def done(uuid="01a2-op"):
+    def done(uuid="0199a000-0000-7000-8000-0000000001a2"):
         report = {"runner": "attest-guest/3", "steps": [{"name": "s", "cmd": ["true"], "exit_code": 0, "timed_out": False, "stdout": "", "stderr": "", "duration_s": 0.1}]}
         stdout = "ATTEST-RESULT-BEGIN\n" + json.dumps(report) + "\nATTEST-RESULT-END\n"
         return {"uuid": uuid, "status": "SUCCESS", "duration": 0.5, "metadata": {"result": {"state": {"exit_code": 0, "timed_out": False, "signal": -1},
@@ -400,7 +400,7 @@ class SandboxRetries(unittest.TestCase):
     def test_a_never_sent_spawn_is_sent_again_and_the_accepted_id_is_journaled_before_polling(self):
         def script(method, url, n):
             if method == "POST":
-                return NOT_SENT() if n == 1 else {"uuid": "01a2-op"}
+                return NOT_SENT() if n == 1 else {"uuid": "0199a000-0000-7000-8000-0000000001a2"}
             return self.done()
         ex, ledger, run_dir, seen, fake = self.executor(script)
         with mock.patch("attest.sandbox.tf_sandboxes.request_json", fake):
@@ -413,7 +413,7 @@ class SandboxRetries(unittest.TestCase):
         lines = [json.loads(l) for l in (run_dir / JOURNAL_FILE).read_text().splitlines()]
         updates = [l for l in lines if l.get("event") == "sandbox_op_update"]
         self.assertEqual([u["status"] for u in updates], ["ACCEPTED", "SUCCESS"], "the accepted id is journaled before the outcome")
-        self.assertEqual(updates[0]["operation_uuid"], "01a2-op")
+        self.assertEqual(updates[0]["operation_uuid"], "0199a000-0000-7000-8000-0000000001a2")
         self.assertEqual(ledger.totals()["sandbox_spawn_retries"], 1)
 
     def test_a_spawn_whose_answer_was_lost_is_uncertain_and_never_sent_again(self):
@@ -441,23 +441,23 @@ class SandboxRetries(unittest.TestCase):
     def test_polls_are_retried_and_an_unreadable_outcome_keeps_the_id_for_reconciliation(self):
         def flaky(method, url, n):
             if method == "POST":
-                return {"uuid": "01a2-op"}
+                return {"uuid": "0199a000-0000-7000-8000-0000000001a2"}
             return LOST() if n in (2, 3) else self.done()
         ex, ledger, run_dir, seen, fake = self.executor(flaky)
         with mock.patch("attest.sandbox.tf_sandboxes.request_json", fake):
             self.assertTrue(ex.run_branch("image-1", {}, [{"name": "s", "cmd": ["true"]}], stage="verify").ok)
         self.assertEqual([m for m, _ in seen], ["POST", "GET", "GET", "GET"])
 
-        ex, ledger, run_dir, seen, fake = self.executor(lambda method, url, n: {"uuid": "01a2-op"} if method == "POST" else LOST())
+        ex, ledger, run_dir, seen, fake = self.executor(lambda method, url, n: {"uuid": "0199a000-0000-7000-8000-0000000001a2"} if method == "POST" else LOST())
         with mock.patch("attest.sandbox.tf_sandboxes.request_json", fake):
             with self.assertRaises(SandboxError) as caught:
                 ex.run_branch("image-1", {}, [{"name": "s", "cmd": ["true"]}], stage="verify")
         self.assertTrue(caught.exception.accepted_unread)
-        self.assertEqual(caught.exception.operation_uuid, "01a2-op")
+        self.assertEqual(caught.exception.operation_uuid, "0199a000-0000-7000-8000-0000000001a2")
         self.assertEqual(sum(1 for m, _ in seen if m == "POST"), 1, "the accepted operation is never spawned again")
         self.assertEqual(ledger.sandbox_ops[0].status, "ACCEPTED_UNREAD")
         self.assertEqual(classify_error(caught.exception)[0], "sandbox_accepted_unread")
-        self.assertEqual(read_journal(run_dir / JOURNAL_FILE)["operations_unread"], ["01a2-op"])
+        self.assertEqual(read_journal(run_dir / JOURNAL_FILE)["operations_unread"], ["0199a000-0000-7000-8000-0000000001a2"])
 
 
 class Reconciliation(unittest.TestCase):
@@ -509,14 +509,14 @@ class Reconciliation(unittest.TestCase):
                        status=None, exit_code=None, timed_out=None, signal=None, duration_s=None, raw_cost_diag=None, stdout_truncated=None,
                        started_at_utc=utcnow())
         ledger.add_op(op)
-        op.operation_uuid, op.status = "01a2-op", "ACCEPTED"
+        op.operation_uuid, op.status = "0199a000-0000-7000-8000-0000000001a2", "ACCEPTED"
         ledger.update_op(op)  # the process dies here, while polling
         store = Store(root / "attest.db")
         store.create_run(run_id="interrupted-run", task_id="t", task_title="t", provider="codex", profile_label="development", status="running",
                          created_at=utcnow(), out_dir=str(run_dir), requester="team")
         outcome = store.finalize_interrupted("interrupted-run")
-        self.assertEqual(outcome["operations_unread"], ["01a2-op"])
-        self.assertIn("01a2-op", store.get_run("interrupted-run")["error"])
+        self.assertEqual(outcome["operations_unread"], ["0199a000-0000-7000-8000-0000000001a2"])
+        self.assertIn("0199a000-0000-7000-8000-0000000001a2", store.get_run("interrupted-run")["error"])
 
 
 class CheckerTransportCounters(unittest.TestCase):

@@ -20,6 +20,13 @@ the run is halted (`Ledger.halt`) and nothing is sent again. Every call takes a 
 reservation journaled durably and read back; when that fails nothing is sent and the run halts) and is admitted by the ledger
 immediately before each attempt, so nothing leaves after the run has stopped. Reads (status, catalog) are retried, bounded, on a
 transport failure or an answer that asks for it (408, 429, 5xx). The policy refresh window uses the governor's clock.
+
+Malformed answers (revision 10, 20 Oct 2026): an answer to a run that cannot be read (not UTF-8, not JSON, not an object, or an object
+without `output`/`json` or with fields of the wrong type; `run_answer_problem`) is recorded as a call whose outcome is uncertain (the
+gateway answered, so the request ran, and what it produced cannot be read), with its status and the answer's `id` when one could be
+read, and the run halts at once: no repair request, nothing further. A malformed answer to a read halts the run as well (kind
+`malformed_response`): the catalog decides which model answers, so the run does not go on without it, and an unreadable status leaves
+the conservative pacing in force and stops the run before its next request. Malformed answers are never retried.
 """
 
 from __future__ import annotations
@@ -29,8 +36,8 @@ import json
 import os
 import time
 
-from ..http import (NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, TransportError, backoff, post_outcome,
-                    read_retryable, request_json, retry_after_s)
+from ..http import (NOT_SENT_BACKOFF_S, NOT_SENT_RETRIES, READ_BACKOFF_S, READ_RETRIES, HttpError, MalformedResponse, TransportError, backoff,
+                    is_number, kind_of, post_outcome, read_retryable, request_json, retry_after_s, safe_text, unreadable_text)
 from ..ledger import Ledger, LedgerError, ModelCall, RunHalted, utcnow
 from ..secrets import config_value
 from .base import ModelError, ModelResult, extract_usage, validate_json
@@ -45,6 +52,36 @@ DEFAULT_ROLES = {
     "arbitrate": ("gpt-6-astra", "medium"),
     "summary": ("gpt-6-luna", "low"),
 }
+
+
+def run_answer_problem(body) -> str | None:
+    """Why a 2xx answer to POST /v1/run cannot be read, or None (revision 10). The recorded answers carry `id`, `model`, `effort`,
+    `duration_ms`, `usage`, `output` (the text) and `json` (the parsed structured output); at least one of the last two must be there."""
+    if not isinstance(body, dict):
+        return f"the answer is {kind_of(body)}, not an object"
+    if "output" not in body and "json" not in body:
+        return "the answer carries neither output nor json"
+    for key in ("output", "id", "model", "effort"):
+        if body.get(key) is not None and not isinstance(body[key], str):
+            return f"the answer's {key} is {kind_of(body[key])}, not a string"
+    if body.get("duration_ms") is not None and not is_number(body["duration_ms"]):
+        return f"the answer's duration_ms is {kind_of(body['duration_ms'])}, not a number"
+    if body.get("usage") is not None and not isinstance(body["usage"], dict):
+        return f"the answer's usage is {kind_of(body['usage'])}, not an object"
+    return None
+
+
+def catalog_problem(body) -> str | None:
+    """Why a model catalog answer (GET /v1/models) cannot be read, or None (revision 10)."""
+    if not isinstance(body, dict) or not isinstance(body.get("data"), list):
+        return "the catalog is not an object with a data array"
+    for item in body["data"]:
+        if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+            return "a catalog entry is not an object with a string id"
+        efforts = item.get("supported_reasoning_efforts")
+        if efforts is not None and (not isinstance(efforts, list) or any(not isinstance(e, str) for e in efforts)):
+            return "a catalog entry's supported_reasoning_efforts is not a list of strings"
+    return None
 
 
 def roles_from_env(default: dict) -> dict:
@@ -92,6 +129,8 @@ class CodexGateway:
         try:
             self.governor.configure_from_status(self.status(), source="gateway status")
         except (HttpError, TransportError, ModelError) as error:
+            # an unreadable status keeps the conservative default; a malformed one has also halted the run (`_read`), so the run's next
+            # request is refused (describe() calls this at pipeline start and must not raise)
             self.governor.policy_checked_at = self.governor._time()
             self.governor.policy_source = f"status unreadable ({type(error).__name__}); keeping {self.governor.policy_source}"
 
@@ -108,14 +147,24 @@ class CodexGateway:
         except RunHalted as halted:
             raise ModelError(self._public(str(halted)), halted=True) from None
 
+    def _malformed_read(self, path: str, problem: str, status: int | None = 200) -> ModelError:
+        """A read answered outside its documented shape (revision 10): nothing ran, but the run stops (kind `malformed_response`)."""
+        self.ledger.halt("malformed_response", f"the development gateway's answer to GET {path} could not be read ({problem}); nothing further is sent",
+                         stage=f"read {path}", operation={"service": "inference", "provider": self.name, "read": path, "http_status": status})
+        return ModelError(self._public(f"the development gateway's answer to GET {path} could not be read ({problem}); the run stops"), halted=True,
+                          malformed=True, http_status=status)
+
     def _read(self, path: str) -> dict:
         """A GET (status, catalog): it has no side effect, so a transport failure or an answer that asks for a retry (408, 429, 5xx) is
-        retried, bounded; the last failure is raised. Each attempt is admitted by the ledger first."""
+        retried, bounded; the last failure is raised. A malformed answer is not retried and halts the run (revision 10). Each attempt is
+        admitted by the ledger first."""
         for retry in range(READ_RETRIES + 1):
             self._admit(f"read {path}")
             try:
                 _, body, _ = request_json("GET", self.base + path, self._headers(), timeout=30)
-                return body or {}
+                return body
+            except MalformedResponse as error:
+                raise self._malformed_read(path, error.problem, error.status) from None
             except (TransportError, HttpError) as error:
                 if not read_retryable(error) or retry == READ_RETRIES:
                     raise
@@ -131,8 +180,10 @@ class CodexGateway:
                 body = self._read("/models")
             except (HttpError, TransportError) as error:
                 raise ModelError(self._public(f"the gateway's model catalog could not be read ({error})")) from None
-            self._catalog = {item.get("id"): item.get("supported_reasoning_efforts") or []
-                             for item in (body or {}).get("data", [])}
+            problem = catalog_problem(body)
+            if problem:
+                raise self._malformed_read("/models", problem)
+            self._catalog = {item["id"]: item.get("supported_reasoning_efforts") or [] for item in body["data"]}
         return self._catalog
 
     def resolve(self, role: str) -> tuple[str, str | None]:
@@ -222,6 +273,24 @@ class CodexGateway:
                     raise ModelError(self._public(str(halted)), halted=True) from None
                 try:
                     _, body, _ = request_json("POST", self.base + "/run", self._headers(), payload, timeout=self.deadline_s + 90)
+                    problem = run_answer_problem(body)
+                    if problem:
+                        raise MalformedResponse(problem, status=200, known={"answer_id": body.get("id") if isinstance(body, dict) else None})
+                except MalformedResponse as error:
+                    # the gateway answered, so the request ran, and its answer cannot be read (revision 10): the call's outcome is uncertain,
+                    # it is never sent again (not even as a repair request) and the run stops at once
+                    call.elapsed_ms = int((time.monotonic() - t0) * 1000)
+                    call.request_sent, call.transport_phase, call.http_status = True, "response", error.status
+                    call.error = self.ledger.public_error(f"{stage}-malformed", error)
+                    call.outcome = "uncertain"
+                    self.ledger.add_call(call, reservation_id)
+                    answer_id = error.known.get("answer_id")
+                    self.ledger.halt("uncertain_operation", f"the development gateway's answer to the {stage} call could not be read ({error.problem}); it ran "
+                                                            "upstream, so it was not sent again", stage=stage,
+                                     operation={"service": "inference", "provider": self.name, "started_at_utc": started, "http_status": error.status,
+                                                "answer_id": answer_id}, detail=self._public(f"{error}; body sha256 {error.body_sha256}; starts {error.excerpt!r}"))
+                    raise ModelError(self._public(f"inference answer unreadable ({error.problem}); not retried"), uncertain=True, malformed=True,
+                                     http_status=error.status) from None
                 except TransportError as error:
                     call.elapsed_ms = int((time.monotonic() - t0) * 1000)
                     call.request_sent, call.transport_phase, call.http_status = error.request_sent, error.phase, getattr(error, "status", None)
@@ -278,7 +347,6 @@ class CodexGateway:
         call.elapsed_ms = int((time.monotonic() - t0) * 1000)
         call.request_sent = True
         call.outcome = "answered"
-        body = body or {}
         call.returned_model = body.get("model")
         call.returned_effort = body.get("effort")
         call.gateway_duration_ms = body.get("duration_ms")
@@ -289,9 +357,11 @@ class CodexGateway:
         if parsed is None and isinstance(text, str):
             try:
                 parsed = json.loads(text)
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, RecursionError):
                 parsed = None
-        problem = "no JSON output" if parsed is None else validate_json(parsed, schema)
+        # the model's output (not the gateway's envelope): text that is not valid Unicode is a schema violation like any other bad output
+        problem = ("no JSON output" if parsed is None else "the output holds text that is not valid Unicode" if unreadable_text(parsed)
+                   else validate_json(parsed, schema))
         if problem:
             call.malformed_output = True
             call.error = f"schema violation: {problem}"

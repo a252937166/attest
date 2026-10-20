@@ -128,7 +128,8 @@ def reconciliation_items_from(model_calls: list, sandbox_ops: list, halt: dict |
         status = op.get("status")
         base = {"service": "sandboxes", "stage": op.get("stage"), "op_id": op.get("op_id"), "status": status, "image_uuid": op.get("image_uuid"),
                 "started_at_utc": op.get("started_at_utc"), "ended_at_utc": op.get("ended_at_utc"), "attempts": op.get("attempts"),
-                "http_status": op.get("http_status"), "transport_failures": op.get("transport_failures") or []}
+                "http_status": op.get("http_status"), "transport_failures": op.get("transport_failures") or [],
+                "note": op.get("outcome_note")}  # revision 10: what the answer said (an id it named, why it could not be read)
         if op.get("operation_uuid"):
             known_uuids.add(op["operation_uuid"])
         if status in OPERATION_UNREAD and op.get("operation_uuid"):
@@ -143,7 +144,7 @@ def reconciliation_items_from(model_calls: list, sandbox_ops: list, halt: dict |
         if not operation:
             continue
         uuid = operation.get("operation_uuid")
-        if operation.get("service") == "tavily":
+        if operation.get("service") == "tavily" and "read" not in operation:
             items.append({"kind": "search", "service": "tavily", "stage": record.get("stage"), "query_index": operation.get("query_index"),
                           "started_at_utc": operation.get("started_at_utc"),
                           "how": "compare the account's usage before the search (recorded in grounding) with the Tavily dashboard: at most one "
@@ -488,7 +489,8 @@ class Ledger:
     # ------------------------------------------------------------------ stop for reconciliation (revision 9)
     def halt(self, kind: str, reason: str, stage: str | None = None, operation: dict | None = None, detail: str | None = None) -> dict:
         """Stop the run: from now on `admit` refuses every request. `kind` is `uncertain_operation`, `journal_failure`,
-        `metering_unknown` or `batch_stop`; `reason` is public text (it enters the journal and the bundle); `operation` names what has
+        `metering_unknown`, `malformed_response` (revision 10: a read answered outside its documented shape; nothing ran) or
+        `batch_stop`; `reason` is public text (it enters the journal and the bundle); `operation` names what has
         to be reconciled (stage, op_id, operation_uuid, image_uuid, started_at_utc, service); `detail` is the raw error text, which only
         the private log line receives. The first halt is the run's (`halted`); later ones are appended to `halt_events`. The record is
         journaled (best effort), except when the journal itself is the cause: a journal that just failed is not tried again, and its own

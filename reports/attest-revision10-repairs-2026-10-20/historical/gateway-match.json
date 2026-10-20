@@ -1,0 +1,158 @@
+{
+  "note": "Offline: match every model call the two reconciled runs recorded with the development gateway's ingress log of 17 Oct 2026\n(`gateway-ingress-2026-10-17.txt`, extracted read-only), and attribute every /v1/run request of each run's window to a recorded call of\nany kept bundle. The two clocks differ: every entry ends 3.0 to 3.9 s after the end of the call it logs (client start + elapsed), and\nits request time is 2.2 to 3.3 s shorter than the client's elapsed time (connection set-up and the proxy are outside nginx's timing),\nso the median of those offsets over the window is estimated first. A call matches an entry when the offset-corrected end is within 1.5 s\nand the entry's request time lies between the gateway's own duration for the call (`gateway_duration_ms`, the backend's time, which nginx\ncontains) and the client's elapsed time corrected by the median offset plus 1.5 s (a slow connection set-up through the client's proxy\nshortens nginx's time, never lengthens it); each entry is used once, nearest end first. Output: gateway-match.json.",
+  "ingress_entries": 112,
+  "ingress_run_requests": 95,
+  "recorded_gateway_calls_that_day": 233,
+  "recorded_calls_in_the_log_window": 95,
+  "matched_pairs": 85,
+  "estimated_offsets_s": {
+    "entry_end_minus_call_end": 3.48,
+    "request_time_minus_elapsed": -2.46
+  },
+  "recorded_calls_without_an_entry": [
+    {
+      "run": "semver-long-prerelease-pr488-20261017T122906Z",
+      "stage": "seal-1",
+      "start": "2026-10-17T12:31:00.627460+00:00"
+    },
+    {
+      "run": "semver-long-prerelease-pr488-20261017T122906Z",
+      "stage": "seal-2",
+      "start": "2026-10-17T12:35:35.850145+00:00"
+    },
+    {
+      "run": "roman-to-numeral-baseline-a1-20261017T121144976152Z",
+      "stage": "implement-1",
+      "start": "2026-10-17T12:12:07.705869+00:00"
+    },
+    {
+      "run": "roman-to-numeral-baseline-a1-20261017T121144976152Z",
+      "stage": "implement-2",
+      "start": "2026-10-17T12:12:54.947985+00:00"
+    },
+    {
+      "run": "roman-to-numeral-baseline-a1-20261017T121144976152Z",
+      "stage": "implement-3",
+      "start": "2026-10-17T12:13:37.883152+00:00"
+    },
+    {
+      "run": "roman-to-numeral-baseline-a1-20261017T121144976152Z",
+      "stage": "implement-4",
+      "start": "2026-10-17T12:14:15.740602+00:00"
+    },
+    {
+      "run": "roman-to-numeral-attest-a1-20261017T121144976229Z",
+      "stage": "spec",
+      "start": "2026-10-17T12:11:56.106279+00:00"
+    },
+    {
+      "run": "roman-to-numeral-attest-a1-20261017T121144976229Z",
+      "stage": "seal-1",
+      "start": "2026-10-17T12:12:42.840688+00:00"
+    },
+    {
+      "run": "roman-to-numeral-attest-a1-20261017T121144976229Z",
+      "stage": "implement-1",
+      "start": "2026-10-17T12:13:31.482444+00:00"
+    },
+    {
+      "run": "roman-to-numeral-attest-a1-20261017T121144976229Z",
+      "stage": "implement-2",
+      "start": "2026-10-17T12:13:56.671715+00:00"
+    }
+  ],
+  "entries_without_a_recorded_call": [
+    {
+      "end_utc": "12:32:54",
+      "request_time_s": 107.998,
+      "status": 200
+    },
+    {
+      "end_utc": "12:59:30",
+      "request_time_s": 50.74,
+      "status": 200
+    },
+    {
+      "end_utc": "13:00:07",
+      "request_time_s": 32.141,
+      "status": 200
+    },
+    {
+      "end_utc": "13:00:40",
+      "request_time_s": 20.809,
+      "status": 200
+    },
+    {
+      "end_utc": "13:01:07",
+      "request_time_s": 25.335,
+      "status": 200
+    },
+    {
+      "end_utc": "13:01:24",
+      "request_time_s": 14.838,
+      "status": 200
+    },
+    {
+      "end_utc": "13:01:49",
+      "request_time_s": 17.427,
+      "status": 200
+    },
+    {
+      "end_utc": "13:02:13",
+      "request_time_s": 16.352,
+      "status": 200
+    },
+    {
+      "end_utc": "13:04:13",
+      "request_time_s": 43.827,
+      "status": 200
+    },
+    {
+      "end_utc": "13:04:40",
+      "request_time_s": 17.347,
+      "status": 200
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "balanced-brackets-attest-a1-20261017T121900586528Z",
+      "window_utc": [
+        "2026-10-17T12:19:00.587570+00:00",
+        "2026-10-17T12:26:21.362809+00:00"
+      ],
+      "recorded_calls": 9,
+      "recorded_calls_ok": 9,
+      "matched_to_an_ingress_entry": 9,
+      "matched_entries_status": [
+        200
+      ],
+      "unmatched_calls": [],
+      "run_requests_in_window": 20,
+      "attributed": {
+        "balanced-brackets-attest-a1-20261017T121900586528Z": 9,
+        "balanced-brackets-baseline-a1-20261017T121820863788Z": 3,
+        "durationkit-units-001-baseline-a1-20261017T122127289839Z": 5,
+        "durationkit-units-001-attest-a1-20261017T122359410274Z": 3
+      }
+    },
+    {
+      "run_id": "semver-is-compatible-pr368-v2-attest-a1-20261017T131508429133Z",
+      "window_utc": [
+        "2026-10-17T13:15:08.432109+00:00",
+        "2026-10-17T13:24:27.260628+00:00"
+      ],
+      "recorded_calls": 10,
+      "recorded_calls_ok": 10,
+      "matched_to_an_ingress_entry": 10,
+      "matched_entries_status": [
+        200
+      ],
+      "unmatched_calls": [],
+      "run_requests_in_window": 22,
+      "attributed": {
+        "semver-is-compatible-pr368-v2-attest-a1-20261017T131508429133Z": 10,
+        "semver-long-prerelease-pr488-20261017T122906Z": 12
+      }
+    }
+  ]
+}

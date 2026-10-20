@@ -1,0 +1,406 @@
+{
+  "tree": "<scratch>/r10/tree-090",
+  "attest_version": "0.9.0",
+  "package_digest": "ab5b1705ae2b921141d01d77e4728f4e63c5233bcc629e93636809e32039e3c1",
+  "checks": 63,
+  "passed": 13,
+  "failed": 50,
+  "by_scenario": {
+    "A": {
+      "passed": 2,
+      "failed": 3
+    },
+    "B": {
+      "passed": 1,
+      "failed": 8
+    },
+    "C": {
+      "passed": 1,
+      "failed": 5
+    },
+    "D": {
+      "passed": 9,
+      "failed": 34
+    }
+  },
+  "results": [
+    {
+      "scenario": "A",
+      "check": "the offline run left a halted bundle requiring reconciliation",
+      "ok": true,
+      "observed": "verdict ERROR, items 1"
+    },
+    {
+      "scenario": "A",
+      "check": "after the restart the run is recorded as reconciliation_required (not finished)",
+      "ok": false,
+      "observed": "row {'status': 'finished', 'error_code': None, 'verdict': 'ERROR', 'stage': 'finished'}"
+    },
+    {
+      "scenario": "A",
+      "check": "after the restart the run's hold is open",
+      "ok": false,
+      "observed": "0 open hold(s) for the run"
+    },
+    {
+      "scenario": "A",
+      "check": "the console refuses new runs (health: accepting_runs false)",
+      "ok": false,
+      "observed": "accepting_runs True"
+    },
+    {
+      "scenario": "A",
+      "check": "control: with no bundle the journal alone keeps the hold",
+      "ok": true,
+      "observed": "1 open hold(s)"
+    },
+    {
+      "scenario": "B",
+      "check": "a refused hold insert: no further run is started by the worker",
+      "ok": false,
+      "observed": "runtimes built for ['b1-first', 'b1-second']"
+    },
+    {
+      "scenario": "B",
+      "check": "a refused hold insert: the run is not left recorded as reconciliation_required without its hold",
+      "ok": false,
+      "observed": "row {'status': 'error', 'error_code': 'reconciliation_required', 'verdict': 'ERROR', 'stage': 'reconciliation'}, holds []"
+    },
+    {
+      "scenario": "B",
+      "check": "a refused hold insert: admission is refused while the hold is not recorded (fail closed)",
+      "ok": false,
+      "observed": "admitted"
+    },
+    {
+      "scenario": "B",
+      "check": "after the fault is gone and the service restarts, the run's hold exists exactly once",
+      "ok": false,
+      "observed": "holds []; row {'status': 'error', 'error_code': 'reconciliation_required', 'verdict': 'ERROR', 'stage': 'reconciliation'}"
+    },
+    {
+      "scenario": "B",
+      "check": "the injected kill happened inside the hold insert",
+      "ok": true,
+      "observed": "exit 9; "
+    },
+    {
+      "scenario": "B",
+      "check": "after a kill between the row update and the hold, the restart restores the hold",
+      "ok": false,
+      "observed": "row right after the kill {'status': 'error', 'error_code': 'reconciliation_required', 'verdict': 'ERROR', 'stage': 'reconciliation'}; holds after restart []"
+    },
+    {
+      "scenario": "B",
+      "check": "a second restart (repeated recovery) leaves exactly one hold",
+      "ok": false,
+      "observed": "holds []"
+    },
+    {
+      "scenario": "B",
+      "check": "a hold the operator cleared is not reopened by later restarts",
+      "ok": false,
+      "observed": "holds []"
+    },
+    {
+      "scenario": "B",
+      "check": "start-up repairs the missing hold of a run recorded as reconciliation_required",
+      "ok": false,
+      "observed": "holds []"
+    },
+    {
+      "scenario": "C",
+      "check": "--resume alone over a completed, halted row starts no cell",
+      "ok": false,
+      "observed": "exit 0; providers built 3"
+    },
+    {
+      "scenario": "C",
+      "check": "a bare --reconciled NOTE (not tied to item ids) does not approve the unresolved spawn",
+      "ok": false,
+      "observed": "exit 0; providers built 4"
+    },
+    {
+      "scenario": "C",
+      "check": "the refusal lists the unresolved items with ids",
+      "ok": false,
+      "observed": "0 id(s) listed; exit 0"
+    },
+    {
+      "scenario": "C",
+      "check": "a note tied to the listed ids is recorded durably",
+      "ok": false,
+      "observed": "exit SystemExit(2); record absent"
+    },
+    {
+      "scenario": "C",
+      "check": "a later restart honours the recorded acknowledgement without a new note",
+      "ok": false,
+      "observed": "exit 0; providers built 0"
+    },
+    {
+      "scenario": "C",
+      "check": "an item that appeared after the acknowledgement blocks the next resume",
+      "ok": true,
+      "observed": "exit 0; providers built 0"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with a JSON array: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": true,
+      "observed": "raised SandboxError (stops_run True); op UNCERTAIN; halted True; requests ['POST /v1/instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with a JSON array holding the object: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); op PENDING; halted False; requests ['POST /v1/instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with a JSON string: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); op PENDING; halted False; requests ['POST /v1/instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with a JSON number: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); op PENDING; halted False; requests ['POST /v1/instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with invalid UTF-8: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised UnicodeDecodeError (stops_run False); op PENDING; halted False; requests ['POST /v1/instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with not JSON: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": true,
+      "observed": "raised SandboxError (stops_run True); op UNCERTAIN; halted True; requests ['POST /v1/instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with a truncated body: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": true,
+      "observed": "raised SandboxError (stops_run True); op UNCERTAIN; halted True; requests ['POST /v1/instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with an operation id that is a path: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised None (stops_run False); op SUCCESS; halted False; requests ['POST /v1/instances', 'GET /v1/operations/../../instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with an operation id that is a number: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised TypeError (stops_run False); op ACCEPTED; halted False; requests ['POST /v1/instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "spawn answered HTTP 200 with an object without an operation id: UNCERTAIN, halted, nothing sent afterwards",
+      "ok": true,
+      "observed": "raised SandboxError (stops_run True); op UNCERTAIN; halted True; requests ['POST /v1/instances']"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with a JSON array: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised SandboxError (stops_run True); op ACCEPTED_UNREAD; halted True; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a15"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with a JSON array holding the object: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); op ACCEPTED; halted False; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971']"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with a JSON string: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); op ACCEPTED; halted False; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971']"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with a JSON number: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); op ACCEPTED; halted False; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971']"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with invalid UTF-8: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised UnicodeDecodeError (stops_run False); op ACCEPTED; halted False; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971']"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with not JSON: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised SandboxError (stops_run True); op ACCEPTED_UNREAD; halted True; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971']"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with a truncated body: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": true,
+      "observed": "raised SandboxError (stops_run True); op ACCEPTED_UNREAD; halted True; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971']"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with a record without a status: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised SandboxError (stops_run True); op ACCEPTED_UNREAD; halted True; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a15"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with a status that is not a string: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised SandboxError (stops_run True); op ACCEPTED_UNREAD; halted True; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a15"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with an undocumented status: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised SandboxError (stops_run True); op ACCEPTED_UNREAD; halted True; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971', 'GET /v1/operations/01a15"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with a record of another operation: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised None (stops_run False); op SUCCESS; halted False; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971']"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with SUCCESS with a result that is a list: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised None (stops_run False); op SUCCESS; halted False; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971']"
+    },
+    {
+      "scenario": "D",
+      "check": "poll answered HTTP 200 with SUCCESS with stdout that is not base64: ACCEPTED_UNREAD, halted, nothing sent afterwards",
+      "ok": false,
+      "observed": "raised Error (stops_run False); op ACCEPTED; halted False; requests ['POST /v1/instances', 'GET /v1/operations/01a1548b-896b-724f-85f2-6e0b92187971']"
+    },
+    {
+      "scenario": "D",
+      "check": "gateway /run answered HTTP 200 with a JSON array: the run halts and no further model request is sent",
+      "ok": false,
+      "observed": "raised ModelError: model output violated the schema: no JSON output (stops_run False); halted False; POSTs 1 then 2; calls recorded 2"
+    },
+    {
+      "scenario": "D",
+      "check": "gateway /run answered HTTP 200 with a JSON array holding the object: the run halts and no further model request is sent",
+      "ok": false,
+      "observed": "raised AttributeError: 'list' object has no attribute 'get' (stops_run False); halted False; POSTs 1 then 2; calls recorded 0"
+    },
+    {
+      "scenario": "D",
+      "check": "gateway /run answered HTTP 200 with a JSON string: the run halts and no further model request is sent",
+      "ok": false,
+      "observed": "raised AttributeError: 'str' object has no attribute 'get' (stops_run False); halted False; POSTs 1 then 2; calls recorded 0"
+    },
+    {
+      "scenario": "D",
+      "check": "gateway /run answered HTTP 200 with a JSON number: the run halts and no further model request is sent",
+      "ok": false,
+      "observed": "raised AttributeError: 'int' object has no attribute 'get' (stops_run False); halted False; POSTs 1 then 2; calls recorded 0"
+    },
+    {
+      "scenario": "D",
+      "check": "gateway /run answered HTTP 200 with invalid UTF-8: the run halts and no further model request is sent",
+      "ok": false,
+      "observed": "raised UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 10: invalid start byte (stops_run False); halted False; POSTs 1 then 2; calls recorded 0"
+    },
+    {
+      "scenario": "D",
+      "check": "gateway /run answered HTTP 200 with not JSON: the run halts and no further model request is sent",
+      "ok": true,
+      "observed": "raised ModelError: inference outcome uncertain (JSONDecodeError after HTTP 200: Expecting value at char 0; 21 bytes received, starts with:  (stops_run True); halted True; POSTs 1 then 1; calls recorded 1"
+    },
+    {
+      "scenario": "D",
+      "check": "gateway /run answered HTTP 200 with a truncated body: the run halts and no further model request is sent",
+      "ok": true,
+      "observed": "raised ModelError: inference outcome uncertain (the body of the HTTP 200 answer was cut (Content-Length body cut short: 23 bytes arrived, 5 (stops_run True); halted True; POSTs 1 then 1; calls recorded 1"
+    },
+    {
+      "scenario": "D",
+      "check": "gateway /run answered HTTP 200 with an object without output: the run halts and no further model request is sent",
+      "ok": false,
+      "observed": "raised ModelError: model output violated the schema: no JSON output (stops_run False); halted False; POSTs 1 then 2; calls recorded 2"
+    },
+    {
+      "scenario": "D",
+      "check": "gateway /run answered HTTP 200 with output that is not a string: the run halts and no further model request is sent",
+      "ok": false,
+      "observed": "raised ModelError: model output violated the schema: no JSON output (stops_run False); halted False; POSTs 1 then 2; calls recorded 2"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with a JSON array: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": false,
+      "observed": "raised ModelError (stops_run False); halted True; requests 1 then 1; committed 0.014701"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with a JSON array holding the object: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); halted False; requests 1 then 2; committed 0.029402"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with a JSON string: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); halted False; requests 1 then 2; committed 0.029402"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with a JSON number: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); halted False; requests 1 then 2; committed 0.029402"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with invalid UTF-8: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": false,
+      "observed": "raised UnicodeDecodeError (stops_run False); halted False; requests 1 then 2; committed 0.029402"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with not JSON: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": true,
+      "observed": "raised ModelError (stops_run True); halted True; requests 1 then 1; committed 0.014701"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with a truncated body: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": true,
+      "observed": "raised ModelError (stops_run True); halted True; requests 1 then 1; committed 0.014701"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with an object without choices: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": false,
+      "observed": "raised ModelError (stops_run False); halted False; requests 1 then 2; committed 1.6e-05"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with choices that are not a list: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": false,
+      "observed": "raised KeyError (stops_run False); halted False; requests 1 then 2; committed 0.029402"
+    },
+    {
+      "scenario": "D",
+      "check": "Token Factory answered HTTP 200 with a message that is not an object: the run halts, the reservation stays committed, nothing further is sent",
+      "ok": false,
+      "observed": "raised AttributeError (stops_run False); halted False; requests 1 then 2; committed 0.029402"
+    },
+    {
+      "scenario": "D",
+      "check": "a mutant spawn answered with a JSON string inside a run: nothing is sent after it and the run ends ERROR for reconciliation",
+      "ok": false,
+      "observed": "requests after it: [('sandbox', 'mutant-m02-3eff13428e'), ('sandbox', 'mutant-m03-67dc78116e'), ('sandbox', 'mutant-m04-0d482e30f8'), ('sandbox', 'mutant-m05-1e2251e1c1'), ('sandbox', 'mutant-m06-8f4e3f7c5d'), ('model', 'break-tests-1')]... (8); verdict ERROR; reconciliation required True; raised None"
+    }
+  ]
+}

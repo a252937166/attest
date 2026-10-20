@@ -15,6 +15,12 @@ Reconciliation (revision 9, 20 Oct 2026): a run that stopped for reconciliation 
 ledger when the pipeline failed) is recorded as `reconciliation_required` and opens a hold in the store. While a hold is open the
 worker starts nothing: admission raises `ReconciliationHold` (the API answers 503) and a queued run ends `paused_for_reconciliation`
 before any provider exists. Only an operator clears a hold (`python -m attest holds`).
+
+Fail closed (revision 10, 20 Oct 2026): the stopped run's state and its hold are recorded in one transaction (`Store.record_reconciliation`).
+When that transaction fails (the database refused the insert, the disk is full), the worker fails closed: it starts nothing further,
+admission is refused (503) and `/api/health` reports it, the run's row is left as the store had it (queued or running) so that the
+restart recovery finds it from its run directory, and the record is retried at every housekeeping pass; once it succeeds the hold in the
+store keeps runs paused until an operator clears it. A failure of the start-up recovery fails the worker closed the same way.
 """
 
 from __future__ import annotations
@@ -64,7 +70,11 @@ class WorkerUnavailable(RuntimeError):
 
 
 class ReconciliationHold(RuntimeError):
-    """Raised by `enqueue` while a reconciliation hold is open; nothing was written."""
+    """Raised by `enqueue` while a reconciliation hold is open, or while the worker has failed closed; nothing was written."""
+
+
+class HoldNotRecorded(RuntimeError):
+    """A run stopped for reconciliation and its state and hold could not be recorded; the worker has failed closed (revision 10)."""
 
 
 class Worker:
@@ -92,6 +102,10 @@ class Worker:
         self._stop = threading.Event()
         self.restarts = 0
         self._last_restart: float | None = None
+        # fail-closed state (revision 10): why the worker starts nothing although no hold may be in the store, and the reconciliation
+        # records still to be written (retried at every housekeeping pass)
+        self.closed: dict | None = None
+        self._pending_records: list[dict] = []
         self.thread = self._spawn()
 
     # ------------------------------------------------------------ supervision (API-07)
@@ -130,6 +144,39 @@ class Worker:
         with self._state_lock:
             self._last_restart = None
         return self.ensure_alive()
+
+    # ------------------------------------------------------------ fail closed (revision 10)
+    def fail_closed(self, reason: str, run_id: str | None = None, cause: str = "record") -> None:
+        """Start nothing further until the cause is gone or the service restarts and recovers. `cause` is `record` (a reconciliation
+        record that could not be written; the state ends when every pending record is written) or `startup` (the start-up recovery
+        failed; only a restart ends it). A start-up cause is never replaced by a record cause."""
+        with self._state_lock:
+            if self.closed is None or (self.closed.get("cause") == "record" and cause == "startup"):
+                self.closed = {"reason": str(reason)[:1000], "run_id": run_id, "at_utc": utcnow(), "cause": cause}
+        LOG.critical("worker failed closed (%s): %s", cause, reason)
+
+    def accepting(self) -> bool:
+        return self.closed is None
+
+    def retry_pending_records(self) -> int:
+        """Write the reconciliation records that failed; returns how many are still pending. When none is left the fail-closed state
+        caused by them ends: the holds now in the store keep runs paused until an operator clears them."""
+        with self._state_lock:
+            pending = list(self._pending_records)
+        still = []
+        for record in pending:
+            try:
+                self.store.record_reconciliation(record["run_id"], record["message"], record["items"], detail=record.get("detail"),
+                                                 source="worker-retry", **record["fields"])
+                LOG.warning("the reconciliation record of run %s was written on retry", record["run_id"])
+            except Exception:  # noqa: BLE001 - still failing: stay closed
+                still.append(record)
+        with self._state_lock:
+            self._pending_records = still + [r for r in self._pending_records if r not in pending]
+            if not self._pending_records and self.closed is not None and self.closed.get("cause") == "record":
+                self.closed = None
+            remaining = len(self._pending_records)
+        return remaining
 
     # ------------------------------------------------------------ disk
     def disk(self) -> dict:
@@ -188,6 +235,9 @@ class Worker:
             raise ValueError(f"unknown task {task_id}")
         if not self.ensure_alive():
             raise WorkerUnavailable("the run worker is not available; nothing was queued")
+        if self.closed is not None:
+            raise ReconciliationHold("live runs are paused: a stopped run's reconciliation record could not be written, so the service is closed "
+                                     "until it is; nothing was queued")
         if self.store.active_holds():
             raise ReconciliationHold("live runs are paused while an earlier run's operations are reconciled; nothing was queued")
         self._disk_guard()
@@ -239,6 +289,10 @@ class Worker:
         except (SystemExit, KeyboardInterrupt):
             self._settle(run_id, traceback.format_exc(), interrupted=True)
             raise
+        except HoldNotRecorded:
+            # revision 10: the row is left as it is (queued or running) so that a restart recovers the run from its directory; recording
+            # anything else here would replace the reconciliation state with an ordinary failure
+            LOG.critical("run %s stopped for reconciliation and its record could not be written; the worker is closed", run_id)
         except BaseException:  # noqa: BLE001 - the loop survives anything else (API-07)
             self._settle(run_id, traceback.format_exc(), interrupted=False)
         finally:
@@ -261,7 +315,13 @@ class Worker:
             LOG.exception("could not record the failure of run %s", run_id)
 
     def housekeeping(self, run_id: str | None = None) -> list[str]:
-        """Bounded retention, independent of any run finishing (API-06). Returns the ids whose directories were reclaimed."""
+        """Bounded retention, independent of any run finishing (API-06), after retrying any reconciliation record still pending
+        (revision 10). Returns the ids whose directories were reclaimed."""
+        if self._pending_records:
+            try:
+                self.retry_pending_records()
+            except Exception:  # noqa: BLE001
+                LOG.exception("retrying the pending reconciliation records failed")
         try:
             pruned = self.store.prune_runs(self.data_dir / "runs", keep=self.retention_keep, keep_errors=self.retention_keep_errors)
         except Exception:  # noqa: BLE001 - retention must never fail a run or the loop
@@ -275,15 +335,18 @@ class Worker:
         return pruned
 
     def _hold(self, run_id: str, halt: dict, items: list, detail: str | None = None, **fields) -> None:
-        """Record a run that stopped for reconciliation and open the hold that pauses the worker (revision 9)."""
+        """Record a run that stopped for reconciliation and open the hold that pauses the worker: the row, its event and the hold in one
+        transaction (revision 10). When that fails the worker fails closed and HoldNotRecorded is raised; the record is retried later."""
         message = (f"stopped for reconciliation at {halt.get('stage') or 'an unrecorded stage'} ({halt.get('kind') or 'unknown outcome'}): "
                    f"{len(items)} operation(s) to settle; nothing was sent again")
-        self.store.record_failure(run_id, "reconciliation_required", message, detail=detail, stage="reconciliation", **fields)
         try:
-            self.store.add_event(run_id, utcnow(), "reconciliation", message)
-        except Exception:  # noqa: BLE001 - the event is a convenience; the row and the hold are the record
-            pass
-        self.store.add_hold(run_id, message, items)
+            self.store.record_reconciliation(run_id, message, items, detail=detail, **fields)
+        except Exception as error:  # noqa: BLE001 - any failure: nothing was recorded, so nothing further may start
+            with self._state_lock:
+                self._pending_records.append({"run_id": run_id, "message": message, "items": items, "detail": detail, "fields": fields})
+            self.fail_closed(f"the reconciliation record of run {run_id} could not be written ({type(error).__name__}); retried at every housekeeping pass",
+                             run_id=run_id, cause="record")
+            raise HoldNotRecorded(f"run {run_id}: {error}") from error
 
     def build_runtime(self, run_id: str, provider_name: str, ledger: Ledger):
         """The provider, executor and grounding client for one run (separated so tests can substitute fakes)."""
@@ -309,6 +372,12 @@ class Worker:
         from ..core.pipeline import Pipeline
         from ..core.task import TaskSpec
 
+        if self.closed is not None:  # revision 10: failed closed; nothing starts, no provider is built
+            try:
+                self.store.record_failure(run_id, "paused_for_reconciliation", f"not started: the service is closed ({self.closed.get('reason')})", stage="paused")
+            except Exception:  # noqa: BLE001 - the store may be the cause; the row stays queued and a restart settles it
+                LOG.exception("could not record that run %s was not started", run_id)
+            return
         holds = self.store.active_holds()
         if holds:  # revision 9: nothing starts while an earlier run's operations are being reconciled; no provider is built
             self.store.record_failure(run_id, "paused_for_reconciliation", f"not started: hold {holds[0]['hold_id']} (run {holds[0]['run_id']}) is open "
@@ -341,6 +410,14 @@ class Worker:
         provider, executor, tavily = self.build_runtime(run_id, provider_name, ledger)
         task = TaskSpec.load(path)
 
+        def stopped(detail: str, **costs) -> bool:
+            """Hold the run when its ledger halted or lists an operation whose outcome is unknown (revision 9; atomic since revision 10)."""
+            items = ledger.reconciliation_items()
+            if ledger.halted or items:
+                self._hold(run_id, ledger.halted or {}, items, detail=detail, **costs)
+                return True
+            return False
+
         def progress(event: dict) -> None:
             self.store.add_event(run_id, event["at_utc"], event.get("stage"), event["message"])
             # live meters for the console: real ledger totals, not numbers parsed from the log text
@@ -352,9 +429,14 @@ class Worker:
             except Exception:  # noqa: BLE001 - meters are a convenience; the event itself is already stored
                 self.store.update_run(run_id, stage=event.get("stage"))
 
-        pipeline = Pipeline(task=task, provider=provider, executor=executor, ledger=ledger, out_dir=self.data_dir / "runs",
-                            max_turns=self.max_turns, max_mutants=self.max_mutants, tavily=tavily, profile_label=profile_label,
-                            progress=progress, run_id=run_id)
+        try:
+            pipeline = Pipeline(task=task, provider=provider, executor=executor, ledger=ledger, out_dir=self.data_dir / "runs",
+                                max_turns=self.max_turns, max_mutants=self.max_mutants, tavily=tavily, profile_label=profile_label,
+                                progress=progress, run_id=run_id)
+        except Exception as error:  # noqa: BLE001 - e.g. a journal that cannot be created; a halt recorded while describing the provider holds
+            if not stopped(traceback.format_exc()):
+                self.store.record_failure(run_id, "pipeline_error", f"{type(error).__name__}: {str(error)[:300]}", detail=traceback.format_exc(), stage="error")
+            return
         # the run directory, the bundle's run_id and the store row share one id, so a later import recognises this run
         self.store.update_run(run_id, out_dir=str(pipeline.out_dir))
         try:
@@ -364,9 +446,7 @@ class Worker:
             costs = dict(out_dir=str(pipeline.out_dir), cost_usd=totals.get("cost_usd"), cost_committed_usd=totals.get("cost_usd_committed"),
                          tokens_in=totals.get("tokens_in"), tokens_out=totals.get("tokens_out"), sandbox_ops=totals.get("sandbox_operations"),
                          model_calls=totals.get("model_calls"))
-            items = ledger.reconciliation_items()
-            if ledger.halted or items:
-                self._hold(run_id, ledger.halted or {}, items, detail=traceback.format_exc(), **costs)
+            if stopped(traceback.format_exc(), **costs):
                 return
             self.store.record_failure(run_id, "pipeline_error", f"{type(error).__name__}: {str(error)[:300]}", detail=traceback.format_exc(),
                                       stage="error", **costs)

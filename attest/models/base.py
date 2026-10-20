@@ -11,18 +11,19 @@ from ..ledger import ModelCall
 
 class ModelError(RuntimeError):
     def __init__(self, message: str, uncertain: bool = False, rate_limited: bool = False, unreachable: bool = False,
-                 halted: bool = False, http_status: int | None = None):
+                 halted: bool = False, http_status: int | None = None, malformed: bool = False):
         super().__init__(message)
         self.uncertain = uncertain  # the request may have been executed and its outcome is unknown: never replayed, the run stops
         self.rate_limited = rate_limited  # the provider's quota refused the request (definite, nothing executed)
         self.unreachable = unreachable  # every attempt failed before any byte of the request was sent (definite, nothing executed)
         self.halted = halted  # not sent: the run has stopped for reconciliation, or this provider stopped paid calls (revision 9)
         self.http_status = http_status
+        self.malformed = malformed  # the provider's answer could not be read (revision 10): the run has halted
 
     @property
     def stops_run(self) -> bool:
         """The run sends nothing further after this error and is held for reconciliation (revision 9)."""
-        return bool(self.uncertain or self.halted)
+        return bool(self.uncertain or self.halted or self.malformed)
 
 
 @dataclass

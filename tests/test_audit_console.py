@@ -306,7 +306,8 @@ class PublicProjection(ConsoleHarness):
         health = self.client.get("/api/health").json()
         for dropped in ("data_dir", "reconciled_at_startup", "deduplicated_at_startup"):
             self.assertNotIn(dropped, health)
-        self.assertEqual(health["startup"], {"reconciled": 0, "deduplicated": 0})
+        # counts and flags only (revision 10 adds the start-up hold repair and whether the recovery failed)
+        self.assertEqual(health["startup"], {"reconciled": 0, "deduplicated": 0, "holds_repaired": 0, "recovery_failed": False})
         self.assertIn("UTC day", health["budget"]["policy"])
         events = self.client.get("/api/runs/proj-2/events").json()
         self.assertNotIn("error", events)
@@ -662,7 +663,7 @@ class ConsoleClient(unittest.TestCase):
         self.assertTrue(report["ok"])
         self.assertEqual(set(report["checks"]), {"copy_patch_requires_ok", "queue_position_is_authoritative", "terminal_detail_retried",
                                                  "download_urls_carry_tickets_never_the_token", "live_run_needs_confirmation",
-                                                 "held_run_offers_no_new_run"})
+                                                 "held_run_offers_no_new_run", "paused_state_is_shown"})
 
     def test_client_sends_the_token_in_the_header_only_and_tickets_on_team_download_links(self):
         js = (ROOT / "attest/app/static/app.js").read_text(encoding="utf-8")

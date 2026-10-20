@@ -182,7 +182,8 @@ class ConsoleApi(unittest.TestCase):
         self.assertNotIn(str(ROOT), self.client.get("/api/runs", headers=self.team).text)
         health = self.client.get("/api/health").json()
         self.assertNotIn("data_dir", health)
-        self.assertEqual(set(health["startup"]), {"reconciled", "deduplicated"})
+        self.assertEqual(set(health["startup"]), {"reconciled", "deduplicated", "holds_repaired", "recovery_failed"})
+        self.assertTrue(all(isinstance(v, (int, bool)) for v in health["startup"].values()), "the start-up block carries counts and flags only")
         self.assertTrue(all("path" not in t for t in self.client.get("/api/tasks").json()["tasks"]))
 
     def test_profiles_hide_the_team_profile_without_the_token(self):

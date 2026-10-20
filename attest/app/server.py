@@ -31,7 +31,9 @@ after the cost is shown. Without it the answer is 428 before anything else happe
 Automated checks, crawlers and probes that copy a body therefore cannot start a run by accident.
 
 Reconciliation holds (revision 9): while a run that stopped for reconciliation is held, admission is refused with 503 (nothing is
-queued) and `/api/health` reports the open holds under `reconciliation` (their run ids only to the team).
+queued) and `/api/health` reports the open holds under `reconciliation` (their run ids only to the team). Revision 10: start-up runs
+`Store.startup_recovery` (the bundle and the journal of every orphaned run are read, missing holds are repaired, cleared ones stay
+cleared); when it, or the recording of a stopped run's hold, fails, the worker fails closed and `reconciliation.fail_closed` says so.
 
 Requester identity (API-01): the hourly visitor quota uses the peer address, unless the peer is one of the trusted proxies
 (`ATTEST_TRUSTED_PROXIES`, default the loopback addresses of the nginx vhost on the same host), in which case the LAST
@@ -133,14 +135,23 @@ IMPORT_DIRS = [Path(p).resolve() for p in os.environ.get("ATTEST_IMPORT_DIRS", s
 # Recorded evidence imported at startup is limited to the judge profile's provider by default: development-profile bundles
 # (and their ledgers) stay in the private tree instead of becoming downloadable from the public console.
 IMPORT_PROVIDERS = {p.strip() for p in os.environ.get("ATTEST_IMPORT_PROVIDERS", "nebius").split(",") if p.strip()}
+OWN_RUNS = (DATA_DIR / "runs").resolve()
 for _dir in IMPORT_DIRS:
     for _run_dir in sorted(_dir.glob("*/")) if _dir.is_dir() else []:
         try:
-            store.import_run_dir(_run_dir, providers=IMPORT_PROVIDERS)
+            # a run of the console's own directory that has no row and requires reconciliation is held (revision 10)
+            store.import_run_dir(_run_dir, providers=IMPORT_PROVIDERS, hold_if_required=_dir == OWN_RUNS)
         except Exception:  # noqa: BLE001 - a broken directory must not prevent startup
-            pass
+            LOG.exception("could not import %s", _run_dir)
 DEDUPED = store.dedupe_imports()  # console runs re-imported from disk under a second id (pre-M1 hygiene bug)
-RECONCILED = store.reconcile_interrupted(per_run_cap=float(os.environ.get("ATTEST_PER_RUN_USD_CAP", "0.5")))  # settle rows a restart orphaned
+# Revision 10: settle the rows a restart orphaned (bundle and journal both read) and repair holds; a failure here fails the worker closed.
+STARTUP_ERROR: str | None = None
+try:
+    STARTUP = store.startup_recovery(per_run_cap=float(os.environ.get("ATTEST_PER_RUN_USD_CAP", "0.5")))
+except Exception as _error:  # noqa: BLE001 - the service still answers (health says why); it starts no run
+    LOG.exception("start-up recovery failed; the worker starts closed")
+    STARTUP, STARTUP_ERROR = {"settled": [], "repaired": []}, f"{type(_error).__name__}: {str(_error)[:300]}"
+RECONCILED = STARTUP["settled"]
 worker = Worker(store, DATA_DIR, EXAMPLES_DIR,
                 per_run_usd_cap=float(os.environ.get("ATTEST_PER_RUN_USD_CAP", "0.5")),
                 daily_usd_cap=float(os.environ.get("ATTEST_DAILY_USD_CAP", "2.0")),
@@ -148,6 +159,8 @@ worker = Worker(store, DATA_DIR, EXAMPLES_DIR,
                 min_free_frac=float(os.environ.get("ATTEST_MIN_FREE_FRAC", "0.07")),
                 min_free_mb=int(os.environ.get("ATTEST_MIN_FREE_MB", "500")),
                 retention_keep_errors=RETENTION_KEEP_ERRORS)
+if STARTUP_ERROR:
+    worker.fail_closed(f"the start-up recovery could not write its records ({STARTUP_ERROR})", cause="startup")
 app = FastAPI(title="Attest console", version=__version__, docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
 STATIC = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
@@ -456,10 +469,13 @@ def health(request: Request):
     budget_ok, budget_detail = store.nebius_budget_ok(worker.per_run_usd_cap, worker.daily_usd_cap, today, executing=False)
     remaining = store.nebius_remaining(worker.per_run_usd_cap, worker.daily_usd_cap, today)
     holds = store.active_holds()
-    reconciliation = {"holds_open": len(holds), "accepting_runs": not holds,
+    closed = worker.closed
+    reconciliation = {"holds_open": len(holds), "accepting_runs": not holds and closed is None, "fail_closed": closed is not None,
                       "policy": "a run that stopped because an operation's outcome is uncertain is held; no run starts until an operator reconciles it"}
     if team:
         reconciliation["held_runs"] = [h.get("run_id") for h in holds]
+        if closed is not None:
+            reconciliation["fail_closed_reason"] = closed.get("reason")
     return {"ok": True, "version": __version__, "worker_alive": alive, "worker_restarts": worker.restarts, "reconciliation": reconciliation,
             "ready": alive and not disk.get("low"), "queue": worker.queue.qsize(), "busy": worker.current is not None,
             "current": _current_ref(team), "time_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -470,7 +486,8 @@ def health(request: Request):
                        "committed_today_usd": remaining["committed_usd"], "reserved_usd": remaining["reserved_usd"],
                        "active_runs": remaining["active_runs"], "policy": BUDGET_POLICY},
             "public_runs_per_hour": PUBLIC_RUNS_PER_HOUR,
-            "startup": {"reconciled": len(RECONCILED), "deduplicated": len(DEDUPED)}, "team": team}
+            "startup": {"reconciled": len(RECONCILED), "deduplicated": len(DEDUPED), "holds_repaired": len(STARTUP.get("repaired") or []),
+                        "recovery_failed": STARTUP_ERROR is not None}, "team": team}
 
 
 @app.get("/api/profiles")

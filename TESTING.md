@@ -63,6 +63,16 @@ hold the console and the harness after a stop. `reports/attest-revision9-repairs
 reproduces each of the revision-8 defects against a checkout and reports PASS or FAIL per check, so it can be run on the code before
 and after the repair.
 
+Revision 10 (`tests/test_revision10.py`) restarts the console's store after a crash at each point between bundle creation, row update
+and hold creation, refuses the hold insert (an SQLite trigger) and kills a process inside the transaction (a trigger calling a function
+that exits), repeats the start-up recovery, clears holds and checks that nothing reopens them; resumes a batch over completed, halted and
+unowned run directories with their bundles and run and judge journals, with and without notes and item ids, across several restarts; and
+answers the real HTTP client and the real Sandboxes, gateway, Token Factory and Tavily adapters from a local server with arrays, scalars,
+empty and non-UTF-8 bodies, unpaired surrogate escapes, NaN, deep nesting, missing fields, malformed and path-shaped identifiers and cut
+bodies, checking the resulting state, the halt and that no request leaves afterwards.
+`reports/attest-revision10-repairs-2026-10-20/repro/reproduce_r10.py --tree <checkout> --out <file>` reproduces the defects of 0.9.0
+against any checkout (63 checks), so it can be run before and after the repair.
+
 ## 2. The live console (no credentials; one click costs us, not you)
 
 https://attest.axiqo.xyz shows recorded evidence first. Open any run: the decision header, the exhibits E1 to E7, the

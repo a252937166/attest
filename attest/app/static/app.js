@@ -169,9 +169,17 @@
     $("#chip-service").title = busy && h.current ? `Running ${h.current}` : "";
     const b = h.budget || {};
     $("#chip-budget-text").textContent = b.remaining_usd != null ? `$${Number(b.remaining_usd).toFixed(2)} of $${Number(b.daily_cap_usd).toFixed(2)} left today` : "unknown";
-    $("#chip-runs-text").textContent = h.disk && h.disk.accepting_runs === false ? "paused, low disk" : "accepted";
+    $("#chip-runs-text").textContent = pausedReason(h) || "accepted";
     $("#foot-version").textContent = h.version ? `Attest ${h.version}` : "";
     const ev = $("#eval-version"); if (ev && h.version) ev.textContent = `Attest ${h.version}`;
+  }
+
+  // Revision 10: new runs are paused while the disk is low, while a run is held for reconciliation, or while the service has failed
+  // closed (the API answers 503 then); the page says so and offers no start that would be refused.
+  function pausedReason(h) {
+    if (h && h.disk && h.disk.accepting_runs === false) return "paused, low disk";
+    if (h && h.reconciliation && h.reconciliation.accepting_runs === false) return "paused for reconciliation";
+    return null;
   }
 
   async function loadHealth() {
@@ -229,9 +237,11 @@
       const range = e.runs ? `Recorded runs of this task: <strong>${e.cost_min_usd != null ? `${usd(e.cost_min_usd)} to ${usd(e.cost_max_usd)}` : "team allowance"}</strong> of inference, <strong>${dur(e.duration_min_s)} to ${dur(e.duration_max_s)}</strong> (${e.runs} run${e.runs === 1 ? "" : "s"}).`
         : "No recorded runs of this task yet, so there is no estimate.";
       const budget = b.remaining_usd != null ? ` Up to ${usd(b.per_run_cap_usd)} is reserved against today's cap while the run is queued or running; <strong>$${Number(b.remaining_usd).toFixed(2)}</strong> remains.` : "";
-      box.innerHTML = range + budget;
+      const paused = pausedReason(h);
+      box.innerHTML = range + budget + (paused === "paused for reconciliation"
+        ? " <strong>New runs are paused</strong> while an earlier run's operations are reconciled; nothing can be started now." : "");
       go.textContent = `Run live on ${p ? p.short : "Nemotron"}`;
-      go.disabled = !(h.worker_alive !== false) || (h.disk && h.disk.accepting_runs === false) || (p && p.public && b.nebius_ok === false);
+      go.disabled = !(h.worker_alive !== false) || !!paused || (p && p.public && b.nebius_ok === false);
     }
     renderProfiles();
   }

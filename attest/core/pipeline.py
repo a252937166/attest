@@ -661,6 +661,7 @@ class Pipeline:
         kind = halt.get("kind")
         tail = {"journal_failure": "a record of the run could not be made durable; nothing further was sent",
                 "metering_unknown": "a generated answer could not be priced; nothing further was sent",
+                "malformed_response": "an upstream answer could not be read; nothing further was sent",
                 "batch_stop": "another run of the batch stopped for reconciliation; nothing further was sent"}.get(
                     kind, "outcome uncertain; not retried; nothing further was sent")
         reason = (f"stopped for reconciliation at {where}: {halt.get('reason') or 'an operation whose outcome is uncertain'} ({tail}); every operation "
@@ -1023,6 +1024,12 @@ class Pipeline:
         grounding = ground(queries, self.tavily)
         self.bundle["grounding"] = grounding
         self.save("grounding.json", grounding)
+        if grounding.get("malformed"):
+            malformed = grounding["malformed"]
+            halted = self.ledger.halt("malformed_response", f"Tavily's answer to GET {malformed.get('read')} {malformed.get('when')} could not be read "
+                                                            f"({malformed.get('problem')}); nothing further was sent", stage="ground",
+                                      operation={"service": "tavily", "read": malformed.get("read")})
+            raise ReconciliationRequired(halted, "ground")
         if grounding.get("uncertain"):
             uncertain = grounding["uncertain"]
             halted = self.ledger.halt("uncertain_operation", "a Tavily search's outcome is uncertain (its answer was lost after it was sent, or Tavily "

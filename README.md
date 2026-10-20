@@ -163,6 +163,20 @@ repository with the private gateway host removed from every historical file, kee
 Revision 9 was deployed at https://attest.axiqo.xyz on 20 Oct 08:22 UTC (`reports/attest-deployment-2026-10-20/README.md`); the console
 runs 0.9.0, with the memory limit in force as before (200M for memory and for memory plus swap) and no reconciliation hold open.
 
+Revision 10 (20 Oct 2026, version 0.10.0, `reports/attest-revision10-repairs-2026-10-20/README.md`) closes four ways around that stop
+rule. After a restart the console reads a run's proof bundle and its journal before it settles the row, so a run that stopped for
+reconciliation keeps its hold even when the process died right after writing the bundle (0.9.0 settled such a run as finished). The
+held state and the hold are written in one transaction; when that fails the console fails closed (it admits nothing and starts nothing
+until the record is written or the restart recovers it), start-up repairs a missing hold, and a hold an operator cleared is never
+reopened. A resumed evaluation batch reads every row, bundle and run or judge journal it has and starts nothing while any item is
+unresolved; `--resume` alone approves nothing, and an acknowledgement must name the item ids (`--reconciled NOTE --items ID,...`) and is
+kept in the report directory for later restarts. Every upstream answer is checked before use (UTF-8, standard JSON, the documented
+shape, well-formed identifiers): an unreadable spawn answer leaves the spawn UNCERTAIN, an unreadable poll leaves the accepted operation
+ACCEPTED_UNREAD with its id, an unreadable model answer is an uncertain call, and the run halts at once with nothing sent afterwards
+(0.9.0 let raw `AttributeError`, `TypeError` and `UnicodeDecodeError` escape, polled on, or sent a repair request). The two development
+runs of 17 Oct that went on after an uncertain mutant spawn were reconciled read-only against the Sandboxes account and the gateway's
+ingress log: both spawns did execute (late, one after its run had ended), both mutants were killed, and both verdicts stand.
+
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).
@@ -258,7 +272,8 @@ python3 -m attest import --github https://github.com/<owner>/<repo> --commit <40
     --runner pytest --write-glob 'src/<pkg>/**' --python-path src --pin pytest==8.3.3 --pin pluggy==1.5.0 \
     --pin iniconfig==2.0.0 --pin packaging==24.1 --statement-file statement.txt --criteria-file criteria.txt   # bounded external import (M4)
 python3 scripts/replay_holds.py --run <run-dir> --task <task.json> --module original=<tests.py> --out replay.json [--sandbox]  # re-run breaker tests on candidate and base
-python3 scripts/run_evaluation.py --resume reports/<batch-dir>     # continue an interrupted batch from its own snapshot and registered configuration (cells never executed only; conflicting flags are refused)
+python3 scripts/run_evaluation.py --resume reports/<batch-dir>     # continue an interrupted batch from its own snapshot and registered configuration (cells never executed only; conflicting flags are refused; unresolved items are listed and nothing starts)
+python3 scripts/run_evaluation.py --resume reports/<batch-dir> --reconciled "what the read-only checks found" --items u-...,u-...   # acknowledge those items (kept for later restarts)
 python3 scripts/export_public.py --out dist/public                 # allowlisted, redacted copy for the public repository, with a secret scan
 python3 scripts/build_publication_history.py --review dist/public --out dist/publication --map map.json --verify verify.json   # publishable history
 python3 scripts/scan_publication_history.py --repo dist/publication   # every object, every spelling; exit 1 on any hit
