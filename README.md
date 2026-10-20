@@ -140,7 +140,10 @@ cost and its unread Sandboxes operation on record.
 The browser checks of the deployed console then found five console defects outside the overflow measure (at 1024 px the Guide
 covered two of the case file's tabs, the decision card's text was squeezed to about 80 px and the overview's evidence table into a
 sideways scroll; two error states were wrong); version 0.8.1 repairs them in the console's static files, with the pipeline
-unchanged, and was deployed at 22:18 UTC (`reports/attest-deployment-2026-10-19f/README.md`).
+unchanged, and was deployed at 22:18 UTC (`reports/attest-deployment-2026-10-19f/README.md`). Versions 0.8.2 and 0.8.3 correct
+the home page's replay, which claimed "offline check 24 of 24 OK" for a 17 Oct bundle that the current checker passes as a
+historical bundle with two warnings; 0.8.3, deployed at 23:55 UTC (`reports/attest-deployment-2026-10-19h/README.md`), is the
+version the console runs.
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,

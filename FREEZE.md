@@ -383,7 +383,8 @@ claim "offline check 24 of 24 OK", a figure from an earlier checker; the current
 (0 errors, 2 warnings). `4d37dbb` (0.8.2) corrects the claim in the console's static files and bumps the version; the pin names
 `4d37dbb` from 19 Oct, before 0.8.2 was deployed. 0.8.2 was deployed at 23:11 UTC (`reports/attest-deployment-2026-10-19g/`);
 watched to its end, its replay showed the longer badge squeezing the title beside it into a mid-word break, and `459fe8d` (0.8.3)
-shortens the badge to "attest check: OK, partial"; the pin names `459fe8d` from 19 Oct, before 0.8.3 was deployed.
+shortens the badge to "attest check: OK, partial"; the pin names `459fe8d` from 19 Oct, before 0.8.3 was deployed. 0.8.3 was
+deployed at 23:55 UTC (`reports/attest-deployment-2026-10-19h/`).
 
 Development-gateway reliability batches of this revision (Attest only, one attempt per task, no paid inference call; they ran on
 package `68e9de49df5b…`, before the stop fix, and none of their failures was in a stage that fix changed):

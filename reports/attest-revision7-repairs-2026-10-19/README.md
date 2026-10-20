@@ -123,7 +123,11 @@ Python sources differ only by the version string (package `ed1ac3bad3ec…`). It
 Watched to its end, the replay then showed a defect 0.8.2 itself had introduced: the longer badge left the "Proof Bundle" title
 beside it about 30 px, so the title broke inside the word on every desktop width (the audits measure at load, while the badge
 still reads "pending"). 0.8.3 (`459fe8d`, package `35b264adcd08…`) shortens the badge to "attest check: OK, partial", and the
-audit now measures the finished replay too. It was pinned in `FREEZE.md` before its deployment.
+audit now measures the finished replay too. It was pinned in `FREEZE.md` before its deployment and deployed at 23:55 UTC
+(`reports/attest-deployment-2026-10-19h/`): read back as before (version 0.8.3, package `35b264adcd08…`, the 200M limits in
+force, queue 0, no reservation); the finished replay keeps the title on one line from 390 to 1920 px; in Chrome 736 + 184 states
+clean with the finished replay included, and only GET requests. 0.8.3 is the version the console runs at the end of this pass;
+the rollback target is `0.8.2-ed1ac3bad3ec`.
 
 ## yungou's availability during this pass
 
@@ -188,3 +192,4 @@ credentials and made no external request.
 | `4d37dbb` | 0.8.2: the hero replay states the offline check as the current checker reports it; the pinned code commit, package `ed1ac3ba…` |
 | `cb94aef` | the pin record re-pinned to `4d37dbb` before 0.8.2 was deployed; the 0.8.2 release was built from a clean checkout of this commit |
 | `459fe8d` | 0.8.3: the hero's check badge at most 26 characters again; the audit measures the finished replay; the pinned code commit, package `35b264ad…` |
+| `5f479a8` | the pin record re-pinned to `459fe8d` before 0.8.3 was deployed, and the records of the 0.8.2 deployment; the 0.8.3 release was built from a clean checkout of this commit |
