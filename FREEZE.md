@@ -436,8 +436,8 @@ the revision-7 registration.
 
 | Item | Value |
 | --- | --- |
-| Repository commit (code) | `7664742309216676c7a0bc9188df0aac932fe35b` on branch `main` of the review repository, version 0.9.0; in the publication repository `12a541dc6da91e55955b561e6ac9d64465028d33` (the same tree; the documentation commits that follow carry this record with an identical `attest/` digest) |
-| `attest/` package digest (sha256 over path and content of every source, 37 files) | `ab5b1705ae2b921141d01d77e4728f4e63c5233bcc629e93636809e32039e3c1` (`808137c`, `58d2520` and `697d0e7` share `2449ab27262c…`; `7664742` changes how a stopped run names its stage) |
+| Repository commit (code) | `67518471b1a56e95379a789b0f0e2dc0d77db8b5` on branch `main` of the review repository, version 0.9.0 (the package and the harness of `7664742`, with the tests of the home-directory fix); in the publication repository `e91e8db2a1f40102331b403b820f9e7b1ff698dd` (the same tree; the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 37 files) | `ab5b1705ae2b921141d01d77e4728f4e63c5233bcc629e93636809e32039e3c1`, the same for `7664742` and `6751847` (`808137c`, `58d2520` and `697d0e7` share `2449ab27262c…`; `7664742` changes how a stopped run names its stage; `6751847` changes tests only) |
 | Harness `scripts/run_evaluation.py` sha256 | `bc515984ccc65746846e368898b0abe393841d815a6ba584fe10c432affe5176` (changed: every cell's ledger registered with the batch, a halted cell halts every other cell in flight and is not judged, the judge's own journal, reconciliation items from the records, `--reconciled`) |
 | `examples/` tree digest | unchanged: `e95a28aa363366160062107128950e9ff4c1888d52dccfdf578299e14e341b78` from a clean checkout (`6db7a2e9…` in the working and exported trees, see revision 5) |
 | Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
@@ -446,7 +446,7 @@ the revision-7 registration.
 | Evidence protocol and witness language | version 5 (the reconciliation record) and `attest-witness/1`; manifest version 2 |
 | Effective provider configuration, proposed paid run | computed offline from the pinned package (placeholder key, outbound network denied): equal to the revision-7 registration; the provider's description adds its answer and journal policies |
 | Limits | revision-8 limits; deployment memory limit 200M (memory and memory plus swap) |
-| Offline suite on the final tree | **458 tests, 0 failures, 0 errors, 0 skips** on a clean checkout of `7664742` with no credential, no private configuration and outbound network denied by the operating system except to the loopback interface (macOS `sandbox-exec`; the suite's own guard also refuses this machine's proxy and every loopback port listening before it started): `reports/attest-revision9-repairs-2026-10-20/suites/final-tree-suite-14-clean-7664742-macos-no-network.log`; and **458 tests, 0 failures, 0 errors, 26 skipped** on a clean `git archive` of `7664742` in a Linux container whose only network interface is the loopback one (Alpine 3.24, Python 3.12.15, uid 65534, all capabilities dropped; the 26 skips are the tests that need bash, git or node, which the image lacks): `final-tree-suite-15-clean-7664742-linux-no-network.log` (the same results for `697d0e7`: suites 12 and 13) |
+| Offline suite on the final tree | **459 tests, 0 failures, 0 errors, 0 skips** on a clean checkout of `6751847` with no credential, no private configuration, HOME at a directory created for the run (still empty afterwards; the suite moves HOME to a new directory of its own and checks that no test left anything there) and outbound network denied by the operating system except to the loopback interface (macOS `sandbox-exec`; the suite's own guard also refuses this machine's proxy and every loopback port listening before it started): `reports/attest-revision9-repairs-2026-10-20/suites/final-tree-suite-18-clean-6751847-macos-no-network.log`; and **459 tests, 0 failures, 0 errors, 26 skipped** on a clean `git archive` of `6751847` in a Linux container whose only network interface is the loopback one (Alpine 3.24, Python 3.12.15, uid 65534, all capabilities dropped; the 26 skips are the tests that need bash, git or node, which the image lacks): `final-tree-suite-19-clean-6751847-linux-no-network.log` (458 tests with the same results for `7664742` and `697d0e7`: suites 12 to 15) |
 
 History of this pin (20 Oct 2026, before the deployment of revision 9): the code of the repairs is `808137c`; `58d2520` and `697d0e7`
 tighten the offline suite's own guard (the machine's configured proxy, then every loopback port listening before the suite started)
@@ -458,12 +458,18 @@ passed both offline set-ups again, and the pin names it. A live development run 
 gateway calls, 15 Sandboxes operations, no Nebius inference, no Tavily) ended VERIFIED under evidence protocol 5 with every operation
 journaled PENDING, ACCEPTED and SUCCESS (`reports/attest-revision9-repairs-2026-10-20/live-codex/`); `7664742` does not change any request path.
 0.9.0, built from a clean checkout of the pin record `65d81f7`, was deployed on 20 Oct at 08:22 UTC (`reports/attest-deployment-2026-10-20/`).
+After the deployment a clean run of the records commit `5229e14` showed that the HOME given to the macOS runs had not been empty from
+the second run on: one test kept its dummy key's pacing state there (`reports/attest-revision9-repairs-2026-10-20/README.md`,
+"Correction: the suite's home directory"). `6751847` gives every run of the suite its own empty home directory and fails if a test
+leaves anything there; it changes tests only, so the package, harness, METHOD and example digests are those of `7664742`. Its clean
+checkout passed both offline set-ups, and the pin names it. The deployed package is the pinned package (digest `ab5b1705…`); the
+deployed tree carries the earlier tests, which the service never runs.
 
 ## The exact command (revision 9)
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout 12a541dc6da91e55955b561e6ac9d64465028d33
-# the same tree as review-repository commit 7664742309216676c7a0bc9188df0aac932fe35b
+git clone <publication repository> attest-eval && cd attest-eval && git checkout e91e8db2a1f40102331b403b820f9e7b1ff698dd
+# the same tree as review-repository commit 67518471b1a56e95379a789b0f0e2dc0d77db8b5
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
     --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r9-final \
@@ -482,8 +488,8 @@ digest and size recomputed; every other file, the package, the harness, the exam
 commit differing from its review commit only by those rewrites, every pinned digest below equal in both, and the 849 run copies whose
 manifest changed passing `attest check` at the commits where they changed
 (`reports/attest-revision9-repairs-2026-10-20/publication/`). The replay is deterministic, so a review commit always maps to the same
-publication commit (the build up to `697d0e7` and the later one up to `7664742` agree on every earlier commit);
-`publication-map-to-7664742.json` lists every one. Historical records cite review-repository commit ids; this table
+publication commit (the builds up to `697d0e7`, `7664742` and `6751847` agree on every commit they share);
+`publication-map-to-6751847.json` lists every one. Historical records cite review-repository commit ids; this table
 translates the pinned ones (the `git checkout` lines of every pin above now name the publication commits):
 
 | Pin | Review repository | Publication repository |
@@ -494,7 +500,8 @@ translates the pinned ones (the `git checkout` lines of every pin above now name
 | Revision 6 | `da00f41a5542a1c114c2ba1a57a6f0ee7e7ff906` | `0dd0b425b8aa6ea9fe03160a8eb6aef82dbf21e8` |
 | Revision 7 | `a95e2614d643bc057a1877f81b5ebe774fabaf7e` | `00a3e2a76b1fa5b24b5e96cb1387d5bf7de381af` |
 | Revision 8 (0.8.3) | `459fe8dd97bb1f719edff42921c04fa43bb50196` | `84d3d8b774b3e4a1aa5cef77cecc17e67e5d4b89` |
-| Revision 9 (0.9.0) | `7664742309216676c7a0bc9188df0aac932fe35b` | `12a541dc6da91e55955b561e6ac9d64465028d33` |
+| Revision 9 (0.9.0), the deployed code | `7664742309216676c7a0bc9188df0aac932fe35b` | `12a541dc6da91e55955b561e6ac9d64465028d33` |
+| Revision 9 (0.9.0), the pin (tests of the home-directory fix) | `67518471b1a56e95379a789b0f0e2dc0d77db8b5` | `e91e8db2a1f40102331b403b820f9e7b1ff698dd` |
 
 For every row the publication commit reproduces the recorded `attest/` package digest and harness digest exactly (for example
 `166cdcbd46a74cd0…` and `3214d2b3a1fd1fbc…` for the M5 pin). Who may publish the publication repository, and under which author identity,

@@ -227,3 +227,17 @@ Repair (tests only; the `attest/` package and its digest are unchanged): the tes
 the process exits), which subprocesses inherit; `tests/test_zz_isolation.py` fails when a test left anything in it. With the new guard
 and the old test the suite fails and names the file (`repro/guard-check-before.txt`); with the fixed test it passes and the HOME given
 to the process stays empty (`repro/guard-check-after.txt`). The suite now has 459 tests.
+
+After the repair (`6751847`, tests only; package `ab5b1705…`, harness, METHOD and examples unchanged):
+
+| Run | Result |
+| --- | --- |
+| `suites/final-tree-suite-18-clean-6751847-macos-no-network.log`: clean `git worktree` of `6751847`, the macOS set-up above, HOME a directory created for this run | **459 tests, OK, 0 skipped**; the HOME given to the process still empty afterwards, the checkout unchanged |
+| `suites/final-tree-suite-19-clean-6751847-linux-no-network.log`: clean `git archive` of `6751847`, the Linux container set-up above | **459 tests, OK, 26 skipped** (the same 26: bash, git and node absent) |
+| `repro/home-writers-after-6751847.txt`: every test of a clean checkout of `6751847` run one by one | 459 run, none failed, **no test wrote under the probe's HOME or under the suite's own** |
+| `publication/publication-verify-to-6751847.json`, `publication-map-to-6751847.json`: the history replayed up to `6751847` (69 commits) | scan clean over 5,933 objects; 0 unexpected differences; 8 of 8 pinned digests equal (`6751847` included); 849 rewritten run copies pass `attest check`; every commit shared with the build up to `7664742` maps to the same publication commit; `6751847` -> `e91e8db2a1f40102331b403b820f9e7b1ff698dd` |
+
+The pin now names `6751847` (`FREEZE.md`). The suites recorded earlier keep their logs as written: `final-tree-suite-16-clean-65d81f7-` and
+`-17-clean-5229e14-` (458 tests, OK, 0 skipped each) are the runs of the pin record and of the deployment records, and their headers'
+"HOME=<empty directory>" is the inaccuracy described above. The deployed release was built from `65d81f7` (code `7664742`), so it is the
+pinned package; only its copy of the tests is the earlier one, which the service never runs.
