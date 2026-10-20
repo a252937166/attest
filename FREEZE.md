@@ -513,3 +513,62 @@ Unchanged in scope and budget, re-pinned to revision 9: the two-run Nemotron smo
 the revised 32-cell evaluation with the command above (about $3.00 to $4.00, at most $9.00 through `--approve-usd`). Total maximum
 **$10.00**, stop rules as before plus the revision-9 rule: any operation of uncertain outcome stops its run and the batch, every cell in
 flight included. No paid Nebius call was made in revision 9.
+
+# Revision 10 (20 Oct 2026, version 0.10.0): the version proposed for the next paid validation
+
+## What changed (revision 9 to revision 10)
+
+`reports/attest-revision10-repairs-2026-10-20/README.md` records the four repairs: the console's restart recovery reads a run's proof bundle
+and its journal before it settles the row, so a held run keeps its hold however far the process got; the held state and its hold are one
+transaction (one hold per run, ever), a failure fails the service closed, start-up repairs a missing hold and never reopens a cleared one;
+a resumed batch starts nothing while any item of its rows, bundles or run and judge journals is unresolved, and an acknowledgement must
+name the item ids and is kept across restarts; and every upstream answer is decoded and checked before use, an unreadable one stopping the
+run with what is known (UNCERTAIN, ACCEPTED_UNREAD with its id, an uncertain call). The package, the harness and the console page changed;
+the guest programs, the examples, the task suite, the method, the models, the sampling and the evidence protocol (5) did not, and the
+effective Nemotron profile computed from the pinned package equals the revision-7 registration. The two VERIFIED development runs of 17 Oct
+that went on after an uncertain spawn were reconciled read-only: both spawns executed, both mutants were killed, both verdicts stand.
+
+## The pin (revision 10)
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `775248c2f87d66e5fe4f3802b1caf85024f62a49` on branch `main` of the review repository, version 0.10.0; in the publication repository `fe88f405ae3bd684f7c089ebfdab135cd7ae7d0c` (the same tree; the documentation commits that follow carry this record with an identical `attest/` digest) |
+| `attest/` package digest (sha256 over path and content of every source, 37 files) | `7e72364f135c45c8a69a3a59c9cba5c954ebbb843cc7752b76c8303550548cb6` |
+| Harness `scripts/run_evaluation.py` sha256 | `243ab12f3879ffc6d7a0eef5c08c147141a13915457fb7ff1b8e02aa7e0e4ac7` (changed: the resume gate over every row, bundle and run or judge journal, acknowledgements tied to item ids in `reconciliations.jsonl`, the refusal of a batch whose gateway status answer cannot be read) |
+| `examples/` tree digest | unchanged: `e95a28aa363366160062107128950e9ff4c1888d52dccfdf578299e14e341b78` from a clean checkout |
+| Task suite `examples/eval/SUITE-M5.json` sha256 | `a43da6c3ee74d713e6d8dc9764f6775f8e89f8986fd6b0317d64335a54bf5d39` (unchanged since M5) |
+| Method `METHOD.md` sha256 | `ec415afcf1649040a219968d49a469553058d8299a1dfd3ad557bafe71c138dc` (unchanged) |
+| Guest programs | unchanged: supervisor `attest-sealed-supervisor/7` `97d3d47d1d5b4fed…`; per-test child `e4e7b0b294a2004c…`; canary `9cdc57c1348fae5c…`; sandbox runner `attest-guest/3` `db8e2a76834b83ac…` |
+| Evidence protocol and witness language | version 5 and `attest-witness/1` (unchanged); manifest version 2 |
+| Effective provider configuration, proposed paid run | computed offline from the pinned package (placeholder key, outbound network denied): equal to the revision-7 registration (`reports/attest-revision10-repairs-2026-10-20/checker/nemotron-effective-profile-775248c.json`) |
+| Limits | revision-8 limits; deployment memory limit 200M (memory and memory plus swap) |
+| Offline suite on the final tree | **491 tests, 0 failures, 0 errors, 0 skips** on a clean checkout of `775248c` with no credential, no private configuration, HOME at a new empty directory (still empty afterwards) and outbound network denied by the operating system except to the loopback interface (`reports/attest-revision10-repairs-2026-10-20/suites/suite-1-clean-775248c-macos.log`); **491 tests, 26 skipped** (no bash, git or node in the image) in a container with no network interface (`suite-2-clean-775248c-linux.log`) |
+
+## The exact command (revision 10)
+
+```bash
+git clone <publication repository> attest-eval && cd attest-eval && git checkout fe88f405ae3bd684f7c089ebfdab135cd7ae7d0c
+# the same tree as review-repository commit 775248c2f87d66e5fe4f3802b1caf85024f62a49
+export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
+python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
+    --attempts 2 --workers 2 --usd-cap 0.5 --max-calls 22 --max-turns 14 --approve-usd 9.00 --label r10-final \
+    --out reports/attest-evaluation-2026-10-XX-nebius-r10
+```
+
+## Publication repository (revision 10)
+
+The replay of the review history up to `775248c` (`reports/attest-revision10-repairs-2026-10-20/publication/`) found the publication history
+clean (every object, every spelling), every commit differing from its review commit only by the known rewrites, the nine pinned digests equal
+in both, and the 849 rewritten run copies passing `attest check`; every commit it shares with the revision-9 builds maps to the same
+publication commit. The revision-10 pin adds one row to the table of revision 9:
+
+| Pin | Review repository | Publication repository |
+| --- | --- | --- |
+| Revision 10 (0.10.0) | `775248c2f87d66e5fe4f3802b1caf85024f62a49` | `fe88f405ae3bd684f7c089ebfdab135cd7ae7d0c` |
+
+## Proposed paid work (revision 10; awaiting the owner's approval; nothing runs before it)
+
+Unchanged in scope and budget, re-pinned to revision 10: the two-run Nemotron smoke test through the CLI (about $0.15, at most $1.00) and
+the revised 32-cell evaluation with the command above (about $3.00 to $4.00, at most $9.00 through `--approve-usd`). Total maximum
+**$10.00**, stop rules as before plus revision 10's: a malformed upstream answer stops its run and the batch, and a resumed batch starts
+nothing while an item is unresolved. No paid Nebius call was made in revision 10.

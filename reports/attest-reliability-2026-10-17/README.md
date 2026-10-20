@@ -192,3 +192,29 @@ records of the development profile, kept as recorded and not re-evaluated; `atte
 operation of unknown outcome stands behind a verdict other than ERROR. Neither spawn has been reconciled against the account's operation
 list, so whether either created an operation is not known. The paid M5 comparison is not affected: its three bundles with an uncertain
 operation ended ERROR.
+
+## Reconciliation appended 20 Oct 2026 (revision 10): both uncertain mutant spawns executed, both mutants were killed, both verdicts stand
+
+The two spawns named in the correction above were reconciled read-only against the Sandboxes account and the development gateway's
+ingress log (`reports/attest-revision10-repairs-2026-10-20/historical/`; seven GET requests to the Sandboxes API, no other request, nothing
+replayed, no run started; the bundles and every file of these run directories are unchanged).
+
+| Run (row) | Uncertain spawn | Account record | What it ran | Outcome under the pipeline's rule | Mutation score |
+| --- | --- | --- | --- | --- | --- |
+| `balanced-brackets-attest-a1-20261017T121900586528Z` (5) | `mutant-m01-2f645511c4`, sent 12:23:25.8 UTC, its answer timed out after 60 s | operation `01a149d2-b1df-75ba-8f8e-8d5e25a6c0b6`, created 12:25:07.3 (101 s after the spawn was sent), SUCCESS, 4.2 s, on the run's own checkpoint image `55009644…` | the job it records wrote exactly the kept mutant source (sha256 `2f645511…`) and the run's sealed module (`25d42c43…`); the supervisor result carries the job's nonce | killed: 18 of 20 sealed tests failed with authentic child results | 9 of 9 instead of 8 of 8 with one unknown; 1.0, threshold 0.5 |
+| `semver-is-compatible-pr368-v2-attest-a1-20261017T131508429133Z` (9) | `mutant-m08-64e9d487f1`, sent 13:21:22.4 UTC, its answer timed out after 60 s | operation `01a14a0a-3364-7402-aa67-e3e5818d7df1`, created 13:25:44.9 (262 s after the spawn was sent, 78 s after the run had finished), SUCCESS, 5.7 s, on the run's own checkpoint image `d38cea8c…` | the kept mutant source and the run's sealed module, the job's nonce in the result | killed: 4 sealed tests failed with authentic child results | 12 of 12 instead of 11 of 11 with one unknown; 1.0, threshold 0.5 |
+
+How it was established: the account's instance operations from two minutes before each run to one hour after it were listed (107 and
+59 operations); every operation the run recorded (15 and 19) and its held-out judge operation are in the listing (the positive control),
+and exactly one listed operation on each run's checkpoint image, which nothing outside the run uses, is named by no kept record and was
+created after the uncertain spawn was sent. Its record (`GET /operations/{id}`) holds the job the client sent, so the mutant it ran is
+identified by digest, and its supervisor result was classified with `bind_verification` and `classify_mutant_run`, the functions
+`attest check` applies. Every model call the two runs recorded (9 and 10) reached the gateway and was answered HTTP 200, and every
+`/v1/run` request of each run's window belongs to a recorded call of a kept run (`gateway-match.json`).
+
+Assessment: the mutation gate is the only gate the unknown mutant could change, and with the reconciled result each run's score stays
+1.0 (it would have stayed above the 0.5 threshold even had the mutant survived); the other gates are unaffected. Both VERIFIED verdicts
+remain supported by the recorded evidence together with the reconciled operations, so neither case is unresolved historical evidence.
+The cases also show why revision 9 stops a run at such a spawn: both operations ran after the client had given up on them, the second
+after its run had already ended. The bundles stay as recorded; `attest check` still warns that an operation of unknown outcome stands
+behind each verdict, because the bundles themselves do not carry the reconciliation (this section and the files above do).
