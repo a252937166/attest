@@ -134,5 +134,47 @@ class ReplayIdentity(unittest.TestCase):
                 self.replay.build(self.review, self.tmp / "never", "main", bad)
 
 
+@unittest.skipUnless(shutil.which("git"), "git is not installed")
+class ProvenanceReferences(unittest.TestCase):
+    """A run first published unredacted and later as a redacted copy: the copy's REDACTION.json and derived manifest name the original
+    manifest, which the replay rewrites in the older commit. Those provenance fields are not dangling references; another file naming
+    the same digest still is."""
+
+    def test_only_non_provenance_references_dangle(self):
+        import hashlib, json as _json
+        replay = load("attest_publication_provenance_test", ROOT / "scripts" / "build_publication_history.py")
+        hosts = mock.patch.object(replay.EXPORT, "PRIVATE_HOSTS", ["gateway.example.invalid"])
+        hosts.start()
+        self.addCleanup(hosts.stop)
+        tmp = Path(tempfile.mkdtemp(prefix="attest-provenance-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        review = tmp / "review"
+        (review / "run").mkdir(parents=True)
+        env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "A", "GIT_AUTHOR_EMAIL": "a@example.com",
+               "GIT_COMMITTER_NAME": "A", "GIT_COMMITTER_EMAIL": "a@example.com", "GIT_AUTHOR_DATE": "1760900000 +0000", "GIT_COMMITTER_DATE": "1760900000 +0000"}
+        git = lambda *a: subprocess.run(["git", "-C", str(review), *a], check=True, capture_output=True, env=env)  # noqa: E731
+        sha = lambda b: hashlib.sha256(b).hexdigest()  # noqa: E731
+        dump = lambda o: (_json.dumps(o, indent=2, ensure_ascii=False) + "\n").encode()  # noqa: E731
+        git("init", "-q", "-b", "main")
+        bundle1 = b'{"package_dir": "/private/tmp/claude-501/-Users-' + NAME.encode() + b'-Documents-project-interesting-devpost-nebiusAi/s/attest"}\n'
+        manifest1 = dump({"files": [{"path": "proof_bundle.json", "sha256": sha(bundle1), "bytes": len(bundle1)}], "total_bytes": len(bundle1)})
+        (review / "run" / "proof_bundle.json").write_bytes(bundle1)
+        (review / "run" / "manifest.json").write_bytes(manifest1)
+        git("add", "-A"); git("commit", "-q", "-m", "unredacted")
+        bundle2 = b'{"package_dir": "/tmp/attest-session/s/attest"}\n'
+        redaction = dump({"source_manifest_sha256": sha(manifest1), "files": [{"path": "proof_bundle.json", "original_sha256": sha(bundle1), "redacted_sha256": sha(bundle2)}]})
+        manifest2 = dump({"files": [{"path": "REDACTION.json", "sha256": sha(redaction), "bytes": len(redaction)}, {"path": "proof_bundle.json", "sha256": sha(bundle2), "bytes": len(bundle2)}],
+                          "total_bytes": len(redaction) + len(bundle2), "derived_from": {"original_manifest_sha256": sha(manifest1)}})
+        (review / "run" / "proof_bundle.json").write_bytes(bundle2)
+        (review / "run" / "REDACTION.json").write_bytes(redaction)
+        (review / "run" / "manifest.json").write_bytes(manifest2)
+        (review / "notes.txt").write_bytes(b"the first manifest was " + sha(manifest1).encode() + b"\n")
+        git("add", "-A"); git("commit", "-q", "-m", "redacted copy")
+        result = replay.build(review, tmp / "publication", "main", "Publisher <publisher@example.com>")
+        self.assertEqual([r["paths"] for r in result["dangling_digest_references"]], [["notes.txt"]])
+        self.assertEqual(sorted(r["paths"][0] for r in result["provenance_references_to_private_originals"]), ["run/REDACTION.json", "run/manifest.json"])
+        self.assertEqual(replay.provenance_digests(b"not json"), None)
+
+
 if __name__ == "__main__":
     unittest.main()

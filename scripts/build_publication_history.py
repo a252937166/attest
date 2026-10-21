@@ -17,6 +17,10 @@ its history, commit by commit, into a separate repository:
   and a manifest whose JSON would not round-trip byte for byte is refused rather than rewritten;
 - everything else (the package, the harness, the examples, the bundles' evidence) is byte-identical, so every digest a pin or a report
   records stays valid in the publication history, and `--verify` proves it;
+- a redacted run copy's provenance fields (REDACTION.json's source_manifest_sha256 and original_sha256, a derived manifest's
+  derived_from.original_manifest_sha256) point at the private original by design; when the original was itself in an older commit and the
+  replay rewrote it, those fields are listed as provenance references, not as dangling ones, while any other file naming a rewritten
+  manifest's digest is still a dangling reference and fails the verification;
 - with `--identity "Name <email>"` (21 Oct 2026, the owner's decision for the published history) every commit's author and committer
   name and email become that identity and nothing else changes: the dates, the time zones and the messages are kept, so the replay stays
   deterministic, and `--verify` checks that no commit carries another identity. Without it every identity is kept as recorded.
@@ -203,6 +207,34 @@ def manifest_rewrite(data: bytes, rewritten: dict[str, tuple[str, int]]) -> byte
     return json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8") + b"\n"
 
 
+PROVENANCE_KEYS = ("source_manifest_sha256", "original_sha256", "original_manifest_sha256")
+
+
+def provenance_digests(data: bytes) -> list[str] | None:
+    """The digests that a redacted run copy's provenance fields name (REDACTION.json: source_manifest_sha256 and each file's
+    original_sha256; a derived manifest: derived_from.original_manifest_sha256), or None when the blob is not JSON. Those fields point
+    at the private original by design ("the original run directory is kept privately"), so an original that the replay itself
+    rewrote in an older commit is not a dangling reference when only they name it (21 Oct 2026)."""
+    try:
+        doc = json.loads(data)
+    except (ValueError, UnicodeDecodeError):
+        return None
+    found: list[str] = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in PROVENANCE_KEYS and isinstance(value, str):
+                    found.append(value)
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+    walk(doc)
+    return found
+
+
 def build(review: Path, out: Path, rev: str, identity: str | None = None) -> dict:
     if identity is not None and not IDENTITY_RE.fullmatch(identity):
         raise SystemExit(f"refusing: --identity must read 'Name <email>', not {identity!r}")
@@ -239,14 +271,19 @@ def build(review: Path, out: Path, rev: str, identity: str | None = None) -> dic
     replaced = {**sanitized, **manifests}
     old_digests = {hashlib.sha256(objects.read(sha)).hexdigest(): sha for sha in replaced}
     # nothing else in the history may refer to a rewritten file by its digest (it would now point at nothing)
-    references = []
+    references, provenance_only = [], []
     for sha in blob_paths:
         if sha in replaced:
             continue
         data = objects.read(sha)
         for digest, source in old_digests.items():
             if digest.encode() in data and source in manifests:
-                references.append({"blob": sha, "paths": sorted(p.decode("utf-8", "replace") for p in blob_paths[sha])[:3], "refers_to": source})
+                entry = {"blob": sha, "paths": sorted(p.decode("utf-8", "replace") for p in blob_paths[sha])[:3], "refers_to": source}
+                named = provenance_digests(data)
+                if named is not None and data.count(digest.encode()) == named.count(digest):
+                    provenance_only.append(entry)  # a redacted copy naming its private original: by design not in the published history
+                else:
+                    references.append(entry)
     # the replay
     if out.exists():
         shutil.rmtree(out)
@@ -299,6 +336,7 @@ def build(review: Path, out: Path, rev: str, identity: str | None = None) -> dic
                 for sha in sorted(replaced)]
     return {"review": str(review), "publication": str(out), "rev": rev, "identity": identity, "commits": len(order), "map": mapping, "rewritten_blobs": rewrites,
             "rewritten_counts": {"sanitized": len(sanitized), "manifests": len(manifests)}, "dangling_digest_references": references,
+            "provenance_references_to_private_originals": provenance_only,
             "placeholder_host": PLACEHOLDER_HOST}
 
 
