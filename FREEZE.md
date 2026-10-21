@@ -1,3 +1,14 @@
+# Current reference (21 Oct 2026)
+
+The latest formal Nemotron evaluation ran version 0.10.0: all 32 scheduled cells were reported, with the results in
+[the evaluation record](reports/attest-evaluation-2026-10-21-nebius-r10/README.md). Its review pin `c0ddb486` is available in the
+published history as `a72fdf247a927b111b0ee17f5c5602c299118e5d`. The live console is 0.10.3 (published code pin
+`13574c89ea60d8e52dcdcd478864be11258fdfc4`); the separately approved filmed run ended NO CHANGE, with complete evidence for
+that unfinished outcome ([run record](reports/attest-demo-run-2026-10-21/README.md)).
+
+The dated sections below preserve the pins, proposals, approvals and results as recorded at each stage. Earlier statements that
+a paid run had not started describe that stage, rather than the current status.
+
 # Frozen evaluation version (M5), 17 Oct 2026
 
 This file pins what the M5 comparison runs. The paid run has not started; it starts only after the owner approves the

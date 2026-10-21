@@ -6,10 +6,14 @@ the tests are shown failing on an unmodified checkpoint, the implementer works t
 a fresh sandbox branch verifies the candidate against the pristine sealed copy, and a Proof Bundle records the evidence
 and the usage ledger.
 
+Watch the [2 min 50 s demonstration](https://youtu.be/EwW-yEKCk1A): a real Nemotron run ends NO CHANGE, followed by separately
+labelled VERIFIED and refusal cases from the recorded evaluation, and an offline check of the downloaded evidence.
+
 At a glance (21 Oct 2026). Live console: https://attest.axiqo.xyz (recorded runs first; a live Nemotron run starts only after an
 explicit confirmation, within a daily cap). The latest evaluation on NVIDIA Nemotron, 32 cells on one suite: the plain agent shipped 2
 broken patches and Attest none; Attest refused the task that cannot be satisfied both times, and it accepted 2 correct patches to the
-plain agent's 8, holding the rest for a person (`reports/attest-evaluation-2026-10-21-nebius-r10/README.md`). Judges: start at
+plain agent's 8; other runs required review, stopped on infrastructure uncertainty, or ended without a patch
+(`reports/attest-evaluation-2026-10-21-nebius-r10/README.md`). Judges: start at
 [For judges](#for-judges). The dated paragraphs below record the project's history.
 
 Status (16 Oct 2026): end-to-end pipeline with a hardened, privilege-separated verifier, a web console/API, and a live
@@ -38,8 +42,9 @@ import with a real python-semver task, the pilot kit (`PILOT.md`) and the frozen
 (17 Oct 2026, `reports/attest-evaluation-2026-10-17-nebius-m5/README.md`, results in `RESULTS.md` of that folder): the
 frozen evaluation ran on Nemotron from the pinned commit `6b786a2e…`, 8 tasks x 2 systems x 2 attempts, all 32 cells
 reported, $1.09 committed. Attest accepted 4 correct patches, shipped 2 broken ones (both on the unsatisfiable rle-encode
-task, the same two the plain agent shipped), held 5 correct patches for a human, left the external semver task unchanged
-twice (correctly) and hit 3 transport-uncertain infrastructure errors; the plain agent accepted 10 correct patches, shipped
+task, the same two the plain agent shipped), held 5 correct patches for a human, and produced no patch on the external semver
+task twice (unfinished tasks, as corrected in that report's `CORRECTIONS.md`), and hit 3 transport-uncertain infrastructure errors;
+the plain agent accepted 10 correct patches, shipped
 2 broken ones, did not finish once and hit 3 errors. On this suite Attest did not ship fewer broken patches than the plain
 agent; every one of its holds was on a patch the held-out judge accepted. License: MIT.
 
@@ -223,13 +228,17 @@ The Attest application was not redeployed and the recorded evaluation was not re
 
 Start with `TESTING.md` (offline tests in 15 seconds, `attest check` on a recorded bundle, the live console, your own
 repository), `METHOD.md` (the frozen evaluation method) and `FREEZE.md` (the pinned commit, digests, models, limits and
-the exact evaluation command; since revision 9 each pinned commit is named in the publication repository too, where
-`publication-map.json` translates the review-repository commit ids that historical records cite). Every dated report under `reports/` keeps its failed and inconclusive runs; rehearsals by
+the exact evaluation command; its published-history tables map the evaluation and release pins from the review repository to
+the commits available in the public repository). Every dated report under `reports/` keeps its failed and inconclusive runs; rehearsals by
 the project's own agents are labelled as rehearsals, not as user testing.
 
 ## Deployment targets
 
-The final console, API, orchestration, and application data/database when needed belong on the existing `yungou` server, confirmed by the owner as DogYun `206.237.18.80` on 2026-10-15. Prepare that application deployment without Docker. Components that genuinely require Docker run on the existing Aliyun host; Nebius Sandboxes remains the primary isolated task executor. Final deployment and any cross-host Docker worker are not yet verified. See [deployment targets](deployment-targets.md) for the user-selected host policy and required deployment evidence.
+The console, API, orchestration and application data are deployed without Docker on the owner's existing `yungou` server.
+The latest recorded console release is 0.10.3, deployed on 21 Oct 2026; see the
+[deployment record](reports/attest-deployment-2026-10-21c/README.md). Nebius Token Factory Sandboxes executes the isolated task
+branches. The host policy reserves components that require Docker for the existing Aliyun host; the deployed Attest path does
+not require a cross-host Docker worker.
 
 ## Layout
 

@@ -3,6 +3,9 @@
 On 21 Oct 2026 the owner approved one real Nemotron run on the public console, started on camera through the page, for the
 demonstration film. This folder records it: the run, how it was started, what it cost, and the offline check of its bundle.
 
+The film was published publicly on YouTube on 21 Oct 2026: https://youtu.be/EwW-yEKCk1A. The upload UI confirmed publication
+and public visibility. The NO CHANGE run below and the subsequent, separately labelled evaluation cases are different runs.
+
 | Item | Value |
 | --- | --- |
 | Run | `semver-is-compatible-pr368-v2-20261021T070345824312Z` |
