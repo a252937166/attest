@@ -1,0 +1,44 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Add an instance method `Version.is_compatible(other) -> bool` to the Version class in src/semver/version.py. The method returns True when `new` (the argument) can be used in place of `old` (self). Compatibility rules: majors must be equal; new.minor >= old.minor; prerelease parts must be equal (both None counts as equal); patch is ignored. Major 0 versions are special: only compatible with an identical version (major, minor, patch, prerelease all equal). If `other` is not a Version instance (subclasses allowed), raise TypeError with message starting with 'Expected a Version type but got' followed by the type. Include a docstring with at least two doctest examples. Do not modify any other public behavior, tests, docs, or packaging files; the existing pytest suite must continue to pass.",
+  "interface_contract": [
+    {
+      "name": "Version.is_compatible",
+      "signature": "def is_compatible(self, other: 'Version') -> bool:",
+      "behavior": "Returns True if `other` is compatible with `self` per semantic versioning compatibility rules. Compatibility is defined as: (1) self.major == other.major; (2) other.minor >= self.minor; (3) self.prerelease == other.prerelease (both None counts as equal); (4) patch is ignored. Special case: if self.major == 0, then compatibility requires exact equality of major, minor, patch, and prerelease (build is still ignored). The method accepts Version subclasses as valid `other` arguments.",
+      "error_cases": [
+        "TypeError: raised when `other` is not an instance of Version (or a subclass). Message format: 'Expected a Version type but got <class '...'>' (e.g., \"Expected a Version type but got <class 'str'>\")."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 3)) is True",
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 4)) is True (patch ignored)",
+    "Version(1, 2, 4).is_compatible(Version(1, 2, 3)) is True (patch ignored, symmetric for patch)",
+    "Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) is True (equal prereleases)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 0)) is True (major 0 identical)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 1)) is False (major 0 requires exact match including patch)",
+    "Version(1, 1, 0).is_compatible(Version(1, 0, 0)) is False (lower minor)",
+    "Version(2, 0, 0).is_compatible(Version(1, 5, 0)) is False (different major)",
+    "Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0')) is False (prerelease differs)",
+    "Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1')) is False (prerelease absent vs present)",
+    "Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0)) is False (prerelease present vs absent)",
+    "Version(1, 2, 3).is_compatible('wrongtype') raises TypeError with message starting with 'Expected a Version type but got'",
+    "Version(1, 2, 3).is_compatible({'a': 2}) raises TypeError with message starting with 'Expected a Version type but got'",
+    "Version(1, 2, 3).is_compatible([]) raises TypeError with message starting with 'Expected a Version type but got'",
+    "Subclass instance accepted: class CustomVersion(Version): pass; CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) is True",
+    "Method docstring contains at least two doctest examples",
+    "Existing pytest test suite (tests/) passes without modification"
+  ],
+  "out_of_scope": [
+    "Do not modify any existing public methods or attributes of Version",
+    "Do not modify tests/ directory or any test files",
+    "Do not modify docs/ directory or documentation files",
+    "Do not modify packaging files (pyproject.toml, setup.cfg, README.rst, LICENSE.txt)",
+    "Do not modify src/semver/__init__.py, src/semver/__about__.py, src/semver/__main__.py, src/semver/_deprecated.py, src/semver/_types.py, src/semver/cli.py, src/semver/py.typed",
+    "Do not change Version constructor signature or behavior",
+    "Do not add any new public exports or change __all__"
+  ],
+  "external_references_needed": []
+}

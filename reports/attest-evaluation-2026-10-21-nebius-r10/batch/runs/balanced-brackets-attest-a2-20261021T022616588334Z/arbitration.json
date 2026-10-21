@@ -1,0 +1,43 @@
+{
+  "applied": true,
+  "validated_modules": [],
+  "cleared": false,
+  "all_corrected": false,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 1,
+    "contract_dispute": 0
+  },
+  "headline": "generated-test failures could not be cleared by arbitration; human review required",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestIsBalancedBreaker.test_bracket_like_characters_not_brackets",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects is_balanced('<>{}') to return False, but the contract states that non-bracket characters are ignored. Since '<' and '>' are not brackets, they are ignored, leaving '{}' which is balanced. Therefore the correct result is True, making the test's expectation wrong.",
+          "contract_basis": "Contract: 'Characters that are not brackets are ignored.' The brackets are only '(', ')', '[', ']', '{', '}'. The string '<>{}' contains non-bracket characters '<' and '>' which must be ignored, leaving balanced '{}'."
+        }
+      ],
+      "corrected_notes": "Changed the assertion in test_bracket_like_characters_not_brackets from assertFalse to assertTrue because the contract requires non-bracket characters to be ignored, making '<>{}' balanced. The test's own comment acknowledged this correction.",
+      "corrected_module": null,
+      "candidate_rerun": null,
+      "base_rerun": null,
+      "mutant_reruns": [],
+      "cleared_module": false,
+      "validated": false,
+      "corrected": null,
+      "sealed_assertion_hold": false,
+      "error": "correction rejected whole: tests that were not failing were altered: test_breaker.TestIsBalancedBreaker.test_escape_sequences_in_string_literal",
+      "classification_ids_ok": true,
+      "scope_problems": [
+        "tests that were not failing were altered: test_breaker.TestIsBalancedBreaker.test_escape_sequences_in_string_literal"
+      ]
+    }
+  ],
+  "rule": "a correction counts only when it keeps every test method, changes only the bodies of the failing ones (imports may be added, nothing existing may be rebound), is classified for exactly the failing tests, passes on the candidate under the supervisor and still discriminates with authentic, structurally sound results (every corrected sealed test fails on the unmodified base; a corrected adversarial test fails on the base or catches a validly killed mutant of the patch); a sealed test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected); a validated correction re-runs its gate and the verdict is derived from the gates",
+  "note": "original tests, results and reasons are preserved unchanged; the arbiter's classification alone never changes a gate",
+  "applied_to_gates": []
+}

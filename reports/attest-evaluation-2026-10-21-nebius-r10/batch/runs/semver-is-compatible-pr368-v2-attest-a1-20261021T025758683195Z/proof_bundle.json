@@ -1,0 +1,3314 @@
+{
+  "run_id": "semver-is-compatible-pr368-v2-attest-a1-20261021T025758683195Z",
+  "started_at_utc": "2026-10-21T02:57:58.683884+00:00",
+  "finished_at_utc": "2026-10-21T03:05:42.933063+00:00",
+  "profile": {
+    "label": "eval-attest-a1",
+    "provider": {
+      "provider": "nebius_tokenfactory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "roles": {
+        "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "seal": "nvidia/nemotron-3-super-120b-a12b",
+        "implement": "nvidia/nemotron-3-super-120b-a12b",
+        "break": "nvidia/nemotron-3-super-120b-a12b",
+        "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "summary": "nvidia/Nemotron-3_5-Lightning"
+      },
+      "usd_cap": 0.5,
+      "max_calls": 22,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "temperature": 0.2,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
+      "schema_in_prompt": true,
+      "auto_retry": false,
+      "pre_request_reservation": true,
+      "transport_retry_policy": "a request that was never sent (its connection, proxy tunnel or TLS handshake failed before any byte of it was written) closes its reservation at a known $0 and is sent again at most 2 times after 2/6 s, each attempt under a new reservation, each recorded and counted against the call cap; a request whose bytes were written is never sent again (its reservation stays committed)",
+      "reservation_policy": "the USD reservation is journaled durably (fsync) and read back before dispatch, after any cut journal tail has been terminated with a journal_repair record; if it cannot be, the request is not sent and the run stops paid calls",
+      "metering_policy": "an HTTP 200 whose usage cannot price the generation (missing, empty, partial or malformed counters) keeps its reservation unsettled and stops further paid calls of the run pending reconciliation; explicit zero counters settle as 0",
+      "answer_policy": "HTTP 4xx: a definite rejection at a known $0; HTTP 5xx or a failure after the request was written: uncertain, the reservation stays committed, nothing is sent again and the run stops for reconciliation",
+      "call_cap_policy": "at most 22 model calls per run (failed calls and retries count); the call that would exceed it is refused before dispatch",
+      "halted": null,
+      "journal_degraded": null,
+      "journal_failures": 0,
+      "journal_repairs": 0,
+      "max_prompt_chars": 120000,
+      "max_tokens": 16000
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "journal_policy": "every operation is journaled as PENDING (fsync, read back) before its spawn is sent and its accepted id before the first poll; when either fails nothing further is dispatched and the run halts for reconciliation",
+      "answer_policy": "a spawn answered HTTP 4xx is REJECTED; HTTP 5xx, a 2xx without an operation id or a failure after the spawn was written is UNCERTAIN and halts the run; polls are retried (bounded) and an accepted operation whose outcome is not read is ACCEPTED_UNREAD; nothing is sent after the run halts",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false,
+      "retry_policy": "GET and DELETE retried on any transport failure (at most 4 times); a spawn sent again only when the attempt failed before any byte of it was written (at most 2 times); an uncertain spawn is never sent again; accepted operation ids are journaled before polling"
+    }
+  },
+  "provenance": {
+    "attest_version": "0.10.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "7e72364f135c45c8a69a3a59c9cba5c954ebbb843cc7752b76c8303550548cb6",
+      "files": 37,
+      "git_commit": "953ae59b8c8ef5e54bbadbf2fb2b940b8851fa3a",
+      "version": "0.10.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/7",
+      "sha256": "97d3d47d1d5b4fed68c3349da14c0cdb06091ec61afa61699eac5b27315b1415"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "db8e2a76834b83ac69a3d5ecad722e712693ecb982f2a2ec3b2e4d5dde6de00f",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/scratchpad/r11-eval/attest-eval/reports/attest-evaluation-2026-10-21-nebius-r10/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "nebius_tokenfactory",
+      "temperature": 0.2,
+      "max_tokens": 16000,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "note": "temperature and max_tokens are sent with every request; roles map to model ids",
+      "roles": {
+        "spec": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "seal": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "implement": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "break": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "audit": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "arbitrate": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "summary": {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "effort": null
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 12,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": true,
+      "arbitration_apply": true,
+      "max_corrected_tests": 3,
+      "max_mutants_for_discrimination": 3,
+      "max_breaker_attempts": 3,
+      "max_witnesses": 3,
+      "witness_timeout_s": 60
+    },
+    "pacing": null,
+    "retry_policy": null,
+    "upstream": {
+      "url": "https://github.com/python-semver/python-semver",
+      "commit": "9b475f71ef9176b57f15bac8cde75df15469c75b",
+      "reference": "parent of PR #368 (upstream issue #284); the held-out tests are the pull request's own tests from merge commit 467ea0c7c198d60e0d88e32ee4d926b4e20eb74a"
+    }
+  },
+  "task": {
+    "id": "semver-is-compatible-pr368-v2",
+    "title": "Add Version.is_compatible() to python-semver (upstream issue #284), contract resolved against upstream tests",
+    "statement": "python-semver (src/semver, BSD-3) is a semantic-versioning library whose central class is semver.version.Version (also exported as semver.Version). Maintainers want a concise, readable way to ask 'is version y compatible with the version x that my code was written against?' (upstream issue #284). Add an instance method Version.is_compatible(other) -> bool to the Version class in src/semver/version.py. Semantics: the call `old.is_compatible(new)` returns True when `new` can be used in place of `old`. Two versions are compatible when their majors are equal, the minor of `new` is greater than or equal to the minor of `old`, and their prerelease parts are equal (both absent counts as equal). The patch part is ignored. Versions with major 0 are special: a major-0 version is compatible only with a version that is identical in major, minor, patch and prerelease. If `other` is not a Version (instances of Version subclasses are fine) raise TypeError with the message 'Expected a Version type but got <type of other>' (for example \"Expected a Version type but got <class 'str'>\"); the message must start with 'Expected a Version type ' followed by the words 'but got' and the type. Document the method with a docstring that includes at least two doctest examples. Do not change any other public behaviour, do not touch tests, docs or packaging files, and keep the whole existing pytest suite passing.",
+    "acceptance_criteria": [
+      "Version(1, 2, 3).is_compatible(Version(1, 2, 3)) is True; Version(1, 2, 3).is_compatible(Version(1, 2, 4)) is True; Version(1, 2, 4).is_compatible(Version(1, 2, 3)) is True (patch is ignored).",
+      "Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) is True (equal prereleases).",
+      "Version(0, 1, 0).is_compatible(Version(0, 1, 0)) is True, but Version(0, 1, 0).is_compatible(Version(0, 1, 1)) is False (major 0 only matches an identical version).",
+      "Version(1, 1, 0).is_compatible(Version(1, 0, 0)) is False (lower minor); Version(2, 0, 0).is_compatible(Version(1, 5, 0)) is False (different major).",
+      "Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0')) is False; Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1')) is False; Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0)) is False (prerelease must be equal).",
+      "Version(1, 2, 3).is_compatible('wrongtype'), .is_compatible({'a': 2}) and .is_compatible([]) each raise TypeError whose message is 'Expected a Version type but got <class ...>' (starts with 'Expected a Version type but got').",
+      "A subclass instance is accepted: class CustomVersion(Version): pass; CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) is True.",
+      "The method's docstring contains doctest examples and the existing test suite (tests/) still passes."
+    ],
+    "allowed_write_globs": [
+      "src/semver/**"
+    ],
+    "protected_globs": [
+      "tests/**",
+      "docs/**",
+      "setup.cfg",
+      "pyproject.toml",
+      "README.rst",
+      "LICENSE.txt"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "-rA",
+      "-p",
+      "no:cacheprovider",
+      "-o",
+      "addopts=",
+      "tests"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from semver import Version   (package lives in src/semver; the class is semver.version.Version)",
+    "test_runner": "pytest",
+    "install_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "pip",
+      "install",
+      "--no-cache-dir",
+      "--disable-pip-version-check",
+      "--target",
+      "/tmp/deps",
+      "pytest==8.3.3",
+      "pluggy==1.5.0",
+      "iniconfig==2.0.0",
+      "packaging==24.1"
+    ],
+    "requirements_lock": "pytest==8.3.3 pluggy==1.5.0 iniconfig==2.0.0 packaging==24.1",
+    "python_paths": [
+      "src",
+      "docs",
+      "tests"
+    ],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "LICENSE.txt": "cda490c32e61d3884dc17791fc8078f2a3e564fba98dd18b4dc64eb2720b2b6f",
+      "README.rst": "848a507c44bdeeafcfe4311e013611a3e975b0b29243ab0001575a0504edfa07",
+      "docs/coerce.py": "cd098531d268470b2f5581a4c81647b899444f2aafabf4cf3a8b536f52aad01a",
+      "docs/semverwithvprefix.py": "6e3fb8a19ae07e6b2c095c3b56a8e7432741898760004682375d7059d37f6019",
+      "pyproject.toml": "9107807a5c32a4484a442105f0387ceddf8efa06eabf9ca716a5900ebd2fbb00",
+      "setup.cfg": "ecfbfcacba3435aee9da900112b6adcb83c29b4a0a742c5f4df3c65e20a89af5",
+      "src/semver/__about__.py": "0c69926f181f46dc64703e65b01d6fcadbd2727cb6d883da5386e044221e0ab9",
+      "src/semver/__init__.py": "a130cf27e2c6b2ed53589c5e039ed66c9dfe06bf1e6f306df8749232a2464808",
+      "src/semver/__main__.py": "faca061737343ace662feca0c935437b682f5a8cd83419f3b628f53686c4ebd1",
+      "src/semver/_deprecated.py": "f0b5610188698febe7322582e087c56eecc87849a6b6dd121710b05562f3a40c",
+      "src/semver/_types.py": "f807dacd98279a631eed6b614b1fccfb0d410a7ab674f166cac8e6b533a6d687",
+      "src/semver/cli.py": "951df8ff09e277a723be543a09af5f0ed52fb1e91c290efad89ca7fccdbb3d51",
+      "src/semver/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/semver/version.py": "f979bc9fe201d2d8496f3afc8105f14b6a64bc752da61a823dd3b245565ca8b3",
+      "tests/conftest.py": "f111cc31bf8accc95fffd76c2bed5dc5d6c575d1ce1b0cfc34e7a3bc2183577f",
+      "tests/test_bump.py": "82fd45a06ba463fa92229867003baf6eb5f8abf9630ae2a422b80f27ceb3322a",
+      "tests/test_compare.py": "286e052052d664e56fe31358ad49fa4f035a4dda0d6f521edee23fa2d0b880ef",
+      "tests/test_deprecated_functions.py": "29a7ebbf63b221ae438346b352123d6b3ec36134a97ad38364686482a9d0a5cd",
+      "tests/test_docstrings.py": "b63d4fd4d9cf0c54234eaa2af1bd8c6ee10f85cc83a3558cca70837cf87783f5",
+      "tests/test_format.py": "501e0cb1454597aee73fcabfb4280d5af17c4a8be48945d7b74c3c715f6c1e10",
+      "tests/test_immutable.py": "560baae1c1fbf771746b09ee1e59974687e563f85caf0fea44ae7fd511013772",
+      "tests/test_index.py": "ea9015e7fcbf22feb0d0649a6efd0a391359c76592d45191ac436d2b3989640e",
+      "tests/test_match.py": "d67e0cd8e1ca6a7810465180f48f3c3d0a81c31ba52a858a17b3f2e7713a4b1f",
+      "tests/test_max-min.py": "67e05dfbe2825c034e9dc8cf9a49bc7723c15a210b0071dfc2e350cd9c929e17",
+      "tests/test_parsing.py": "5ee7ce495a731dd119491081fefab59decfb4621443380d95d25739819dbffad",
+      "tests/test_pysemver-cli.py": "a88d04b14a2ddcf18b8daac6d5593318c65cbce8a041ae742de4a83392b64cec",
+      "tests/test_replace.py": "3704c26eaac884e0b4f7a4e48c4188bcfbac9e35eab3196560f83ce09b56f7d9",
+      "tests/test_semver.py": "af19bff01d86363ff8035b6a162a320f321d15977a815cef3eea44a243236817",
+      "tests/test_subclass.py": "e6e8d48999973b0d0a3013b54aa7a3af8fc64fb638d107973dbf22a18255e506",
+      "tests/test_typeerror-274.py": "3e487a724502eab30e47ac2cf0d301b7e81dd5030c362f41aa485607da40e856"
+    },
+    "upstream": {
+      "url": "https://github.com/python-semver/python-semver",
+      "commit": "9b475f71ef9176b57f15bac8cde75df15469c75b",
+      "reference": "parent of PR #368 (upstream issue #284); the held-out tests are the pull request's own tests from merge commit 467ea0c7c198d60e0d88e32ee4d926b4e20eb74a"
+    },
+    "spec_sha256": "2acbd8a4dda7f574825346d14f262789583c45b4ca81ec57676b3d4189a624d4"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": {
+      "exit_code": 0,
+      "duration_s": 1.704,
+      "stdout_tail": "Collecting pytest==8.3.3\n  Downloading pytest-8.3.3-py3-none-any.whl.metadata (7.5 kB)\nCollecting pluggy==1.5.0\n  Downloading pluggy-1.5.0-py3-none-any.whl.metadata (4.8 kB)\nCollecting iniconfig==2.0.0\n  Downloading iniconfig-2.0.0-py3-none-any.whl.metadata (2.6 kB)\nCollecting packaging==24.1\n  Downloading packaging-24.1-py3-none-any.whl.metadata (3.2 kB)\nDownloading pytest-8.3.3-py3-none-any.whl (342 kB)\nDownloading pluggy-1.5.0-py3-none-any.whl (20 kB)\nDownloading iniconfig-2.0.0-py3-none-any.whl (5.9 kB)\nDownloading packaging-24.1-py3-none-any.whl (53 kB)\nInstalling collected packages: pluggy, packaging, iniconfig, pytest\nSuccessfully installed iniconfig-2.0.0 packaging-24.1 pluggy-1.5.0 pytest-8.3.3\n",
+      "stderr_tail": "WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.\n"
+    },
+    "checkpoint_operation_uuid": "01a15c65-0888-715b-a41a-d108fcecc6ca",
+    "checkpoint_image_uuid": "36b0461f-0b01-4348-ad69-47e7c8579af2",
+    "checkpoint_chain": [],
+    "checkpoint_networking": true,
+    "baseline": {
+      "runner": "pytest",
+      "ran": 312,
+      "tests": [
+        {
+          "id": "tests/test_bump.py::test_should_bump_major",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_minor",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_patch",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_major_and_minor",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_minor_and_patch",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_patch_and_prerelease",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_patch_and_prerelease_with_token",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_prerelease_and_build",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_prerelease_and_build_with_token",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_multiple",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_prerelease_with_empty_str",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_prerelease_with_none",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_build_with_empty_str",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_versioninfo_bump_build_with_none",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_ignore_extensions_for_bump",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_prerelease[3.4.5-rc.9-None-3.4.5-rc.10]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_prerelease[3.4.5-None-3.4.5-rc.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_prerelease[3.4.5-dev-3.4.5-dev.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_prerelease[3.4.5--3.4.5-rc.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_ignore_build_on_prerelease_bump",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_build[3.4.5-rc.1+build.9-3.4.5-rc.1+build.10]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_build[3.4.5-rc.1+0009.dev-3.4.5-rc.1+0010.dev]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_build[3.4.5-rc.1-3.4.5-rc.1+build.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_bump.py::test_should_bump_build[3.4.5-3.4.5+build.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_less[1.0.0-2.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_less[1.0.0-alpha-1.0.0-alpha.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_less[1.0.0-alpha.1-1.0.0-alpha.beta]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_less[1.0.0-alpha.beta-1.0.0-beta]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_less[1.0.0-beta-1.0.0-beta.2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_less[1.0.0-beta.2-1.0.0-beta.11]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_less[1.0.0-beta.11-1.0.0-rc.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_less[1.0.0-rc.1-1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_greater[2.0.0-1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_greater[1.0.0-alpha.1-1.0.0-alpha]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_greater[1.0.0-alpha.beta-1.0.0-alpha.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_greater[1.0.0-beta-1.0.0-alpha.beta]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_greater[1.0.0-beta.2-1.0.0-beta]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_greater[1.0.0-beta.11-1.0.0-beta.2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_greater[1.0.0-rc.1-1.0.0-beta.11]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_greater[1.0.0-1.0.0-rc.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_raise_value_error_for_invalid_value[foo-bar]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_raise_value_error_for_invalid_value[1.0-1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_raise_value_error_for_invalid_value[1.x-1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_follow_specification_comparison",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_rc_builds[1.0.0-beta.2-1.0.0-beta.11]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_release_candidate_with_release[1.0.0-rc.1-1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_release_candidate_with_release[1.0.0-rc.1+build.1-1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_say_equal_versions_are_equal[2.0.0-2.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_say_equal_versions_are_equal[1.1.9-rc.1-1.1.9-rc.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_say_equal_versions_are_equal[1.1.9+build.1-1.1.9+build.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_say_equal_versions_are_equal[1.1.9-rc.1+build.1-1.1.9-rc.1+build.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_versions_with_build_and_release[1.1.9-rc.1-1.1.9-rc.1+build.1-0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_versions_with_build_and_release[1.1.9-rc.1-1.1.9+build.1--1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_ignore_builds_on_compare[1.0.0+build.1-1.0.0-0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_ignore_builds_on_compare[1.0.0-alpha.1+build.1-1.0.0-alpha.1-0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_ignore_builds_on_compare[1.0.0+build.1-1.0.0-alpha.1-1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_ignore_builds_on_compare[1.0.0+build.1-1.0.0-alpha.1+build.1-1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_get_more_rc1",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_prerelease_with_numbers_and_letters",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_info_objects",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_dictionaries",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_tuples[t0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_tuples[t1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_tuples[t2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_tuples[t3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_tuples[t4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_list[lst0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_list[lst1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_list[lst2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_list[lst3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_list[lst4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_string[1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_string[1.0.0-pre.2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_version_string[1.0.0-pre.2+build.4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_not_allow_to_compare_invalid_versionstring[1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_not_allow_to_compare_invalid_versionstring[1.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_not_allow_to_compare_invalid_versionstring[1.0.x]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_not_allow_to_compare_version_with_int",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_compare.py::test_should_compare_prerelease_and_build_with_numbers",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[bump_build-args0-kwargs0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[bump_major-args1-kwargs1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[bump_minor-args2-kwargs2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[bump_patch-args3-kwargs3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[bump_prerelease-args4-kwargs4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[compare-args5-kwargs5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[format_version-args6-kwargs6]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[finalize_version-args7-kwargs7]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[match-args8-kwargs8]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[parse-args9-kwargs9]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[parse_version_info-args10-kwargs10]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[replace-args11-kwargs11]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[max_ver-args12-kwargs12]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[min_ver-args13-kwargs13]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[cmd_bump-args14-kwargs14]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[cmd_compare-args15-kwargs15]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[cmd_check-args16-kwargs16]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[cmd_nextver-args17-kwargs17]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[createparser-args18-kwargs18]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[process-args19-kwargs19]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_should_raise_deprecation_warnings[main-args20-kwargs20]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_deprecated_functions.py::test_deprecated_deco_without_argument",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[bump_build]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[bump_major]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[bump_minor]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[bump_patch]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[bump_prerelease]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[cmd_bump]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[cmd_check]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[cmd_compare]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[cmd_nextver]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[compare]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[createparser]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[finalize_version]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[format_version]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[main]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[match]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[max_ver]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[min_ver]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[parse]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[parse_version_info]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[process]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_docstrings.py::test_fordocstrings[replace]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_should_finalize_version[1.2.3-1.2.3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_should_finalize_version[1.2.3-rc.5-1.2.3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_should_finalize_version[1.2.3+build.2-1.2.3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_should_finalize_version[1.2.3-rc.1+build.5-1.2.3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_should_finalize_version[1.2.3-alpha-1.2.3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_should_finalize_version[1.2.0-1.2.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_should_correctly_format_version",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_parse_method_for_version_info",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_repr[version0-Version(major=1,",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_repr[version1-Version(major=1,",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_repr[version2-Version(major=1,",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_repr[version3-Version(major=1,",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_repr[version4-Version(major=1,",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_format.py::test_repr[version5-Version(major=1,",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_immutable.py::test_immutable_major",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_immutable.py::test_immutable_minor",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_immutable.py::test_immutable_patch",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_immutable.py::test_immutable_prerelease",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_immutable.py::test_immutable_build",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_immutable.py::test_immutable_unknown_attribute",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-rc.0+build.0-0-1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-rc.0+build.0-1-2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-rc.0+build.0-2-3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-rc.0+build.0-3-rc.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-rc.0+build.0-4-build.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-rc.0-0-1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-rc.0-1-2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-rc.0-2-3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-rc.0-3-rc.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-0-1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-1-2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.2.3-2-3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_index[1.0.2-1-0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0+build.0-slice_object0-expected0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0+build.0-slice_object1-expected1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0+build.0-slice_object2-expected2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0+build.0-slice_object3-expected3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0+build.0-slice_object4-expected4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0-slice_object5-expected5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0-slice_object6-expected6]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0-slice_object7-expected7]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-slice_object8-expected8]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-slice_object9-expected9]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-slice_object10-expected10]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0+build.0-slice_object11-expected11]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0+build.0-slice_object12-expected12]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0+build.0-slice_object13-expected13]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.3-rc.0+build.0-slice_object14-expected14]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_be_accessed_with_slice_object[1.2.0-rc.0+build.0-slice_object15-expected15]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-index1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-index3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-index5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-rc.0-5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-rc.0-index7]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-rc.0-6]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error[1.2.3-rc.0-index9]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error_when_negative_index[1.2.3--1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error_when_negative_index[1.2.3--2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error_when_negative_index[1.2.3-index2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error_when_negative_index[1.2.3-index3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_index.py::test_version_info_should_throw_index_error_when_negative_index[1.2.3-index4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_match_simple",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_no_match_simple",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_match_not_equal[2.3.7-!=2.3.8-True]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_match_not_equal[2.3.7-!=2.3.6-True]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_match_not_equal[2.3.7-!=2.3.7-False]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_match_equal_by_default[2.3.7-2.3.7-True]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_match_equal_by_default[2.3.6-2.3.6-True]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_match_equal_by_default[2.3.7-4.3.7-False]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_not_raise_value_error_for_expected_match_expression[2.3.7-<2.4.0-True]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_not_raise_value_error_for_expected_match_expression[2.3.7->2.3.5-True]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_not_raise_value_error_for_expected_match_expression[2.3.7-<=2.3.9-True]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_not_raise_value_error_for_expected_match_expression[2.3.7->=2.3.5-True]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_not_raise_value_error_for_expected_match_expression[2.3.7-==2.3.7-True]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_not_raise_value_error_for_expected_match_expression[2.3.7-!=2.3.7-False]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_raise_value_error_for_unexpected_match_expression[2.3.7-=2.3.7]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_raise_value_error_for_unexpected_match_expression[2.3.7-~2.3.7]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_raise_value_error_for_unexpected_match_expression[2.3.7-^2.3.7]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_raise_value_error_for_invalid_match_expression[1.0.0-]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_match.py::test_should_raise_value_error_for_invalid_match_expression[1.0.0-!]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_should_get_max",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_should_get_max_same",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_should_get_min",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_should_get_min_same",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_prerelease_order[1.2.3-rc.2-1.2.3-rc.10-1.2.3-rc.2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_prerelease_order[1.2.3-rc2-1.2.3-rc10-1.2.3-rc10]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_prerelease_order[1.2.3-Rc10-1.2.3-rc10-1.2.3-Rc10]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_prerelease_order[1.2.3-2-1.2.3-rc-1.2.3-2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_prerelease_order[1.2.3-rc.2.1-1.2.3-rc.2-1.2.3-rc.2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_prerelease_order[1.2.3-1.2.3-1-1.2.3-1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_max-min.py::test_prerelease_order[1.0.0-alpha-1.0.0-alpha.1-1.0.0-alpha]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version[1.2.3-alpha.1.2+build.11.e0f985a-expected0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version[1.2.3-alpha-1+build.11.e0f985a-expected1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version[0.1.0-0f-expected2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version[0.0.0-0foo.1-expected3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version[0.0.0-0foo.1+build.1-expected4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version_with_optional_minor_and_patch[1.2-alpha.1.2+build.11.e0f985a-expected0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version_with_optional_minor_and_patch[1-alpha-1+build.11.e0f985a-expected1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version_with_optional_minor_and_patch[0.1-0f-expected2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version_with_optional_minor_and_patch[0-0foo.1-expected3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_version_with_optional_minor_and_patch[0-0foo.1+build.1-expected4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_parse_version_info_str_hash",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_zero_prerelease[1.2.3-rc.0+build.0-expected0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_parse_zero_prerelease[1.2.3-rc.0.0+build.0-expected1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_raise_value_error_for_zero_prefixed_versions[01.2.3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_raise_value_error_for_zero_prefixed_versions[1.02.3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_should_raise_value_error_for_zero_prefixed_versions[1.2.03]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_equal_versions_have_equal_hashes",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_parse_method_for_version_info",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_invalid_parts",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[1.0.4-rc.1-major-2.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[1.1.0-rc.1-major-2.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[1.1.4-rc.1-major-2.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[1.2.3-major-2.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[1.0.0-rc.1-major-1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[0.2.0-rc.1-minor-0.2.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[0.2.5-rc.1-minor-0.3.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[1.3.1-minor-1.4.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[1.3.2-patch-1.3.3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[0.1.5-rc.2-patch-0.1.5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[0.1.4-prerelease-0.1.5-rc.1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[0.1.5-rc.1-prerelease-0.1.5-rc.2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[0.2.0-rc.1-patch-0.2.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[1.0.0-rc.1-patch-1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_parsing.py::test_next_version_with_versioninfo[1.0.0-rc.1-minor-1.0.0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_parse_cli_arguments[cli0-expected0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_parse_cli_arguments[cli1-expected1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_parse_cli_arguments[cli2-expected2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_parse_cli_arguments[cli3-expected3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_parse_cli_arguments[cli4-expected4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_parse_cli_arguments[cli5-expected5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_parse_cli_arguments[cli6-expected6]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_bump-args0-expectation0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_bump-args1-expectation1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_bump-args2-expectation2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_bump-args3-expectation3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_bump-args4-expectation4]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_compare-args5-expectation5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_compare-args6-expectation6]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_compare-args7-expectation7]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_check-args8-expectation8]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_check-args9-expectation9]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_nextver-args10-expectation10]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_nextver-args11-expectation11]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_parsed_cli_arguments[cmd_nextver-args12-expectation12]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_print",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_raise_error",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_raise_systemexit_when_called_with_empty_arguments",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_raise_systemexit_when_bump_iscalled_with_empty_arguments",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_should_process_check_iscalled_with_valid_version",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_main_file_should_call_cli_main[]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_pysemver-cli.py::test_main_file_should_call_cli_main[semver]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-parts0-2.4.5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-parts1-2.4.5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-parts2-2.5.5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-parts3-3.2.5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-parts4-2.5.10]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-parts5-2.5.10-rc1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-parts6-2.5.10-rc1+b1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-alpha.1.2-parts7-2.4.5-alpha.1.2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-alpha.1.2-parts8-3.4.5-alpha.1.2+x1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5+build1-parts9-2.4.5+build1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_raises_TypeError_for_invalid_keyword_arg",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5-parts0-2.5.5]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5-parts1-2.5.10]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5-alpha.1.2-parts2-2.4.5-alpha.1.2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5-alpha.1.2-parts3-3.4.5-alpha.1.2+x1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5+build1-parts4-2.4.5+build1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_replace.py::test_replace_raises_ValueError_for_non_numeric_values",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_private_increment_string[rc-rc]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_private_increment_string[rc.1-rc.2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_private_increment_string[2x-3x]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_not_allow_negative_numbers[ver0]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_not_allow_negative_numbers[ver1]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_not_allow_negative_numbers[ver2]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_not_allow_negative_numbers[ver3]",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_versioninfo_to_dict",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_versioninfo_to_tuple",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_version_info_should_be_iterable",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_be_able_to_use_strings_as_major_minor_patch",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_using_non_numeric_string_as_major_minor_patch_throws",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_be_able_to_use_integers_as_prerelease_build",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_should_versioninfo_isvalid",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_semver.py::test_versioninfo_compare_should_raise_when_passed_invalid_value",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_subclass.py::test_subclass_from_versioninfo",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_typeerror-274.py::test_should_work_with_string_and_bytes",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests/test_typeerror-274.py::test_should_not_work_with_invalid_args",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [],
+      "passed": 312,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "312 passed in 0.55s",
+      "skipped": 0,
+      "operation_uuid": "01a15c65-0888-715b-a41a-d108fcecc6ca",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 1.003,
+      "stderr_tail": "",
+      "stdout_tail": "...[earlier output omitted]...\ny::test_replace_method_replaces_requested_parts[3.4.5-parts6-2.5.10-rc1+b1]\nPASSED tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-alpha.1.2-parts7-2.4.5-alpha.1.2]\nPASSED tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5-alpha.1.2-parts8-3.4.5-alpha.1.2+x1]\nPASSED tests/test_replace.py::test_replace_method_replaces_requested_parts[3.4.5+build1-parts9-2.4.5+build1]\nPASSED tests/test_replace.py::test_replace_raises_TypeError_for_invalid_keyword_arg\nPASSED tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5-parts0-2.5.5]\nPASSED tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5-parts1-2.5.10]\nPASSED tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5-alpha.1.2-parts2-2.4.5-alpha.1.2]\nPASSED tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5-alpha.1.2-parts3-3.4.5-alpha.1.2+x1]\nPASSED tests/test_replace.py::test_should_return_versioninfo_with_replaced_parts[3.4.5+build1-parts4-2.4.5+build1]\nPASSED tests/test_replace.py::test_replace_raises_ValueError_for_non_numeric_values\nPASSED tests/test_semver.py::test_should_private_increment_string[rc-rc]\nPASSED tests/test_semver.py::test_should_private_increment_string[rc.1-rc.2]\nPASSED tests/test_semver.py::test_should_private_increment_string[2x-3x]\nPASSED tests/test_semver.py::test_should_not_allow_negative_numbers[ver0]\nPASSED tests/test_semver.py::test_should_not_allow_negative_numbers[ver1]\nPASSED tests/test_semver.py::test_should_not_allow_negative_numbers[ver2]\nPASSED tests/test_semver.py::test_should_not_allow_negative_numbers[ver3]\nPASSED tests/test_semver.py::test_should_versioninfo_to_dict\nPASSED tests/test_semver.py::test_should_versioninfo_to_tuple\nPASSED tests/test_semver.py::test_version_info_should_be_iterable\nPASSED tests/test_semver.py::test_should_be_able_to_use_strings_as_major_minor_patch\nPASSED tests/test_semver.py::test_using_non_numeric_string_as_major_minor_patch_throws\nPASSED tests/test_semver.py::test_should_be_able_to_use_integers_as_prerelease_build\nPASSED tests/test_semver.py::test_should_versioninfo_isvalid\nPASSED tests/test_semver.py::test_versioninfo_compare_should_raise_when_passed_invalid_value\nPASSED tests/test_subclass.py::test_subclass_from_versioninfo\nPASSED tests/test_typeerror-274.py::test_should_work_with_string_and_bytes\nPASSED tests/test_typeerror-274.py::test_should_not_work_with_invalid_args\n312 passed in 0.55s\n"
+    },
+    "suite_binding": {
+      "mode": "stdout",
+      "reason": "test runner 'pytest' is parsed from console output; only unittest suites run bound",
+      "modules": []
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Add an instance method `Version.is_compatible(other) -> bool` to the Version class in src/semver/version.py. The method returns True when `new` (the argument) can be used in place of `old` (self). Compatibility rules: majors must be equal; new.minor >= old.minor; prerelease parts must be equal (both None counts as equal); patch is ignored. Major 0 versions are special: only compatible with an identical version (major, minor, patch, prerelease all equal). If `other` is not a Version instance (subclasses allowed), raise TypeError with message starting with 'Expected a Version type but got' followed by the type. Include a docstring with at least two doctest examples. Do not modify any other public behavior, tests, docs, or packaging files; the existing pytest suite must continue to pass.",
+    "interface_contract": [
+      {
+        "name": "Version.is_compatible",
+        "signature": "def is_compatible(self, other: 'Version') -> bool:",
+        "behavior": "Returns True if `other` is compatible with `self` per semantic versioning compatibility rules. Compatibility is defined as: (1) self.major == other.major; (2) other.minor >= self.minor; (3) self.prerelease == other.prerelease (both None counts as equal); (4) patch is ignored. Special case: if self.major == 0, then compatibility requires exact equality of major, minor, patch, and prerelease (build is still ignored). The method accepts Version subclasses as valid `other` arguments.",
+        "error_cases": [
+          "TypeError: raised when `other` is not an instance of Version (or a subclass). Message format: 'Expected a Version type but got <class '...'>' (e.g., \"Expected a Version type but got <class 'str'>\")."
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "Version(1, 2, 3).is_compatible(Version(1, 2, 3)) is True",
+      "Version(1, 2, 3).is_compatible(Version(1, 2, 4)) is True (patch ignored)",
+      "Version(1, 2, 4).is_compatible(Version(1, 2, 3)) is True (patch ignored, symmetric for patch)",
+      "Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) is True (equal prereleases)",
+      "Version(0, 1, 0).is_compatible(Version(0, 1, 0)) is True (major 0 identical)",
+      "Version(0, 1, 0).is_compatible(Version(0, 1, 1)) is False (major 0 requires exact match including patch)",
+      "Version(1, 1, 0).is_compatible(Version(1, 0, 0)) is False (lower minor)",
+      "Version(2, 0, 0).is_compatible(Version(1, 5, 0)) is False (different major)",
+      "Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0')) is False (prerelease differs)",
+      "Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1')) is False (prerelease absent vs present)",
+      "Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0)) is False (prerelease present vs absent)",
+      "Version(1, 2, 3).is_compatible('wrongtype') raises TypeError with message starting with 'Expected a Version type but got'",
+      "Version(1, 2, 3).is_compatible({'a': 2}) raises TypeError with message starting with 'Expected a Version type but got'",
+      "Version(1, 2, 3).is_compatible([]) raises TypeError with message starting with 'Expected a Version type but got'",
+      "Subclass instance accepted: class CustomVersion(Version): pass; CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) is True",
+      "Method docstring contains at least two doctest examples",
+      "Existing pytest test suite (tests/) passes without modification"
+    ],
+    "out_of_scope": [
+      "Do not modify any existing public methods or attributes of Version",
+      "Do not modify tests/ directory or any test files",
+      "Do not modify docs/ directory or documentation files",
+      "Do not modify packaging files (pyproject.toml, setup.cfg, README.rst, LICENSE.txt)",
+      "Do not modify src/semver/__init__.py, src/semver/__about__.py, src/semver/__main__.py, src/semver/_deprecated.py, src/semver/_types.py, src/semver/cli.py, src/semver/py.typed",
+      "Do not change Version constructor signature or behavior",
+      "Do not add any new public exports or change __all__"
+    ],
+    "external_references_needed": []
+  },
+  "grounding": {
+    "provider": "tavily",
+    "requested_queries": [],
+    "queries": [],
+    "sources": [],
+    "calls": 0,
+    "usage_before": null,
+    "usage_after": null,
+    "skipped": "specification named no external references"
+  },
+  "sealed_tests": {
+    "path": "sealed/test_sealed.py",
+    "sha256": "ed0b39f6f5519d8e587caaf6ec28883fae64422060cf18797f9463cfac5d0b54",
+    "test_count": 17,
+    "declared_test_count": 17,
+    "expected_ids": [
+      "test_sealed.TestIsCompatible.test_ac1_self_compat",
+      "test_sealed.TestIsCompatible.test_ac2_patch_up",
+      "test_sealed.TestIsCompatible.test_ac3_patch_down",
+      "test_sealed.TestIsCompatible.test_ac4_prerelease_eq",
+      "test_sealed.TestIsCompatible.test_ac5_major0_identical",
+      "test_sealed.TestIsCompatible.test_ac6_major0_diff_patch",
+      "test_sealed.TestIsCompatible.test_ac7_lower_minor",
+      "test_sealed.TestIsCompatible.test_ac8_different_major",
+      "test_sealed.TestIsCompatible.test_ac9_prerelease_diff",
+      "test_sealed.TestIsCompatible.test_ac10_prerelease_absent_vs_present",
+      "test_sealed.TestIsCompatible.test_ac11_prerelease_present_vs_absent",
+      "test_sealed.TestIsCompatible.test_ac12_wrong_type_str",
+      "test_sealed.TestIsCompatible.test_ac13_wrong_type_dict",
+      "test_sealed.TestIsCompatible.test_ac14_wrong_type_list",
+      "test_sealed.TestIsCompatible.test_ac15_subclass_accepted",
+      "test_sealed.TestIsCompatible.test_ac16_docstring_exists",
+      "test_sealed.TestIsCompatible.test_ac17_existing_tests_pass"
+    ],
+    "escapes_repaired": false,
+    "sealed_at_utc": "2026-10-21T02:58:45.371709+00:00",
+    "author_model": "nvidia/nemotron-3-super-120b-a12b",
+    "attempts": 1,
+    "rejected_attempts": [],
+    "notes": "Each acceptance criterion mapped to a test method; AC17 is a placeholder assuming existing suite passes.",
+    "coverage": [
+      {
+        "criterion": 1,
+        "tests": [
+          "test_ac1_self_compat"
+        ]
+      },
+      {
+        "criterion": 2,
+        "tests": [
+          "test_ac2_patch_up"
+        ]
+      },
+      {
+        "criterion": 3,
+        "tests": [
+          "test_ac3_patch_down"
+        ]
+      },
+      {
+        "criterion": 4,
+        "tests": [
+          "test_ac4_prerelease_eq"
+        ]
+      },
+      {
+        "criterion": 5,
+        "tests": [
+          "test_ac5_major0_identical"
+        ]
+      },
+      {
+        "criterion": 6,
+        "tests": [
+          "test_ac6_major0_diff_patch"
+        ]
+      },
+      {
+        "criterion": 7,
+        "tests": [
+          "test_ac7_lower_minor"
+        ]
+      },
+      {
+        "criterion": 8,
+        "tests": [
+          "test_ac8_different_major"
+        ]
+      },
+      {
+        "criterion": 9,
+        "tests": [
+          "test_ac9_prerelease_diff"
+        ]
+      },
+      {
+        "criterion": 10,
+        "tests": [
+          "test_ac10_prerelease_absent_vs_present"
+        ]
+      },
+      {
+        "criterion": 11,
+        "tests": [
+          "test_ac11_prerelease_present_vs_absent"
+        ]
+      },
+      {
+        "criterion": 12,
+        "tests": [
+          "test_ac12_wrong_type_str"
+        ]
+      },
+      {
+        "criterion": 13,
+        "tests": [
+          "test_ac13_wrong_type_dict"
+        ]
+      },
+      {
+        "criterion": 14,
+        "tests": [
+          "test_ac14_wrong_type_list"
+        ]
+      },
+      {
+        "criterion": 15,
+        "tests": [
+          "test_ac15_subclass_accepted"
+        ]
+      },
+      {
+        "criterion": 16,
+        "tests": [
+          "test_ac16_docstring_exists"
+        ]
+      },
+      {
+        "criterion": 17,
+        "tests": [
+          "test_ac17_existing_tests_pass"
+        ]
+      }
+    ],
+    "coverage_gaps": [],
+    "coverage_note": "the map is the sealer's own claim of which test checks which criterion; gaps are criteria no test claims"
+  },
+  "red_run": {
+    "ran": 17,
+    "tests": [
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac1_self_compat",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.206,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 6, in test_ac1_self_compat\n    self.assertTrue(Version(1,2,3).is_compatible(Version(1,2,3)))\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac2_patch_up",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.196,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 8, in test_ac2_patch_up\n    self.assertTrue(Version(1,2,3).is_compatible(Version(1,2,4)))\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac3_patch_down",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.203,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 10, in test_ac3_patch_down\n    self.assertTrue(Version(1,2,4).is_compatible(Version(1,2,3)))\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac4_prerelease_eq",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.195,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 12, in test_ac4_prerelease_eq\n    self.assertTrue(Version(1,2,3,'rc.0').is_compatible(Version(1,2,4,'rc.0')))\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac5_major0_identical",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.197,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 14, in test_ac5_major0_identical\n    self.assertTrue(Version(0,1,0).is_compatible(Version(0,1,0)))\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac6_major0_diff_patch",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.199,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 16, in test_ac6_major0_diff_patch\n    self.assertFalse(Version(0,1,0).is_compatible(Version(0,1,1)))\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac7_lower_minor",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.197,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 18, in test_ac7_lower_minor\n    self.assertFalse(Version(1,1,0).is_compatible(Version(1,0,0)))\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac8_different_major",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.199,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 20, in test_ac8_different_major\n    self.assertFalse(Version(2,0,0).is_compatible(Version(1,5,0)))\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac9_prerelease_diff",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.198,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 22, in test_ac9_prerelease_diff\n    self.assertFalse(Version(1,2,3,'rc.1').is_compatible(Version(1,2,3,'rc.0')))\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac10_prerelease_absent_vs_present",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.195,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 24, in test_ac10_prerelease_absent_vs_present\n    self.assertFalse(Version(1,0,0).is_compatible(Version(1,0,0,'rc1')))\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac11_prerelease_present_vs_absent",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.199,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 26, in test_ac11_prerelease_present_vs_absent\n    self.assertFalse(Version(1,0,0,'rc1').is_compatible(Version(1,0,0)))\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac12_wrong_type_str",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.195,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 29, in test_ac12_wrong_type_str\n    Version(1,2,3).is_compatible('wrongtype')\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac13_wrong_type_dict",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.197,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 32, in test_ac13_wrong_type_dict\n    Version(1,2,3).is_compatible({'a':2})\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac14_wrong_type_list",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.195,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 35, in test_ac14_wrong_type_list\n    Version(1,2,3).is_compatible([])\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'Version' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac15_subclass_accepted",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.197,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 39, in test_ac15_subclass_accepted\n    self.assertTrue(CustomVersion(1,0,0).is_compatible(Version(1,0,0)))\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'CustomVersion' object has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac16_docstring_exists",
+        "outcome": "ERROR",
+        "events": 1,
+        "exit_code": 1,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.195,
+        "captured_tail": "",
+        "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/sealed/test_sealed.py\", line 41, in test_ac16_docstring_exists\n    doc = Version.is_compatible.__doc__\n          ^^^^^^^^^^^^^^^^^^^^^\nAttributeError: type object 'Version' has no attribute 'is_compatible'\n"
+      },
+      {
+        "id": "test_sealed.TestIsCompatible.test_ac17_existing_tests_pass",
+        "outcome": "ok",
+        "events": 1,
+        "exit_code": 0,
+        "signal": null,
+        "timed_out": false,
+        "duration_s": 0.197,
+        "captured_tail": "",
+        "failure_tail": ""
+      }
+    ],
+    "passed": 1,
+    "failing": 16,
+    "subtest_events": 0,
+    "import_error": null,
+    "all_passed": false,
+    "canary_ok": true,
+    "summary_line": "FAILED (16 of 17 methods: ERROR 16)",
+    "operation_uuid": "01a15c65-95c9-73f1-b366-cbb22297fced",
+    "nonce": "acbeae7b66d05ac8ccfa84480e5a09e8",
+    "supervisor_exit_code": 1,
+    "runner_error": null
+  },
+  "trajectory": {
+    "turns": 12,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "search",
+        "path": "src/semver/version.py",
+        "reason": "Find the class definition line to know where to insert method.",
+        "observation_head": "1 matching line(s):\nsrc/semver/version.py:60: class Version:"
+      },
+      {
+        "turn": 2,
+        "action": "read_file",
+        "path": "src/semver/version.py",
+        "reason": "View the end of the Version class to see where to insert new method.",
+        "observation_head": "[lines 680-703 of 703]\n                \", \".join(unknownkeys),\n            )\n            raise TypeError(error)\n\n    @classmethod\n    def isvalid(cls, version: "
+      },
+      {
+        "turn": 3,
+        "action": "search",
+        "path": "src/semver/version.py",
+        "reason": "Locate the comment line to know where to insert the new method before it.",
+        "observation_head": "1 matching line(s):\nsrc/semver/version.py:702: #: Keep the VersionInfo name for compatibility"
+      },
+      {
+        "turn": 4,
+        "action": "search",
+        "path": "src/semver/version.py",
+        "reason": "Locate the isvalid classmethod to know where to insert new method after it.",
+        "observation_head": "1 matching line(s):\nsrc/semver/version.py:685:     def isvalid(cls, version: str) -> bool:"
+      },
+      {
+        "turn": 5,
+        "action": "read_file",
+        "path": "src/semver/version.py",
+        "reason": "See the exact content of isvalid method and the following lines to determine insertion point.",
+        "observation_head": "[lines 680-703 of 703]\n                \", \".join(unknownkeys),\n            )\n            raise TypeError(error)\n\n    @classmethod\n    def isvalid(cls, version: "
+      },
+      {
+        "turn": 6,
+        "action": "read_file",
+        "path": "src/semver/version.py",
+        "reason": "Get more context to see the exact snippet before inserting the new method.",
+        "observation_head": "[lines 670-703 of 703]\n        :raises TypeError: if ``parts`` contain invalid keys\n        \"\"\"\n        version = self.to_dict()\n        version.update(parts)\n "
+      },
+      {
+        "turn": 7,
+        "action": "read_file",
+        "path": "src/semver/version.py",
+        "reason": "View exact lines around the insertion point to craft precise replacement.",
+        "observation_head": "[lines 695-703 of 703]\n        try:\n            cls.parse(version)\n            return True\n        except ValueError:\n            return False\n\n\n#: Keep the Ver"
+      },
+      {
+        "turn": 8,
+        "action": "replace_in_file",
+        "path": "src/semver/version.py",
+        "reason": "Replace the two blank lines after the isvalid method with the new is_compatible method, ensuring proper spacing.",
+        "observation_head": "INVALID ACTION: replace_in_file needs path, find and replace"
+      },
+      {
+        "turn": 9,
+        "action": "read_file",
+        "path": "src/semver/version.py",
+        "reason": "Check exact indentation and lines around insertion point.",
+        "observation_head": "[lines 690-703 of 703]\n\n        :param version: the version string to check\n        :return: True if the version string is a valid semver version, False\n       "
+      },
+      {
+        "turn": 10,
+        "action": "read_file",
+        "path": "src/semver/version.py",
+        "reason": "View the exact content from isvalid method to the line before the comment to determine the replacement snippet.",
+        "observation_head": "[lines 685-702 of 703]\n    def isvalid(cls, version: str) -> bool:\n        \"\"\"\n        Check if the string is a valid semver version.\n\n        .. versionadded::"
+      },
+      {
+        "turn": 11,
+        "action": "replace_in_file",
+        "path": "src/semver/version.py",
+        "reason": "Insert is_compatible method after isvalid method.",
+        "observation_head": "INVALID ACTION: replace_in_file needs path, find and replace"
+      },
+      {
+        "turn": 12,
+        "action": "replace_in_file",
+        "path": "src/semver/version.py",
+        "reason": "Insert is_compatible method after isvalid method.",
+        "observation_head": "INVALID ACTION: replace_in_file needs path, find and replace"
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": false
+  },
+  "candidate": {
+    "changed_paths": [],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "",
+    "sha256": {},
+    "implementer_finished": false,
+    "unfinished": true
+  },
+  "contract_audit": {
+    "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+    "consistent": true,
+    "notes": "The contract requirements for Version.is_compatible are internally consistent: the major-0 special case explicitly overrides the general 'patch ignored' rule, and all type-checking, subclass, and error-message requirements align. No existing public method in Version creates a round-trip constraint that would conflict with the new method.",
+    "conflicts": [],
+    "outcome": "consistent",
+    "error": null,
+    "rule": "a conflict is demonstrated only when it names existing criteria and its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' that names at least one of them and exits with code 3; it is GROUNDED, and may end the run as infeasible, only when every named requirement is an authoritative task criterion (TC) and the witness conforms to the constrained witness language attest-witness/1 (a positive grammar: literal inputs, allowed built-ins and standard-library functions, and functions or classes the frozen repository defines, every call origin resolved statically; enforced mechanically here and again by attest check); a demonstrated conflict that involves a derived criterion (AC) or a witness outside the language is held for a human; a claimed-only conflict never ends a run; whether the witness's inputs and comparison demonstrate that the criteria cannot all hold is the model's reasoning, recorded with its execution, not a formal proof of impossibility",
+    "requirement_ids_known": {
+      "task": [
+        "TC1",
+        "TC2",
+        "TC3",
+        "TC4",
+        "TC5",
+        "TC6",
+        "TC7",
+        "TC8"
+      ],
+      "derived": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC5",
+        "AC6",
+        "AC7",
+        "AC8",
+        "AC9",
+        "AC10",
+        "AC11",
+        "AC12",
+        "AC13",
+        "AC14",
+        "AC15",
+        "AC16",
+        "AC17"
+      ]
+    },
+    "input_domain": "the input domain of a witness is the set of values the task names or implies: literals of the built-in types the task's statement and criteria use (plain str, int, list, dict, bytes, None and so on) and values computed from them by the unchanged repository code; instances of subclasses of built-in types, objects with overridden special methods and other adversarial values are OUTSIDE the domain unless the task names them explicitly",
+    "witness_language": "attest-witness/1"
+  },
+  "verification": null,
+  "breaker": null,
+  "drift": null,
+  "arbitration": null,
+  "gates": {},
+  "verdict": {
+    "verdict": "NO CHANGE",
+    "reasons": [
+      "unfinished: the turn budget (12 turns) was exhausted without a patch; the implementer neither finished nor changed a file"
+    ],
+    "warnings": []
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:58:07.076939+00:00",
+        "elapsed_ms": 6811,
+        "gateway_duration_ms": null,
+        "prompt_chars": 71519,
+        "tokens_in": 20682,
+        "tokens_out": 1462,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1462,
+          "prompt_tokens": 20682,
+          "total_tokens": 22144,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 263,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 20682
+        },
+        "cost_usd": 0.025068,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.07284,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "audit",
+        "stage": "contract-audit",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:58:13.899892+00:00",
+        "elapsed_ms": 7176,
+        "gateway_duration_ms": null,
+        "prompt_chars": 78845,
+        "tokens_in": 22380,
+        "tokens_out": 1348,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1348,
+          "prompt_tokens": 22380,
+          "total_tokens": 23728,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 1263,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 22380
+        },
+        "cost_usd": 0.026424,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.075282,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "seal",
+        "stage": "seal-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "low",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:58:21.088159+00:00",
+        "elapsed_ms": 15459,
+        "gateway_duration_ms": null,
+        "prompt_chars": 72074,
+        "tokens_in": 20607,
+        "tokens_out": 1250,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1250,
+          "prompt_tokens": 20607,
+          "total_tokens": 21857,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 52,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 20607
+        },
+        "cost_usd": 0.007307,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.021907,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:58:45.372877+00:00",
+        "elapsed_ms": 3172,
+        "gateway_duration_ms": null,
+        "prompt_chars": 10991,
+        "tokens_in": 3494,
+        "tokens_out": 143,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 143,
+          "prompt_tokens": 3494,
+          "total_tokens": 3637,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 68,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 3494
+        },
+        "cost_usd": 0.001177,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015799,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:58:48.549971+00:00",
+        "elapsed_ms": 5565,
+        "gateway_duration_ms": null,
+        "prompt_chars": 11316,
+        "tokens_in": 3593,
+        "tokens_out": 273,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 273,
+          "prompt_tokens": 3593,
+          "total_tokens": 3866,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 190,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 3593
+        },
+        "cost_usd": 0.001324,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015832,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:58:54.119634+00:00",
+        "elapsed_ms": 10985,
+        "gateway_duration_ms": null,
+        "prompt_chars": 12232,
+        "tokens_in": 3831,
+        "tokens_out": 1123,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1123,
+          "prompt_tokens": 3831,
+          "total_tokens": 4954,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 1038,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 3831
+        },
+        "cost_usd": 0.00216,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015923,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:59:05.110411+00:00",
+        "elapsed_ms": 5403,
+        "gateway_duration_ms": null,
+        "prompt_chars": 12875,
+        "tokens_in": 4004,
+        "tokens_out": 254,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 254,
+          "prompt_tokens": 4004,
+          "total_tokens": 4258,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 172,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 4004
+        },
+        "cost_usd": 0.00143,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015988,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-5",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:59:10.518380+00:00",
+        "elapsed_ms": 3122,
+        "gateway_duration_ms": null,
+        "prompt_chars": 13261,
+        "tokens_in": 4124,
+        "tokens_out": 202,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 202,
+          "prompt_tokens": 4124,
+          "total_tokens": 4326,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 116,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 4124
+        },
+        "cost_usd": 0.001419,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.016026,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-6",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:59:13.644146+00:00",
+        "elapsed_ms": 3472,
+        "gateway_duration_ms": null,
+        "prompt_chars": 14202,
+        "tokens_in": 4364,
+        "tokens_out": 264,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 264,
+          "prompt_tokens": 4364,
+          "total_tokens": 4628,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 182,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 4364
+        },
+        "cost_usd": 0.001547,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.01612,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-7",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:59:17.120046+00:00",
+        "elapsed_ms": 41658,
+        "gateway_duration_ms": null,
+        "prompt_chars": 15524,
+        "tokens_in": 4690,
+        "tokens_out": 5341,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 5341,
+          "prompt_tokens": 4690,
+          "total_tokens": 10031,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 5261,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 4690
+        },
+        "cost_usd": 0.006214,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.016252,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-8",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:59:58.782487+00:00",
+        "elapsed_ms": 146209,
+        "gateway_duration_ms": null,
+        "prompt_chars": 16024,
+        "tokens_in": 4832,
+        "tokens_out": 15952,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 15952,
+          "prompt_tokens": 4832,
+          "total_tokens": 20784,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 15380,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 4832
+        },
+        "cost_usd": 0.015806,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.016302,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-9",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T03:02:25.007231+00:00",
+        "elapsed_ms": 14734,
+        "gateway_duration_ms": null,
+        "prompt_chars": 16716,
+        "tokens_in": 5025,
+        "tokens_out": 1787,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1787,
+          "prompt_tokens": 5025,
+          "total_tokens": 6812,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 1710,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 5025
+        },
+        "cost_usd": 0.003116,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.016372,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-10",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T03:02:39.757529+00:00",
+        "elapsed_ms": 22449,
+        "gateway_duration_ms": null,
+        "prompt_chars": 17060,
+        "tokens_in": 5104,
+        "tokens_out": 2914,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 2914,
+          "prompt_tokens": 5104,
+          "total_tokens": 8018,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 2826,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 5104
+        },
+        "cost_usd": 0.004154,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.016406,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-11",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T03:03:02.223552+00:00",
+        "elapsed_ms": 48993,
+        "gateway_duration_ms": null,
+        "prompt_chars": 16986,
+        "tokens_in": 5088,
+        "tokens_out": 7987,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 7987,
+          "prompt_tokens": 5088,
+          "total_tokens": 13075,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 7544,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 5088
+        },
+        "cost_usd": 0.008715,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.016399,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-12",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T03:03:51.224557+00:00",
+        "elapsed_ms": 104304,
+        "gateway_duration_ms": null,
+        "prompt_chars": 17329,
+        "tokens_in": 5176,
+        "tokens_out": 16000,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 16000,
+          "prompt_tokens": 5176,
+          "total_tokens": 21176,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 16000,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 5176
+        },
+        "cost_usd": 0.015953,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": false,
+        "malformed_output": true,
+        "error": "schema violation: no JSON output; finish_reason=length",
+        "reserved_usd": 0.016433,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-12-lowretry",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "low",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T03:05:35.533779+00:00",
+        "elapsed_ms": 7385,
+        "gateway_duration_ms": null,
+        "prompt_chars": 17329,
+        "tokens_in": 5183,
+        "tokens_out": 949,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 949,
+          "prompt_tokens": 5183,
+          "total_tokens": 6132,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 513,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 5183
+        },
+        "cost_usd": 0.002409,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.016433,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a15c65-0888-715b-a41a-d108fcecc6ca",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "36b0461f-0b01-4348-ad69-47e7c8579af2",
+        "disposable": false,
+        "networking_enabled": true,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 3.238,
+        "raw_cost_diag": 0.02193498,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-21T02:58:00.162614+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge",
+        "attempts": 1,
+        "transport_failures": [],
+        "op_id": "s1",
+        "http_status": null,
+        "ended_at_utc": "2026-10-21T02:58:07.068421+00:00",
+        "outcome_note": null
+      },
+      {
+        "stage": "red-1",
+        "operation_uuid": "01a15c65-95c9-73f1-b366-cbb22297fced",
+        "image_uuid": "36b0461f-0b01-4348-ad69-47e7c8579af2",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 4.537,
+        "raw_cost_diag": 0.03744553,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-21T02:58:36.553522+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge",
+        "attempts": 1,
+        "transport_failures": [],
+        "op_id": "s2",
+        "http_status": null,
+        "ended_at_utc": "2026-10-21T02:58:45.369394+00:00",
+        "outcome_note": null
+      }
+    ],
+    "open_reservations": [],
+    "journal_failures": [],
+    "journal_repairs": [],
+    "journal_degraded": null,
+    "halt": null,
+    "halt_events": [],
+    "reconciliation": [],
+    "totals": {
+      "model_calls": 16,
+      "model_calls_failed": 1,
+      "malformed_outputs": 1,
+      "tokens_in": 122177,
+      "tokens_out": 57249,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 446897,
+      "cost_usd": 0.124223,
+      "cost_usd_committed": 0.124223,
+      "uncertain_unpriced_calls": 0,
+      "open_reservations": 0,
+      "open_reserved_usd": 0,
+      "journal_failures": 0,
+      "journal_repairs": 0,
+      "journal_degraded": null,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "nebius_tokenfactory:nvidia/Nemotron-3-Ultra-550b-a55b": {
+          "calls": 2,
+          "tokens_in": 43062,
+          "tokens_out": 2810,
+          "tokens_cached": 0,
+          "cost_usd": 0.051491999999999996,
+          "elapsed_ms": 13987,
+          "failed": 0
+        },
+        "nebius_tokenfactory:nvidia/nemotron-3-super-120b-a12b": {
+          "calls": 14,
+          "tokens_in": 79115,
+          "tokens_out": 54439,
+          "tokens_cached": 0,
+          "cost_usd": 0.07273099999999999,
+          "elapsed_ms": 432910,
+          "failed": 1
+        }
+      },
+      "calls_not_sent": 0,
+      "calls_uncertain": 0,
+      "halted": false,
+      "reconciliation_items": 0,
+      "sandbox_operations": 2,
+      "sandbox_spawn_retries": 0,
+      "sandbox_uncertain": 0,
+      "sandbox_rejected": 0,
+      "sandbox_duration_s": 7.775,
+      "sandbox_retained_images": [
+        "36b0461f-0b01-4348-ad69-47e7c8579af2"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.05938051
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest-a1': inference provider nebius_tokenfactory; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, offers a corrected module. The correction counts only after mechanical validation (same test methods, only the failing tests' bodies changed, passes on the candidate, still fails on the unmodified base or is caught by a mutant, with every result structurally sound and bound to its nonce); the corrected gate is then re-run and the verdict re-derived from the gates. A sealed test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected). The classification itself remains a model judgement.",
+    "A mutant counts as killed only when a sealed test failed with an authentic child result under a structurally sound supervisor run; lost, forged, incomplete, non-isolated, crashed or timed-out runs are unknown and excluded from the mutation score, and `attest check` recomputes the classification from the raw results.",
+    "INFEASIBLE is recorded only when a witness program written by the contract auditor demonstrated the contradiction by running on the unmodified repository (exit code and output recorded); the witness's logic is the model's, its execution is not.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "Once an operation's outcome is uncertain, or a record of the run cannot be made durable, the run sends nothing further and ends ERROR with every unsettled operation listed under reconciliation; such operations are settled by a human against the providers' records, never by sending them again. Operations being polled in parallel when the run stops are not read further and are listed too.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "aborted",
+  "evidence_protocol": {
+    "version": 5,
+    "supervisor": "attest-sealed-supervisor/7",
+    "note": "a VERIFIED bundle of this protocol carries every gate with its raw supervisor result, every evaluated mutant's raw result, the base and mutant evidence of any validated correction, the contract audit and the ledger; an INFEASIBLE bundle carries the executed witness, its digest, output and operation, its analysis in the constrained witness language and copies of the repository files that analysis resolved call origins through; every bundle carries the reconciliation record, and one that lists an operation whose outcome is unknown, or whose run halted, is ERROR; a bundle without this field is historical and is checked for internal consistency only",
+    "witness_language": "attest-witness/1"
+  },
+  "reconciliation": {
+    "required": false,
+    "halt": null,
+    "halt_events": [],
+    "items": [],
+    "rule": "once an operation's outcome is uncertain (a request that may have been executed and whose answer is unknown, an accepted operation whose outcome was not read, an answer that could not be priced) or a record of the run could not be made durable, the run sends nothing further: no model call, no sandbox operation, no poll; it ends ERROR with every such operation listed here with the read-only check that settles it, and none of them is ever sent again"
+  }
+}

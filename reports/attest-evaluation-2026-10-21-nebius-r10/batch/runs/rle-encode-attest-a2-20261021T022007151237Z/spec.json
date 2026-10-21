@@ -1,0 +1,40 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement the `encode` function in the `rle` package to perform run-length encoding on a string. The function must take a string `s` and return a string where each maximal run of identical characters is represented by the character followed by its run length in decimal (always including the count, even for runs of length 1). The function must raise `TypeError` if the input is not a string. The encoding must be the exact inverse of the existing `decode` function, ensuring `decode(encode(x)) == x` for all strings `x`.",
+  "interface_contract": [
+    {
+      "name": "decode",
+      "signature": "decode(s: str) -> str",
+      "behavior": "Decodes a run-length encoded string `s` back to the original string. The encoded string consists of a character followed by one or more decimal digits representing the count. The function concatenates each character repeated by its count.",
+      "error_cases": [
+        "TypeError if `s` is not a string",
+        "ValueError if the encoded string is malformed (e.g., missing count after a character)"
+      ]
+    },
+    {
+      "name": "encode",
+      "signature": "encode(s: str) -> str",
+      "behavior": "Encodes a string `s` using run-length encoding. Each maximal run of identical characters is replaced by the character followed by the decimal representation of the run length (with no leading zeros). The count is always written, even for runs of length 1. The empty string encodes to the empty string.",
+      "error_cases": [
+        "TypeError if `s` is not a string"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "encode('aaabbc') returns 'a3b2c1'",
+    "encode('a') returns 'a1'",
+    "encode('') returns ''",
+    "encode('abc') returns 'a1b1c1' (count written even when 1)",
+    "encode('x' * 12) returns 'x12' (multi-digit counts)",
+    "For every string x, decode(encode(x)) == x (round-trip property)",
+    "encode returns a value of type str",
+    "encode raises TypeError when the argument is not a string (e.g., int, list, None)"
+  ],
+  "out_of_scope": [
+    "The implementer must not modify the existing `decode` function in `rle/core.py`.",
+    "The implementer must not modify any test files (e.g., `tests/test_basic.py`).",
+    "The implementer must not modify `rle/__init__.py` or `tests/__init__.py`."
+  ],
+  "external_references_needed": []
+}

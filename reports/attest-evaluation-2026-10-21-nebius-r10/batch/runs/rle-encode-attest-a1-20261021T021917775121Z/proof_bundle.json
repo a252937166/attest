@@ -1,0 +1,628 @@
+{
+  "run_id": "rle-encode-attest-a1-20261021T021917775121Z",
+  "started_at_utc": "2026-10-21T02:19:17.776590+00:00",
+  "finished_at_utc": "2026-10-21T02:20:00.982747+00:00",
+  "profile": {
+    "label": "eval-attest-a1",
+    "provider": {
+      "provider": "nebius_tokenfactory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "roles": {
+        "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "seal": "nvidia/nemotron-3-super-120b-a12b",
+        "implement": "nvidia/nemotron-3-super-120b-a12b",
+        "break": "nvidia/nemotron-3-super-120b-a12b",
+        "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "summary": "nvidia/Nemotron-3_5-Lightning"
+      },
+      "usd_cap": 0.5,
+      "max_calls": 22,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "temperature": 0.2,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
+      "schema_in_prompt": true,
+      "auto_retry": false,
+      "pre_request_reservation": true,
+      "transport_retry_policy": "a request that was never sent (its connection, proxy tunnel or TLS handshake failed before any byte of it was written) closes its reservation at a known $0 and is sent again at most 2 times after 2/6 s, each attempt under a new reservation, each recorded and counted against the call cap; a request whose bytes were written is never sent again (its reservation stays committed)",
+      "reservation_policy": "the USD reservation is journaled durably (fsync) and read back before dispatch, after any cut journal tail has been terminated with a journal_repair record; if it cannot be, the request is not sent and the run stops paid calls",
+      "metering_policy": "an HTTP 200 whose usage cannot price the generation (missing, empty, partial or malformed counters) keeps its reservation unsettled and stops further paid calls of the run pending reconciliation; explicit zero counters settle as 0",
+      "answer_policy": "HTTP 4xx: a definite rejection at a known $0; HTTP 5xx or a failure after the request was written: uncertain, the reservation stays committed, nothing is sent again and the run stops for reconciliation",
+      "call_cap_policy": "at most 22 model calls per run (failed calls and retries count); the call that would exceed it is refused before dispatch",
+      "halted": null,
+      "journal_degraded": null,
+      "journal_failures": 0,
+      "journal_repairs": 0,
+      "max_prompt_chars": 120000,
+      "max_tokens": 16000
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "journal_policy": "every operation is journaled as PENDING (fsync, read back) before its spawn is sent and its accepted id before the first poll; when either fails nothing further is dispatched and the run halts for reconciliation",
+      "answer_policy": "a spawn answered HTTP 4xx is REJECTED; HTTP 5xx, a 2xx without an operation id or a failure after the spawn was written is UNCERTAIN and halts the run; polls are retried (bounded) and an accepted operation whose outcome is not read is ACCEPTED_UNREAD; nothing is sent after the run halts",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false,
+      "retry_policy": "GET and DELETE retried on any transport failure (at most 4 times); a spawn sent again only when the attempt failed before any byte of it was written (at most 2 times); an uncertain spawn is never sent again; accepted operation ids are journaled before polling"
+    }
+  },
+  "provenance": {
+    "attest_version": "0.10.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "7e72364f135c45c8a69a3a59c9cba5c954ebbb843cc7752b76c8303550548cb6",
+      "files": 37,
+      "git_commit": "953ae59b8c8ef5e54bbadbf2fb2b940b8851fa3a",
+      "version": "0.10.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/7",
+      "sha256": "97d3d47d1d5b4fed68c3349da14c0cdb06091ec61afa61699eac5b27315b1415"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "db8e2a76834b83ac69a3d5ecad722e712693ecb982f2a2ec3b2e4d5dde6de00f",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/scratchpad/r11-eval/attest-eval/reports/attest-evaluation-2026-10-21-nebius-r10/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "nebius_tokenfactory",
+      "temperature": 0.2,
+      "max_tokens": 16000,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "note": "temperature and max_tokens are sent with every request; roles map to model ids",
+      "roles": {
+        "spec": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "seal": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "implement": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "break": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "audit": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "arbitrate": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "summary": {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "effort": null
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 14,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": true,
+      "arbitration_apply": true,
+      "max_corrected_tests": 3,
+      "max_mutants_for_discrimination": 3,
+      "max_breaker_attempts": 3,
+      "max_witnesses": 3,
+      "witness_timeout_s": 60
+    },
+    "pacing": null,
+    "retry_policy": null,
+    "upstream": null
+  },
+  "task": {
+    "id": "rle-encode",
+    "title": "rle-encode",
+    "statement": "The rle package exposes decode (already implemented) and a stub encode(s). Implement encode(s) so that it run-length encodes a string: each maximal run of one character becomes that character followed by the decimal count of the run (the count is always written, even when it is 1). For example encode('aaabbc') is 'a3b2c1', encode('abc') is 'a1b1c1', encode('') is ''. encode must return a str and must round-trip with decode (decode(encode(x)) == x for every string x). Raise TypeError when s is not a string. Do not change decode or the tests.",
+    "acceptance_criteria": [
+      "encode('aaabbc')=='a3b2c1' and encode('a')=='a1'",
+      "encode('')==''",
+      "encode('abc')=='a1b1c1' (count written even when 1)",
+      "encode('x'*12)=='x12' (multi-digit counts)",
+      "decode(encode(x))==x for every string x",
+      "encode returns a str",
+      "TypeError when s is not a string"
+    ],
+    "allowed_write_globs": [
+      "rle/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from rle import encode",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "rle/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "rle/core.py": "04edfeb9ac54e38bad7a82baedc1d438a75c655881c389267ac9c7f44c24fb5c",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "1114c65e31fcd1be6cc0cf8b23a1024da1ea6f91bd0f87091dfd1cdc743e6723"
+    },
+    "spec_sha256": "e64da208acc97bfcb964f579c1a5687bc6340ce7531452982870487fe1231c41"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "install": null,
+    "checkpoint_operation_uuid": "01a15c41-9d12-7242-a616-464515f17087",
+    "checkpoint_image_uuid": "72edf036-8d20-44da-a8d9-e4ac1046d411",
+    "checkpoint_chain": [],
+    "checkpoint_networking": false,
+    "baseline": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestDecode.test_decode",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestDecode.test_decode_type",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestDecode.test_decode",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestDecode.test_decode_type",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a15c41-9d12-7242-a616-464515f17087",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.252,
+      "stderr_tail": "test_decode (tests.test_basic.TestDecode.test_decode) ... ok\ntest_decode_type (tests.test_basic.TestDecode.test_decode_type) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "suite_binding": {
+      "mode": "bound",
+      "reason": "2 statically discovered test ids in 1 module(s) match the baseline run",
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "path": "tests/test_basic.py",
+          "sha256": "1114c65e31fcd1be6cc0cf8b23a1024da1ea6f91bd0f87091dfd1cdc743e6723",
+          "tests": 2
+        }
+      ]
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "Implement the encode function in rle/core.py to perform run-length encoding on a string: each maximal consecutive run of a character is replaced by that character followed by the decimal count of the run (the count is always written, even for runs of length 1). The function must return a string, raise TypeError if the input is not a string, and satisfy the round-trip property decode(encode(x)) == x for all strings x. The existing decode function and tests must remain unchanged.",
+    "interface_contract": [
+      {
+        "name": "encode",
+        "signature": "encode(s: str) -> str",
+        "behavior": "Returns the run-length encoding of the input string s. For each maximal run of identical characters in s, the output contains the character followed by the decimal representation of the run length (no leading zeros). The count is always present, even for runs of length 1. An empty input string returns an empty string.",
+        "error_cases": [
+          "TypeError: raised when s is not an instance of str"
+        ]
+      }
+    ],
+    "acceptance_criteria": [
+      "encode('aaabbc') returns 'a3b2c1'",
+      "encode('a') returns 'a1'",
+      "encode('') returns ''",
+      "encode('abc') returns 'a1b1c1' (count written even when 1)",
+      "encode('x' * 12) returns 'x12' (multi-digit counts)",
+      "decode(encode(x)) == x for every string x (round-trip property)",
+      "encode returns a str instance",
+      "encode raises TypeError when s is not a string (e.g., encode(123), encode(None), encode(['a']))"
+    ],
+    "out_of_scope": [
+      "Do not modify the decode function in rle/core.py",
+      "Do not modify the tests in tests/test_basic.py",
+      "Do not modify rle/__init__.py",
+      "Do not add new public functions or classes"
+    ],
+    "external_references_needed": []
+  },
+  "grounding": null,
+  "sealed_tests": null,
+  "red_run": null,
+  "trajectory": {
+    "turns": 0,
+    "actions": [],
+    "path": "trajectory.jsonl",
+    "finished": false
+  },
+  "candidate": {
+    "changed_paths": [],
+    "deleted_paths": [],
+    "scope_ok": null,
+    "violations": [],
+    "diff": "",
+    "sha256": {}
+  },
+  "contract_audit": {
+    "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+    "consistent": false,
+    "notes": "The decode function reads a character then all following digits as the count, so when the input string contains digits, the encoded string's digit characters are absorbed into the previous run's count, breaking the round-trip for strings like '12'.",
+    "conflicts": [
+      {
+        "requirement_ids": [
+          "TC5"
+        ],
+        "provenance": "task",
+        "summary": "The round-trip property decode(encode(x)) == x for every string x (TC5) conflicts with the fixed decode function, which cannot correctly decode run-length encodings of strings containing digit characters (e.g., '12') because it greedily consumes all subsequent digits as the count.",
+        "witness_path": "contract_audit/witness_1.py",
+        "witness_sha256": "35748eb515307933429b9743bf7e2f84a95c995f1924499093d623020c0aeba9",
+        "witness_constrained": true,
+        "constraint_problems": [],
+        "witness_language": {
+          "version": "attest-witness/1",
+          "conforms": true,
+          "problems": [],
+          "origins": [
+            {
+              "line": 1,
+              "import": "sys",
+              "as": "sys",
+              "origin": "standard library"
+            },
+            {
+              "line": 2,
+              "import": "rle.decode",
+              "as": "decode",
+              "origin": "repository function",
+              "file": "rle/core.py",
+              "defined_at_line": 4,
+              "via": [
+                "rle/__init__.py"
+              ]
+            }
+          ],
+          "repository_files": {
+            "rle/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+            "rle/core.py": "04edfeb9ac54e38bad7a82baedc1d438a75c655881c389267ac9c7f44c24fb5c"
+          }
+        },
+        "exit_code": 3,
+        "timed_out": false,
+        "stdout_tail": "CONTRADICTION TC5: decode(encode('12')) == '1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111' != '12'\n",
+        "stderr_tail": "",
+        "operation_uuid": "01a15c42-2620-7538-b166-b20ad2bdb5eb",
+        "demonstrated": true,
+        "grounded": true,
+        "status": "demonstrated and grounded (authoritative criteria, witness in attest-witness/1)"
+      }
+    ],
+    "outcome": "contradiction demonstrated",
+    "error": null,
+    "rule": "a conflict is demonstrated only when it names existing criteria and its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' that names at least one of them and exits with code 3; it is GROUNDED, and may end the run as infeasible, only when every named requirement is an authoritative task criterion (TC) and the witness conforms to the constrained witness language attest-witness/1 (a positive grammar: literal inputs, allowed built-ins and standard-library functions, and functions or classes the frozen repository defines, every call origin resolved statically; enforced mechanically here and again by attest check); a demonstrated conflict that involves a derived criterion (AC) or a witness outside the language is held for a human; a claimed-only conflict never ends a run; whether the witness's inputs and comparison demonstrate that the criteria cannot all hold is the model's reasoning, recorded with its execution, not a formal proof of impossibility",
+    "requirement_ids_known": {
+      "task": [
+        "TC1",
+        "TC2",
+        "TC3",
+        "TC4",
+        "TC5",
+        "TC6",
+        "TC7"
+      ],
+      "derived": [
+        "AC1",
+        "AC2",
+        "AC3",
+        "AC4",
+        "AC5",
+        "AC6",
+        "AC7",
+        "AC8"
+      ]
+    },
+    "input_domain": "the input domain of a witness is the set of values the task names or implies: literals of the built-in types the task's statement and criteria use (plain str, int, list, dict, bytes, None and so on) and values computed from them by the unchanged repository code; instances of subclasses of built-in types, objects with overridden special methods and other adversarial values are OUTSIDE the domain unless the task names them explicitly",
+    "witness_language": "attest-witness/1"
+  },
+  "verification": null,
+  "breaker": null,
+  "drift": null,
+  "arbitration": null,
+  "gates": {},
+  "verdict": {
+    "verdict": "INFEASIBLE",
+    "reasons": [
+      "contract contradiction demonstrated by an executed witness in attest-witness/1 on the task's own criteria (requirements TC5): The round-trip property decode(encode(x)) == x for every string x (TC5) conflicts with the fixed decode function, which cannot correctly decode run-length encodings of strings containing digit charact; witness output: CONTRADICTION TC5: decode(encode('12')) == '1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111' != '12'"
+    ],
+    "warnings": []
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "spec",
+        "stage": "spec",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:19:27.664192+00:00",
+        "elapsed_ms": 4002,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3322,
+        "tokens_in": 1133,
+        "tokens_out": 812,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 812,
+          "prompt_tokens": 1133,
+          "total_tokens": 1945,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 336,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1133
+        },
+        "cost_usd": 0.003569,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.050107,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "audit",
+        "stage": "contract-audit",
+        "requested_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "requested_effort": "default",
+        "returned_model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:19:31.680190+00:00",
+        "elapsed_ms": 22711,
+        "gateway_duration_ms": null,
+        "prompt_chars": 9442,
+        "tokens_in": 2473,
+        "tokens_out": 7454,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 7454,
+          "prompt_tokens": 2473,
+          "total_tokens": 9927,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 7107,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2473
+        },
+        "cost_usd": 0.024835,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.052147,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a15c41-9d12-7242-a616-464515f17087",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "72edf036-8d20-44da-a8d9-e4ac1046d411",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.988,
+        "raw_cost_diag": 0.0028757599999999998,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-21T02:19:19.327016+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge",
+        "attempts": 1,
+        "transport_failures": [],
+        "op_id": "s1",
+        "http_status": null,
+        "ended_at_utc": "2026-10-21T02:19:27.656918+00:00",
+        "outcome_note": null
+      },
+      {
+        "stage": "witness-1",
+        "operation_uuid": "01a15c42-2620-7538-b166-b20ad2bdb5eb",
+        "image_uuid": "72edf036-8d20-44da-a8d9-e4ac1046d411",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 0.885,
+        "raw_cost_diag": 0.0012566900000000002,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-21T02:19:54.407687+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge",
+        "attempts": 1,
+        "transport_failures": [],
+        "op_id": "s2",
+        "http_status": null,
+        "ended_at_utc": "2026-10-21T02:20:00.979956+00:00",
+        "outcome_note": null
+      }
+    ],
+    "open_reservations": [],
+    "journal_failures": [],
+    "journal_repairs": [],
+    "journal_degraded": null,
+    "halt": null,
+    "halt_events": [],
+    "reconciliation": [],
+    "totals": {
+      "model_calls": 2,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 3606,
+      "tokens_out": 8266,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 26713,
+      "cost_usd": 0.028404,
+      "cost_usd_committed": 0.028404,
+      "uncertain_unpriced_calls": 0,
+      "open_reservations": 0,
+      "open_reserved_usd": 0,
+      "journal_failures": 0,
+      "journal_repairs": 0,
+      "journal_degraded": null,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "nebius_tokenfactory:nvidia/Nemotron-3-Ultra-550b-a55b": {
+          "calls": 2,
+          "tokens_in": 3606,
+          "tokens_out": 8266,
+          "tokens_cached": 0,
+          "cost_usd": 0.028404,
+          "elapsed_ms": 26713,
+          "failed": 0
+        }
+      },
+      "calls_not_sent": 0,
+      "calls_uncertain": 0,
+      "halted": false,
+      "reconciliation_items": 0,
+      "sandbox_operations": 2,
+      "sandbox_spawn_retries": 0,
+      "sandbox_uncertain": 0,
+      "sandbox_rejected": 0,
+      "sandbox_duration_s": 1.873,
+      "sandbox_retained_images": [
+        "72edf036-8d20-44da-a8d9-e4ac1046d411"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.00413245
+    }
+  },
+  "limitations": [
+    "Profile 'eval-attest-a1': inference provider nebius_tokenfactory; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, offers a corrected module. The correction counts only after mechanical validation (same test methods, only the failing tests' bodies changed, passes on the candidate, still fails on the unmodified base or is caught by a mutant, with every result structurally sound and bound to its nonce); the corrected gate is then re-run and the verdict re-derived from the gates. A sealed test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected). The classification itself remains a model judgement.",
+    "A mutant counts as killed only when a sealed test failed with an authentic child result under a structurally sound supervisor run; lost, forged, incomplete, non-isolated, crashed or timed-out runs are unknown and excluded from the mutation score, and `attest check` recomputes the classification from the raw results.",
+    "INFEASIBLE is recorded only when a witness program written by the contract auditor demonstrated the contradiction by running on the unmodified repository (exit code and output recorded); the witness's logic is the model's, its execution is not.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "Once an operation's outcome is uncertain, or a record of the run cannot be made durable, the run sends nothing further and ends ERROR with every unsettled operation listed under reconciliation; such operations are settled by a human against the providers' records, never by sending them again. Operations being polled in parallel when the run stops are not read further and are listed too.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "aborted",
+  "evidence_protocol": {
+    "version": 5,
+    "supervisor": "attest-sealed-supervisor/7",
+    "note": "a VERIFIED bundle of this protocol carries every gate with its raw supervisor result, every evaluated mutant's raw result, the base and mutant evidence of any validated correction, the contract audit and the ledger; an INFEASIBLE bundle carries the executed witness, its digest, output and operation, its analysis in the constrained witness language and copies of the repository files that analysis resolved call origins through; every bundle carries the reconciliation record, and one that lists an operation whose outcome is unknown, or whose run halted, is ERROR; a bundle without this field is historical and is checked for internal consistency only",
+    "witness_language": "attest-witness/1"
+  },
+  "reconciliation": {
+    "required": false,
+    "halt": null,
+    "halt_events": [],
+    "items": [],
+    "rule": "once an operation's outcome is uncertain (a request that may have been executed and whose answer is unknown, an accepted operation whose outcome was not read, an answer that could not be priced) or a record of the run could not be made durable, the run sends nothing further: no model call, no sandbox operation, no poll; it ends ERROR with every such operation listed here with the read-only check that settles it, and none of them is ever sent again"
+  }
+}

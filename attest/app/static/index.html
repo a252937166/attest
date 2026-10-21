@@ -322,7 +322,23 @@
       <ul class="latest-list" id="latest-list"></ul>
     </div>
     <div class="eval rv" aria-labelledby="eval-h">
-      <h3 id="eval-h">The frozen evaluation of 17 October 2026, on an earlier version</h3>
+      <h3 id="eval-h">The evaluation of 21 October 2026, version 0.10.0</h3>
+      <p>The frozen suite and method of 17 October, re-run on the version this console runs: eight tasks, two systems, two attempts per cell, Nemotron on Nebius Token Factory, every scheduled cell reported (16 and 16 cells) and every patch judged by held-out tests that neither system saw. The plain agent is the same implementer with the same model, tools and turn budget and no sealed tests, breaker, audit or verdict.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th></th><th>Plain agent (16 cells)</th><th>Attest (16 cells)</th></tr></thead>
+        <tbody>
+          <tr><td>Correct patch accepted</td><td>8</td><td>2</td></tr>
+          <tr><td>Broken patch shipped</td><td>2</td><td>0</td></tr>
+          <tr><td>Correct patch held for a human</td><td>1</td><td>2</td></tr>
+          <tr><td>Correct refusal of the task that cannot be satisfied</td><td>0</td><td>2</td></tr>
+          <tr><td>Held or unfinished, no patch</td><td>1</td><td>4</td></tr>
+          <tr><td>Sandboxes error after a request was sent: stopped, reconciled, never replayed</td><td>4</td><td>6</td></tr>
+          <tr><td>Committed inference cost</td><td>$0.34</td><td>$1.04</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">What this shows, and only this: on the task that cannot be satisfied, the plain agent shipped a broken patch both times and Attest refused both times, once with a contract contradiction demonstrated by an executed witness (on 17 Oct an earlier version had shipped both). Attest accepted far fewer correct patches, 2 against 8: it held two correct patches, three times its test writer could not produce a valid sealed suite, and once the implementer ran out of turns. Ten cells were stopped when the Sandboxes API answered HTTP 500 after a request was sent; read-only checks found that none of those requests had run, and nothing was replayed. One batch of 32 cells on one suite, not a benchmark; every cell is in reports/attest-evaluation-2026-10-21-nebius-r10/RESULTS.md.</p>
+      <details><summary>The frozen evaluation of 17 October 2026, on an earlier version</summary>
+      
       <p>Eight tasks, two systems, two attempts per cell, every scheduled cell reported. The plain agent is the same implementer with the same model, tools and turn budget and no sealed tests, breaker, audit or verdict; both are judged by the same held-out suite, stripped from the system under test. Method, commit, digests, models and limits were frozen before the run.</p>
       <div class="tablewrap"><table>
         <thead><tr><th></th><th>Plain agent (16 cells)</th><th>Attest (16 cells)</th></tr></thead>
@@ -335,7 +351,8 @@
           <tr><td>Committed inference cost</td><td>$0.23</td><td>$0.86</td></tr>
         </tbody>
       </table></div>
-      <p class="note">What this shows, and only this: on this suite Attest did not ship fewer broken patches than the plain agent; both shipped the two patches for the unsatisfiable task, where the sealed tests did not expose the contract's contradiction. Every Attest hold was on a patch the held-out judge accepted, four of them after the arbiter had classified the failing adversarial test as a test defect (arbitration was advisory in that version, so the rule kept the hold). The two NO CHANGE verdicts on the external task were unfinished tasks, not correct refusals; the implementer ran out of turns without a patch (corrections note in the evaluation folder). These are the historical M5 figures of the version pinned on 17 Oct 2026 (commit 6b786a2e). They are not an evaluation of the version this console runs (<span id="eval-version">see the footer</span>); its Nemotron re-evaluation has not been run.</p>
+      <p class="note">What this shows, and only this: on this suite Attest did not ship fewer broken patches than the plain agent; both shipped the two patches for the unsatisfiable task, where the sealed tests did not expose the contract's contradiction. Every Attest hold was on a patch the held-out judge accepted, four of them after the arbiter had classified the failing adversarial test as a test defect (arbitration was advisory in that version, so the rule kept the hold). The two NO CHANGE verdicts on the external task were unfinished tasks, not correct refusals; the implementer ran out of turns without a patch (corrections note in the evaluation folder). These are the historical M5 figures of the version pinned on 17 Oct 2026 (commit 6b786a2e). They are not an evaluation of the version this console runs (<span id="eval-version">see the footer</span>); the table above is its Nemotron re-evaluation.</p>
+      </details>
     </div>
   </section>
 

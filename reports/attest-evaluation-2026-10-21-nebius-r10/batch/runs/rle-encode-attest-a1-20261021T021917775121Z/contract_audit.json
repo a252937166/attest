@@ -1,0 +1,80 @@
+{
+  "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+  "consistent": false,
+  "notes": "The decode function reads a character then all following digits as the count, so when the input string contains digits, the encoded string's digit characters are absorbed into the previous run's count, breaking the round-trip for strings like '12'.",
+  "conflicts": [
+    {
+      "requirement_ids": [
+        "TC5"
+      ],
+      "provenance": "task",
+      "summary": "The round-trip property decode(encode(x)) == x for every string x (TC5) conflicts with the fixed decode function, which cannot correctly decode run-length encodings of strings containing digit characters (e.g., '12') because it greedily consumes all subsequent digits as the count.",
+      "witness_path": "contract_audit/witness_1.py",
+      "witness_sha256": "35748eb515307933429b9743bf7e2f84a95c995f1924499093d623020c0aeba9",
+      "witness_constrained": true,
+      "constraint_problems": [],
+      "witness_language": {
+        "version": "attest-witness/1",
+        "conforms": true,
+        "problems": [],
+        "origins": [
+          {
+            "line": 1,
+            "import": "sys",
+            "as": "sys",
+            "origin": "standard library"
+          },
+          {
+            "line": 2,
+            "import": "rle.decode",
+            "as": "decode",
+            "origin": "repository function",
+            "file": "rle/core.py",
+            "defined_at_line": 4,
+            "via": [
+              "rle/__init__.py"
+            ]
+          }
+        ],
+        "repository_files": {
+          "rle/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+          "rle/core.py": "04edfeb9ac54e38bad7a82baedc1d438a75c655881c389267ac9c7f44c24fb5c"
+        }
+      },
+      "exit_code": 3,
+      "timed_out": false,
+      "stdout_tail": "CONTRADICTION TC5: decode(encode('12')) == '1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111' != '12'\n",
+      "stderr_tail": "",
+      "operation_uuid": "01a15c42-2620-7538-b166-b20ad2bdb5eb",
+      "demonstrated": true,
+      "grounded": true,
+      "status": "demonstrated and grounded (authoritative criteria, witness in attest-witness/1)"
+    }
+  ],
+  "outcome": "contradiction demonstrated",
+  "error": null,
+  "rule": "a conflict is demonstrated only when it names existing criteria and its witness program, run on the unmodified repository in a disposable sandbox branch, prints a line starting with 'CONTRADICTION' that names at least one of them and exits with code 3; it is GROUNDED, and may end the run as infeasible, only when every named requirement is an authoritative task criterion (TC) and the witness conforms to the constrained witness language attest-witness/1 (a positive grammar: literal inputs, allowed built-ins and standard-library functions, and functions or classes the frozen repository defines, every call origin resolved statically; enforced mechanically here and again by attest check); a demonstrated conflict that involves a derived criterion (AC) or a witness outside the language is held for a human; a claimed-only conflict never ends a run; whether the witness's inputs and comparison demonstrate that the criteria cannot all hold is the model's reasoning, recorded with its execution, not a formal proof of impossibility",
+  "requirement_ids_known": {
+    "task": [
+      "TC1",
+      "TC2",
+      "TC3",
+      "TC4",
+      "TC5",
+      "TC6",
+      "TC7"
+    ],
+    "derived": [
+      "AC1",
+      "AC2",
+      "AC3",
+      "AC4",
+      "AC5",
+      "AC6",
+      "AC7",
+      "AC8"
+    ]
+  },
+  "input_domain": "the input domain of a witness is the set of values the task names or implies: literals of the built-in types the task's statement and criteria use (plain str, int, list, dict, bytes, None and so on) and values computed from them by the unchanged repository code; instances of subclasses of built-in types, objects with overridden special methods and other adversarial values are OUTSIDE the domain unless the task names them explicitly",
+  "witness_language": "attest-witness/1"
+}

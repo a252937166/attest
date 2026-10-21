@@ -1,0 +1,47 @@
+{
+  "id": "kvparse-refactor-001",
+  "title": "Behaviour-preserving refactor of kvparse.parser",
+  "statement": "Refactor kvparse/parser.py without changing any behaviour. Two changes are requested. (1) parse_line(line) must be rewritten without the hand-rolled index loops: split the line at the first '=' with str.partition, strip the key and the value, raise ValueError when there is no '=' or the stripped key is empty, and remove one pair of matching surrounding quotes (both ends '\"' or both ends \"'\") from a stripped value of length two or more; the function must not contain a 'while' loop. (2) Extract the detection of ignorable lines into a module-level function _is_ignorable(line) -> bool in kvparse/parser.py that returns True exactly when the stripped line is empty or starts with '#' or ';', and make parse use it. The observable behaviour of parse and parse_line must stay byte-for-byte identical for every str input: the same return values, the same exception types in the same situations (TypeError for non-string input to parse, ValueError for a malformed line), later duplicate keys still win, and quotes are removed only when the stripped value starts and ends with the same quote character (a value like '\"x\\'' keeps both characters; a lone '\"' is kept). Exception messages are not prescribed. parse keeps raising TypeError for non-string input; what parse_line does with a non-string argument (for example a list or a mapping) is unspecified and must not be tested, because the required use of str.partition changes it. Keep the public names parse and parse_line exported from kvparse, do not modify the tests, and keep the existing suite passing.",
+  "acceptance_criteria": [
+    "parse_line behaviour unchanged: 'a=b' -> ('a','b'); ' a = b ' -> ('a','b'); 'a==b' -> ('a','=b'); 'a = b = c' -> ('a','b = c'); 'a=' -> ('a',''); 'q = \"x\"' -> ('q','x'); \"q = 'x'\" -> ('q','x'); 'q = \"x\\'' -> ('q','\"x\\''); 'q = \"' -> ('q','\"'); \"q = ''\" -> ('q',''); 'q = \" spaced \"' -> ('q',' spaced '); 'k e y = v' -> ('k e y','v'); 'u = \"a\" \"b\"' -> ('u','a\" \"b').",
+    "parse_line raises ValueError for '', 'novalue', ' = v', '   ', '=' and '\\t= 1'.",
+    "parse behaviour unchanged: comments ('#' or ';' as the first non-blank character), blank lines and Windows line endings are handled as before; later duplicate keys win; parse('') == {}; parse('k = v') == {'k': 'v'}.",
+    "parse raises ValueError for a malformed line anywhere in the text and TypeError for non-string input (None, 3, a list, bytes).",
+    "kvparse.parser._is_ignorable exists, returns True for '   # c', '' and '\\t; c', and False for 'a = 1' and 'a = # not a comment'.",
+    "The source of parse_line contains no 'while' loop and uses str.partition.",
+    "The existing tests in tests/ pass unchanged.",
+    "Unspecified, not to be tested: parse_line with a non-string argument."
+  ],
+  "allowed_write_globs": [
+    "kvparse/**"
+  ],
+  "protected_globs": [
+    "tests/**"
+  ],
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-t",
+    ".",
+    "-v"
+  ],
+  "base_image": "python:3.12-slim",
+  "language": "python",
+  "import_hint": "from kvparse import parse, parse_line   (module kvparse.parser)",
+  "test_runner": "unittest",
+  "install_command": null,
+  "requirements_lock": null,
+  "python_paths": [],
+  "heldout_tests_sha256": {},
+  "repo_files_sha256": {
+    "kvparse/__init__.py": "cd38643fed984c07101a236bab864a64236c9b5c864a93b200d334a0615620d8",
+    "kvparse/parser.py": "47a1afb046098aa52b49f375e5622a5694e4678b0e1f111c92d49e5947d19753",
+    "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tests/test_parser.py": "b6fe9dd3b69a51824949aeab6187ef22e2b4423b2b794ed0b18059343cc786df"
+  },
+  "spec_sha256": "4c9587b9205c67694afee4df03fb99814ed1602348c1a6c53430347db6bfddd2"
+}

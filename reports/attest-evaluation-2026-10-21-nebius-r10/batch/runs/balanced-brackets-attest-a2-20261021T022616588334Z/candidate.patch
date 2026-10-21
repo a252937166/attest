@@ -1,0 +1,19 @@
+--- a/brackets/core.py
++++ b/brackets/core.py
+@@ -11,4 +11,15 @@
+ 
+ 
+ def is_balanced(s):
+-    raise NotImplementedError("is_balanced is not implemented yet")
++    if not isinstance(s, str):
++        raise TypeError("s must be a string")
++    stack = []
++    for ch in s:
++        if is_bracket(ch):
++            if ch in OPEN:
++                stack.append(ch)
++            else:  # ch in CLOSE
++                if not stack or stack[-1] != PAIRS[ch]:
++                    return False
++                stack.pop()
++    return not stack

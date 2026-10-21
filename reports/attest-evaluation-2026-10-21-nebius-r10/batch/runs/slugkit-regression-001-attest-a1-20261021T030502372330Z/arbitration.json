@@ -1,0 +1,314 @@
+{
+  "applied": true,
+  "validated_modules": [
+    "adversarial"
+  ],
+  "cleared": true,
+  "all_corrected": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 2,
+    "contract_dispute": 0
+  },
+  "headline": "all 2 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (2 of 2 corrected test(s) fail on the unmodified base with an authentic result); the affected gate(s) are re-run on the corrected modules",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects empty string for input 'e\\u0301', but the contract specifies that ASCII letters/digits are kept. The input contains an ASCII letter 'e', so the result should be 'e' (the combining accent is a non-ASCII separator replaced by a hyphen and then stripped).",
+          "contract_basis": "Contract: 'lower-case the text; every maximal run of one or more characters that are not ASCII letters a-z or ASCII digits 0-9 becomes exactly one hyphen; leading and trailing hyphens are removed; an input with no ASCII letters or digits returns empty string.'"
+        },
+        {
+          "test_id": "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects the runs of ASCII letters 'a' and 'b' to be collapsed to a single character each, but the contract only requires collapsing runs of non-ASCII-alphanumeric characters. The correct output is 5000 'a's, a single hyphen, and 5000 'b's.",
+          "contract_basis": "Contract: 'every maximal run of one or more characters that are not ASCII letters a-z or ASCII digits 0-9 becomes exactly one hyphen.' ASCII letters are kept as-is."
+        }
+      ],
+      "corrected_notes": "Corrected two test expectations to match the contract: test_unicode_combining_accents now expects 'e' because the input contains an ASCII letter; test_long_string_performance now expects the full runs of 'a' and 'b' with a single hyphen between, as the contract only collapses non-alnum runs.",
+      "corrected_module": "arbitration/adversarial_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (7 of 7 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a15c6d-e4f8-7558-9e20-e6dd7c5f6aef"
+      },
+      "base_rerun": {
+        "summary_line": "FAILED (5 of 7 methods: FAIL 5)",
+        "failing": 5,
+        "nonce": "87b9b6c645704327f4454829911e0acd",
+        "expected_ids": [
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+          "test_breaker.TestSlugifyBreaker.test_multiple_internal_non_alnum_runs",
+          "test_breaker.TestSlugifyBreaker.test_leading_trailing_mix",
+          "test_breaker.TestSlugifyBreaker.test_digits_only",
+          "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+          "test_breaker.TestSlugifyBreaker.test_return_type_is_str",
+          "test_breaker.TestSlugifyBreaker.test_non_ascii_letter_separator"
+        ],
+        "binding": {
+          "ok": false,
+          "checks": {
+            "result_file_present": true,
+            "sealed_file_unchanged_before": true,
+            "sealed_file_unchanged_after": true,
+            "static_ids_match_red": true,
+            "supervisor_completed": true,
+            "verifier_isolation_active": true,
+            "supervisor_cleanup_complete": true,
+            "nonce_matches": true,
+            "no_discovery_error": true,
+            "expected_test_ids_present": true,
+            "no_unexpected_test_ids": true,
+            "no_nonzero_exit": false,
+            "no_signal": true,
+            "no_timeout": true,
+            "no_missing_or_forged_result": true,
+            "all_expected_pass": false,
+            "no_startup_hooks_on_import_path": true,
+            "canary_must_pass_ok": true,
+            "canary_must_fail_failed": true
+          },
+          "reasons": [
+            "child process nonzero exit: test_unicode_combining_accents exit 1, test_multiple_internal_non_alnum_runs exit 1, test_leading_trailing_mix exit 1, test_digits_only exit 1, test_long_string_performance exit 1"
+          ]
+        },
+        "structural_problems": [],
+        "outcomes": {
+          "test_breaker.TestSlugifyBreaker.test_long_string_performance": "red",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents": "red"
+        },
+        "corrected_tests_failing_on_base": [
+          "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents"
+        ],
+        "discrimination": "2 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+        "untrusted": null,
+        "operation_uuid": "01a15c6d-ff0f-7646-93ea-d0592faa6fc4"
+      },
+      "mutant_reruns": [],
+      "cleared_module": true,
+      "validated": true,
+      "corrected": {
+        "path": "arbitration/adversarial_corrected.py",
+        "sha256": "8049f82958bc0caad01d6a5451a4816536a8e4cd3332d4e8c732844d92a7add1",
+        "expected_ids": [
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+          "test_breaker.TestSlugifyBreaker.test_multiple_internal_non_alnum_runs",
+          "test_breaker.TestSlugifyBreaker.test_leading_trailing_mix",
+          "test_breaker.TestSlugifyBreaker.test_digits_only",
+          "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+          "test_breaker.TestSlugifyBreaker.test_return_type_is_str",
+          "test_breaker.TestSlugifyBreaker.test_non_ascii_letter_separator"
+        ],
+        "changed_tests": [
+          "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents"
+        ],
+        "summary": {
+          "ran": 7,
+          "tests": [
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.181,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_multiple_internal_non_alnum_runs",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.172,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_leading_trailing_mix",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.172,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_digits_only",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.174,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.172,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_return_type_is_str",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.172,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_non_ascii_letter_separator",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.172,
+              "captured_tail": "",
+              "failure_tail": ""
+            }
+          ],
+          "passed": 7,
+          "failing": 0,
+          "subtest_events": 0,
+          "import_error": null,
+          "all_passed": true,
+          "canary_ok": true,
+          "summary_line": "OK (7 of 7 methods, each in its own process)",
+          "operation_uuid": "01a15c6d-e4f8-7558-9e20-e6dd7c5f6aef",
+          "nonce": "e14976f4c7441d38ee4638246304e00c",
+          "supervisor_exit_code": 0,
+          "runner_error": null
+        },
+        "binding": {
+          "ok": true,
+          "checks": {
+            "result_file_present": true,
+            "sealed_file_unchanged_before": true,
+            "sealed_file_unchanged_after": true,
+            "static_ids_match_red": true,
+            "supervisor_completed": true,
+            "verifier_isolation_active": true,
+            "supervisor_cleanup_complete": true,
+            "nonce_matches": true,
+            "no_discovery_error": true,
+            "expected_test_ids_present": true,
+            "no_unexpected_test_ids": true,
+            "no_nonzero_exit": true,
+            "no_signal": true,
+            "no_timeout": true,
+            "no_missing_or_forged_result": true,
+            "all_expected_pass": true,
+            "no_startup_hooks_on_import_path": true,
+            "canary_must_pass_ok": true,
+            "canary_must_fail_failed": true
+          },
+          "reasons": []
+        },
+        "nonce": "e14976f4c7441d38ee4638246304e00c",
+        "operation_uuid": "01a15c6d-e4f8-7558-9e20-e6dd7c5f6aef",
+        "discrimination": "2 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+        "base_rerun": {
+          "summary_line": "FAILED (5 of 7 methods: FAIL 5)",
+          "failing": 5,
+          "nonce": "87b9b6c645704327f4454829911e0acd",
+          "expected_ids": [
+            "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+            "test_breaker.TestSlugifyBreaker.test_multiple_internal_non_alnum_runs",
+            "test_breaker.TestSlugifyBreaker.test_leading_trailing_mix",
+            "test_breaker.TestSlugifyBreaker.test_digits_only",
+            "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+            "test_breaker.TestSlugifyBreaker.test_return_type_is_str",
+            "test_breaker.TestSlugifyBreaker.test_non_ascii_letter_separator"
+          ],
+          "binding": {
+            "ok": false,
+            "checks": {
+              "result_file_present": true,
+              "sealed_file_unchanged_before": true,
+              "sealed_file_unchanged_after": true,
+              "static_ids_match_red": true,
+              "supervisor_completed": true,
+              "verifier_isolation_active": true,
+              "supervisor_cleanup_complete": true,
+              "nonce_matches": true,
+              "no_discovery_error": true,
+              "expected_test_ids_present": true,
+              "no_unexpected_test_ids": true,
+              "no_nonzero_exit": false,
+              "no_signal": true,
+              "no_timeout": true,
+              "no_missing_or_forged_result": true,
+              "all_expected_pass": false,
+              "no_startup_hooks_on_import_path": true,
+              "canary_must_pass_ok": true,
+              "canary_must_fail_failed": true
+            },
+            "reasons": [
+              "child process nonzero exit: test_unicode_combining_accents exit 1, test_multiple_internal_non_alnum_runs exit 1, test_leading_trailing_mix exit 1, test_digits_only exit 1, test_long_string_performance exit 1"
+            ]
+          },
+          "structural_problems": [],
+          "outcomes": {
+            "test_breaker.TestSlugifyBreaker.test_long_string_performance": "red",
+            "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents": "red"
+          },
+          "corrected_tests_failing_on_base": [
+            "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+            "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents"
+          ],
+          "discrimination": "2 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+          "untrusted": null,
+          "operation_uuid": "01a15c6d-ff0f-7646-93ea-d0592faa6fc4"
+        },
+        "mutant_reruns": [],
+        "original_sha256": "c5e881e28387de2d91019e91ca875360b1b60af3acc10b7af989cc81872eecce",
+        "original_failing": [
+          "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents"
+        ]
+      },
+      "sealed_assertion_hold": false,
+      "error": null,
+      "classification_ids_ok": true,
+      "scope_problems": []
+    }
+  ],
+  "rule": "a correction counts only when it keeps every test method, changes only the bodies of the failing ones (imports may be added, nothing existing may be rebound), is classified for exactly the failing tests, passes on the candidate under the supervisor and still discriminates with authentic, structurally sound results (every corrected sealed test fails on the unmodified base; a corrected adversarial test fails on the base or catches a validly killed mutant of the patch); a sealed test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected); a validated correction re-runs its gate and the verdict is derived from the gates",
+  "note": "original tests, results and reasons are preserved unchanged; the arbiter's classification alone never changes a gate",
+  "applied_to_gates": [
+    {
+      "gate": "adversarial_tests",
+      "module": "adversarial",
+      "corrected_sha256": "8049f82958bc0caad01d6a5451a4816536a8e4cd3332d4e8c732844d92a7add1",
+      "changed_tests": [
+        "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+        "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents"
+      ],
+      "discrimination": "2 of 2 corrected test(s) fail on the unmodified base with an authentic result"
+    }
+  ]
+}

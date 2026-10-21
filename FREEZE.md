@@ -583,3 +583,46 @@ Unchanged in scope and budget, re-pinned to revision 10: the two-run Nemotron sm
 the revised 32-cell evaluation with the command above (about $3.00 to $4.00, at most $9.00 through `--approve-usd`). Total maximum
 **$10.00**, stop rules as before plus revision 10's: a malformed upstream answer stops its run and the batch, and a resumed batch starts
 nothing while an item is unresolved. No paid Nebius call was made in revision 10.
+
+# Revision 10 validated on Nemotron (21 Oct 2026), and the console release 0.10.1
+
+## The paid work, as approved
+
+The owner approved the proposed paid work on 21 Oct 2026. It ran from a fresh clone of publication commit
+`953ae59b8c8ef5e54bbadbf2fb2b940b8851fa3a` (review `c0ddb486`), whose package, harness, examples, suite and METHOD digests were checked
+against the pin above before the first call. The smoke test (both runs NEEDS HUMAN with complete protocol-5 evidence) cost $0.116153 of
+inference against the $1.00 maximum; the evaluation, with the exact command above (label `r10-final`), cost $1.3871 against the $9.00
+approval. Total paid Nebius inference for revision 10: $1.503253 of the $10.00 maximum. Tavily: no call. Sandboxes: 16 smoke operations,
+141 evaluation operations and 22 judge operations (163 in all; the rendered RESULTS.md counts the judge operations twice). Records: `reports/attest-validation-2026-10-21-nebius-r10/` (smoke test, every stop's
+read-only reconciliation, the operator loop) and `reports/attest-evaluation-2026-10-21-nebius-r10/` (README, RESULTS.md, the batch).
+
+## Results (16 cells per system)
+
+| | Plain agent | Attest |
+| --- | --- | --- |
+| Correct patch accepted | 8 | 2 |
+| Broken patch shipped | 2 | 0 |
+| Correct patch held for a human | 1 | 2 |
+| Correct refusal (the task that cannot be satisfied) | 0 | 2 |
+| Hold without a patch on a satisfiable task, or unfinished | 1 | 4 |
+| Sandboxes error after the request was sent, never replayed | 4 | 6 |
+| Committed inference | $0.3448 | $1.0423 |
+
+Six spawns were answered HTTP 500 by `POST /sandboxes/v1/instances` after they were sent; each stopped the batch with every cell in flight,
+read-only checks (at least ten minutes after the request) found that none had executed, and each item was acknowledged by id before the
+batch resumed. The method, the models and the sampling were not changed during the batch.
+
+## 0.10.1: the console release that publishes these results
+
+The evaluated package is 0.10.0 (`7e72364f…`). The release deployed after it, 0.10.1, changes nothing the evaluation measured: the version
+string (`attest/__init__.py`, `pyproject.toml`), the console's evaluation section (`attest/app/static/index.html`: the 21 Oct table first,
+the 17 Oct table kept below it, and the sentence that said the re-evaluation had not been run replaced), and the service's import list
+(`deploy/yungou/attest.service`: the evaluation's runs and the two smoke runs are imported read-only, as `requester=import`, which
+revision 10 never holds; a local console with that list opened 0 holds). Its pin record, digests and deployment are recorded below when
+they exist.
+
+The same records commit carries the publication tooling for the owner's decisions of 21 Oct (no change to the package or the harness):
+`scripts/export_public.py` rewrites a development session's scratch path, which spells the account name inside its own name, to a neutral
+path and its scan flags any left; `scripts/build_publication_history.py` gains `--identity "Name <email>"` (every commit's author and
+committer become that identity, dates and messages kept; `--verify` checks it); `tests/test_publication_identity.py` covers both, and the
+recorded-corpus inventory classifies the two new evidence folders under protocol 5.

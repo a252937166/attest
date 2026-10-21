@@ -1,0 +1,41 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement the encode function in the rle package to perform run-length encoding on a string. Each maximal run of a character becomes that character followed by its decimal count (always written, even for count 1). The function must return a string, raise TypeError for non-string inputs, and satisfy the round-trip property decode(encode(x)) == x for all strings x. The existing decode function and tests must not be modified.",
+  "interface_contract": [
+    {
+      "name": "encode",
+      "signature": "encode(s: str) -> str",
+      "behavior": "Run-length encodes the input string. For each maximal contiguous run of identical characters, outputs the character followed by the decimal representation of the run length (always at least one digit). Concatenates these pieces. Empty input returns empty string.",
+      "error_cases": [
+        "TypeError if s is not a string"
+      ]
+    },
+    {
+      "name": "decode",
+      "signature": "decode(s: str) -> str",
+      "behavior": "Decodes a run-length encoded string. Expects a sequence of (character, one-or-more-digits) pairs. Returns the expanded string. Empty input returns empty string.",
+      "error_cases": [
+        "TypeError if s is not a string",
+        "ValueError if a character is not followed by at least one digit"
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "encode('aaabbc') returns 'a3b2c1'",
+    "encode('a') returns 'a1'",
+    "encode('') returns ''",
+    "encode('abc') returns 'a1b1c1' (count written even when 1)",
+    "encode('x' * 12) returns 'x12' (multi-digit counts)",
+    "For any string x, decode(encode(x)) == x (round-trip property)",
+    "encode returns a value of type str",
+    "encode raises TypeError when the argument is not a string (e.g., encode(123), encode(None), encode(['a']))"
+  ],
+  "out_of_scope": [
+    "Do not modify the decode function in rle/core.py",
+    "Do not modify any test files (tests/test_basic.py, tests/__init__.py)",
+    "Do not modify rle/__init__.py",
+    "Do not add new public functions or change the module's public interface"
+  ],
+  "external_references_needed": []
+}

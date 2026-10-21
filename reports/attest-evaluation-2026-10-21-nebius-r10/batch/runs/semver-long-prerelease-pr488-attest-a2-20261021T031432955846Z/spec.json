@@ -1,0 +1,65 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Fix the prerelease identifier comparison in `semver.version.Version._nat_cmp` to avoid converting long ASCII‑digit‑only identifiers to `int` (which raises `ValueError` for strings longer than 4300 digits in CPython), while preserving the exact existing ordering semantics: numeric identifiers (ASCII digits only) compare by decimal value after stripping leading zeros (all‑zero becomes \"0\"), using length‑then‑lexicographic comparison; numeric identifiers are less than any non‑numeric identifier; non‑numeric identifiers compare lexicographically; shorter identifier list is lower when all compared identifiers are equal. Legacy constructor behaviour must be preserved: identifiers with leading zeros or non‑ASCII decimal digits (where `str.isdigit()` is true) still compare by their `int()` value (so \"١٢\" == \"12\", \"１２\" < \"13\"); identifiers where `str.isdigit()` is true but `int()` fails (e.g. \"²\") must raise `ValueError` eagerly during `compare()` when core versions are equal, even if an earlier identifier would decide the order; core version comparison (major, minor, patch) still decides before prerelease is examined. Parsing, validation, build metadata handling, prerelease storage, and all other behaviour must remain unchanged, and the existing pytest suite must pass unchanged.",
+  "interface_contract": [
+    {
+      "name": "semver.version.Version._nat_cmp",
+      "signature": "@classmethod def _nat_cmp(cls, a: Optional[str], b: Optional[str]) -> int",
+      "behavior": "Compare two prerelease strings (or None) according to the semantic versioning prerelease ordering rules, but with the following refined numeric comparison for ASCII‑digit‑only identifiers: split each string by '.' into identifiers (empty string or None becomes a single empty identifier). For each pair of identifiers: if both consist solely of ASCII digits ('0'‑'9'), compare them as decimal integers without using `int()`: strip leading zeros (all zeros becomes \"0\"), then compare by length, then lexicographically. If one identifier is ASCII‑digit‑only and the other is not, the numeric one is smaller. If both are non‑numeric (or not ASCII‑digit‑only), compare them as plain strings (lexicographically). If one list is exhausted and all compared identifiers are equal, the shorter list is smaller. For identifiers where `str.isdigit()` is True but not all characters are ASCII digits (e.g. Arabic‑Indic digits), compare by their `int()` value (which may raise `ValueError` if `int()` fails). If `int()` raises `ValueError` for such an identifier, propagate the exception immediately, even if a previous identifier would have decided the order. Return -1, 0, or 1 as per standard comparison.",
+      "error_cases": [
+        "ValueError: raised when an identifier has `str.isdigit() == True` but `int(identifier)` raises ValueError (e.g. \"²\"), and the core versions are equal so the prerelease comparison is reached."
+      ]
+    },
+    {
+      "name": "semver.version.Version.compare",
+      "signature": "def compare(self, other: Comparable) -> int",
+      "behavior": "Compare this Version with another Version (or string, dict, tuple, list). First compare major, minor, patch as integers. If they differ, return -1, 0, or 1 accordingly. If core versions are equal, compare prerelease using `self._nat_cmp(self.prerelease, other.prerelease)`. If prerelease comparison returns non‑zero, return that. If both prereleases are equal (or both None/empty), return 0. If one has a prerelease and the other does not, the one with prerelease is smaller (return -1 if self has prerelease, 1 otherwise). Build metadata is ignored. The method must propagate any `ValueError` raised by `_nat_cmp`.",
+      "error_cases": [
+        "TypeError: if `other` is not a Version, str, bytes, dict, tuple, or list.",
+        "ValueError: propagated from `_nat_cmp` when an identifier with `str.isdigit() == True` fails `int()` conversion and core versions are equal."
+      ]
+    },
+    {
+      "name": "semver.version.Version.parse",
+      "signature": "@classmethod def parse(cls: Type[T], version: String, optional_minor_and_patch: bool = False) -> T",
+      "behavior": "Parse a version string according to the SemVer specification (with optional minor and patch). Must reject non‑canonical prerelease identifiers such as leading zeros (\"01\"), non‑ASCII digits (\"١٢\", \"１２\"), or empty identifiers (\"01.2\") with ValueError. This method must remain unchanged.",
+      "error_cases": [
+        "ValueError: if version string is not a valid SemVer string (including non‑canonical prerelease)."
+      ]
+    },
+    {
+      "name": "semver.version.Version.is_valid",
+      "signature": "@classmethod def is_valid(cls, version: str) -> bool",
+      "behavior": "Return True if `Version.parse(version)` succeeds, False otherwise. Must remain unchanged.",
+      "error_cases": []
+    },
+    {
+      "name": "semver.version.Version.__init__",
+      "signature": "def __init__(self, major: int, minor: int, patch: int, prerelease: Optional[str] = None, build: Optional[str] = None)",
+      "behavior": "Construct a Version instance storing the given parts exactly as provided. Prerelease and build are stored as given (including leading zeros, non‑ASCII digits, etc.). No validation of prerelease format is performed. This behaviour must remain unchanged.",
+      "error_cases": [
+        "ValueError: if major, minor, or patch are negative."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "With v = \"0.0.0-\" + \"1\" * 5000: Version.is_valid(v) is True; Version.parse(v).compare(v) == 0; Version.parse(v).compare(\"0.0.0-2\") == 1 and Version.parse(\"0.0.0-2\").compare(v) == -1 (no ValueError).",
+    "Ordering of long numeric prereleases with Version.parse(\"0.0.0-\" + x): \"9\" * 4999 < \"1\" + \"0\" * 4999; \"1\" + \"0\" * 4998 + \"1\" < \"1\" + \"0\" * 4998 + \"2\"; \"1\" * 5000 < \"alpha\"; \"alpha.\" + \"1\" * 5000 < \"alpha.\" + \"1\" * 5000 + \".1\". For each pair low.compare(high) == -1, high.compare(low) == 1 and sorted([high, low]) == [low, high].",
+    "Build metadata is ignored and release order is preserved: with version = Version.parse(\"0.0.0-\" + \"1\" * 5000), version == version.replace(build=\"other\") and version < Version(0, 0, 0).",
+    "Constructor prereleases compare with legacy rules, as Version(0, 0, 0, prerelease=left).compare(Version(0, 0, 0, prerelease=right)): (\"0001\", \"1\") -> 0; (\"000\", \"0\") -> 0; (\"02\", \"10\") -> -1; (\"01.2\", \"1.2\") -> 0; (\"2a\", \"10a\") -> 1; (\"01a\", \"1a\") -> -1; (\"-1\", \"0\") -> 1; (\"\", None) -> 0; (\"\\u0661\\u0662\", \"12\") -> 0; (\"\\uff11\\uff12\", \"13\") -> -1; (\"1\\u0662\", \"12\") -> 0; (\"\\u0660\\u0660\\u0661\", \"1\") -> 0. The reverse comparison gives the negated result and both .prerelease attributes are stored as given.",
+    "Version.parse(\"0.0.0-\" + p) raises ValueError for p in (\"01\", \"01.2\", \"\\u0661\\u0662\", \"\\uff11\\uff12\").",
+    "Version(0, 0, 0, prerelease=left).compare(Version(0, 0, 0, prerelease=right)) raises ValueError for (left, right) in ((\"\\u00b2\", \"2\"), (\"a.\\u00b2\", \"b.0\"), (\"a.0\", \"b.\\u00b2\")).",
+    "Version(0, 0, 0, prerelease=\"\\u00b2\") < Version(1, 0, 0, prerelease=\"\\u00b2\") is True (core comparison decides before prerelease is examined).",
+    "The existing pytest suite in tests/ passes unchanged."
+  ],
+  "out_of_scope": [
+    "Do not modify Version.parse, Version.is_valid, or any parsing/validation logic.",
+    "Do not modify the optional native parser (Rust backend).",
+    "Do not modify any test files, documentation, packaging files (pyproject.toml, setup.cfg, etc.), or changelog fragments.",
+    "Do not change the public API surface (signatures, exported names).",
+    "Do not alter build metadata handling, prerelease storage, or core version comparison.",
+    "Do not change the behaviour of Version.__init__ regarding acceptance of non‑canonical prerelease identifiers."
+  ],
+  "external_references_needed": []
+}

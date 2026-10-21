@@ -1,0 +1,65 @@
+--- a/durationkit/parse.py
++++ b/durationkit/parse.py
+@@ -2,14 +2,56 @@
+ 
+ 
+ def parse_duration(text: str) -> float:
+-    """Parse a duration string and return the number of seconds as a float.
++    """Parse a duration string and return the total number of seconds as a float.
+ 
+-    Only a plain non-negative integer number of seconds is accepted at the
+-    moment, for example ``"90"``. Surrounding whitespace is ignored.
++    Accepts a plain non-negative integer (seconds) or a sequence of components
++    like ``"1h30m"``, ``"2d4h"``, etc. Components must be in descending order
++    of units (d > h > m > s > ms) and each unit may appear at most once.
++    Whitespace is allowed around the string and between components.
+     """
+     if not isinstance(text, str):
+         raise TypeError("duration must be a string")
+     stripped = text.strip()
+-    if not stripped.isdigit():
+-        raise ValueError(f"unsupported duration: {text!r}")
+-    return float(stripped)
++    if not stripped:
++        raise ValueError("empty duration string")
++    tokens = stripped.split()
++    if not tokens:
++        raise ValueError("empty duration string")
++    unit_info = {
++        'd': (86400.0, 0),
++        'h': (3600.0, 1),
++        'm': (60.0, 2),
++        's': (1.0, 3),
++        'ms': (0.001, 4),
++    }
++    total = 0.0
++    seen_units = set()
++    prev_rank = -1
++    for token in tokens:
++        if token.endswith('ms'):
++            unit = 'ms'
++            number_part = token[:-2]
++        elif token[-1] in 'dhms':
++            unit = token[-1]
++            number_part = token[:-1]
++        else:
++            unit = None
++            number_part = token
++        if unit is None:
++            if len(tokens) != 1:
++                raise ValueError("number without unit in multi-component string")
++            if not number_part.isdigit():
++                raise ValueError(f"invalid number: {number_part!r}")
++            total += int(number_part)
++            continue
++        if number_part == '' or not number_part.isdigit():
++            raise ValueError(f"missing or invalid number for unit {unit!r}")
++        if unit in seen_units:
++            raise ValueError(f"repeated unit: {unit}")
++        factor, rank = unit_info[unit]
++        if rank <= prev_rank:
++            raise ValueError(f"units out of descending order: {unit}")
++        seen_units.add(unit)
++        prev_rank = rank
++        total += int(number_part) * factor
++    return float(total)

@@ -1,0 +1,312 @@
+{
+  "applied": true,
+  "validated_modules": [
+    "adversarial"
+  ],
+  "cleared": true,
+  "all_corrected": true,
+  "counts": {
+    "implementation_bug": 0,
+    "test_defect": 2,
+    "contract_dispute": 0
+  },
+  "headline": "all 2 failing generated test(s) classified as test defects; the corrected tests pass on the candidate and discriminate (1 of 2 corrected test(s) fail on the unmodified base with an authentic result); the affected gate(s) are re-run on the corrected modules",
+  "modules": [
+    {
+      "module": "adversarial",
+      "classifications": [
+        {
+          "test_id": "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+          "classification": "test_defect",
+          "defect_kind": "wrong_expectation",
+          "rationale": "The test expects 'e-' but the contract requires stripping trailing hyphens. The combining mark becomes a hyphen, but it is trailing and should be removed, yielding 'e'.",
+          "contract_basis": "Contract: 'Remove any leading or trailing hyphens from the result.'"
+        },
+        {
+          "test_id": "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string",
+          "classification": "test_defect",
+          "defect_kind": "other",
+          "rationale": "The test contains a typo: 'slugize' instead of 'slugify', causing a NameError. The intended test is valid but the test code is defective.",
+          "contract_basis": "Contract does not specify test code; the test must correctly call the function."
+        }
+      ],
+      "corrected_notes": "Fixed test_unicode_combining_marks to expect 'e' because trailing hyphens are stripped per contract. Fixed test_null_bytes_in_string by correcting the function name from 'slugize' to 'slugify'.",
+      "corrected_module": "arbitration/adversarial_corrected.py",
+      "candidate_rerun": {
+        "summary_line": "OK (7 of 7 methods, each in its own process)",
+        "all_passed": true,
+        "binding_ok": true,
+        "operation_uuid": "01a15c6e-dde0-76f2-a78a-65d4d4631243"
+      },
+      "base_rerun": {
+        "summary_line": "FAILED (4 of 7 methods: FAIL 4)",
+        "failing": 4,
+        "nonce": "8c1f84993e67a9cfcdcd01f533cadc4c",
+        "expected_ids": [
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+          "test_breaker.TestSlugifyBreaker.test_emoji_separators",
+          "test_breaker.TestSlugifyBreaker.test_multiple_emoji_and_symbols",
+          "test_breaker.TestSlugifyBreaker.test_very_long_input",
+          "test_breaker.TestSlugifyBreaker.test_mixed_ascii_and_nonascii_with_digits",
+          "test_breaker.TestSlugifyBreaker.test_leading_trailing_nonascii_only",
+          "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string"
+        ],
+        "binding": {
+          "ok": false,
+          "checks": {
+            "result_file_present": true,
+            "sealed_file_unchanged_before": true,
+            "sealed_file_unchanged_after": true,
+            "static_ids_match_red": true,
+            "supervisor_completed": true,
+            "verifier_isolation_active": true,
+            "supervisor_cleanup_complete": true,
+            "nonce_matches": true,
+            "no_discovery_error": true,
+            "expected_test_ids_present": true,
+            "no_unexpected_test_ids": true,
+            "no_nonzero_exit": false,
+            "no_signal": true,
+            "no_timeout": true,
+            "no_missing_or_forged_result": true,
+            "all_expected_pass": false,
+            "no_startup_hooks_on_import_path": true,
+            "canary_must_pass_ok": true,
+            "canary_must_fail_failed": true
+          },
+          "reasons": [
+            "child process nonzero exit: test_unicode_combining_marks exit 1, test_multiple_emoji_and_symbols exit 1, test_very_long_input exit 1, test_leading_trailing_nonascii_only exit 1"
+          ]
+        },
+        "structural_problems": [],
+        "outcomes": {
+          "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string": "green",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks": "red"
+        },
+        "corrected_tests_failing_on_base": [
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks"
+        ],
+        "discrimination": "1 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+        "untrusted": null,
+        "operation_uuid": "01a15c6e-f57b-75f4-a61e-28ab30ae3eff"
+      },
+      "mutant_reruns": [],
+      "cleared_module": true,
+      "validated": true,
+      "corrected": {
+        "path": "arbitration/adversarial_corrected.py",
+        "sha256": "f1d4c9cc7c35aca26d0e110e6fcaf95395e83fbf2384afa23456a5fbd845c75d",
+        "expected_ids": [
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+          "test_breaker.TestSlugifyBreaker.test_emoji_separators",
+          "test_breaker.TestSlugifyBreaker.test_multiple_emoji_and_symbols",
+          "test_breaker.TestSlugifyBreaker.test_very_long_input",
+          "test_breaker.TestSlugifyBreaker.test_mixed_ascii_and_nonascii_with_digits",
+          "test_breaker.TestSlugifyBreaker.test_leading_trailing_nonascii_only",
+          "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string"
+        ],
+        "changed_tests": [
+          "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks"
+        ],
+        "summary": {
+          "ran": 7,
+          "tests": [
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.195,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_emoji_separators",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.171,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_multiple_emoji_and_symbols",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.17,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_very_long_input",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.17,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_mixed_ascii_and_nonascii_with_digits",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.169,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_leading_trailing_nonascii_only",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.17,
+              "captured_tail": "",
+              "failure_tail": ""
+            },
+            {
+              "id": "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string",
+              "outcome": "ok",
+              "events": 1,
+              "exit_code": 0,
+              "signal": null,
+              "timed_out": false,
+              "duration_s": 0.17,
+              "captured_tail": "",
+              "failure_tail": ""
+            }
+          ],
+          "passed": 7,
+          "failing": 0,
+          "subtest_events": 0,
+          "import_error": null,
+          "all_passed": true,
+          "canary_ok": true,
+          "summary_line": "OK (7 of 7 methods, each in its own process)",
+          "operation_uuid": "01a15c6e-dde0-76f2-a78a-65d4d4631243",
+          "nonce": "0126828a0571e29fb3c5838e125645c4",
+          "supervisor_exit_code": 0,
+          "runner_error": null
+        },
+        "binding": {
+          "ok": true,
+          "checks": {
+            "result_file_present": true,
+            "sealed_file_unchanged_before": true,
+            "sealed_file_unchanged_after": true,
+            "static_ids_match_red": true,
+            "supervisor_completed": true,
+            "verifier_isolation_active": true,
+            "supervisor_cleanup_complete": true,
+            "nonce_matches": true,
+            "no_discovery_error": true,
+            "expected_test_ids_present": true,
+            "no_unexpected_test_ids": true,
+            "no_nonzero_exit": true,
+            "no_signal": true,
+            "no_timeout": true,
+            "no_missing_or_forged_result": true,
+            "all_expected_pass": true,
+            "no_startup_hooks_on_import_path": true,
+            "canary_must_pass_ok": true,
+            "canary_must_fail_failed": true
+          },
+          "reasons": []
+        },
+        "nonce": "0126828a0571e29fb3c5838e125645c4",
+        "operation_uuid": "01a15c6e-dde0-76f2-a78a-65d4d4631243",
+        "discrimination": "1 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+        "base_rerun": {
+          "summary_line": "FAILED (4 of 7 methods: FAIL 4)",
+          "failing": 4,
+          "nonce": "8c1f84993e67a9cfcdcd01f533cadc4c",
+          "expected_ids": [
+            "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+            "test_breaker.TestSlugifyBreaker.test_emoji_separators",
+            "test_breaker.TestSlugifyBreaker.test_multiple_emoji_and_symbols",
+            "test_breaker.TestSlugifyBreaker.test_very_long_input",
+            "test_breaker.TestSlugifyBreaker.test_mixed_ascii_and_nonascii_with_digits",
+            "test_breaker.TestSlugifyBreaker.test_leading_trailing_nonascii_only",
+            "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string"
+          ],
+          "binding": {
+            "ok": false,
+            "checks": {
+              "result_file_present": true,
+              "sealed_file_unchanged_before": true,
+              "sealed_file_unchanged_after": true,
+              "static_ids_match_red": true,
+              "supervisor_completed": true,
+              "verifier_isolation_active": true,
+              "supervisor_cleanup_complete": true,
+              "nonce_matches": true,
+              "no_discovery_error": true,
+              "expected_test_ids_present": true,
+              "no_unexpected_test_ids": true,
+              "no_nonzero_exit": false,
+              "no_signal": true,
+              "no_timeout": true,
+              "no_missing_or_forged_result": true,
+              "all_expected_pass": false,
+              "no_startup_hooks_on_import_path": true,
+              "canary_must_pass_ok": true,
+              "canary_must_fail_failed": true
+            },
+            "reasons": [
+              "child process nonzero exit: test_unicode_combining_marks exit 1, test_multiple_emoji_and_symbols exit 1, test_very_long_input exit 1, test_leading_trailing_nonascii_only exit 1"
+            ]
+          },
+          "structural_problems": [],
+          "outcomes": {
+            "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string": "green",
+            "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks": "red"
+          },
+          "corrected_tests_failing_on_base": [
+            "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks"
+          ],
+          "discrimination": "1 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+          "untrusted": null,
+          "operation_uuid": "01a15c6e-f57b-75f4-a61e-28ab30ae3eff"
+        },
+        "mutant_reruns": [],
+        "original_sha256": "8bfeaabf1abe6af13d3df4b0eb6658f9b74c4dbc26814746f285425e0a07579f",
+        "original_failing": [
+          "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks"
+        ]
+      },
+      "sealed_assertion_hold": false,
+      "error": null,
+      "classification_ids_ok": true,
+      "scope_problems": []
+    }
+  ],
+  "rule": "a correction counts only when it keeps every test method, changes only the bodies of the failing ones (imports may be added, nothing existing may be rebound), is classified for exactly the failing tests, passes on the candidate under the supervisor and still discriminates with authentic, structurally sound results (every corrected sealed test fails on the unmodified base; a corrected adversarial test fails on the base or catches a validly killed mutant of the patch); a sealed test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected); a validated correction re-runs its gate and the verdict is derived from the gates",
+  "note": "original tests, results and reasons are preserved unchanged; the arbiter's classification alone never changes a gate",
+  "applied_to_gates": [
+    {
+      "gate": "adversarial_tests",
+      "module": "adversarial",
+      "corrected_sha256": "f1d4c9cc7c35aca26d0e110e6fcaf95395e83fbf2384afa23456a5fbd845c75d",
+      "changed_tests": [
+        "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string",
+        "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks"
+      ],
+      "discrimination": "1 of 2 corrected test(s) fail on the unmodified base with an authentic result"
+    }
+  ]
+}

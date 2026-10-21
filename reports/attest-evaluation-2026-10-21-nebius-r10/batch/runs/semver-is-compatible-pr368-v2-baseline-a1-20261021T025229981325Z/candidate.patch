@@ -1,0 +1,38 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -681,6 +681,35 @@
+             )
+             raise TypeError(error)
+ 
++    def is_compatible(self, other) -> bool:
++        """Return True if `other` is compatible with `self`.
++
++        Two versions are compatible when their majors are equal, the minor of
++        `other` is greater than or equal to the minor of `self`, and their
++        prerelease parts are equal (both absent counts as equal). The patch
++        part is ignored. Versions with major 0 are special: a major-0 version
++        is compatible only with a version that is identical in major, minor,
++        patch and prerelease.
++
++        If `other` is not a Version (instances of Version subclasses are
++        fine) raise TypeError with the message 'Expected a Version type but
++        got <type of other>' (for example "Expected a Version type but got
++        <class 'str'>"); the message must start with 'Expected a Version type '
++        followed by the words 'but got' and the type.
++
++        Examples:
++        >>> Version(1, 2, 3).is_compatible(Version(1, 2, 3))
++        True
++        >>> Version(1, 2, 3).is_compatible(Version(1, 2, 4))
++        True
++        """
++        if not isinstance(other, Version):
++            raise TypeError(f"Expected a Version type but got {type(other)}")
++        if self.major == 0:
++            return (self.major, self.minor, self.patch, self.prerelease) == (other.major, other.minor, other.patch, other.prerelease)
++        return self.major == other.major and other.minor >= self.minor and self.prerelease == other.prerelease
++
++
+     @classmethod
+     def isvalid(cls, version: str) -> bool:
+         """

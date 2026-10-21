@@ -1,0 +1,348 @@
+{
+  "mutation": {
+    "generated": 0,
+    "evaluated": 0,
+    "killed": 0,
+    "survived": 0,
+    "unknown": 0,
+    "score": null,
+    "threshold": 0.5,
+    "mutants": [],
+    "policy": "a mutant is killed only when at least one expected sealed test failed with an authentic child result (exit code 1 and a FAIL or ERROR report bound to the nonce) under a structurally sound supervisor run (completed, isolated, nonce and digests intact, the expected test ids and nothing else, no lost, forged or mismatched result, no crash, no start-up hook); it survived only when every expected test passed authentically; a run with any structural problem, untrusted record or timed-out test is unknown and excluded from the score"
+  },
+  "adversarial": {
+    "sha256": "c5e881e28387de2d91019e91ca875360b1b60af3acc10b7af989cc81872eecce",
+    "author_model": "nvidia/nemotron-3-super-120b-a12b",
+    "author_role": "break",
+    "attempts": 1,
+    "escalated": false,
+    "expected_ids": [
+      "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+      "test_breaker.TestSlugifyBreaker.test_multiple_internal_non_alnum_runs",
+      "test_breaker.TestSlugifyBreaker.test_leading_trailing_mix",
+      "test_breaker.TestSlugifyBreaker.test_digits_only",
+      "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+      "test_breaker.TestSlugifyBreaker.test_return_type_is_str",
+      "test_breaker.TestSlugifyBreaker.test_non_ascii_letter_separator"
+    ],
+    "summary": {
+      "ran": 7,
+      "tests": [
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+          "outcome": "FAIL",
+          "events": 1,
+          "exit_code": 1,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.182,
+          "captured_tail": "",
+          "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/breaker/test_breaker.py\", line 6, in test_unicode_combining_accents\n    self.assertEqual(slugify('e\\u0301'), '')  # e + combining acute => no ascii alnum\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 'e' != ''\n- e\n\n"
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_multiple_internal_non_alnum_runs",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_leading_trailing_mix",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.172,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_digits_only",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.18,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+          "outcome": "FAIL",
+          "events": 1,
+          "exit_code": 1,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.174,
+          "captured_tail": "",
+          "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/breaker/test_breaker.py\", line 15, in test_long_string_performance\n    self.assertEqual(slugify(s), 'a' + '-'*1 + 'b')\nAssertionError: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa[9955 chars]bbbb' != 'a-b'\nDiff is 10011 characters long. Set self.maxDiff to None to see it.\n"
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_return_type_is_str",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.172,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_non_ascii_letter_separator",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        }
+      ],
+      "passed": 5,
+      "failing": 2,
+      "subtest_events": 0,
+      "import_error": null,
+      "all_passed": false,
+      "canary_ok": true,
+      "summary_line": "FAILED (2 of 7 methods: FAIL 2)",
+      "operation_uuid": "01a15c6d-89f2-713a-9bf5-d53d937dbd9e",
+      "nonce": "cefcb3f6a29c2029e3428186e2ece91f",
+      "supervisor_exit_code": 1,
+      "runner_error": null
+    },
+    "binding": {
+      "ok": false,
+      "checks": {
+        "result_file_present": true,
+        "sealed_file_unchanged_before": true,
+        "sealed_file_unchanged_after": true,
+        "static_ids_match_red": true,
+        "supervisor_completed": true,
+        "verifier_isolation_active": true,
+        "supervisor_cleanup_complete": true,
+        "nonce_matches": true,
+        "no_discovery_error": true,
+        "expected_test_ids_present": true,
+        "no_unexpected_test_ids": true,
+        "no_nonzero_exit": false,
+        "no_signal": true,
+        "no_timeout": true,
+        "no_missing_or_forged_result": true,
+        "all_expected_pass": false,
+        "no_startup_hooks_on_import_path": true,
+        "canary_must_pass_ok": true,
+        "canary_must_fail_failed": true
+      },
+      "reasons": [
+        "child process nonzero exit: test_unicode_combining_accents exit 1, test_long_string_performance exit 1"
+      ]
+    },
+    "notes": "Targeted edge cases: combining accents, multiple separator runs, leading/trailing hyphens, digits-only, long input, return type, non-ASCII letter as separator.",
+    "operation_uuid": "01a15c6d-89f2-713a-9bf5-d53d937dbd9e",
+    "corrected": {
+      "path": "arbitration/adversarial_corrected.py",
+      "sha256": "8049f82958bc0caad01d6a5451a4816536a8e4cd3332d4e8c732844d92a7add1",
+      "expected_ids": [
+        "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+        "test_breaker.TestSlugifyBreaker.test_multiple_internal_non_alnum_runs",
+        "test_breaker.TestSlugifyBreaker.test_leading_trailing_mix",
+        "test_breaker.TestSlugifyBreaker.test_digits_only",
+        "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+        "test_breaker.TestSlugifyBreaker.test_return_type_is_str",
+        "test_breaker.TestSlugifyBreaker.test_non_ascii_letter_separator"
+      ],
+      "changed_tests": [
+        "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+        "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents"
+      ],
+      "summary": {
+        "ran": 7,
+        "tests": [
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.181,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_multiple_internal_non_alnum_runs",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.172,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_leading_trailing_mix",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.172,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_digits_only",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.174,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.172,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_return_type_is_str",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.172,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_non_ascii_letter_separator",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.172,
+            "captured_tail": "",
+            "failure_tail": ""
+          }
+        ],
+        "passed": 7,
+        "failing": 0,
+        "subtest_events": 0,
+        "import_error": null,
+        "all_passed": true,
+        "canary_ok": true,
+        "summary_line": "OK (7 of 7 methods, each in its own process)",
+        "operation_uuid": "01a15c6d-e4f8-7558-9e20-e6dd7c5f6aef",
+        "nonce": "e14976f4c7441d38ee4638246304e00c",
+        "supervisor_exit_code": 0,
+        "runner_error": null
+      },
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "sealed_file_unchanged_before": true,
+          "sealed_file_unchanged_after": true,
+          "static_ids_match_red": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "supervisor_cleanup_complete": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "nonce": "e14976f4c7441d38ee4638246304e00c",
+      "operation_uuid": "01a15c6d-e4f8-7558-9e20-e6dd7c5f6aef",
+      "discrimination": "2 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+      "base_rerun": {
+        "summary_line": "FAILED (5 of 7 methods: FAIL 5)",
+        "failing": 5,
+        "nonce": "87b9b6c645704327f4454829911e0acd",
+        "expected_ids": [
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents",
+          "test_breaker.TestSlugifyBreaker.test_multiple_internal_non_alnum_runs",
+          "test_breaker.TestSlugifyBreaker.test_leading_trailing_mix",
+          "test_breaker.TestSlugifyBreaker.test_digits_only",
+          "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+          "test_breaker.TestSlugifyBreaker.test_return_type_is_str",
+          "test_breaker.TestSlugifyBreaker.test_non_ascii_letter_separator"
+        ],
+        "binding": {
+          "ok": false,
+          "checks": {
+            "result_file_present": true,
+            "sealed_file_unchanged_before": true,
+            "sealed_file_unchanged_after": true,
+            "static_ids_match_red": true,
+            "supervisor_completed": true,
+            "verifier_isolation_active": true,
+            "supervisor_cleanup_complete": true,
+            "nonce_matches": true,
+            "no_discovery_error": true,
+            "expected_test_ids_present": true,
+            "no_unexpected_test_ids": true,
+            "no_nonzero_exit": false,
+            "no_signal": true,
+            "no_timeout": true,
+            "no_missing_or_forged_result": true,
+            "all_expected_pass": false,
+            "no_startup_hooks_on_import_path": true,
+            "canary_must_pass_ok": true,
+            "canary_must_fail_failed": true
+          },
+          "reasons": [
+            "child process nonzero exit: test_unicode_combining_accents exit 1, test_multiple_internal_non_alnum_runs exit 1, test_leading_trailing_mix exit 1, test_digits_only exit 1, test_long_string_performance exit 1"
+          ]
+        },
+        "structural_problems": [],
+        "outcomes": {
+          "test_breaker.TestSlugifyBreaker.test_long_string_performance": "red",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents": "red"
+        },
+        "corrected_tests_failing_on_base": [
+          "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents"
+        ],
+        "discrimination": "2 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+        "untrusted": null,
+        "operation_uuid": "01a15c6d-ff0f-7646-93ea-d0592faa6fc4"
+      },
+      "mutant_reruns": [],
+      "original_sha256": "c5e881e28387de2d91019e91ca875360b1b60af3acc10b7af989cc81872eecce",
+      "original_failing": [
+        "test_breaker.TestSlugifyBreaker.test_long_string_performance",
+        "test_breaker.TestSlugifyBreaker.test_unicode_combining_accents"
+      ]
+    }
+  }
+}

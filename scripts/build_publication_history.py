@@ -16,11 +16,15 @@ its history, commit by commit, into a separate repository:
   manifest of a redacted run copy is the export's own derived manifest, and REDACTION.json is listed in it); nothing else in it changes,
   and a manifest whose JSON would not round-trip byte for byte is refused rather than rewritten;
 - everything else (the package, the harness, the examples, the bundles' evidence) is byte-identical, so every digest a pin or a report
-  records stays valid in the publication history, and `--verify` proves it.
+  records stays valid in the publication history, and `--verify` proves it;
+- with `--identity "Name <email>"` (21 Oct 2026, the owner's decision for the published history) every commit's author and committer
+  name and email become that identity and nothing else changes: the dates, the time zones and the messages are kept, so the replay stays
+  deterministic, and `--verify` checks that no commit carries another identity. Without it every identity is kept as recorded.
 
 Nothing is pushed; the result is a local repository whose only branch is `main`.
 
-Usage: build_publication_history.py --review dist/public --out dist/publication [--rev main] [--map OUT.json] [--verify REPORT.json]
+Usage: build_publication_history.py --review dist/public --out dist/publication [--rev main] [--identity "Name <email>"] [--map OUT.json]
+       [--verify REPORT.json]
 """
 
 from __future__ import annotations
@@ -158,6 +162,23 @@ def parse_commit(raw: bytes) -> dict:
     return {"author": fields["author"], "committer": fields["committer"], "message": message}
 
 
+IDENTITY_RE = re.compile(r"[^<>\n]+ <[^<>\s]+@[^<>\s]+>")
+IDENT_LINE_RE = re.compile(rb"(.*) <([^<>]*)> (\d+ [+-]\d{4})")
+
+
+def with_identity(value: bytes, identity: str) -> bytes:
+    """An author or committer header value ("Name <email> <seconds> <zone>") with its name and email replaced; the time is kept."""
+    match = IDENT_LINE_RE.fullmatch(value)
+    if not match:
+        raise SystemExit(f"refusing: an author or committer line that does not parse: {value[:80]!r}")
+    return identity.encode("utf-8") + b" " + match.group(3)
+
+
+def identity_of(value: bytes) -> str:
+    match = IDENT_LINE_RE.fullmatch(value)
+    return (match.group(1) + b" <" + match.group(2) + b">").decode("utf-8", "replace") if match else value.decode("utf-8", "replace")
+
+
 def manifest_rewrite(data: bytes, rewritten: dict[str, tuple[str, int]]) -> bytes | None:
     """The manifest with the digest and size of every listed file that was rewritten replaced, and its total recomputed; None when it
     lists none. Refuses (raises) a manifest whose JSON does not round-trip byte for byte."""
@@ -182,7 +203,9 @@ def manifest_rewrite(data: bytes, rewritten: dict[str, tuple[str, int]]) -> byte
     return json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8") + b"\n"
 
 
-def build(review: Path, out: Path, rev: str) -> dict:
+def build(review: Path, out: Path, rev: str, identity: str | None = None) -> dict:
+    if identity is not None and not IDENTITY_RE.fullmatch(identity):
+        raise SystemExit(f"refusing: --identity must read 'Name <email>', not {identity!r}")
     hosts = list(EXPORT.PRIVATE_HOSTS)
     if not hosts:
         raise SystemExit("refusing: no private host is configured, so nothing would be known to remove (see scan_publication_history.py)")
@@ -237,6 +260,8 @@ def build(review: Path, out: Path, rev: str) -> dict:
     commit_marks = []
     for commit in order:
         meta = parse_commit(objects.read(commit))
+        if identity is not None:
+            meta["author"], meta["committer"] = with_identity(meta["author"], identity), with_identity(meta["committer"], identity)
         entries = trees[commit]
         before = trees[previous] if previous else {}
         lines = bytearray()
@@ -272,7 +297,7 @@ def build(review: Path, out: Path, rev: str) -> dict:
     rewrites = [{"review_blob": sha, "publication_blob": git_blob_sha(replaced[sha]), "paths": sorted(p.decode("utf-8", "replace") for p in blob_paths[sha]),
                  "kind": "derived manifest (rewritten entries)" if sha in manifests else "private string removed (the export's redaction)"}
                 for sha in sorted(replaced)]
-    return {"review": str(review), "publication": str(out), "rev": rev, "commits": len(order), "map": mapping, "rewritten_blobs": rewrites,
+    return {"review": str(review), "publication": str(out), "rev": rev, "identity": identity, "commits": len(order), "map": mapping, "rewritten_blobs": rewrites,
             "rewritten_counts": {"sanitized": len(sanitized), "manifests": len(manifests)}, "dangling_digest_references": references,
             "placeholder_host": PLACEHOLDER_HOST}
 
@@ -308,7 +333,7 @@ def package_digest(repo: Path, commit: str) -> dict:
 def verify(review: Path, out: Path, result: dict, pinned: list[str]) -> dict:
     """The publication history is clean, differs from the review history exactly by the listed rewrites, keeps every pinned digest,
     and every bundle whose derived manifest changed still passes `attest check` at every commit where it changed."""
-    report = {"scan": None, "commits_checked": 0, "unexpected_differences": [], "pins": [], "bundles_rechecked": [], "ok": False}
+    report = {"scan": None, "commits_checked": 0, "unexpected_differences": [], "pins": [], "bundles_rechecked": [], "identity": None, "ok": False}
     hosts = list(EXPORT.PRIVATE_HOSTS)
     scan = SCAN.scan(out, SCAN.Scanner(hosts, EXPORT.SCAN_PATTERNS, EXPORT.SCAN_SENTINELS))
     report["scan"] = {"objects": scan["objects"], "by_type": scan["by_type"], "hits": len(scan["hits"]), "ref_hits": len(scan["refs"]), "clean": scan["ok"]}
@@ -328,6 +353,18 @@ def verify(review: Path, out: Path, result: dict, pinned: list[str]) -> dict:
             elif sha != other_sha and path.endswith(b"manifest.json"):
                 changed_dirs.setdefault(pair["publication"], set()).add(str(Path(path.decode()).parent))
     by_review = {p["review"]: p["publication"] for p in result["map"]}
+    # every publication commit's author and committer: the given identity, or exactly the review commit's when none was given
+    others = []
+    for pair in result["map"]:
+        mine = parse_commit(git(out, "cat-file", "commit", pair["publication"]))
+        theirs = parse_commit(git(review, "cat-file", "commit", pair["review"]))
+        for role in ("author", "committer"):
+            expected = with_identity(theirs[role], result["identity"]) if result.get("identity") else theirs[role]
+            if mine[role] != expected:
+                others.append({"publication": pair["publication"], role: identity_of(mine[role])})
+        if mine["message"] != theirs["message"]:
+            others.append({"publication": pair["publication"], "message": "differs from the review commit's"})
+    report["identity"] = {"expected": result.get("identity") or "as recorded", "commits": len(result["map"]), "mismatches": others}
     for commit in pinned:
         full = git(review, "rev-parse", commit).decode().strip()
         if full not in by_review:
@@ -357,7 +394,7 @@ def verify(review: Path, out: Path, result: dict, pinned: list[str]) -> dict:
                                                         "warnings": outcome["warnings"]})
             finally:
                 git(out, "worktree", "remove", "--force", str(worktree))
-    report["ok"] = (report["scan"]["clean"] and not report["unexpected_differences"] and all(p.get("equal") for p in report["pins"])
+    report["ok"] = (report["scan"]["clean"] and not report["unexpected_differences"] and all(p.get("equal") for p in report["pins"]) and not others
                     and all(b["ok"] for b in report["bundles_rechecked"]) and not result["dangling_digest_references"])
     return report
 
@@ -370,11 +407,12 @@ def main(argv=None) -> int:
     parser.add_argument("--map", help="write the build record (commit map, rewritten blobs) here")
     parser.add_argument("--verify", help="verify the result and write the report here")
     parser.add_argument("--pin", action="append", default=[], help="a review commit whose package, harness and METHOD digests must survive (repeatable)")
+    parser.add_argument("--identity", help='"Name <email>": the author and committer of every publication commit (dates kept); default: as recorded')
     args = parser.parse_args(argv)
     review, out = Path(args.review).resolve(), Path(args.out).resolve()
     if out == review or review in out.parents:
         raise SystemExit("refusing: the publication repository must be a separate directory")
-    result = build(review, out, args.rev)
+    result = build(review, out, args.rev, args.identity)
     print(f"replayed {result['commits']} commits into {out}: {result['rewritten_counts']['sanitized']} blob(s) with a private string rewritten, "
           f"{result['rewritten_counts']['manifests']} derived manifest(s) recomputed; review {result['map'][-1]['review'][:12]} -> publication "
           f"{result['map'][-1]['publication'][:12]}")
@@ -384,7 +422,8 @@ def main(argv=None) -> int:
         report = verify(review, out, result, args.pin)
         Path(args.verify).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(f"verify: scan {'CLEAN' if report['scan']['clean'] else 'NOT CLEAN'} ({report['scan']['objects']} objects); {report['commits_checked']} commits compared, "
-              f"{len(report['unexpected_differences'])} unexpected difference(s); pins {sum(1 for p in report['pins'] if p.get('equal'))}/{len(report['pins'])} "
+              f"{len(report['unexpected_differences'])} unexpected difference(s); identity {report['identity']['expected']} "
+              f"({len(report['identity']['mismatches'])} mismatch(es)); pins {sum(1 for p in report['pins'] if p.get('equal'))}/{len(report['pins'])} "
               f"digests equal; {len(report['bundles_rechecked'])} rewritten bundle(s) re-checked, {sum(1 for b in report['bundles_rechecked'] if not b['ok'])} failed; "
               f"{'OK' if report['ok'] else 'NOT OK'}")
         return 0 if report["ok"] else 1

@@ -64,7 +64,8 @@ ALLOW_REPORTS = ["attest-first-slice-2026-10-15", "attest-verification-2026-10-1
                  "attest-revision6-review-2026-10-19", "attest-revision6-repairs-2026-10-19", "attest-deployment-2026-10-19d",
                  "attest-revision7-repairs-2026-10-19", "attest-deployment-2026-10-19e", "attest-deployment-2026-10-19f", "attest-deployment-2026-10-19g", "attest-deployment-2026-10-19h",
                  "attest-revision9-repairs-2026-10-20", "attest-deployment-2026-10-20",
-                 "attest-revision10-repairs-2026-10-20", "attest-deployment-2026-10-20b"]  # the gateway operations report stays private (internal infrastructure)
+                 "attest-revision10-repairs-2026-10-20", "attest-deployment-2026-10-20b",
+                 "attest-validation-2026-10-21-nebius-r10", "attest-evaluation-2026-10-21-nebius-r10", "attest-deployment-2026-10-21"]  # the gateway operations report stays private (internal infrastructure)
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".venv", "snapshot", "screens", "refresh-sequence", "runs-private",
                 # the 19 Oct audit's synthetic bundles are deliberately defective (they fail `attest check` by design) and its
                 # synthetic work directory is scratch; the audit report describes both
@@ -80,7 +81,7 @@ EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".venv", "snapshot", "screens", 
 EXCLUDE_PATHS = {"reports/attest-revision-2026-10-19/evaluation-codex",
                  # revision 10: the host's disk inventories name the other services' and projects' directories, and the archive holds
                  # copies of server-side files taken before pruning; both stay in the private record (the README carries the figures)
-                 "reports/attest-revision10-repairs-2026-10-20/disk"}
+                 "reports/attest-revision10-repairs-2026-10-20/disk", "reports/attest-validation-2026-10-21-nebius-r10/disk"}
 MAX_FILE_BYTES = 2_000_000
 EXPORT_RECORD = "EXPORT.json"  # written at the root of every export; its presence marks a tree this tool produced
 
@@ -123,6 +124,10 @@ def host_pattern(host: str) -> str:
 STATIC_REDACTIONS = [
     ("development-gateway API key shape", re.compile(r"cxk_[A-Za-z0-9_\-]{6,}"), "[REDACTED-KEY]"),
     ("Tavily API key shape", re.compile(r"tvly-[A-Za-z0-9_\-]{6,}"), "[REDACTED-KEY]"),
+    # 21 Oct 2026 (owner decision): a development session's scratch directory spells the account name inside its own name
+    ("the author's session scratch path", re.compile(r"(?:/private)?/tmp/claude-\d+/-Users-[A-Za-z0-9_.]+?-Documents-project-interesting-devpost-nebiusAi"),
+     "/tmp/attest-session"),
+    ("an account name inside another scratch path", re.compile(r"(/tmp/claude-\d+/)-Users-[A-Za-z0-9_.]+?-"), r"\1-Users-author-"),
     ("the author's local project path", re.compile(r"/Users/[A-Za-z0-9_.\-]+/Documents/project/interesting/devpost/nebiusAi"), "/work/attest"),
     ("the author's home directory", re.compile(r"/Users/[A-Za-z0-9_.\-]+/"), "/home/author/"),
     ("the author's private notes vault name", re.compile(r"private vault"), "private vault"),
@@ -141,6 +146,7 @@ def redactions() -> list[tuple[str, re.Pattern, str]]:
 
 SCAN_PATTERNS = [re.compile(p) for p in (
     r"cxk_[A-Za-z0-9_\-]{6,}", r"tvly-[A-Za-z0-9_\-]{6,}", r"/Users/[A-Za-z0-9_.\-]+/",
+    r"/tmp/claude-\d+/-Users-(?!author-)[A-Za-z0-9_.]+-",                     # an account name inside a session scratch path
     r"(?i)api[_-]?key\s*[:=]\s*['\"][A-Za-z0-9_\-]{16,}", r"eyJ[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{10,}",
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----",                                   # PEM private keys of any kind
     r"(?i)authorization['\"]?[ \t]*:[ \t]*['\"]?bearer[ \t]+[A-Za-z0-9._\-]{16,}",       # a bearer token written out, not the header name alone

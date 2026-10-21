@@ -1,0 +1,826 @@
+{
+  "run_id": "balanced-brackets-baseline-a1-20261021T022242633410Z",
+  "started_at_utc": "2026-10-21T02:22:42.633914+00:00",
+  "finished_at_utc": "2026-10-21T02:23:38.082103+00:00",
+  "profile": {
+    "label": "eval-baseline-a1",
+    "provider": {
+      "provider": "nebius_tokenfactory",
+      "base_url": "https://api.tokenfactory.nebius.com/v1",
+      "roles": {
+        "spec": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "seal": "nvidia/nemotron-3-super-120b-a12b",
+        "implement": "nvidia/nemotron-3-super-120b-a12b",
+        "break": "nvidia/nemotron-3-super-120b-a12b",
+        "audit": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "summary": "nvidia/Nemotron-3_5-Lightning"
+      },
+      "usd_cap": 0.5,
+      "max_calls": 22,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "temperature": 0.2,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "response_format": "json_schema wrapper {name, schema, strict} (raw schema is rejected with 422 despite the docs)",
+      "schema_in_prompt": true,
+      "auto_retry": false,
+      "pre_request_reservation": true,
+      "transport_retry_policy": "a request that was never sent (its connection, proxy tunnel or TLS handshake failed before any byte of it was written) closes its reservation at a known $0 and is sent again at most 2 times after 2/6 s, each attempt under a new reservation, each recorded and counted against the call cap; a request whose bytes were written is never sent again (its reservation stays committed)",
+      "reservation_policy": "the USD reservation is journaled durably (fsync) and read back before dispatch, after any cut journal tail has been terminated with a journal_repair record; if it cannot be, the request is not sent and the run stops paid calls",
+      "metering_policy": "an HTTP 200 whose usage cannot price the generation (missing, empty, partial or malformed counters) keeps its reservation unsettled and stops further paid calls of the run pending reconciliation; explicit zero counters settle as 0",
+      "answer_policy": "HTTP 4xx: a definite rejection at a known $0; HTTP 5xx or a failure after the request was written: uncertain, the reservation stays committed, nothing is sent again and the run stops for reconciliation",
+      "call_cap_policy": "at most 22 model calls per run (failed calls and retries count); the call that would exceed it is refused before dispatch",
+      "halted": null,
+      "journal_degraded": null,
+      "journal_failures": 0,
+      "journal_repairs": 0,
+      "max_prompt_chars": 120000,
+      "max_tokens": 16000
+    },
+    "executor": {
+      "executor": "tf_sandboxes",
+      "base_url": "https://api.tokenfactory.nebius.com/sandboxes/v1",
+      "project_id": "aiproject-e00p460g3mgey447tt",
+      "journal_policy": "every operation is journaled as PENDING (fsync, read back) before its spawn is sent and its accepted id before the first poll; when either fails nothing further is dispatched and the run halts for reconciliation",
+      "answer_policy": "a spawn answered HTTP 4xx is REJECTED; HTTP 5xx, a 2xx without an operation id or a failure after the spawn was written is UNCERTAIN and halts the run; polls are retried (bounded) and an accepted operation whose outcome is not read is ACCEPTED_UNREAD; nothing is sent after the run halts",
+      "operation_uid_gid": [
+        0,
+        0
+      ],
+      "test_child_uid": 65534,
+      "privilege_separation": true,
+      "max_layer_bytes": 268435456,
+      "networking_enabled": false,
+      "transport": "base64 stdin JSON job -> guest runner (root); sealed tests run per-test as uid 65534",
+      "post_replay": false,
+      "retry_policy": "GET and DELETE retried on any transport failure (at most 4 times); a spawn sent again only when the attempt failed before any byte of it was written (at most 2 times); an uncertain spawn is never sent again; accepted operation ids are journaled before polling"
+    }
+  },
+  "provenance": {
+    "attest_version": "0.10.0",
+    "attest_revision": {
+      "method": "sha256 over the relative path and content of every attest/**/*.py, sorted",
+      "digest": "7e72364f135c45c8a69a3a59c9cba5c954ebbb843cc7752b76c8303550548cb6",
+      "files": 37,
+      "git_commit": "953ae59b8c8ef5e54bbadbf2fb2b940b8851fa3a",
+      "version": "0.10.0"
+    },
+    "supervisor": {
+      "version": "attest-sealed-supervisor/7",
+      "sha256": "97d3d47d1d5b4fed68c3349da14c0cdb06091ec61afa61699eac5b27315b1415"
+    },
+    "child_sha256": "e4e7b0b294a2004c4aebe7b1cb30afe0c2c500b3e5bb8ec6e675bd9f4142fffc",
+    "canary_sha256": "9cdc57c1348fae5c19e13a79bf15f69efde47c5be99cd6a926cfab11f68be0e3",
+    "guest_runner_sha256": "db8e2a76834b83ac69a3d5ecad722e712693ecb982f2a2ec3b2e4d5dde6de00f",
+    "runtime": {
+      "python": "3.12.0",
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "package_dir": "/work/attest/scratchpad/r11-eval/attest-eval/reports/attest-evaluation-2026-10-21-nebius-r10/snapshot/attest"
+    },
+    "sampling": {
+      "provider": "nebius_tokenfactory",
+      "temperature": 0.2,
+      "max_tokens": 16000,
+      "thinking_roles": [],
+      "send_thinking_flag": false,
+      "reasoning_effort": {
+        "seal": "low",
+        "implement": "medium",
+        "break": "low",
+        "summary": "low"
+      },
+      "note": "temperature and max_tokens are sent with every request; roles map to model ids",
+      "roles": {
+        "spec": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "seal": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "implement": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "break": {
+          "model": "nvidia/nemotron-3-super-120b-a12b",
+          "effort": null
+        },
+        "audit": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "arbitrate": {
+          "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
+          "effort": null
+        },
+        "summary": {
+          "model": "nvidia/Nemotron-3_5-Lightning",
+          "effort": null
+        }
+      }
+    },
+    "limits": {
+      "max_turns": 14,
+      "max_mutants": 12,
+      "mutation_threshold": 0.5,
+      "drift_threshold": 0.6,
+      "mutant_workers": 8,
+      "max_seal_attempts": 3,
+      "min_sealed_tests": 5,
+      "min_mutants_for_score": 4,
+      "min_adversarial_when_no_mutants": 6,
+      "per_test_timeout_s": 60,
+      "test_timeout_s": 180,
+      "checkpoint_timeout_s": 300,
+      "arbitrate": false,
+      "arbitration_apply": true,
+      "max_corrected_tests": 3,
+      "max_mutants_for_discrimination": 3,
+      "max_breaker_attempts": 3,
+      "max_witnesses": 3,
+      "witness_timeout_s": 60
+    },
+    "pacing": null,
+    "retry_policy": null,
+    "upstream": null
+  },
+  "task": {
+    "id": "balanced-brackets",
+    "title": "balanced-brackets",
+    "statement": "The brackets package exposes is_bracket (already implemented) and a stub is_balanced(s). Implement is_balanced(s) so that it returns True when the three kinds of brackets (), [] and {} in the string s are correctly matched and nested, and False otherwise. Characters that are not brackets are ignored. The empty string is balanced. is_balanced must return a bool. Raise TypeError when s is not a string. Do not change is_bracket or the tests.",
+    "acceptance_criteria": [
+      "'', '()', '[]', '{}', '()[]{}', '([{}])' are all balanced (True)",
+      "nested mixed brackets with other characters are balanced: '(a[b]{c})', 'f(x[0], y[1])'",
+      "'(', ')', '([)]', '(]', '{[}', '())' are not balanced (False)",
+      "non-bracket characters are ignored",
+      "is_balanced returns a bool",
+      "TypeError when s is not a string"
+    ],
+    "allowed_write_globs": [
+      "brackets/**"
+    ],
+    "protected_globs": [
+      "tests/**"
+    ],
+    "test_command": [
+      "/usr/local/bin/python",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "tests",
+      "-t",
+      ".",
+      "-v"
+    ],
+    "base_image": "python:3.12-slim",
+    "language": "python",
+    "import_hint": "from brackets import is_balanced",
+    "test_runner": "unittest",
+    "install_command": null,
+    "requirements_lock": null,
+    "python_paths": [],
+    "heldout_tests_sha256": {},
+    "repo_files_sha256": {
+      "brackets/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+      "brackets/core.py": "3a0cd36293e50969dc0998431824b865e88dd6595ac0f6a4015bb8027a03c6b2",
+      "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests/test_basic.py": "39b91f3a7dfaa300b6f06ae7b98b10208ebaeb9ad8a8613b6eb91465b53ab80f"
+    },
+    "spec_sha256": "84a644df71119f779e1a38d10248660efd901acec94c0ee01ed3d5db79c00f01"
+  },
+  "execution": {
+    "base_image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+    "checkpoint_operation_uuid": "01a15c44-bf3b-773e-a3c9-5f4ee02382d6",
+    "checkpoint_image_uuid": "9baf6be8-7054-4038-9844-5c1159e3bb55",
+    "baseline": {
+      "runner": "unittest",
+      "ran": 2,
+      "tests": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "outcome": "ok",
+          "events": 1
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "outcome": "ok",
+          "events": 1
+        }
+      ],
+      "events": [
+        {
+          "id": "tests.test_basic.TestHelper.test_false",
+          "subtest": null,
+          "outcome": "ok"
+        },
+        {
+          "id": "tests.test_basic.TestHelper.test_true",
+          "subtest": null,
+          "outcome": "ok"
+        }
+      ],
+      "passed": 2,
+      "failing": 0,
+      "failures": 0,
+      "errors": 0,
+      "subtest_events": 0,
+      "module_error": false,
+      "all_passed": true,
+      "summary_line": "OK",
+      "operation_uuid": "01a15c44-bf3b-773e-a3c9-5f4ee02382d6",
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_s": 0.252,
+      "stderr_tail": "test_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.000s\n\nOK\n",
+      "stdout_tail": ""
+    },
+    "suite_binding": {
+      "mode": "bound",
+      "reason": "2 statically discovered test ids in 1 module(s) match the baseline run",
+      "modules": [
+        {
+          "name": "tests.test_basic",
+          "path": "tests/test_basic.py",
+          "sha256": "39b91f3a7dfaa300b6f06ae7b98b10208ebaeb9ad8a8613b6eb91465b53ab80f",
+          "tests": 2
+        }
+      ]
+    }
+  },
+  "spec": {
+    "feasible": true,
+    "infeasibility_reason": null,
+    "restated_task": "The brackets package exposes is_bracket (already implemented) and a stub is_balanced(s). Implement is_balanced(s) so that it returns True when the three kinds of brackets (), [] and {} in the string s are correctly matched and nested, and False otherwise. Characters that are not brackets are ignored. The empty string is balanced. is_balanced must return a bool. Raise TypeError when s is not a string. Do not change is_bracket or the tests.",
+    "interface_contract": [],
+    "acceptance_criteria": [
+      "'', '()', '[]', '{}', '()[]{}', '([{}])' are all balanced (True)",
+      "nested mixed brackets with other characters are balanced: '(a[b]{c})', 'f(x[0], y[1])'",
+      "'(', ')', '([)]', '(]', '{[}', '())' are not balanced (False)",
+      "non-bracket characters are ignored",
+      "is_balanced returns a bool",
+      "TypeError when s is not a string"
+    ],
+    "out_of_scope": [],
+    "external_references_needed": []
+  },
+  "grounding": null,
+  "sealed_tests": null,
+  "red_run": null,
+  "trajectory": {
+    "turns": 7,
+    "actions": [
+      {
+        "turn": 1,
+        "action": "search",
+        "path": null,
+        "reason": "Find location of is_balanced function in brackets/core.py.",
+        "observation_head": "1 matching line(s):\nbrackets/core.py:13: def is_balanced(s):"
+      },
+      {
+        "turn": 2,
+        "action": "read_file",
+        "path": "brackets/core.py",
+        "reason": "Read the current implementation of is_balanced and surrounding context.",
+        "observation_head": "[lines 10-14 of 14]\n    return isinstance(c, str) and len(c) == 1 and (c in OPEN or c in CLOSE)\n\n\ndef is_balanced(s):\n    raise NotImplementedError(\"is_balanced"
+      },
+      {
+        "turn": 3,
+        "action": "read_file",
+        "path": "brackets/core.py",
+        "reason": "View entire core.py to see is_bracket implementation and any helper constants.",
+        "observation_head": "[lines 1-14 of 14]\n\"\"\"Bracket matching.\"\"\"\n\nPAIRS = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}\nOPEN = set(PAIRS.values())\nCLOSE = set(PAIRS)\n\n\ndef is_bracket(c):\n    \"\"\"Tru"
+      },
+      {
+        "turn": 4,
+        "action": "read_file",
+        "path": "brackets/core.py",
+        "reason": "Get exact lines of is_balanced function to replace.",
+        "observation_head": "[lines 11-12 of 14]\n\n\n"
+      },
+      {
+        "turn": 5,
+        "action": "replace_in_file",
+        "path": "brackets/core.py",
+        "reason": "Replace stub implementation of is_balanced with correct bracket balancing logic.",
+        "observation_head": "replaced one occurrence in brackets/core.py; the file is now 627 bytes"
+      },
+      {
+        "turn": 6,
+        "action": "run_tests",
+        "path": null,
+        "reason": "Run the existing test suite to verify our implementation passes.",
+        "observation_head": "existing test suite: OK (ran 2, passed 2, exit 0)\ntest_false (tests.test_basic.TestHelper.test_false) ... ok\ntest_true (tests.test_basic.TestHelper.test_true) ."
+      },
+      {
+        "turn": 7,
+        "action": "finish",
+        "path": null,
+        "reason": "Implementation complete and tests pass.",
+        "observation_head": "finished: Implemented is_balanced with proper bracket matching and type checking."
+      }
+    ],
+    "path": "trajectory.jsonl",
+    "finished": true
+  },
+  "candidate": {
+    "changed_paths": [
+      "brackets/core.py"
+    ],
+    "deleted_paths": [],
+    "scope_ok": true,
+    "violations": [],
+    "diff": "--- a/brackets/core.py\n+++ b/brackets/core.py\n@@ -11,4 +11,14 @@\n \n \n def is_balanced(s):\n-    raise NotImplementedError(\"is_balanced is not implemented yet\")\n+    if not isinstance(s, str):\n+        raise TypeError(\"Input must be a string\")\n+    stack = []\n+    for ch in s:\n+        if ch in OPEN:\n+            stack.append(ch)\n+        elif ch in CLOSE:\n+            if not stack or stack[-1] != PAIRS[ch]:\n+                return False\n+            stack.pop()\n+    return not stack\n",
+    "sha256": {
+      "brackets/core.py": "90ee783b65b96347d3651aa6dbae9a83f45e07451802410c12225939128bd4fe"
+    },
+    "implementer_finished": true
+  },
+  "contract_audit": null,
+  "verification": null,
+  "breaker": null,
+  "drift": null,
+  "arbitration": null,
+  "gates": {},
+  "verdict": {
+    "verdict": "BASELINE",
+    "reasons": [],
+    "warnings": [],
+    "finished": true,
+    "summary": "Implemented is_balanced with proper bracket matching and type checking."
+  },
+  "ledger": {
+    "model_calls": [
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-1",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:22:50.414426+00:00",
+        "elapsed_ms": 4917,
+        "gateway_duration_ms": null,
+        "prompt_chars": 3733,
+        "tokens_in": 1131,
+        "tokens_out": 124,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 124,
+          "prompt_tokens": 1131,
+          "total_tokens": 1255,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 52,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1131
+        },
+        "cost_usd": 0.000451,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015073,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-2",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:22:55.336987+00:00",
+        "elapsed_ms": 3496,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4039,
+        "tokens_in": 1228,
+        "tokens_out": 134,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 134,
+          "prompt_tokens": 1228,
+          "total_tokens": 1362,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 58,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1228
+        },
+        "cost_usd": 0.000489,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015104,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-3",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:22:58.838879+00:00",
+        "elapsed_ms": 2968,
+        "gateway_duration_ms": null,
+        "prompt_chars": 4504,
+        "tokens_in": 1373,
+        "tokens_out": 126,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 126,
+          "prompt_tokens": 1373,
+          "total_tokens": 1499,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 49,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1373
+        },
+        "cost_usd": 0.000525,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.01515,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-4",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:23:01.813742+00:00",
+        "elapsed_ms": 10071,
+        "gateway_duration_ms": null,
+        "prompt_chars": 5407,
+        "tokens_in": 1635,
+        "tokens_out": 951,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 951,
+          "prompt_tokens": 1635,
+          "total_tokens": 2586,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 876,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1635
+        },
+        "cost_usd": 0.001346,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015241,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-5",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:23:11.900043+00:00",
+        "elapsed_ms": 9724,
+        "gateway_duration_ms": null,
+        "prompt_chars": 5688,
+        "tokens_in": 1733,
+        "tokens_out": 1086,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 1086,
+          "prompt_tokens": 1733,
+          "total_tokens": 2819,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 886,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1733
+        },
+        "cost_usd": 0.001497,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015269,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-6",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:23:21.634680+00:00",
+        "elapsed_ms": 5678,
+        "gateway_duration_ms": null,
+        "prompt_chars": 6270,
+        "tokens_in": 1909,
+        "tokens_out": 133,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1909,
+          "total_tokens": 2042,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 67,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1909
+        },
+        "cost_usd": 0.000692,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.015327,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      },
+      {
+        "provider": "nebius_tokenfactory",
+        "role": "implement",
+        "stage": "implement-7",
+        "requested_model": "nvidia/nemotron-3-super-120b-a12b",
+        "requested_effort": "medium",
+        "returned_model": "nvidia/nemotron-3-super-120b-a12b",
+        "returned_effort": null,
+        "started_at_utc": "2026-10-21T02:23:32.942024+00:00",
+        "elapsed_ms": 5133,
+        "gateway_duration_ms": null,
+        "prompt_chars": 6796,
+        "tokens_in": 2053,
+        "tokens_out": 323,
+        "tokens_cached": 0,
+        "usage_raw": {
+          "completion_tokens": 323,
+          "prompt_tokens": 2053,
+          "total_tokens": 2376,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": null,
+            "audio_tokens": null,
+            "reasoning_tokens": 250,
+            "rejected_prediction_tokens": null
+          },
+          "prompt_tokens_details": {
+            "audio_tokens": null,
+            "cached_tokens": 0,
+            "created_cache_tokens": 0,
+            "multimodal_tokens": null
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 2053
+        },
+        "cost_usd": 0.000907,
+        "cost_note": "USD from public Token Factory price table",
+        "ok": true,
+        "malformed_output": false,
+        "error": null,
+        "reserved_usd": 0.01538,
+        "pacing_wait_ms": null,
+        "attempt": 1,
+        "settlement": "known",
+        "request_sent": true,
+        "transport_phase": null,
+        "outcome": "answered",
+        "http_status": null
+      }
+    ],
+    "sandbox_ops": [
+      {
+        "stage": "checkpoint",
+        "operation_uuid": "01a15c44-bf3b-773e-a3c9-5f4ee02382d6",
+        "image_uuid": "4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae",
+        "result_image_uuid": "9baf6be8-7054-4038-9844-5c1159e3bb55",
+        "disposable": false,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 1.612,
+        "raw_cost_diag": 0.00282993,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-21T02:22:44.661302+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge",
+        "attempts": 1,
+        "transport_failures": [],
+        "op_id": "s1",
+        "http_status": null,
+        "ended_at_utc": "2026-10-21T02:22:50.411642+00:00",
+        "outcome_note": null
+      },
+      {
+        "stage": "impl-tests-6",
+        "operation_uuid": "01a15c45-65d5-7324-9710-fa697bb9f57c",
+        "image_uuid": "9baf6be8-7054-4038-9844-5c1159e3bb55",
+        "result_image_uuid": null,
+        "disposable": true,
+        "networking_enabled": false,
+        "status": "SUCCESS",
+        "exit_code": 0,
+        "timed_out": false,
+        "signal": -1,
+        "duration_s": 2.914,
+        "raw_cost_diag": 0.00285098,
+        "stdout_truncated": false,
+        "started_at_utc": "2026-10-21T02:23:27.323211+00:00",
+        "note": "raw_cost_diag has no confirmed currency semantics; not a USD charge",
+        "attempts": 1,
+        "transport_failures": [],
+        "op_id": "s2",
+        "http_status": null,
+        "ended_at_utc": "2026-10-21T02:23:32.938705+00:00",
+        "outcome_note": null
+      }
+    ],
+    "open_reservations": [],
+    "journal_failures": [],
+    "journal_repairs": [],
+    "journal_degraded": null,
+    "halt": null,
+    "halt_events": [],
+    "reconciliation": [],
+    "totals": {
+      "model_calls": 7,
+      "model_calls_failed": 0,
+      "malformed_outputs": 0,
+      "tokens_in": 11062,
+      "tokens_out": 2877,
+      "tokens_cached": 0,
+      "model_elapsed_ms": 41987,
+      "cost_usd": 0.005907,
+      "cost_usd_committed": 0.005907,
+      "uncertain_unpriced_calls": 0,
+      "open_reservations": 0,
+      "open_reserved_usd": 0,
+      "journal_failures": 0,
+      "journal_repairs": 0,
+      "journal_degraded": null,
+      "rate_limited_calls": 0,
+      "pacing_wait_ms": 0,
+      "by_model": {
+        "nebius_tokenfactory:nvidia/nemotron-3-super-120b-a12b": {
+          "calls": 7,
+          "tokens_in": 11062,
+          "tokens_out": 2877,
+          "tokens_cached": 0,
+          "cost_usd": 0.005907,
+          "elapsed_ms": 41987,
+          "failed": 0
+        }
+      },
+      "calls_not_sent": 0,
+      "calls_uncertain": 0,
+      "halted": false,
+      "reconciliation_items": 0,
+      "sandbox_operations": 2,
+      "sandbox_spawn_retries": 0,
+      "sandbox_uncertain": 0,
+      "sandbox_rejected": 0,
+      "sandbox_duration_s": 4.526,
+      "sandbox_retained_images": [
+        "9baf6be8-7054-4038-9844-5c1159e3bb55"
+      ],
+      "sandbox_raw_cost_diag_sum": 0.00568091
+    }
+  },
+  "limitations": [
+    "Profile 'eval-baseline-a1': inference provider nebius_tokenfactory; submission runs must use NVIDIA Nemotron on Nebius Token Factory and are labeled separately.",
+    "Sealed and adversarial suites run one child process per test under a supervisor that never imports candidate code and is the first step of its branch; two verifier canaries detect blanket result forgery. A candidate can still forge its own result from inside a child after the nonce was read if it spares the canaries (the mutation gate and held-out tests are the structural detectors).",
+    "The repository's own suite and the held-out suite run after the sealed verification in their own branches. They are bound through the same supervisor only for unittest repositories whose tests are statically discoverable; otherwise they are parsed from console output and the gate is labelled evidence_class 'stdout'.",
+    "Model-written sealed and adversarial tests can be wrong; their failures block VERIFIED. An independent arbiter classifies each failure (implementation bug, test defect or contract dispute) and, for pure test defects, offers a corrected module. The correction counts only after mechanical validation (same test methods, only the failing tests' bodies changed, passes on the candidate, still fails on the unmodified base or is caught by a mutant, with every result structurally sound and bound to its nonce); the corrected gate is then re-run and the verdict re-derived from the gates. A sealed test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected). The classification itself remains a model judgement.",
+    "A mutant counts as killed only when a sealed test failed with an authentic child result under a structurally sound supervisor run; lost, forged, incomplete, non-isolated, crashed or timed-out runs are unknown and excluded from the mutation score, and `attest check` recomputes the classification from the raw results.",
+    "INFEASIBLE is recorded only when a witness program written by the contract auditor demonstrated the contradiction by running on the unmodified repository (exit code and output recorded); the witness's logic is the model's, its execution is not.",
+    "Grounding runs only when the specification names external references; sources are cited, not verified for correctness.",
+    "Sandbox CPU/RAM quota controls were not found in the current public REST API; per operation only max_layer_bytes, a timeout and the networking flag are set.",
+    "Sandbox raw 'cost' diagnostics are not USD; Codex gateway usage is ChatGPT allowance, not a Nebius charge; Nebius USD is computed from the public price table, not an invoice.",
+    "Each run retains one checkpoint image on the service; no image-delete control was found in the current public REST API.",
+    "Once an operation's outcome is uncertain, or a record of the run cannot be made durable, the run sends nothing further and ends ERROR with every unsettled operation listed under reconciliation; such operations are settled by a human against the providers' records, never by sending them again. Operations being polled in parallel when the run stops are not read further and are listed too.",
+    "manifest.json lists the sha256 of every artifact and `python -m attest check <run dir or zip>` recomputes digests, the sealed and adversarial bindings from verify_raw.json and the gate-to-verdict rule offline; it cannot re-execute the sandbox runs themselves."
+  ],
+  "stage": "implement",
+  "evidence_protocol": {
+    "version": 5,
+    "supervisor": "attest-sealed-supervisor/7",
+    "note": "a VERIFIED bundle of this protocol carries every gate with its raw supervisor result, every evaluated mutant's raw result, the base and mutant evidence of any validated correction, the contract audit and the ledger; an INFEASIBLE bundle carries the executed witness, its digest, output and operation, its analysis in the constrained witness language and copies of the repository files that analysis resolved call origins through; every bundle carries the reconciliation record, and one that lists an operation whose outcome is unknown, or whose run halted, is ERROR; a bundle without this field is historical and is checked for internal consistency only",
+    "witness_language": "attest-witness/1"
+  },
+  "reconciliation": {
+    "required": false,
+    "halt": null,
+    "halt_events": [],
+    "items": [],
+    "rule": "once an operation's outcome is uncertain (a request that may have been executed and whose answer is unknown, an accepted operation whose outcome was not read, an answer that could not be priced) or a record of the run could not be made durable, the run sends nothing further: no model call, no sandbox operation, no poll; it ends ERROR with every such operation listed here with the read-only check that settles it, and none of them is ever sent again"
+  }
+}

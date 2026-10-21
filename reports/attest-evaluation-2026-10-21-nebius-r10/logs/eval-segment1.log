@@ -1,0 +1,118 @@
+start 2026-10-21T01:54:12Z
+[01:54:13] snapshot /work/attest/scratchpad/r11-eval/attest-eval/reports/attest-evaluation-2026-10-21-nebius-r10/snapshot: attest revision 7e72364f135c (37 sources), eval script 243ab12f3879, examples e95a28aa3633 (196 files)
+[01:54:13] fresh process from the snapshot: /work/attest/scratchpad/r11-eval/attest-eval/reports/attest-evaluation-2026-10-21-nebius-r10/snapshot/scripts/run_evaluation.py --provider ...
+[01:54:13] pre-registered 32 cells (8 tasks x ['baseline', 'attest'] x 2 attempt(s)) on provider=nebius; per-run cap $0.5, batch approval 9.0, max calls 22; schedule -> /work/attest/scratchpad/r11-eval/attest-eval/reports/attest-evaluation-2026-10-21-nebius-r10/schedule.json
+[01:54:13] provider profile registered: {"max_calls": 22, "max_tokens": 16000, "provider": "nebius_tokenfactory", "reasoning_effort": {"break": "low", "implement": "medium", "seal": "low", "summary": "low"}, "roles": {"arbitrate": "nvidia/Nemotron-3-Ultra-550b-a55b", "audit": "nvidia/Nemotron-3-Ultra-550b-a55b", "break": "nvidia/nemotron-3-super-120b-a12b", "implement": "nvidia/nemotron-3-super-120b-a12b", "seal": "nvidia/nemotron-3-super-120b-a12b", "spec": "nvidia/Nemotron-3-Ultra-550b-a55b", "summary": "nvidia/Nemotron-3_5-Lightning"}, "send_thinking_flag": false, "temperature": 0.2, "thinking_roles": [], "usd_cap": 0.5}
+[01:54:13] baseline: frozen task roman-to-numeral with 4 files
+[01:54:13] baseline: frozen task roman-to-numeral with 4 files
+[01:54:15] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[01:54:15] creating checkpoint from python:3.12-slim (4fa16c8f-62a9-35a4-a4ea-07b7e8cd44ae); networking=off
+[01:54:21] implementation
+[01:54:21] implementation
+[01:54:23] turn 1: read_file roman/core.py -> [10 lines]
+[01:54:23] turn 1: search  -> 2 matching line(s):
+[01:54:30] turn 2: read_file roman/core.py -> [10 lines]
+[01:54:30] turn 2: search roman/core.py -> 2 matching line(s):
+[01:54:40] turn 3: replace_in_file roman/core.py -> replaced one occurrence in roman/core.py; the file is now 794 bytes
+[01:54:43] turn 3: replace_in_file roman/core.py -> replaced one occurrence in roman/core.py; the file is now 965 bytes
+[01:54:49] turn 4: run_tests  -> existing test suite: OK (ran 2, passed 2, exit 0)
+[01:54:52] turn 4: run_tests  -> existing test suite: OK (ran 2, passed 2, exit 0)
+[01:55:02] turn 5: run_python  -> exit 1
+[01:55:08] turn 5: run_python  -> exit 1
+ATTEST-HALT {"kind": "uncertain_operation", "reason": "the outcome of the impl-python-6 spawn is uncertain: the sandbox service answered HTTP 500 after the spawn was sent, so its outcome is uncertain; it was not replayed [ref b6caebc7]; it was not sent again", "stage": "impl-python-6", "operation": {"service": "sandboxes", "op_id": "s4", "operation_uuid": null, "image_uuid": "648b990e-9dc7-403a-896f-e843dd709714", "status": "UNCERTAIN", "started_at_utc": "2026-10-21T01:55:19.340901+00:00"}, "at_utc": "2026-10-21T01:55:20.830185+00:00"} detail: HTTP 500 from https://api.tokenfactory.nebius.com/sandboxes/v1/instances: Internal Server Error
+ATTEST-HALT {"kind": "batch_stop", "reason": "another run of this batch stopped for reconciliation; this run sent nothing further", "stage": null, "operation": null, "at_utc": "2026-10-21T01:55:20.831725+00:00"}
+[01:55:20] STOPPED FOR RECONCILIATION at impl-python-6 (uncertain_operation)
+[01:55:20] verdict ERROR -> /work/attest/scratchpad/r11-eval/attest-eval/reports/attest-evaluation-2026-10-21-nebius-r10/runs/roman-to-numeral-baseline-a2-20261021T015413732689Z
+[01:55:36] STOPPED FOR RECONCILIATION at impl-python-6 (batch_stop)
+[01:55:36] verdict ERROR -> /work/attest/scratchpad/r11-eval/attest-eval/reports/attest-evaluation-2026-10-21-nebius-r10/runs/roman-to-numeral-baseline-a1-20261021T015413732535Z
+  [ 0] roman-to-numeral             baseline  a1 completed verdict=ERROR        correct=None  -> infra_error  $0.008825 82.4s rev=7e72364f paced=0.0s
+  [ 1] roman-to-numeral             baseline  a2 completed verdict=ERROR        correct=None  -> infra_error  $0.007908 67.1s rev=7e72364f paced=0.0s
+  [ 2] roman-to-numeral             attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [ 3] roman-to-numeral             attest    a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [ 4] rle-encode                   baseline  a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [ 5] rle-encode                   baseline  a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [ 6] rle-encode                   attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [ 7] rle-encode                   attest    a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [ 8] balanced-brackets            baseline  a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [ 9] balanced-brackets            baseline  a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [10] balanced-brackets            attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [11] balanced-brackets            attest    a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [12] durationkit-units-001        baseline  a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [13] durationkit-units-001        baseline  a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [14] durationkit-units-001        attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [15] durationkit-units-001        attest    a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [16] semver-is-compatible-pr368-v2 baseline  a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [17] semver-is-compatible-pr368-v2 baseline  a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [18] semver-is-compatible-pr368-v2 attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [19] semver-is-compatible-pr368-v2 attest    a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [20] slugkit-regression-001       baseline  a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [21] slugkit-regression-001       baseline  a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [22] slugkit-regression-001       attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [23] slugkit-regression-001       attest    a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [24] kvparse-refactor-001         baseline  a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [25] kvparse-refactor-001         baseline  a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [26] kvparse-refactor-001         attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [27] kvparse-refactor-001         attest    a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [28] semver-long-prerelease-pr488 baseline  a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [29] semver-long-prerelease-pr488 baseline  a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [30] semver-long-prerelease-pr488 attest    a1 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+  [31] semver-long-prerelease-pr488 attest    a2 not_run   verdict=None         correct=None  -> not_run      $None Nones rev=- paced=Nones  (a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent)
+
+=== SUMMARY (all scheduled cells) ===
+{
+  "baseline": {
+    "scheduled": 16,
+    "completed": 2,
+    "not_run": 14,
+    "confusion": {
+      "true_accept": 0,
+      "false_accept": 0,
+      "false_reject": 0,
+      "true_reject": 0,
+      "false_refusal": 0,
+      "no_patch": 0,
+      "infra_error": 2,
+      "unknown": 0,
+      "not_run": 14
+    },
+    "shipped_broken_code": 0,
+    "needs_human": 0,
+    "no_patch": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_s": 0.0,
+    "cells_in_invalid_comparisons": 0,
+    "total_cost_committed_usd": 0.0167,
+    "mean_wall_s": 74.8
+  },
+  "attest": {
+    "scheduled": 16,
+    "completed": 0,
+    "not_run": 16,
+    "confusion": {
+      "true_accept": 0,
+      "false_accept": 0,
+      "false_reject": 0,
+      "true_reject": 0,
+      "false_refusal": 0,
+      "no_patch": 0,
+      "infra_error": 0,
+      "unknown": 0,
+      "not_run": 16
+    },
+    "shipped_broken_code": 0,
+    "needs_human": 0,
+    "no_patch": 0,
+    "rate_limited_calls": 0,
+    "pacing_wait_s": 0.0,
+    "cells_in_invalid_comparisons": 0,
+    "total_cost_committed_usd": 0,
+    "mean_wall_s": null
+  }
+}
+budget: {"approve_usd": 9.0, "per_run_cap_usd": 0.5, "committed_usd": 0.0167, "peak_projected_usd": 1.0, "stopped": "a run of the batch stopped for reconciliation (uncertain_operation at impl-python-6); the batch stopped, every cell in flight was halted and nothing further was sent"}
+services (kept apart, never added into one figure): {"inference": {"provider": "Nebius Token Factory (USD, public price table)", "model_calls": 13, "calls_not_sent": 1, "committed_usd": 0.016733}, "sandboxes": {"service": "Nebius Token Factory Sandboxes (beta)", "operations_in_run_ledgers": 7, "judge_operations": 0, "duration_s": 6.011, "spawn_retries": 0, "billing": "not visible to this harness: the Sandboxes console wording says beta runs are free; no invoice-level reconciliation has been done"}, "search": {"service": "Tavily", "calls": 0, "note": "the harness runs the pipeline without Tavily (tavily=None)"}, "reconciliation_items": 1}
+harness peak resident memory: 53.8 MiB
+provenance: {"registered_revision": "7e72364f135c45c8a69a3a59c9cba5c954ebbb843cc7752b76c8303550548cb6", "snapshot_intact_at_end": true, "working_tree_revision_now": "7e72364f135c45c8a69a3a59c9cba5c954ebbb843cc7752b76c8303550548cb6", "working_tree_changed_since_launch": false, "invalid_tasks": []}
+
+wrote /work/attest/scratchpad/r11-eval/attest-eval/reports/attest-evaluation-2026-10-21-nebius-r10/evaluation.json
+exit 0 at 2026-10-21T01:55:38Z

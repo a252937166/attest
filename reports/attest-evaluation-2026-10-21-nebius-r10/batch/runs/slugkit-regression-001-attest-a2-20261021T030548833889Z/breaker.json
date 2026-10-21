@@ -1,0 +1,347 @@
+{
+  "mutation": {
+    "generated": 0,
+    "evaluated": 0,
+    "killed": 0,
+    "survived": 0,
+    "unknown": 0,
+    "score": null,
+    "threshold": 0.5,
+    "mutants": [],
+    "policy": "a mutant is killed only when at least one expected sealed test failed with an authentic child result (exit code 1 and a FAIL or ERROR report bound to the nonce) under a structurally sound supervisor run (completed, isolated, nonce and digests intact, the expected test ids and nothing else, no lost, forged or mismatched result, no crash, no start-up hook); it survived only when every expected test passed authentically; a run with any structural problem, untrusted record or timed-out test is unknown and excluded from the score"
+  },
+  "adversarial": {
+    "sha256": "8bfeaabf1abe6af13d3df4b0eb6658f9b74c4dbc26814746f285425e0a07579f",
+    "author_model": "nvidia/nemotron-3-super-120b-a12b",
+    "author_role": "break",
+    "attempts": 1,
+    "escalated": false,
+    "expected_ids": [
+      "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+      "test_breaker.TestSlugifyBreaker.test_emoji_separators",
+      "test_breaker.TestSlugifyBreaker.test_multiple_emoji_and_symbols",
+      "test_breaker.TestSlugifyBreaker.test_very_long_input",
+      "test_breaker.TestSlugifyBreaker.test_mixed_ascii_and_nonascii_with_digits",
+      "test_breaker.TestSlugifyBreaker.test_leading_trailing_nonascii_only",
+      "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string"
+    ],
+    "summary": {
+      "ran": 7,
+      "tests": [
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+          "outcome": "FAIL",
+          "events": 1,
+          "exit_code": 1,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.183,
+          "captured_tail": "",
+          "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/breaker/test_breaker.py\", line 8, in test_unicode_combining_marks\n    self.assertEqual(slugify('e\\u0301'), 'e-')\nAssertionError: 'e' != 'e-'\n- e\n+ e-\n?  +\n\n"
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_emoji_separators",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.175,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_multiple_emoji_and_symbols",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_very_long_input",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_mixed_ascii_and_nonascii_with_digits",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_leading_trailing_nonascii_only",
+          "outcome": "ok",
+          "events": 1,
+          "exit_code": 0,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": ""
+        },
+        {
+          "id": "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string",
+          "outcome": "ERROR",
+          "events": 1,
+          "exit_code": 1,
+          "signal": null,
+          "timed_out": false,
+          "duration_s": 0.173,
+          "captured_tail": "",
+          "failure_tail": "Traceback (most recent call last):\n  File \"/tmp/breaker/test_breaker.py\", line 22, in test_null_bytes_in_string\n    self.assertEqual(slugize('a\\0b'), 'a-b')\n                     ^^^^^^^\nNameError: name 'slugize' is not defined. Did you mean: 'slugify'?\n"
+        }
+      ],
+      "passed": 5,
+      "failing": 2,
+      "subtest_events": 0,
+      "import_error": null,
+      "all_passed": false,
+      "canary_ok": true,
+      "summary_line": "FAILED (2 of 7 methods: ERROR 1, FAIL 1)",
+      "operation_uuid": "01a15c6e-6eff-7310-909e-ef9e243f917c",
+      "nonce": "647009b2daa5f87c20455e18ad3ec092",
+      "supervisor_exit_code": 1,
+      "runner_error": null
+    },
+    "binding": {
+      "ok": false,
+      "checks": {
+        "result_file_present": true,
+        "sealed_file_unchanged_before": true,
+        "sealed_file_unchanged_after": true,
+        "static_ids_match_red": true,
+        "supervisor_completed": true,
+        "verifier_isolation_active": true,
+        "supervisor_cleanup_complete": true,
+        "nonce_matches": true,
+        "no_discovery_error": true,
+        "expected_test_ids_present": true,
+        "no_unexpected_test_ids": true,
+        "no_nonzero_exit": false,
+        "no_signal": true,
+        "no_timeout": true,
+        "no_missing_or_forged_result": true,
+        "all_expected_pass": false,
+        "no_startup_hooks_on_import_path": true,
+        "canary_must_pass_ok": true,
+        "canary_must_fail_failed": true
+      },
+      "reasons": [
+        "child process nonzero exit: test_unicode_combining_marks exit 1, test_null_bytes_in_string exit 1"
+      ]
+    },
+    "notes": "Targeted Unicode edge cases, emojis, long strings, mixed ascii/nonascii, null bytes.",
+    "operation_uuid": "01a15c6e-6eff-7310-909e-ef9e243f917c",
+    "corrected": {
+      "path": "arbitration/adversarial_corrected.py",
+      "sha256": "f1d4c9cc7c35aca26d0e110e6fcaf95395e83fbf2384afa23456a5fbd845c75d",
+      "expected_ids": [
+        "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+        "test_breaker.TestSlugifyBreaker.test_emoji_separators",
+        "test_breaker.TestSlugifyBreaker.test_multiple_emoji_and_symbols",
+        "test_breaker.TestSlugifyBreaker.test_very_long_input",
+        "test_breaker.TestSlugifyBreaker.test_mixed_ascii_and_nonascii_with_digits",
+        "test_breaker.TestSlugifyBreaker.test_leading_trailing_nonascii_only",
+        "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string"
+      ],
+      "changed_tests": [
+        "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string",
+        "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks"
+      ],
+      "summary": {
+        "ran": 7,
+        "tests": [
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.195,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_emoji_separators",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.171,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_multiple_emoji_and_symbols",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_very_long_input",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_mixed_ascii_and_nonascii_with_digits",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.169,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_leading_trailing_nonascii_only",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          },
+          {
+            "id": "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string",
+            "outcome": "ok",
+            "events": 1,
+            "exit_code": 0,
+            "signal": null,
+            "timed_out": false,
+            "duration_s": 0.17,
+            "captured_tail": "",
+            "failure_tail": ""
+          }
+        ],
+        "passed": 7,
+        "failing": 0,
+        "subtest_events": 0,
+        "import_error": null,
+        "all_passed": true,
+        "canary_ok": true,
+        "summary_line": "OK (7 of 7 methods, each in its own process)",
+        "operation_uuid": "01a15c6e-dde0-76f2-a78a-65d4d4631243",
+        "nonce": "0126828a0571e29fb3c5838e125645c4",
+        "supervisor_exit_code": 0,
+        "runner_error": null
+      },
+      "binding": {
+        "ok": true,
+        "checks": {
+          "result_file_present": true,
+          "sealed_file_unchanged_before": true,
+          "sealed_file_unchanged_after": true,
+          "static_ids_match_red": true,
+          "supervisor_completed": true,
+          "verifier_isolation_active": true,
+          "supervisor_cleanup_complete": true,
+          "nonce_matches": true,
+          "no_discovery_error": true,
+          "expected_test_ids_present": true,
+          "no_unexpected_test_ids": true,
+          "no_nonzero_exit": true,
+          "no_signal": true,
+          "no_timeout": true,
+          "no_missing_or_forged_result": true,
+          "all_expected_pass": true,
+          "no_startup_hooks_on_import_path": true,
+          "canary_must_pass_ok": true,
+          "canary_must_fail_failed": true
+        },
+        "reasons": []
+      },
+      "nonce": "0126828a0571e29fb3c5838e125645c4",
+      "operation_uuid": "01a15c6e-dde0-76f2-a78a-65d4d4631243",
+      "discrimination": "1 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+      "base_rerun": {
+        "summary_line": "FAILED (4 of 7 methods: FAIL 4)",
+        "failing": 4,
+        "nonce": "8c1f84993e67a9cfcdcd01f533cadc4c",
+        "expected_ids": [
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks",
+          "test_breaker.TestSlugifyBreaker.test_emoji_separators",
+          "test_breaker.TestSlugifyBreaker.test_multiple_emoji_and_symbols",
+          "test_breaker.TestSlugifyBreaker.test_very_long_input",
+          "test_breaker.TestSlugifyBreaker.test_mixed_ascii_and_nonascii_with_digits",
+          "test_breaker.TestSlugifyBreaker.test_leading_trailing_nonascii_only",
+          "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string"
+        ],
+        "binding": {
+          "ok": false,
+          "checks": {
+            "result_file_present": true,
+            "sealed_file_unchanged_before": true,
+            "sealed_file_unchanged_after": true,
+            "static_ids_match_red": true,
+            "supervisor_completed": true,
+            "verifier_isolation_active": true,
+            "supervisor_cleanup_complete": true,
+            "nonce_matches": true,
+            "no_discovery_error": true,
+            "expected_test_ids_present": true,
+            "no_unexpected_test_ids": true,
+            "no_nonzero_exit": false,
+            "no_signal": true,
+            "no_timeout": true,
+            "no_missing_or_forged_result": true,
+            "all_expected_pass": false,
+            "no_startup_hooks_on_import_path": true,
+            "canary_must_pass_ok": true,
+            "canary_must_fail_failed": true
+          },
+          "reasons": [
+            "child process nonzero exit: test_unicode_combining_marks exit 1, test_multiple_emoji_and_symbols exit 1, test_very_long_input exit 1, test_leading_trailing_nonascii_only exit 1"
+          ]
+        },
+        "structural_problems": [],
+        "outcomes": {
+          "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string": "green",
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks": "red"
+        },
+        "corrected_tests_failing_on_base": [
+          "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks"
+        ],
+        "discrimination": "1 of 2 corrected test(s) fail on the unmodified base with an authentic result",
+        "untrusted": null,
+        "operation_uuid": "01a15c6e-f57b-75f4-a61e-28ab30ae3eff"
+      },
+      "mutant_reruns": [],
+      "original_sha256": "8bfeaabf1abe6af13d3df4b0eb6658f9b74c4dbc26814746f285425e0a07579f",
+      "original_failing": [
+        "test_breaker.TestSlugifyBreaker.test_null_bytes_in_string",
+        "test_breaker.TestSlugifyBreaker.test_unicode_combining_marks"
+      ]
+    }
+  }
+}

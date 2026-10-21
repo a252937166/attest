@@ -1,0 +1,91 @@
+--- a/src/semver/version.py
++++ b/src/semver/version.py
+@@ -185,25 +185,72 @@
+ 
+     @classmethod
+     def _nat_cmp(cls, a: Optional[str], b: Optional[str]) -> int:
+-        def cmp_prerelease_tag(a, b):
+-            if isinstance(a, int) and isinstance(b, int):
+-                return _cmp(a, b)
+-            elif isinstance(a, int):
++        def _is_ascii_digit_str(s: str) -> bool:
++            return s.isascii() and s.isdigit()
++
++        def _normalize_numeric(s: str) -> str:
++            # s is known to be all ASCII digits
++            stripped = s.lstrip('0')
++            return stripped if stripped != '' else '0'
++
++        def _compare_numeric(a: str, b: str) -> int:
++            # a and b are normalized numeric strings (no leading zeros, except "0")
++            if len(a) < len(b):
+                 return -1
+-            elif isinstance(b, int):
++            if len(a) > len(b):
++                return 1
++            if a < b:
++                return -1
++            if a > b:
++                return 1
++            return 0
++
++        def _parse_part(part: str):
++            # Returns tuple (is_numeric, value) where value is normalized numeric string if numeric, else the string itself.
++            # Raises ValueError if part is non-ASCII digit string that cannot be converted to int.
++            if part == '':
++                return (False, '')
++            if _is_ascii_digit_str(part):
++                return (True, _normalize_numeric(part))
++            # Check if it's all digits (including non-ASCII)
++            if part.isdigit():
++                try:
++                    val = int(part)
++                except ValueError:
++                    # Re-raise to be caught by caller
++                    raise
++                # Convert to normalized numeric string (no leading zeros)
++                norm = str(val)  # int to string removes leading zeros
++                return (True, norm)
++            # Non-numeric
++            return (False, part)
++
++        a_parts = [_parse_part(x) for x in (a or "").split(".")]
++        b_parts = [_parse_part(x) for x in (b or "").split(".")]
++
++        for (a_is_num, a_val), (b_is_num, b_val) in zip(a_parts, b_parts):
++            if a_is_num and b_is_num:
++                cmp_res = _compare_numeric(a_val, b_val)
++                if cmp_res != 0:
++                    return cmp_res
++            elif a_is_num:
++                # numeric < non-numeric
++                return -1
++            elif b_is_num:
+                 return 1
+             else:
+-                return _cmp(a, b)
+-
+-        a_parts = [int(x) if x.isdigit() else x for x in (a or "").split(".")]
+-        b_parts = [int(x) if x.isdigit() else x for x in (b or "").split(".")]
+-
+-        for sub_a, sub_b in zip(a_parts, b_parts):
+-            cmp_result = cmp_prerelease_tag(sub_a, sub_b)
+-            if cmp_result != 0:
+-                return cmp_result
+-
+-        return _cmp(len(a_parts), len(b_parts))
++                # both non-numeric
++                if a_val < b_val:
++                    return -1
++                if a_val > b_val:
++                    return 1
++                # else continue
++        # If all equal so far, compare lengths
++        if len(a_parts) < len(b_parts):
++            return -1
++        if len(a_parts) > len(b_parts):
++            return 1
++        return 0
+ 
+     @property
+     def major(self) -> int:

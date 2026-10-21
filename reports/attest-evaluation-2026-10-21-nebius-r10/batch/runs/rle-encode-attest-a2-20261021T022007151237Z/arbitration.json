@@ -1,0 +1,40 @@
+{
+  "applied": true,
+  "validated_modules": [],
+  "cleared": false,
+  "all_corrected": false,
+  "counts": {
+    "implementation_bug": 1,
+    "test_defect": 0,
+    "contract_dispute": 0
+  },
+  "headline": "1 failing test(s) indicate a real implementation bug; human review required",
+  "modules": [
+    {
+      "module": "sealed",
+      "classifications": [
+        {
+          "test_id": "test_sealed.TestEncodeSealed.test_encode_roundtrip_property",
+          "classification": "implementation_bug",
+          "defect_kind": null,
+          "rationale": "The test checks the round-trip property for all strings, as required by the contract. The candidate's encode function produces ambiguous output for strings containing digits (e.g., '123' encodes to '112131'), which the existing decode function parses greedily, causing decode(encode(x)) != x. The candidate therefore violates the contract's hard requirement.",
+          "contract_basis": "The contract states: 'The encoding must be the exact inverse of the existing `decode` function, ensuring `decode(encode(x)) == x` for every string x.' The test directly verifies this requirement."
+        }
+      ],
+      "corrected_notes": "The candidate fails the round-trip requirement for strings containing digits because its encoding is ambiguous under the greedy parsing of the existing decode function. Since the contract requires round-trip for all strings and the decode function cannot be changed, the candidate's encode implementation is fundamentally incompatible with the contract. No test correction can make the candidate pass; the candidate must be fixed (e.g., by using an unambiguous encoding scheme, but that would deviate from the specified format). The test correctly exposes this contract violation.",
+      "corrected_module": null,
+      "candidate_rerun": null,
+      "base_rerun": null,
+      "mutant_reruns": [],
+      "cleared_module": false,
+      "validated": false,
+      "corrected": null,
+      "sealed_assertion_hold": false,
+      "error": null,
+      "classification_ids_ok": true
+    }
+  ],
+  "rule": "a correction counts only when it keeps every test method, changes only the bodies of the failing ones (imports may be added, nothing existing may be rebound), is classified for exactly the failing tests, passes on the candidate under the supervisor and still discriminates with authentic, structurally sound results (every corrected sealed test fails on the unmodified base; a corrected adversarial test fails on the base or catches a validly killed mutant of the patch); a sealed test that failed by assertion or by an exception, whatever its origin, is never overridden (only a test the supervisor killed at its timeout may be corrected); a validated correction re-runs its gate and the verdict is derived from the gates",
+  "note": "original tests, results and reasons are preserved unchanged; the arbiter's classification alone never changes a gate",
+  "applied_to_gates": []
+}

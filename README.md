@@ -180,6 +180,16 @@ Revision 10 was deployed at https://attest.axiqo.xyz on 20 Oct 16:02 UTC (`repor
 runs 0.10.0, with the memory limit in force as before and no reconciliation hold open, and the host's free disk went from 7.4 % to 9.2 %
 by removing obsolete Attest builds and uploads.
 
+Paid validation of revision 10 on Nemotron (21 Oct 2026, approved by the owner; `reports/attest-validation-2026-10-21-nebius-r10/README.md`,
+`reports/attest-evaluation-2026-10-21-nebius-r10/README.md`): from a clean checkout of the pin, the two-run smoke test ($0.116, both NEEDS
+HUMAN with complete evidence; every real Token Factory answer passed revision 10's strict decoding) and the frozen 32-cell evaluation of
+0.10.0 ($1.387 of the approved $9.00). Plain agent against Attest, 16 cells each: correct patches accepted 8 against 2, broken patches
+shipped 2 against 0 (both on the task that cannot be satisfied, which Attest refused twice, once as INFEASIBLE with an executed witness),
+correct patches held 1 against 2, holds without a patch or unfinished 1 against 4 (three of Attest's from a test writer that could not seal
+a valid suite), infrastructure errors 4 against 6. The infrastructure errors are six Sandboxes spawns answered HTTP 500 after they were
+sent; each stopped the batch, read-only checks found that none had run, and each item was acknowledged by id before the batch resumed;
+nothing was replayed. An Attest run cost 5.8 cents of inference on average. One batch of 32 cells on one suite, not a benchmark.
+
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).

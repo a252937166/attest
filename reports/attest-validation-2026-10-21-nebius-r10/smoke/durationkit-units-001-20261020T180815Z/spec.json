@@ -1,0 +1,51 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Extend parse_duration to accept duration strings composed of one or more components, each a non‑negative integer followed by a unit (d, h, m, s, ms) in strictly descending unit order, with optional whitespace around the whole string and between components. The function returns the total seconds as a float. It must preserve existing behavior for plain integer strings, reject malformed input with ValueError, and reject non‑string input with TypeError.",
+  "interface_contract": [
+    {
+      "name": "parse_duration",
+      "signature": "parse_duration(text: str) -> float",
+      "behavior": "Parses a duration string and returns the total number of seconds as a float. Accepts two forms: (1) a plain non‑negative integer (ASCII digits) optionally surrounded by whitespace, interpreted as seconds; (2) one or more components of the form <non‑negative integer><unit> where unit is one of 'd', 'h', 'm', 's', 'ms'. Components must appear in descending unit order (d > h > m > s > ms), each unit at most once. Whitespace is allowed around the entire string and between components, but not between a number and its unit. The returned float is the sum of each component converted to seconds (1d=86400, 1h=3600, 1m=60, 1s=1, 1ms=0.001).",
+      "error_cases": [
+        "TypeError: if text is not a string.",
+        "ValueError: if text is empty or whitespace‑only after stripping.",
+        "ValueError: if any component contains a negative number (e.g., '-1h').",
+        "ValueError: if any component contains a fractional number (e.g., '1.5h').",
+        "ValueError: if any component uses an unknown unit (e.g., '1x').",
+        "ValueError: if a unit appears more than once (e.g., '1h1h').",
+        "ValueError: if components are not in strictly descending unit order (e.g., '30m1h').",
+        "ValueError: if a unit appears without a preceding number (e.g., 'h').",
+        "ValueError: if a number appears without a following unit in a multi‑component string (e.g., '1h30').",
+        "ValueError: if any character that is not an ASCII digit, not a recognised unit letter, and not allowed whitespace appears (e.g., 'abc')."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "parse_duration('90') == 90.0 and surrounding whitespace is still ignored (existing behavior preserved).",
+    "parse_duration('0') == 0.0 and parse_duration('0s') == 0.0.",
+    "Single components work for every unit: '2d' -> 172800.0, '3h' -> 10800.0, '15m' -> 900.0, '45s' -> 45.0, '500ms' -> 0.5.",
+    "Combined components in descending order work: '1h30m' -> 5400.0, '2d4h' -> 187200.0, '1m1s' -> 61.0, '1s500ms' -> 1.5, '1d1h1m1s1ms' -> 90061.001.",
+    "Whitespace is accepted around the string and between components: ' 1h 30m ' -> 5400.0; '1 h' raises ValueError.",
+    "Return type is float for every accepted input.",
+    "ValueError for empty string '' and whitespace‑only '   '.",
+    "ValueError for negative numbers: '-1h'.",
+    "ValueError for fractional numbers: '1.5h'.",
+    "ValueError for unknown units: '1x'.",
+    "ValueError for repeated units: '1h1h'.",
+    "ValueError for components out of descending order: '30m1h'.",
+    "ValueError for unit without a number: 'h'.",
+    "ValueError for number without a unit in a multi‑component string: '1h30'.",
+    "ValueError for completely malformed text: 'abc'.",
+    "TypeError for non‑string input such as 90 or None.",
+    "Existing tests in tests/test_parse.py must continue to pass without modification."
+  ],
+  "out_of_scope": [
+    "The implementer must not modify the existing tests in tests/test_parse.py.",
+    "The implementer must not change the function signature or module public API (only the implementation of parse_duration).",
+    "The implementer must not add new public functions or classes.",
+    "The implementer must not change the behavior for non‑ASCII decimal digits (acceptance or rejection is unspecified and tests must not depend on it).",
+    "The implementer must not modify README.md or __init__.py files."
+  ],
+  "external_references_needed": []
+}

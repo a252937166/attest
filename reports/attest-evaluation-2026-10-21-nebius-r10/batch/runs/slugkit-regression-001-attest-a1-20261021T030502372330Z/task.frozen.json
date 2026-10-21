@@ -1,0 +1,45 @@
+{
+  "id": "slugkit-regression-001",
+  "title": "Regression: slugify keeps separator runs and edge hyphens",
+  "statement": "Regression report for slugkit.slugify(text). Since the last change the function returns 'hello--world' for 'Hello--World', 'a---b' for 'a -- b' and 'end-' for 'end!'. The intended behaviour, which the existing tests only partly cover, is: lower-case the text; every maximal run of one or more characters that are not ASCII letters a-z or ASCII digits 0-9 becomes exactly one hyphen; leading and trailing hyphens are removed; an input with no ASCII letters or digits (including the empty string and whitespace-only text) returns ''. Non-ASCII letters such as 'é' are separators, not kept characters (so 'café crème' is 'caf-cr-me'). Keep raising TypeError for non-string input, keep returning a str, and keep the existing tests in tests/ passing without modifying them. Fix the regression in slugkit/core.py.",
+  "acceptance_criteria": [
+    "slugify('Hello--World') == 'hello-world', slugify('a -- b') == 'a-b', slugify('one , two ; three') == 'one-two-three', slugify('x___y') == 'x-y' (runs of separators collapse to one hyphen).",
+    "slugify('end!') == 'end', slugify('  padded  ') == 'padded', slugify('--both--') == 'both', slugify('(parens)') == 'parens' (no leading or trailing hyphen).",
+    "slugify('') == '', slugify('!!!') == '', slugify('   ') == '' (nothing to keep gives the empty string).",
+    "Existing behaviour is preserved: slugify('Hello World') == 'hello-world', slugify('already-a-slug') == 'already-a-slug', slugify('Python 3') == 'python-3', slugify('MiXeD CaSe 42') == 'mixed-case-42'.",
+    "Non-ASCII letters are separators: slugify('café crème') == 'caf-cr-me' and slugify('日本語') == ''.",
+    "The result is a str; TypeError for non-string input such as None, 3, 2.5, ['a'] and b'bytes'."
+  ],
+  "allowed_write_globs": [
+    "slugkit/**"
+  ],
+  "protected_globs": [
+    "tests/**"
+  ],
+  "test_command": [
+    "/usr/local/bin/python",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-t",
+    ".",
+    "-v"
+  ],
+  "base_image": "python:3.12-slim",
+  "language": "python",
+  "import_hint": "from slugkit import slugify",
+  "test_runner": "unittest",
+  "install_command": null,
+  "requirements_lock": null,
+  "python_paths": [],
+  "heldout_tests_sha256": {},
+  "repo_files_sha256": {
+    "slugkit/__init__.py": "cd2dae56f7f4a083c65df7bdeeda21f4662ada6c7a6e1f73b84225d8db4e9f09",
+    "slugkit/core.py": "61d01b73d49a7bc8ed942908d3800e6cdee151f519cba6b2c9de9058fa02373b",
+    "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tests/test_basic.py": "780b5db6e2779de1e0012705f342b2b2b643c3b05ce14032e464c5f2f832cb0f"
+  },
+  "spec_sha256": "a3f86579452e1665bb1b8e00e0a8c1a47f4408175e57f59bf6ab33a6265141f9"
+}

@@ -1,0 +1,51 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Implement the `to_roman` function in the `roman.core` module to convert integers from 1 to 3999 inclusive into standard Roman numeral strings using subtractive notation (e.g., 4 -> 'IV', 9 -> 'IX', 40 -> 'XL', 90 -> 'XC', 400 -> 'CD', 900 -> 'CM'). The function must return a string. It must raise `ValueError` for integer inputs outside the range 1..3999, and `TypeError` for non-integer inputs (including numeric strings, floats, None, lists, etc.). Integer subclasses (e.g., `IntEnum` members or custom `int` subclasses) with values in range are accepted and converted identically to the equivalent `int`. The behavior for `bool` (a subclass of `int`) is unspecified; either acceptance or rejection with `TypeError` is permitted but not required, and tests must not depend on either choice. The existing `is_roman_numeral` function and the test suite must remain unchanged.",
+  "interface_contract": [
+    {
+      "name": "to_roman",
+      "signature": "def to_roman(n: int) -> str:",
+      "behavior": "Converts an integer n in the range 1..3999 inclusive to its standard Roman numeral string using subtractive notation (e.g., 4='IV', 9='IX', 40='XL', 90='XC', 400='CD', 900='CM'). Returns the Roman numeral as a string.",
+      "error_cases": [
+        "ValueError: raised when n is an instance of int (including int subclasses) with a value outside the range 1..3999 (e.g., 0, -1, 4000).",
+        "TypeError: raised when n is not an instance of int (i.e., isinstance(n, int) is False). This includes numeric strings, floats, None, lists, etc. Note: bool is an instance of int; accepting or rejecting bool is permitted but not required."
+      ]
+    },
+    {
+      "name": "is_roman_numeral",
+      "signature": "def is_roman_numeral(s: Any) -> bool:",
+      "behavior": "Returns True if s is a non-empty string consisting only of Roman numeral letters (I, V, X, L, C, D, M) case-insensitively; otherwise returns False. This function is already implemented and must not be changed.",
+      "error_cases": []
+    }
+  ],
+  "acceptance_criteria": [
+    "to_roman(1) == 'I'",
+    "to_roman(4) == 'IV'",
+    "to_roman(9) == 'IX'",
+    "to_roman(40) == 'XL'",
+    "to_roman(90) == 'XC'",
+    "to_roman(400) == 'CD'",
+    "to_roman(900) == 'CM'",
+    "to_roman(2024) == 'MMXXIV'",
+    "to_roman(3999) == 'MMMCMXCIX'",
+    "to_roman(1994) == 'MCMXCIV'",
+    "to_roman returns a str for all valid inputs",
+    "ValueError is raised for ints outside 1..3999 (0, -1, 4000), including int subclass instances with such values",
+    "TypeError is raised for non-int input ('5', 5.0, None, [1])",
+    "An int subclass instance with a value in range (e.g., PlainInt(49)) converts like the equal int: PlainInt(49) -> 'XLIX'",
+    "is_roman_numeral('XIV') returns True",
+    "is_roman_numeral('mmxxiv') returns True",
+    "is_roman_numeral('') returns False",
+    "is_roman_numeral('ABC') returns False",
+    "is_roman_numeral(14) returns False"
+  ],
+  "out_of_scope": [
+    "The implementer must not change the existing `is_roman_numeral` function.",
+    "The implementer must not modify the test files (tests/test_basic.py, tests/__init__.py).",
+    "The implementer must not modify roman/__init__.py.",
+    "Behavior for int subclasses that override arithmetic or comparison operators is unspecified and must not be relied upon.",
+    "Whether bool (True/False) is accepted or rejected with TypeError is unspecified; both are permitted and tests must not depend on either choice."
+  ],
+  "external_references_needed": []
+}
