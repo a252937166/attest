@@ -699,3 +699,25 @@ Also in 0.10.2, in the next commit: the home page counted only the newest 50 run
 read "50 recorded runs" while the store held 74. The page now requests up to the server's cap of 200 rows, and says "latest" if a list
 ever fills it. The asset stamp moves to `20261021a`, so browsers fetch the new script. The server is unchanged: it already accepted
 `limit` up to 200.
+
+
+# The 0.10.2 pin (21 Oct 2026)
+
+The publication repository is https://github.com/a252937166/attest: read `<publication repository>` in the checkout lines above as that
+URL.
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `7c48b3f8a1398ce4f5426f96d29e659d6ac38458` on branch `main` of the review repository; in the published history `3d3ffeab098e1236ac51b33aa1c3a94aa6eb899e` |
+| `attest/` package digest (37 files) | `6104fd89f66a8ce15e496d87df28d502ee3e51860ee226cb91b02a0538fd3cc3` (0.10.2); against `2ac80fb` only `attest/__init__.py` (the version), `attest/app/static/index.html` and `attest/app/static/app.js` changed |
+| Harness, METHOD, suite, examples | unchanged: `243ab12f3879…`, `ec415afcf164…`, `a43da6c3ee74…`; `examples/` unchanged |
+| Service unit | unchanged: `deploy/yungou/attest.service` sha256 `c84e1bb107ba3877…` |
+| Asset stamp | `20261021a` (`app.js` changed) |
+| Offline suite | **499 tests, 0 failures, 0 skips** on a clean checkout of `7c48b3f` on macOS (no credential, HOME new and empty and still empty afterwards, outbound network denied except loopback; `reports/attest-deployment-2026-10-21b/suites/suite-1-clean-7c48b3f-macos.log`), and the same with `shutil.disk_usage` patched to report 1 % free (`suite-2-clean-7c48b3f-macos-lowdisk.log`). The Linux run was not repeated: since `2ac80fb` (498 tests on Linux, 30 skipped) the changes are the console's page and script, the version, the tests' free-space thresholds, and the publication tooling with one new test |
+
+The release is built from a clean checkout of this pin record, which carries the package of `7c48b3f` unchanged.
+
+```bash
+git clone https://github.com/a252937166/attest attest-0102 && cd attest-0102 && git checkout 3d3ffeab098e1236ac51b33aa1c3a94aa6eb899e
+# the same tree as review-repository commit 7c48b3f8a1398ce4f5426f96d29e659d6ac38458
+```
