@@ -221,12 +221,12 @@ release: owner-approved, NO CHANGE, $0.144 (`reports/attest-demo-run-2026-10-21/
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
-deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).
+deadlines and ingress protection remain. The operator's deployment and regression record is kept separately.
 The Attest application was not redeployed and the recorded evaluation was not rerun by this operation.
 
 ## For judges
 
-Start with `TESTING.md` (offline tests in 15 seconds, `attest check` on a recorded bundle, the live console, your own
+Start with [TESTING.md](TESTING.md) (recorded evidence without a login or paid run, offline checks, the test suite, your own
 repository), `METHOD.md` (the frozen evaluation method) and `FREEZE.md` (the pinned commit, digests, models, limits and
 the exact evaluation command; its published-history tables map the evaluation and release pins from the review repository to
 the commits available in the public repository). Every dated report under `reports/` keeps its failed and inconclusive runs; rehearsals by

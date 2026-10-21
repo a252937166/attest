@@ -3,6 +3,17 @@
 Three levels, from no credentials to a live run. Everything here is English, offline where it can be, and leaves no secret
 in any artifact.
 
+For a quick review, no login or paid run is required:
+
+1. Open the [public console](https://attest.axiqo.xyz) and choose a recorded run. Inspect its verdict, gates and exhibits.
+2. Download its Proof Bundle ZIP. From a clone of this repository with Attest installed (see below), run
+   `python3 -m attest check /path/to/downloaded-proof-bundle.zip`.
+3. Compare the check's verdict with the console. `EVIDENCE COMPLETE` means the recorded evidence passes the offline
+   integrity and consistency checks; a NO CHANGE bundle still records an unfinished task, not a verified patch.
+
+The [demonstration video](https://youtu.be/EwW-yEKCk1A) follows this route. Starting a new live run is optional and incurs
+inference and Sandbox charges for the operator.
+
 ## 1. Offline, no credentials (about two minutes)
 
 ```bash
@@ -27,11 +38,11 @@ never-sent requests, their refusal to resend anything uncertain, the reservation
 $0, the accepted Sandboxes operation id journaled before polling, the harness's reconciliation list and the checker's
 recomputation of the transport counters; `ExplicitStart` in `tests/test_audit_console.py` (428 without the confirmation
 header, no trace); the installer's memory-limit readback (`test_audit_ops.py` scenarios 9 and 10); and the console's
-confirmation step in `tests/console_client_test.mjs`. Then verify a recorded Proof Bundle offline, for example the
-external-repository run that ended VERIFIED:
+confirmation step in `tests/console_client_test.mjs`. Then verify a recorded Proof Bundle offline, for example this
+VERIFIED run from the [final 0.10.0 Nemotron evaluation](reports/attest-evaluation-2026-10-21-nebius-r10/README.md):
 
 ```bash
-python3 -m attest check reports/attest-m4-2026-10-17/runs/semver-long-prerelease-pr488-20261017T132707Z
+python3 -m attest check reports/attest-evaluation-2026-10-21-nebius-r10/batch/runs/slugkit-regression-001-attest-a1-20261021T030502372330Z
 ```
 
 It recomputes every artifact digest against the manifest (and, since revision 5, that the manifest lists every file, with
@@ -41,7 +52,8 @@ digests of corrected test modules and of contract-audit witnesses, that a correc
 failing tests' bodies and was classified for exactly the failing tests, that an INFEASIBLE verdict rests on an executed and
 demonstrated witness, the ledger totals, the gate-to-verdict rule and `PROOF.md`. The header of the report names the bundle's
 evidence protocol: a bundle written by revision 5 declares version 2, one written by revision 6 version 3 and one written
-by revision 7 or later version 4, and each must carry the complete evidence for its verdict (the result line then reads `OK, EVIDENCE COMPLETE for verdict ...`;
+by revision 7 or 8 version 4, and by revision 9 or later version 5 (including reconciliation records). Each must carry the
+complete evidence for its verdict (the result line then reads `OK, EVIDENCE COMPLETE for verdict ...`;
 under version 3 the mandatory records are derived from the frozen task and the execution mode, and an INFEASIBLE verdict
 needs a conflict grounded in the task's own criteria with a constrained witness; under version 4 the checker repeats the
 witness-language analysis `attest-witness/1` from the witness file and the repository copies in the bundle); every bundle recorded before that is checked as a historical bundle for
@@ -73,7 +85,7 @@ bodies, checking the resulting state, the halt and that no request leaves afterw
 `reports/attest-revision10-repairs-2026-10-20/repro/reproduce_r10.py --tree <checkout> --out <file>` reproduces the defects of 0.9.0
 against any checkout (63 checks), so it can be run before and after the repair.
 
-## 2. The live console (no credentials; one click costs us, not you)
+## 2. The public console (no credentials; recorded evidence is free to inspect)
 
 https://attest.axiqo.xyz shows recorded evidence first. Open any run: the decision header, the exhibits E1 to E7, the
 gates, the counterexample when there is one, and the downloadable bundle. Download a bundle zip and run `attest check` on
