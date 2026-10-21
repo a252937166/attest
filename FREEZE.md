@@ -768,3 +768,23 @@ The release is built from a clean checkout of this pin record, which carries the
 git clone https://github.com/a252937166/attest attest-0103 && cd attest-0103 && git checkout 13574c89ea60d8e52dcdcd478864be11258fdfc4
 # the same tree as review-repository commit 53598803db75a9413172efe8e015044219ea0df0
 ```
+
+
+# The 0.10.3 deployment, and the owner-approved live run (21 Oct 2026)
+
+0.10.3 was deployed to yungou at 07:01 UTC from a clean worktree of the pin record `794b3f8` (release `0.10.3-c002ef609d9c`;
+`reports/attest-deployment-2026-10-21c/README.md`). 0.10.2 is the rollback target. The installer pruned `0.10.0` and keeps `0.10.1`,
+whose directory holds the folders of the 34 runs imported by 0.10.1: the known limitation of
+`reports/attest-deployment-2026-10-21/README.md`. **The next install would prune `0.10.1`, so that limitation has to be fixed before
+another release.**
+
+The owner approved one live Nemotron run for the demonstration film. It ran on 0.10.3 at 07:03 UTC:
+`semver-is-compatible-pr368-v2-20261021T070345824312Z`, NO CHANGE, $0.143683 of inference
+(`reports/attest-demo-run-2026-10-21/README.md`).
+
+Paid Nebius inference recorded for revision 10 and its releases:
+- $1.503242 for the validation (approved maximum $10.00);
+- $0.143683 for this run (approved separately, capped at $0.50);
+- $1.646925 in all.
+
+Tavily: no call.

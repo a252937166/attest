@@ -1,0 +1,67 @@
+== install.sh 20261021T070112Z: bundle app.tar.gz, root /opt/attest, memory limit 200M (209715200 bytes, memory+swap the same)
+
+[01] preflight
+     ok: interpreter: /opt/attest/python/bin/python3.12 (Python 3.12.15)
+     ok: bundle sha256 4dfd0e7f0a8135b0d4c9f9f67013ea22247009564b89ed2e1a13f033c273324f
+     ok: user attest exists
+     ok: secrets: /etc/attest/attest.env installed from the staged attest.env (root:attest 0640)
+     ok: current layout: /opt/attest/app -> /opt/attest/releases/0.10.2-6104fd89f66a; previous: /opt/attest/releases/0.10.1-53a9b7c39a96
+
+[02] extract the bundle into a staging directory
+     tar reported 5351 macOS extended-attribute headers (ignored, harmless)
+     ok: extracted into /opt/attest/releases/.staging-20261021T070112Z
+
+[03] verify RELEASE.json against the extracted tree
+     ok: version 0.10.3, package digest c002ef609d9c4de8627daeca68e0eb1461b985881db028fdcbac5a32ad95c0d5 (37 sources), 4758 files verified (sha256 and size), no unlisted file, no env file
+     ok: release label 0.10.3-c002ef609d9c
+
+[04] release directory
+     ok: /opt/attest/releases/0.10.3-c002ef609d9c (not active until the switch)
+
+[05] per-release virtualenv and pinned dependencies
+     ok: pins from deploy/yungou/requirements.txt installed into /opt/attest/releases/0.10.3-c002ef609d9c/venv
+
+[06] validate the release with its own interpreter (before switching)
+     ok: compileall attest/
+     ok: import fastapi uvicorn jsonschema certifi
+     ok: import attest, attest.core.provenance: version 0.10.3, attest_revision() digest c002ef609d9c4de8627daeca68e0eb1461b985881db028fdcbac5a32ad95c0d5 over 37 files (equal to RELEASE.json)
+
+[07] render the unit and the vhost
+     ok: unit from /var/tmp/attest-deploy/attest.service (MemoryLimit and MemoryMax 200M = 209715200 bytes, memory+swap the same; ExecStart uses the active release's interpreter through the app link)
+     ok: vhost from /var/tmp/attest-deploy/attest.axiqo.xyz.conf: https vhost (certificate present)
+
+[08] nginx configuration test with the new vhost in place (nginx is not reloaded yet)
+     ok: vhost unchanged; nginx is not touched by this install
+
+[09] switch /opt/attest/app to 0.10.3-c002ef609d9c
+     ok: /opt/attest/app -> /opt/attest/releases/0.10.3-c002ef609d9c; /opt/attest/app.prev -> /opt/attest/releases/0.10.2-6104fd89f66a
+
+[10] systemd unit
+     ok: unit unchanged
+     ok: daemon-reload, enabled
+
+[11] restart attest.service
+     ok: restarted
+
+[12] health (strict: HTTP 200, JSON, version 0.10.3, worker alive; deadline 60s) at http://127.0.0.1:4070/api/health
+     health: HTTP 200, version 0.10.3, worker alive, queue 0, free 3003 MB
+
+[13] memory limit in force (memory and memory+swap 200M = 209715200 bytes)
+     systemd MemoryLimit=209715200; memory.limit_in_bytes=209715200; memory.memsw.limit_in_bytes=209715200; main PID 32680 in memory cgroup /system.slice/attest.service
+     ok: systemd and the kernel enforce 209715200 bytes for memory and for memory+swap on the running service
+
+[14] read back the installed release through /opt/attest/app
+     ok: 4758 RELEASE.json entries verified in place (version 0.10.3, digest c002ef609d9c4de8627daeca68e0eb1461b985881db028fdcbac5a32ad95c0d5)
+     ok: /opt/attest/app/venv/bin/python reports version 0.10.3, attest_revision() digest c002ef609d9c4de8627daeca68e0eb1461b985881db028fdcbac5a32ad95c0d5 (37 files)
+
+[15] nginx reload
+     ok: not needed (vhost unchanged)
+
+[16] prune old releases (keeping 3, never the active or previous one)
+     pruned old release 0.10.0-7e72364f135c
+     ok: releases now: 0.10.1-53a9b7c39a96 0.10.2-6104fd89f66a 0.10.3-c002ef609d9c 
+
+install complete: 0.10.3-c002ef609d9c active at /opt/attest/app (version 0.10.3, package digest c002ef609d9c4de8627daeca68e0eb1461b985881db028fdcbac5a32ad95c0d5)
+     previous release: /opt/attest/releases/0.10.2-6104fd89f66a
+     rollback: bash rollback.sh (re-selects the previous release and restarts only attest.service); list: bash rollback.sh --list
+     store: /var/lib/attest/attest.db is not modified by the installer; the service migrates its schema forward at start

@@ -209,6 +209,11 @@ places. It no longer names Nemotron 3.5 Lightning, which no recorded run called.
 recorded. The home counts cover every run: the page had counted only the newest 50 of 74. The same read-only checks as for 0.10.1 all
 pass, and the demonstration film's console footage was recorded on this release.
 
+Console release 0.10.3 (deployed 21 Oct 2026, 07:01 UTC; `reports/attest-deployment-2026-10-21c/README.md`) replaces the task menu
+with a picker. It names each task briefly; shows its repository, issue, runner and held-out tests, and its latest Attest verdict; and
+browsing a task now opens that verdict rather than an infrastructure error. The demonstration film's live run was started on this
+release: owner-approved, NO CHANGE, $0.144 (`reports/attest-demo-run-2026-10-21/README.md`).
+
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).
