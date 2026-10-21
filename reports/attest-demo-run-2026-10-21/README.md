@@ -40,7 +40,9 @@ owner's decision after the run.
 
 ## Files
 
-- `semver-is-compatible-pr368-v2-20261021T070345824312Z-proof-bundle.zip`: the bundle as downloaded from the console on camera.
+- `semver-is-compatible-pr368-v2-20261021T070345824312Z-proof-bundle.zip`: the bundle as downloaded from the console on camera. The zip
+  stays in the private tree, because the public export takes no archive. Its unpacked contents are in
+  `bundle/semver-is-compatible-pr368-v2-20261021T070345824312Z/`, which `python3 -m attest check` reads as a run directory.
 - `terminal/session.sh`, `terminal/session.cast`: the real terminal session (asciinema 2.4.0, 110 x 24) of the fresh clone and the
   check, replayed in the film. The script types each command at a human pace, then runs it.
 - `terminal/check-output.txt`: the check's output, from the cast.

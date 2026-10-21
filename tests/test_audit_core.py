@@ -790,6 +790,7 @@ MODERN_CORPUS = {  # folder -> the evidence protocol every bundle in it declares
     "attest-revision9-repairs-2026-10-20/live-codex": 5,  # revision 9: one development run of the clean checkout, evidence protocol 5
     "attest-revision10-repairs-2026-10-20/live-codex": 5,  # revision 10: one development run of the clean checkout of 775248c, protocol 5
     "attest-validation-2026-10-21-nebius-r10/smoke": 5,  # the two-run Nemotron smoke test of the pinned 0.10.0 checkout, 20-21 Oct
+    "attest-demo-run-2026-10-21/bundle": 5,  # the owner-approved live run of the demonstration film (0.10.3, 21 Oct): NO CHANGE
     "attest-evaluation-2026-10-21-nebius-r10": 5,  # the paid 32-cell Nemotron evaluation of the pinned 0.10.0 checkout, 21 Oct
 }
 KNOWN_DEFECTIVE = (  # partial copies or a stopped batch; they fail attest check by construction and are not exported

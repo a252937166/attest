@@ -1,0 +1,42 @@
+{
+  "feasible": true,
+  "infeasibility_reason": null,
+  "restated_task": "Add an instance method `Version.is_compatible(other: Version) -> bool` to the Version class in src/semver/version.py. The method returns True when `other` (the new version) can be used in place of `self` (the old version). Compatibility rules: majors must be equal; new.minor >= old.minor; prerelease parts must be equal (both None counts as equal); patch is ignored. Major version 0 is special: only identical versions (major, minor, patch, prerelease all equal) are compatible. If `other` is not a Version instance (subclasses allowed), raise TypeError with message starting with 'Expected a Version type but got ' followed by the type representation. Include a docstring with at least two doctest examples. Do not modify any other public behavior, tests, docs, or packaging; keep the existing pytest suite passing.",
+  "interface_contract": [
+    {
+      "name": "Version.is_compatible",
+      "signature": "def is_compatible(self, other: 'Version') -> bool",
+      "behavior": "Returns True when `other` (new version) is compatible with `self` (old version). Compatibility rules: 1) major versions must be equal. 2) If major == 0: versions must be identical in major, minor, patch, and prerelease (build ignored). 3) If major > 0: other.minor >= self.minor AND other.prerelease == self.prerelease (both None counts as equal); patch is ignored. Subclasses of Version are accepted as `other`.",
+      "error_cases": [
+        "TypeError: raised when `other` is not an instance of Version (or subclass). Message must start with 'Expected a Version type but got ' followed by the type representation (e.g., \"<class 'str'>\")."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 3)) is True",
+    "Version(1, 2, 3).is_compatible(Version(1, 2, 4)) is True (patch ignored)",
+    "Version(1, 2, 4).is_compatible(Version(1, 2, 3)) is True (patch ignored, minor equal)",
+    "Version(1, 2, 3, 'rc.0').is_compatible(Version(1, 2, 4, 'rc.0')) is True (equal prereleases)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 0)) is True (identical major-0 versions)",
+    "Version(0, 1, 0).is_compatible(Version(0, 1, 1)) is False (major 0 requires identical version)",
+    "Version(1, 1, 0).is_compatible(Version(1, 0, 0)) is False (lower minor)",
+    "Version(2, 0, 0).is_compatible(Version(1, 5, 0)) is False (different major)",
+    "Version(1, 2, 3, 'rc.1').is_compatible(Version(1, 2, 3, 'rc.0')) is False (different prerelease)",
+    "Version(1, 0, 0).is_compatible(Version(1, 0, 0, 'rc1')) is False (prerelease vs none)",
+    "Version(1, 0, 0, 'rc1').is_compatible(Version(1, 0, 0)) is False (none vs prerelease)",
+    "Version(1, 2, 3).is_compatible('wrongtype') raises TypeError with message starting with 'Expected a Version type but got <class 'str'>'",
+    "Version(1, 2, 3).is_compatible({'a': 2}) raises TypeError with message starting with 'Expected a Version type but got <class 'dict'>'",
+    "Version(1, 2, 3).is_compatible([]) raises TypeError with message starting with 'Expected a Version type but got <class 'list'>'",
+    "class CustomVersion(Version): pass; CustomVersion(1, 0, 0).is_compatible(Version(1, 0, 0)) is True (subclass accepted)",
+    "The method's docstring contains at least two doctest examples",
+    "The existing pytest test suite (tests/) continues to pass without modifications"
+  ],
+  "out_of_scope": [
+    "Do not modify any other public methods or attributes of Version class",
+    "Do not modify any other files in src/semver/ (except version.py for the new method)",
+    "Do not modify any files in tests/, docs/, or packaging files (pyproject.toml, setup.cfg, etc.)",
+    "Do not change any existing public behavior or APIs",
+    "Do not add new tests or modify existing tests"
+  ],
+  "external_references_needed": []
+}
