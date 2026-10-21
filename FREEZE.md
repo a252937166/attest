@@ -694,3 +694,8 @@ The same commit makes four console tests independent of the host's free disk spa
 failed, because the worker paused new runs; this was seen on the development machine at 6.9 % free. They now pass zero thresholds, and
 the whole suite passes with `shutil.disk_usage` patched to report 1 % free. The Devpost draft drops the same Lightning claim. The 0.10.2
 pin is recorded below once its suites have run.
+
+Also in 0.10.2, in the next commit: the home page counted only the newest 50 runs, the list API's default page, so production's ticker
+read "50 recorded runs" while the store held 74. The page now requests up to the server's cap of 200 rows, and says "latest" if a list
+ever fills it. The asset stamp moves to `20261021a`, so browsers fetch the new script. The server is unchanged: it already accepted
+`limit` up to 200.

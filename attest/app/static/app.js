@@ -11,6 +11,7 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const qs = new URLSearchParams(location.search);
   const POLL_MS = Math.max(300, Number(qs.get("poll")) || 4000);
+  const RUNS_PAGE = 200;  // the server's cap on one page of /api/runs; the home counts cover every run up to it (0.10.2: the default page of 50 truncated them)
   const REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const usd = (v) => (v == null ? "allowance" : "$" + Number(v).toFixed(3));
   const usdOrNa = (v) => (v == null ? "not billed in USD (team allowance)" : "$" + Number(v).toFixed(4));
@@ -310,7 +311,7 @@
     restoreFocus(f);
   }
   async function loadRuns() {
-    try { const body = await api("/api/runs"); state.runs = body.runs || []; } catch (e) { /* keep the last list */ }
+    try { const body = await api(`/api/runs?limit=${RUNS_PAGE}`); state.runs = body.runs || []; } catch (e) { /* keep the last list */ }
     renderHistory();
     if (state.view === "home") renderHome();
   }
@@ -356,7 +357,7 @@
     const num = (n, cls) => `<strong class="${cls || ""}" data-n="${n}">${n}</strong>`;
     const stat = (inner) => `<span class="stat">${inner}</span>`;
     const tickerHtml = runs.length
-      ? `<span class="dot ${busy ? "live" : "idle"}"></span>${stat(`${num(done.length)} recorded run${done.length === 1 ? "" : "s"}`)}<span class="sep"></span>${stat(`${num(count("VERIFIED"), "ok")} VERIFIED`)}<span class="sep"></span>${stat(`${num(count("NEEDS HUMAN"), "holdc")} NEEDS HUMAN`)}<span class="sep"></span>${stat(`${num(other)} other verdict${other === 1 ? "" : "s"}`)}${busy ? `<span class="sep"></span>${stat("a live run is in progress")}` : ""}`
+      ? `<span class="dot ${busy ? "live" : "idle"}"></span>${stat(`${num(done.length)} ${runs.length >= RUNS_PAGE ? "latest " : ""}recorded run${done.length === 1 ? "" : "s"}`)}<span class="sep"></span>${stat(`${num(count("VERIFIED"), "ok")} VERIFIED`)}<span class="sep"></span>${stat(`${num(count("NEEDS HUMAN"), "holdc")} NEEDS HUMAN`)}<span class="sep"></span>${stat(`${num(other)} other verdict${other === 1 ? "" : "s"}`)}${busy ? `<span class="sep"></span>${stat("a live run is in progress")}` : ""}`
       : `<span class="dot idle"></span><span>${h ? "No recorded runs yet." : "Service unreachable: the recorded evidence cannot be listed."}</span>`;
     if (ticker.dataset.sig !== tickerHtml) {
       ticker.innerHTML = tickerHtml; ticker.dataset.sig = tickerHtml;
