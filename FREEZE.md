@@ -24,7 +24,7 @@ From a clean checkout of the pinned commit (the harness snapshots the tree into 
 the snapshot in a fresh process; the schedule records the digests above and the commit):
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout 550568285af7d572b70a48d4a2de729f570f94c3
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 948385c055852739ce98613240b01fef13c5c601
 # the same tree as review-repository commit 6b786a2e51bba634d63cc8b4ee75bb215c168fa7; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
@@ -97,7 +97,7 @@ sandbox runner (same digests as the M5 pin), the gate-to-verdict rule's structur
 ## The exact command (unchanged in shape; a new report directory)
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout f4bf5f48eb698ccd1b7bb5d2c7c1c450de993ca7
+git clone <publication repository> attest-eval && cd attest-eval && git checkout d258ecfd0a75746e17c2978874c8dd0e87f45a92
 # the same tree as review-repository commit 4437b29a233603bf8a0523a6c0092493a92d2aa3; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
@@ -168,7 +168,7 @@ so the correction path is covered by the offline acceptance tests only.
 ## The exact command (revision 5)
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout ad2f633c555898a8a6e47e7e410aff0ddb15e1b7
+git clone <publication repository> attest-eval && cd attest-eval && git checkout ef9efd17bc0fdfdc5f47046b819439f68a397255
 # the same tree as review-repository commit 320651d3bd4011538fe2f6d240a1e5769b019051; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
@@ -239,7 +239,7 @@ the held-out judge establishes the two acceptances; nothing establishes the hold
 ## The exact command (revision 6)
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout 0dd0b425b8aa6ea9fe03160a8eb6aef82dbf21e8
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 2dec76668f89ad2b288c01366a16c1f17f1400c5
 # the same tree as review-repository commit da00f41a5542a1c114c2ba1a57a6f0ee7e7ff906; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
@@ -323,7 +323,7 @@ checking, not correct patches: the held-out judge establishes the two judged out
 ## The exact command (revision 7)
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout 00a3e2a76b1fa5b24b5e96cb1387d5bf7de381af
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 179a949bc2e2ec30faa3f5c68e65aa9461c9b37f
 # the same tree as review-repository commit a95e2614d643bc057a1877f81b5ebe774fabaf7e; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
@@ -404,7 +404,7 @@ judge establishes the judged outcomes.
 ## The exact command (revision 8)
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout 84d3d8b774b3e4a1aa5cef77cecc17e67e5d4b89
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 74b6bc9d673c7daec239a38bec3e72335bbe22c7
 # the same tree as review-repository commit 459fe8dd97bb1f719edff42921c04fa43bb50196; see "Publication repository (revision 9)"
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
@@ -468,7 +468,7 @@ deployed tree carries the earlier tests, which the service never runs.
 ## The exact command (revision 9)
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout e91e8db2a1f40102331b403b820f9e7b1ff698dd
+git clone <publication repository> attest-eval && cd attest-eval && git checkout 1c3a8c14ddf6f0cbbb02bb70d46a90621210e92b
 # the same tree as review-repository commit 67518471b1a56e95379a789b0f0e2dc0d77db8b5
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
@@ -557,7 +557,7 @@ tree carries the earlier test file, which the service never runs.
 ## The exact command (revision 10)
 
 ```bash
-git clone <publication repository> attest-eval && cd attest-eval && git checkout 953ae59b8c8ef5e54bbadbf2fb2b940b8851fa3a
+git clone <publication repository> attest-eval && cd attest-eval && git checkout a72fdf247a927b111b0ee17f5c5602c299118e5d
 # the same tree as review-repository commit c0ddb486f8c91f061678a2b6239cbbdbddd21f87
 export NEBIUS_API_KEY=... NEBIUS_PROJECT_ID=...
 python3 scripts/run_evaluation.py --provider nebius --suite examples/eval/SUITE-M5.json --systems baseline,attest \
@@ -626,3 +626,48 @@ The same records commit carries the publication tooling for the owner's decision
 path and its scan flags any left; `scripts/build_publication_history.py` gains `--identity "Name <email>"` (every commit's author and
 committer become that identity, dates and messages kept; `--verify` checks it); `tests/test_publication_identity.py` covers both, and the
 recorded-corpus inventory classifies the two new evidence folders under protocol 5.
+
+
+# The 0.10.1 pin and the published history (21 Oct 2026)
+
+## The pin (0.10.1)
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `2ac80fbee49e39a83d70b73b047b7d275f4daf73` on branch `main` of the review repository; in the published history `c38e9c110e2130b102ba27d73a27dddf2b759d43` |
+| `attest/` package digest (37 files) | `53a9b7c39a96288e2a4f2f439874e985231ed0aa4b8ed18ff31e1579a7a69ae1` (0.10.1); against `c0ddb48` only `attest/__init__.py` (the version) and `attest/app/static/index.html` (the evaluation section) changed |
+| Harness, METHOD, suite, examples | unchanged: `243ab12f3879…`, `ec415afcf164…`, `a43da6c3ee74…`, examples `e95a28aa3633…` (196 files) |
+| Service unit | `deploy/yungou/attest.service` sha256 `c84e1bb107ba3877…`: the import list adds the 21 Oct evaluation's runs and the two smoke runs |
+| Offline suite | **498 tests, 0 failures, 0 skips** on a clean checkout of `2ac80fb` on macOS (no credential, HOME new and empty and still empty afterwards, outbound network denied except loopback; `reports/attest-deployment-2026-10-21/suites/suite-1-clean-2ac80fb-macos.log`); **498 tests, 30 skipped** (no bash, git or node in the image) in a container with no network interface (`suite-2-clean-2ac80fb-linux.log`) |
+
+The release is built from a clean checkout of this pin record, which carries the package of `2ac80fb` unchanged (the commits between change
+the publication tooling, its tests and these records only).
+
+```bash
+git clone <publication repository> attest-0101 && cd attest-0101 && git checkout c38e9c110e2130b102ba27d73a27dddf2b759d43
+# the same tree as review-repository commit 2ac80fbee49e39a83d70b73b047b7d275f4daf73
+```
+
+## The published history
+
+Owner decisions of 21 Oct 2026 for the public repository: every commit's author and committer are `Mr.ooo
+<16303294+a252937166@users.noreply.github.com>` (dates and messages kept), and the account name a development session's scratch path spells
+is rewritten to a neutral path in every published copy (the originals stay private and unchanged). The identity enters every commit, so
+every publication commit id changed with this rebuild. The `git checkout` lines above now name the published commits; the publication ids
+quoted elsewhere in this file before 21 Oct name the local builds of that time (none was ever pushed). The rebuilt history up to
+`30c93fc` replays 77 commits; its verification: scan clean (7,170 objects), 0 unexpected differences, the identity on every commit, the
+package, harness and METHOD digests of all 11 pins equal, 1,141 rewritten bundle copies passing `attest check`.
+
+| Pin (review commit) | Local build before 21 Oct | Published history |
+| --- | --- | --- |
+| `6b786a2e51bba634d63cc8b4ee75bb215c168fa7` | `550568285af7` | `948385c055852739ce98613240b01fef13c5c601` |
+| `4437b29a233603bf8a0523a6c0092493a92d2aa3` | `f4bf5f48eb69` | `d258ecfd0a75746e17c2978874c8dd0e87f45a92` |
+| `320651d3bd4011538fe2f6d240a1e5769b019051` | `ad2f633c5558` | `ef9efd17bc0fdfdc5f47046b819439f68a397255` |
+| `da00f41a5542a1c114c2ba1a57a6f0ee7e7ff906` | `0dd0b425b8aa` | `2dec76668f89ad2b288c01366a16c1f17f1400c5` |
+| `a95e2614d643bc057a1877f81b5ebe774fabaf7e` | `00a3e2a76b1f` | `179a949bc2e2ec30faa3f5c68e65aa9461c9b37f` |
+| `459fe8dd97bb1f719edff42921c04fa43bb50196` | `84d3d8b774b3` | `74b6bc9d673c7daec239a38bec3e72335bbe22c7` |
+| `7664742309216676c7a0bc9188df0aac932fe35b` | `12a541dc6da9` | `a2058694ce8b35051973ec2574b4641d337be77a` |
+| `67518471b1a56e95379a789b0f0e2dc0d77db8b5` | `e91e8db2a1f4` | `1c3a8c14ddf6f0cbbb02bb70d46a90621210e92b` |
+| `775248c2f87d66e5fe4f3802b1caf85024f62a49` | `fe88f405ae3b` | `1a97df7fbcf8d13f12e758ac08cc562b712aacef` |
+| `c0ddb486f8c91f061678a2b6239cbbdbddd21f87` | `953ae59b8c8e` | `a72fdf247a927b111b0ee17f5c5602c299118e5d` |
+| `2ac80fbee49e39a83d70b73b047b7d275f4daf73` | `(new)` | `c38e9c110e2130b102ba27d73a27dddf2b759d43` |
