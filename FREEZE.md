@@ -749,3 +749,22 @@ verdict still opens its latest run, and the page says so.
 
 Asset stamp `20261021b`. Tests: `tests/test_task_picker.py`. The layout audit now opens the picker at every width, and its new
 `--no-disk-guard` option lets its local server ignore the developer machine's free disk space.
+
+
+# The 0.10.3 pin (21 Oct 2026)
+
+| Item | Value |
+| --- | --- |
+| Repository commit (code) | `53598803db75a9413172efe8e015044219ea0df0` on branch `main` of the review repository; in the published history `13574c89ea60d8e52dcdcd478864be11258fdfc4` |
+| `attest/` package digest (37 files) | `c002ef609d9c4de8627daeca68e0eb1461b985881db028fdcbac5a32ad95c0d5` (0.10.3); against `7c48b3f`: `attest/__init__.py` (the version), `attest/app/worker.py` (`task_display`), `attest/app/db.py` (`latest_evidence_*`), `attest/app/server.py` (the empty estimate's keys) and the console page, script and styles |
+| Harness, METHOD, suite, examples | unchanged: `243ab12f3879…`, `ec415afcf164…`, `a43da6c3ee74…`; `examples/` unchanged |
+| Service unit | unchanged: `deploy/yungou/attest.service` sha256 `c84e1bb107ba3877…` |
+| Asset stamp | `20261021b` |
+| Offline suite | **503 tests, 0 failures, 0 skips** on a clean checkout of `5359880` on macOS (no credential, HOME new and empty and still empty afterwards, outbound network denied except loopback; `reports/attest-deployment-2026-10-21c/suites/suite-1-clean-5359880-macos.log`) |
+
+The release is built from a clean checkout of this pin record, which carries the package of `5359880` unchanged.
+
+```bash
+git clone https://github.com/a252937166/attest attest-0103 && cd attest-0103 && git checkout 13574c89ea60d8e52dcdcd478864be11258fdfc4
+# the same tree as review-repository commit 53598803db75a9413172efe8e015044219ea0df0
+```
