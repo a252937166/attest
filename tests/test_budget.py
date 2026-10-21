@@ -220,7 +220,7 @@ class ConsoleBudgetAccounting(unittest.TestCase):
 
     def test_worker_keeps_the_cost_of_a_run_that_crashed_after_paid_calls(self):
         from attest.app.worker import Worker
-        worker = Worker(self.store, self.tmp, TASK.parent.parent, max_turns=4)
+        worker = Worker(self.store, self.tmp, TASK.parent.parent, max_turns=4, min_free_frac=0.0, min_free_mb=0)  # the host's free space is not under test
         self.store.create_run(run_id="r1", task_id="durationkit-units-001", task_title="T", provider="nebius", profile_label="judge-demo",
                               status="queued", stage="queued", created_at=utcnow(), requester="t")
         with mock.patch.object(worker, "build_runtime", lambda run_id, provider_name, ledger: (PaidFakeProvider(ledger), CrashingExecutor(ledger, "verify"), None)):

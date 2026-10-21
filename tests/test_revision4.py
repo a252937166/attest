@@ -185,7 +185,7 @@ class ConsoleInterruption(unittest.TestCase):
 
     def test_worker_meters_land_in_the_store_before_the_process_dies(self):
         from attest.app.worker import Worker
-        worker = Worker(self.store, self.tmp, TASK.parent.parent, max_turns=4)
+        worker = Worker(self.store, self.tmp, TASK.parent.parent, max_turns=4, min_free_frac=0.0, min_free_mb=0)  # the host's free space is not under test
         self.store.create_run(run_id="r1", task_id="durationkit-units-001", task_title="T", provider="nebius", profile_label="judge-demo",
                               status="queued", stage="queued", created_at=utcnow(), requester="t")
 

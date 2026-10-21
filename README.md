@@ -6,6 +6,12 @@ the tests are shown failing on an unmodified checkpoint, the implementer works t
 a fresh sandbox branch verifies the candidate against the pristine sealed copy, and a Proof Bundle records the evidence
 and the usage ledger.
 
+At a glance (21 Oct 2026). Live console: https://attest.axiqo.xyz (recorded runs first; a live Nemotron run starts only after an
+explicit confirmation, within a daily cap). The latest evaluation on NVIDIA Nemotron, 32 cells on one suite: the plain agent shipped 2
+broken patches and Attest none; Attest refused the task that cannot be satisfied both times, and it accepted 2 correct patches to the
+plain agent's 8, holding the rest for a person (`reports/attest-evaluation-2026-10-21-nebius-r10/README.md`). Judges: start at
+[For judges](#for-judges). The dated paragraphs below record the project's history.
+
 Status (16 Oct 2026): end-to-end pipeline with a hardened, privilege-separated verifier, a web console/API, and a live
 deployment, plus a controlled evaluation against a plain agent. Start with the dated reports:
 `reports/attest-hardening-2026-10-16/README.md` (verifier privilege separation, budget, disk, arbitration, implementer
@@ -189,6 +195,14 @@ correct patches held 1 against 2, holds without a patch or unfinished 1 against 
 a valid suite), infrastructure errors 4 against 6. The infrastructure errors are six Sandboxes spawns answered HTTP 500 after they were
 sent; each stopped the batch, read-only checks found that none had run, and each item was acknowledged by id before the batch resumed;
 nothing was replayed. An Attest run cost 5.8 cents of inference on average. One batch of 32 cells on one suite, not a benchmark.
+
+Console release 0.10.1 (deployed 21 Oct 2026, 03:56 UTC; `reports/attest-deployment-2026-10-21/README.md`): the console reports that
+evaluation and serves its 32 runs and the 2 smoke-test runs; no server code changed. Read-only checks afterwards: the page and its assets
+byte-identical to the release, 74 runs, 0 holds, and 515 page states at five widths in a real browser with no overflow and no request
+other than GET. The console's daily cap counts the imported runs on the day they ran, so until 00:00 UTC on 22 Oct the public console
+runs one job at a time. A read-only sweep one hour after the last uncertain spawn confirmed that none of the six had executed. The public
+repository (https://github.com/a252937166/attest) replays the review history with the owner's identity on every commit and the session
+scratch paths rewritten; `FREEZE.md` maps every pin to its published commit.
 
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,

@@ -267,7 +267,7 @@ class AtomicHoldRecord(unittest.TestCase):
     def worker(self, stops):
         from attest.app.worker import Worker
         with mock.patch.object(Worker, "_loop", lambda self: None):
-            worker = Worker(self.store, self.data, TASK.parent.parent, max_turns=6)
+            worker = Worker(self.store, self.data, TASK.parent.parent, max_turns=6, min_free_frac=0.0, min_free_mb=0)  # the host's free space is not under test
         built = []
 
         def build(run_id, provider_name, ledger):

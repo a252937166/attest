@@ -1,0 +1,114 @@
+== 1. digests of the uploaded files
+app.tar.gz: OK
+install.sh: OK
+rollback.sh: OK
+snapshot.sh: OK
+decommission.sh: OK
+attest.service: OK
+attest.axiqo.xyz.conf: OK
+deploy-0101-server.sh: OK
+readback.sh: OK
+== 2. snapshot before
+/var/tmp/attest-deploy/before-20261021-20261021T035626Z.txt
+== 3. idle check
+version 0.10.0 busy False queue 0 current None holds 0
+== 4. store backup (SQLite backup API) and a copy of the data directory
+backup rows 40 holds 0
+data archive 491227 bytes
+cba1f32a275eef6b2fe63c6f8b2fb07a6075e39c511be586f07cc116ea35e21d  /var/lib/attest/attest.db.bak-20261021-full
+489cb257f74398e6ca2b9bd34e59a48d8e08d28862bc13de0039728b02bca605  /var/backups/attest-data-20261021.tgz
+== 5. install
+== install.sh 20261021T035631Z: bundle app.tar.gz, root /opt/attest, memory limit 200M (209715200 bytes, memory+swap the same)
+
+[01] preflight
+     ok: interpreter: /opt/attest/python/bin/python3.12 (Python 3.12.15)
+     ok: bundle sha256 3d1347d7ba29d2b408f939bcfb2919fced56d9e242f2e5e81fb77b19b2ecfa63
+     ok: user attest exists
+     ok: secrets: /etc/attest/attest.env installed from the staged attest.env (root:attest 0640)
+     ok: current layout: /opt/attest/app -> /opt/attest/releases/0.10.0-7e72364f135c; previous: /opt/attest/releases/0.9.0-ab5b1705ae2b
+
+[02] extract the bundle into a staging directory
+     tar reported 5304 macOS extended-attribute headers (ignored, harmless)
+     ok: extracted into /opt/attest/releases/.staging-20261021T035631Z
+
+[03] verify RELEASE.json against the extracted tree
+     ok: version 0.10.1, package digest 53a9b7c39a96288e2a4f2f439874e985231ed0aa4b8ed18ff31e1579a7a69ae1 (37 sources), 4716 files verified (sha256 and size), no unlisted file, no env file
+     ok: release label 0.10.1-53a9b7c39a96
+
+[04] release directory
+     ok: /opt/attest/releases/0.10.1-53a9b7c39a96 (not active until the switch)
+
+[05] per-release virtualenv and pinned dependencies
+     ok: pins from deploy/yungou/requirements.txt installed into /opt/attest/releases/0.10.1-53a9b7c39a96/venv
+
+[06] validate the release with its own interpreter (before switching)
+     ok: compileall attest/
+     ok: import fastapi uvicorn jsonschema certifi
+     ok: import attest, attest.core.provenance: version 0.10.1, attest_revision() digest 53a9b7c39a96288e2a4f2f439874e985231ed0aa4b8ed18ff31e1579a7a69ae1 over 37 files (equal to RELEASE.json)
+
+[07] render the unit and the vhost
+     ok: unit from /var/tmp/attest-deploy/attest.service (MemoryLimit and MemoryMax 200M = 209715200 bytes, memory+swap the same; ExecStart uses the active release's interpreter through the app link)
+     ok: vhost from /var/tmp/attest-deploy/attest.axiqo.xyz.conf: https vhost (certificate present)
+
+[08] nginx configuration test with the new vhost in place (nginx is not reloaded yet)
+     ok: vhost unchanged; nginx is not touched by this install
+
+[09] switch /opt/attest/app to 0.10.1-53a9b7c39a96
+     ok: /opt/attest/app -> /opt/attest/releases/0.10.1-53a9b7c39a96; /opt/attest/app.prev -> /opt/attest/releases/0.10.0-7e72364f135c
+
+[10] systemd unit
+     ok: unit written to /etc/systemd/system/attest.service
+     ok: daemon-reload, enabled
+
+[11] restart attest.service
+     ok: restarted
+
+[12] health (strict: HTTP 200, JSON, version 0.10.1, worker alive; deadline 60s) at http://127.0.0.1:4070/api/health
+     health: HTTP 200, version 0.10.1, worker alive, queue 0, free 3179 MB
+
+[13] memory limit in force (memory and memory+swap 200M = 209715200 bytes)
+     systemd MemoryLimit=209715200; memory.limit_in_bytes=209715200; memory.memsw.limit_in_bytes=209715200; main PID 30025 in memory cgroup /system.slice/attest.service
+     ok: systemd and the kernel enforce 209715200 bytes for memory and for memory+swap on the running service
+
+[14] read back the installed release through /opt/attest/app
+     ok: 4716 RELEASE.json entries verified in place (version 0.10.1, digest 53a9b7c39a96288e2a4f2f439874e985231ed0aa4b8ed18ff31e1579a7a69ae1)
+     ok: /opt/attest/app/venv/bin/python reports version 0.10.1, attest_revision() digest 53a9b7c39a96288e2a4f2f439874e985231ed0aa4b8ed18ff31e1579a7a69ae1 (37 files)
+
+[15] nginx reload
+     ok: not needed (vhost unchanged)
+
+[16] prune old releases (keeping 3, never the active or previous one)
+     ok: releases now: 0.10.0-7e72364f135c 0.10.1-53a9b7c39a96 0.9.0-ab5b1705ae2b 
+
+install complete: 0.10.1-53a9b7c39a96 active at /opt/attest/app (version 0.10.1, package digest 53a9b7c39a96288e2a4f2f439874e985231ed0aa4b8ed18ff31e1579a7a69ae1)
+     previous release: /opt/attest/releases/0.10.0-7e72364f135c
+     rollback: bash rollback.sh (re-selects the previous release and restarts only attest.service); list: bash rollback.sh --list
+     store: /var/lib/attest/attest.db is not modified by the installer; the service migrates its schema forward at start
+== 6. snapshot after
+/var/tmp/attest-deploy/after-20261021-20261021T035657Z.txt
+{"ok":true,"version":"0.10.1","worker_alive":true,"worker_restarts":0,"reconciliation":{"holds_open":0,"accepting_runs":true,"fail_closed":false,"policy":"a run that stopped because an operation's outcome is uncertain is held; no run starts until an operator reconciles it"},"ready":true,"queue":0,"busy":false,"current":null,"time_utc":"2026-10-21T03:57:00.811653+00:00","disk":{"free_mb":3182,"free_frac":0.2304,"low":false,"accepting_runs":true},"budget":{"daily_cap_usd":2.0,"per_run_cap_usd":0.5,"nebius_ok":true,"detail":"$1.4319 committed + 0 active reservation(s) within $2.00","remaining_usd":0.5681,"committed_today_usd":1.4319,"reserved_usd":0.0,"active_runs":0,"policy":"conservative UTC-
+== 7. readback
+time_utc 2026-10-21T03:57:00Z
+unit active; MainPID 30025; started Wed 2026-10-21 11:56:54 CST
+app -> /opt/attest/releases/0.10.1-53a9b7c39a96; app.prev -> /opt/attest/releases/0.10.0-7e72364f135c
+releases 0.10.0-7e72364f135c 0.10.1-53a9b7c39a96 0.9.0-ab5b1705ae2b 
+package 0.10.1 53a9b7c39a96288e2a4f2f439874e985231ed0aa4b8ed18ff31e1579a7a69ae1 37 files
+systemd MemoryAccounting=yes MemoryLimit=209715200 
+cgroup memory.limit_in_bytes 209715200
+cgroup memory.memsw.limit_in_bytes 209715200
+cgroup memory.usage_in_bytes 42233856
+cgroup memory.memsw.usage_in_bytes 42233856
+cgroup memory.max_usage_in_bytes 43872256
+cgroup memory.failcnt 0
+cgroup memory.memsw.failcnt 0
+cgroup oom_control oom_kill_disable 0 under_oom 0 oom_kill 0 
+main process memory cgroup /system.slice/attest.service
+main process VmRSS: 49872 kB VmSwap: 0 kB 
+health {"ok":true,"version":"0.10.1","worker_alive":true,"worker_restarts":0,"reconciliation":{"holds_open":0,"accepting_runs":true,"fail_closed":false,"policy":"a run that stopped because an operation's outcome is uncertain is held; no run starts until an operator reconciles it"},"ready":true,"queue":0,"busy":false,"current":null,"time_utc":"2026-10-21T03:57:00.961993+00:00","disk":{"free_mb":3182,"free_frac":0.2304,"low":false,"accepting_runs":true},"budget":{"daily_cap_usd":2.0,"per_run_cap_usd":0.5,"nebius_ok":true,"detail":"$1.4319 committed + 0 active reservation(s) within $2.00","remaining_usd":0.5681,"committed_today_usd":1.4319,"reserved_usd":0.0,"active_runs":0,"policy":"conservative UTC-day cap: a run counts against every UTC day on which it was queued, started, ran or finished (created_at, started_at or finished_at on that day); queued and running runs reserve the per-run cap on any day"},"public_runs_per_hour":3,"startup":{"reconciled":0,"deduplicated":0,"holds_repaired":0,"recovery_failed":false},"team":false}
+store 74 runs; 0 queued or running; open reconciliation holds: 0
+other services: nginx=active codex-api-relay=active docker=active containerd=active fail2ban=active firewalld=active sshd=active crond=active 
+nginx -t: nginx: configuration file /etc/nginx/nginx.conf test is successful
+memory: used 324 MB, available 276 MB ; swap used 221 MB 
+reconciliation holds_open 0 accepting_runs True fail_closed False startup {"reconciled": 0, "deduplicated": 0, "holds_repaired": 0, "recovery_failed": false}
+disk 3336491008 bytes free of 14483959808 (23.04%)
+== done

@@ -671,3 +671,26 @@ package, harness and METHOD digests of all 11 pins equal, 1,141 rewritten bundle
 | `775248c2f87d66e5fe4f3802b1caf85024f62a49` | `fe88f405ae3b` | `1a97df7fbcf8d13f12e758ac08cc562b712aacef` |
 | `c0ddb486f8c91f061678a2b6239cbbdbddd21f87` | `953ae59b8c8e` | `a72fdf247a927b111b0ee17f5c5602c299118e5d` |
 | `2ac80fbee49e39a83d70b73b047b7d275f4daf73` | `(new)` | `c38e9c110e2130b102ba27d73a27dddf2b759d43` |
+
+
+# The 0.10.1 deployment, a correction, and release 0.10.2 (21 Oct 2026)
+
+0.10.1 was deployed to yungou at 03:56 UTC from a clean worktree of the pin record `73abb06` (release `0.10.1-53a9b7c39a96`;
+`reports/attest-deployment-2026-10-21/README.md`). The one-hour reconciliation sweep at 04:19 UTC found that none of the six uncertain
+spawns had executed (`reports/attest-validation-2026-10-21-nebius-r10/README.md`).
+
+Correction to "The paid work, as approved" above: the evaluation's committed inference is $1.387089 (quoted rounded as $1.3871), so the
+total paid Nebius inference for revision 10 is $1.503242 ($1.387089 + $0.116153), not $1.503253; that figure added the rounded
+evaluation total. The production store agrees: the 34 imported runs carry $1.503242 committed.
+
+0.10.2 corrects two statements on the console page. The package changes only in its version and that page:
+- The page named Nemotron 3.5 Lightning as the summary model, but no recorded run called it (`METHOD.md` lists the summary role as not
+  used). The page now names Nemotron 3 Ultra and Super only. The architecture diagram now also lists Ultra's contract audit, as the
+  narrow-screen list already did.
+- The architecture said `attest_revision 166cdcbd` was recorded in every bundle of "the frozen evaluation". Since 0.10.1 the page shows
+  the 21 Oct evaluation first, so that reads as the wrong batch. It now names both: `7e72364f` (21 Oct) and `166cdcbd` (17 Oct).
+
+The same commit makes four console tests independent of the host's free disk space. On a volume below the worker's 7 % threshold they
+failed, because the worker paused new runs; this was seen on the development machine at 6.9 % free. They now pass zero thresholds, and
+the whole suite passes with `shutil.disk_usage` patched to report 1 % free. The Devpost draft drops the same Lightning claim. The 0.10.2
+pin is recorded below once its suites have run.

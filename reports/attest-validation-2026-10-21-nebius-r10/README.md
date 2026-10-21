@@ -72,3 +72,24 @@ diff is in `disk/`); Attest's release, data, journals and backups were unchanged
 `alphapilot-s2-financial:20260725` (355 MB), and the build cache (92.5 MB) were removed; images of stopped containers were kept, and no
 container was touched. Free space afterwards: 3.50 GB (24.2%); the console's health read 3338 MB free, `accepting_runs` true, 0 holds.
 The record names other projects' containers, so it stays private (`EXCLUDE_PATHS` of the export).
+
+## The one-hour sweep (`reconciliation/final-sweep/`, 04:19:47 UTC)
+
+The six uncertain spawns were checked once more, 61 minutes after the last of them and 2 h 24 min after the first. The check used the same
+script, unchanged. All six items are acknowledged, so the batch's pending file is empty. The script therefore read the six `sandbox_spawn`
+items, rebuilt from `reconciliations.jsonl` (`items-rebuilt-from-reconciliations.json`), through a scratch directory that links the
+batch's `runs/` and `evaluation.json`. It made 6 requests, all GETs.
+
+| Item | Sent (UTC) | Listed in its window | Positive control | Candidates |
+| --- | --- | --- | --- | --- |
+| `u-3fe0bf36cb94` | 01:55:19 | 163 | 3 of 3 | none |
+| `u-08be0f038547` | 02:07:32 | 151 | 13 of 13 | none |
+| `u-f630a0043968` | 02:07:32 | 151 | 13 of 13 | none |
+| `u-b579f63fe452` | 02:30:46 | 103 | 1 of 1 | none |
+| `u-bfaa6f65e2b9` | 02:42:17 | 71 | 1 of 1 | none |
+| `u-11905c7a7e76` | 03:18:26 | 13 | 4 of 4 | none |
+
+Every operation listed in these windows is accounted for. The only operations that no batch record names are six in the first window,
+created between 01:52:13 and 01:52:48. They are the second smoke test's own operations (`impl-python-5`, `impl-python-6`,
+`impl-tests-7`, `verify`, `existing`, `heldout` of `rle-encode-20261021T015058Z`), which finished before the batch started. The finding
+stands: none of the six spawns answered with HTTP 500 executed.

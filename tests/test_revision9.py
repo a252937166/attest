@@ -971,7 +971,7 @@ class ConsoleHolds(unittest.TestCase):
         self.tmp = temp_dir(self)
         self.store = Store(self.tmp / "attest.db")
         with mock.patch.object(Worker, "_loop", lambda self: None):
-            self.worker = Worker(self.store, self.tmp, TASK.parent.parent, max_turns=6)
+            self.worker = Worker(self.store, self.tmp, TASK.parent.parent, max_turns=6, min_free_frac=0.0, min_free_mb=0)  # the host's free space is not under test
         self.per_run: dict[str, _Requests] = {}
 
     def runtime(self, stops: dict):
