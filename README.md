@@ -9,6 +9,8 @@ and the usage ledger.
 Watch the [2 min 50 s demonstration](https://youtu.be/EwW-yEKCk1A): a real Nemotron run ends NO CHANGE, followed by separately
 labelled VERIFIED and refusal cases from the recorded evaluation, and an offline check of the downloaded evidence.
 
+Submitted to the Nebius x NVIDIA Global AI Hackathon on 21 Oct 2026: [Attest on Devpost](https://devpost.com/software/attest-60l9df).
+
 At a glance (21 Oct 2026). Live console: https://attest.axiqo.xyz (recorded runs first; a live Nemotron run starts only after an
 explicit confirmation, within a daily cap). The latest evaluation on NVIDIA Nemotron, 32 cells on one suite: the plain agent shipped 2
 broken patches and Attest none; Attest refused the task that cannot be satisfied both times, and it accepted 2 correct patches to the
