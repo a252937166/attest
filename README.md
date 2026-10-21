@@ -204,6 +204,11 @@ runs one job at a time. A read-only sweep one hour after the last uncertain spaw
 repository (https://github.com/a252937166/attest) replays the review history with the owner's identity on every commit and the session
 scratch paths rewritten; `FREEZE.md` maps every pin to its published commit.
 
+Console release 0.10.2 (deployed 21 Oct 2026, 04:57 UTC; `reports/attest-deployment-2026-10-21b/README.md`) corrects the page in three
+places. It no longer names Nemotron 3.5 Lightning, which no recorded run called. The architecture names the revision each evaluation
+recorded. The home counts cover every run: the page had counted only the newest 50 of 74. The same read-only checks as for 0.10.1 all
+pass, and the demonstration film's console footage was recorded on this release.
+
 Gateway operations update (17 Oct 2026): the self-hosted Codex API's hourly request cap has been removed and the
 Aliyun backend deployed and verified. Authentication, daily caps, one active request/eight waiting slots, priorities,
 deadlines and ingress protection remain. See [deployment and regression evidence](reports/codex-gateway-hourly-limit-removal-2026-10-17/README.md).

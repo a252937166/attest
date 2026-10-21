@@ -721,3 +721,10 @@ The release is built from a clean checkout of this pin record, which carries the
 git clone https://github.com/a252937166/attest attest-0102 && cd attest-0102 && git checkout 3d3ffeab098e1236ac51b33aa1c3a94aa6eb899e
 # the same tree as review-repository commit 7c48b3f8a1398ce4f5426f96d29e659d6ac38458
 ```
+
+
+# The 0.10.2 deployment (21 Oct 2026)
+
+0.10.2 was deployed to yungou at 04:57 UTC from a clean worktree of the pin record `681f7cb` (release `0.10.2-6104fd89f66a`;
+`reports/attest-deployment-2026-10-21b/README.md`); 0.10.1 is the rollback target, checked in place. The console footage of the
+demonstration film was recorded read-only on this release.
