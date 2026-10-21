@@ -193,12 +193,72 @@
   const currentTask = () => state.tasks.find((t) => t.task_id === state.task) || state.tasks[0] || null;
   const currentProfile = () => state.profiles.find((p) => p.id === state.profile) || state.profiles[0] || null;
 
+  // ------------------------------------------------------------------ task picker (0.10.3): a listbox in place of the native select,
+  // named from the server's `display` fields (short title, repository, issue, the qualifier that tells variants apart)
+  const taskTitle = (t) => (t.display && t.display.title) || t.title;
+  const taskFacts = (t) => {   // chips in the list: they wrap cleanly at any width
+    const d = t.display || {};
+    const facts = [d.repository, d.sample && d.repository ? "sample repository" : null, d.issue, t.runner].filter(Boolean);
+    return facts.map((m) => `<span>${esc(m)}</span>`).join("") + (t.heldout ? '<span class="pk-heldout">held-out tests</span>' : "");
+  };
+  const taskLine = (t) => {    // one line under the closed picker's title, cut with an ellipsis when the column is narrow
+    const d = t.display || {};
+    return [d.repository ? (d.sample ? `${d.repository}, sample repository` : d.repository) : null, d.issue, t.heldout ? "held-out tests" : null]
+      .filter(Boolean).join(" \u00b7 ");
+  };
+  const picker = { active: null };
+  function renderTaskPicker() {
+    const t = currentTask();
+    $("#task-current").innerHTML = t
+      ? `<span class="pk-title">${esc(taskTitle(t))}${t.display && t.display.note ? `<span class="pk-note">, ${esc(t.display.note)}</span>` : ""}</span><span class="pk-line">${esc(taskLine(t))}</span>`
+      : `<span class="pk-title">${state.tasksFailed ? "The sample tasks could not be loaded" : "No sample tasks are configured"}</span>`;
+    $("#task").disabled = !state.tasks.length;
+    $("#task-list").innerHTML = state.tasks.map((x) => {
+      const e = x.estimate || {}, verdict = e.latest_evidence_verdict, runs = e.recorded_runs || 0, sel = x.task_id === state.task;
+      return `<li role="option" class="pk-opt" id="task-opt-${esc(x.task_id)}" data-task-option="${esc(x.task_id)}" aria-selected="${sel}">
+        <svg class="pk-tick" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="pk-text"><span class="pk-title">${esc(taskTitle(x))}</span>${x.display && x.display.note ? `<span class="pk-note">${esc(x.display.note)}</span>` : ""}<span class="pk-meta">${taskFacts(x)}</span></span>
+        <span class="pk-side">${verdict ? `<span class="seal ${vclass(verdict)}" title="Latest Attest verdict">${esc(verdict)}</span>` : ""}<span class="pk-runs">${runs} recorded run${runs === 1 ? "" : "s"}</span></span>
+      </li>`;
+    }).join("");
+    if ($("#task-list").hidden === false) pickerMark(picker.active);
+  }
+  function pickerMark(id) {
+    picker.active = id;
+    $$("#task-list [data-task-option]").forEach((li) => li.classList.toggle("active", li.dataset.taskOption === id));
+    const li = id && $(`#task-opt-${CSS.escape(id)}`);
+    $("#task-list").setAttribute("aria-activedescendant", li ? li.id : "");
+    if (li) li.scrollIntoView({ block: "nearest" });
+  }
+  function pickerOpen() {
+    if (!state.tasks.length) return;
+    $("#task-list").hidden = false; $("#task").setAttribute("aria-expanded", "true"); $("#task-picker").classList.add("open");
+    $("#task-picker").closest(".step")?.classList.add("picker-open");   // above the next steps and sections, whose reveal gives them their own layer
+    $("#task-picker").closest(".startband, .rail")?.classList.add("picker-host");
+    pickerMark(state.task); $("#task-list").focus({ preventScroll: true });
+  }
+  function pickerClose(returnFocus) {
+    if ($("#task-list").hidden) return;
+    $("#task-list").hidden = true; $("#task").setAttribute("aria-expanded", "false"); $("#task-picker").classList.remove("open");
+    $("#task-picker").closest(".step")?.classList.remove("picker-open");
+    $("#task-picker").closest(".startband, .rail")?.classList.remove("picker-host");
+    if (returnFocus) $("#task").focus({ preventScroll: true });
+  }
+  function chooseTask(id) {
+    if (!state.tasks.some((t) => t.task_id === id)) return;
+    const changed = id !== state.task;
+    state.task = id; pickerClose(true);
+    if (changed) { confirmClose(); renderTasks(); }
+  }
+  function pickerMove(step) {
+    const ids = state.tasks.map((t) => t.task_id), i = ids.indexOf(picker.active);
+    pickerMark(ids[step === "first" ? 0 : step === "last" ? ids.length - 1 : Math.min(ids.length - 1, Math.max(0, (i < 0 ? 0 : i) + step))]);
+  }
+
   function renderTasks() {
-    const sel = $("#task");
     const keep = state.task;
-    sel.innerHTML = state.tasks.map((t) => `<option value="${esc(t.task_id)}">${esc(t.title)}${t.heldout ? " (with held-out tests)" : ""}</option>`).join("");
     if (!state.tasks.some((t) => t.task_id === keep)) state.task = state.tasks[0] ? state.tasks[0].task_id : null;
-    if (state.task) sel.value = state.task;
+    renderTaskPicker();
     $("#start-tasks").textContent = state.tasks.length ? `${state.tasks.length} sample task${state.tasks.length === 1 ? "" : "s"} are available.` : "";
     renderEstimate();
   }
@@ -227,16 +287,17 @@
     const b = h.budget || {};
     const p = currentProfile();
     const statement = (t.statement || "").trim();
-    brief.innerHTML = `${esc(statement.length > 150 ? statement.slice(0, 150).replace(/\s+\S*$/, "") + "…" : statement)} <span class="muted">${t.criteria || 0} acceptance criteria.</span>${e.latest_verdict ? ` <span class="seal ${vclass(e.latest_verdict)}" title="Latest recorded verdict">${esc(e.latest_verdict)}</span>` : ""}`;
+    brief.innerHTML = `${esc(statement.length > 150 ? statement.slice(0, 150).replace(/\s+\S*$/, "") + "…" : statement)} <span class="muted">${t.criteria || 0} acceptance criteria.</span>${e.latest_evidence_verdict ? ` <span class="seal ${vclass(e.latest_evidence_verdict)}" title="Latest Attest verdict">${esc(e.latest_evidence_verdict)}</span>` : ""}`;
     price.textContent = e.runs && e.cost_min_usd != null ? (usd(e.cost_min_usd) === usd(e.cost_max_usd) ? usd(e.cost_min_usd) : `${usd(e.cost_min_usd)} to ${usd(e.cost_max_usd)}`) : `up to ${usd(b.per_run_cap_usd ?? 0.5)}`;
     if (state.mode === "browse") {
-      box.innerHTML = e.latest_run_id ? `Opens the latest recorded run of this task (${esc(e.latest_verdict || "finished")}). No inference, no cost.`
+      box.innerHTML = e.latest_evidence_run_id ? `Opens the latest Attest verdict on this task (${esc(e.latest_evidence_verdict)}, ${esc(when(e.latest_evidence_at))}). No inference, no cost.`
+        : e.latest_run_id ? `No Attest verdict on this task yet: opens its latest recorded run (${esc(e.latest_verdict || "finished")}). No inference, no cost.`
         : "No recorded run of this task yet. Pick another task or run it live.";
       go.textContent = "Open the latest recorded run";
-      go.disabled = !e.latest_run_id;
+      go.disabled = !(e.latest_evidence_run_id || e.latest_run_id);
     } else {
       const range = e.runs ? `Recorded runs of this task: <strong>${e.cost_min_usd != null ? `${usd(e.cost_min_usd)} to ${usd(e.cost_max_usd)}` : "team allowance"}</strong> of inference, <strong>${dur(e.duration_min_s)} to ${dur(e.duration_max_s)}</strong> (${e.runs} run${e.runs === 1 ? "" : "s"}).`
-        : "No recorded runs of this task yet, so there is no estimate.";
+        : "No finished Nemotron run of this task gives an estimate yet (runs stopped by infrastructure errors do not count).";
       const budget = b.remaining_usd != null ? ` Up to ${usd(b.per_run_cap_usd)} is reserved against today's cap while the run is queued or running; <strong>$${Number(b.remaining_usd).toFixed(2)}</strong> remains.` : "";
       const paused = pausedReason(h);
       box.innerHTML = range + budget + (paused === "paused for reconciliation"
@@ -959,7 +1020,8 @@
   async function startRun() {
     const t = currentTask(); if (!t) return;
     if (state.mode === "browse") {
-      if (t.estimate && t.estimate.latest_run_id) { await openRun(t.estimate.latest_run_id, false); $("#main").focus({ preventScroll: true }); }
+      const target = t.estimate && (t.estimate.latest_evidence_run_id || t.estimate.latest_run_id);
+      if (target) { await openRun(target, false); $("#main").focus({ preventScroll: true }); }
       return;
     }
     confirmOpen();  // nothing is sent from here
@@ -1037,15 +1099,26 @@
     else if (t.dataset.copyPatch) copyPatch(t, t.dataset.copyPatch);
     else if (t.dataset.retryFinal) finishLive(t.dataset.retryFinal);
     else if (t.hasAttribute("data-copy-link")) copyLink(t);
-    else if (t.dataset.newRun !== undefined) { state.mode = "live"; $("input[name=mode][value=live]").checked = true; if (state.tasks.some((x) => x.task_id === t.dataset.newRun)) { state.task = t.dataset.newRun; $("#task").value = state.task; } renderEstimate(); $("#rail-details").open = true; $("#go").focus(); }
+    else if (t.dataset.newRun !== undefined) { state.mode = "live"; $("input[name=mode][value=live]").checked = true; if (state.tasks.some((x) => x.task_id === t.dataset.newRun)) { state.task = t.dataset.newRun; renderTaskPicker(); } renderEstimate(); $("#rail-details").open = true; $("#go").focus(); }
     else if (t.hasAttribute("data-home")) { e.preventDefault(); showHome({}); }
     else if (t.dataset.section) { e.preventDefault(); goToSection(t.dataset.section); }
     else if (t.hasAttribute("data-start")) { e.preventDefault(); goToSection("start", "#task"); }
     else if (t.hasAttribute("data-guide-open")) guideOpen();
   });
+  $("#task").addEventListener("click", () => ($("#task-list").hidden ? pickerOpen() : pickerClose(true)));
+  $("#task").addEventListener("keydown", (e) => { if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) { e.preventDefault(); pickerOpen(); } });
+  $("#task-list").addEventListener("click", (e) => { const li = e.target.closest("[data-task-option]"); if (li) chooseTask(li.dataset.taskOption); });
+  $("#task-list").addEventListener("mousemove", (e) => { const li = e.target.closest("[data-task-option]"); if (li && li.dataset.taskOption !== picker.active) pickerMark(li.dataset.taskOption); });
+  $("#task-list").addEventListener("keydown", (e) => {
+    const keys = { ArrowDown: 1, ArrowUp: -1, Home: "first", End: "last" };
+    if (e.key in keys) { e.preventDefault(); pickerMove(keys[e.key]); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (picker.active) chooseTask(picker.active); }
+    else if (e.key === "Escape") { e.preventDefault(); pickerClose(true); }
+    else if (e.key === "Tab") pickerClose(false);
+  });
+  document.addEventListener("pointerdown", (e) => { if (!e.target.closest("#task-picker")) pickerClose(false); });
   document.addEventListener("change", (e) => {
     if (e.target.name === "mode") { state.mode = e.target.value; confirmClose(); renderEstimate(); }
-    else if (e.target.id === "task") { state.task = e.target.value; confirmClose(); renderEstimate(); }
     else if (e.target.id === "profile") { state.profile = e.target.value; confirmClose(); renderEstimate(); }
     else if (e.target.id === "only-red") { state.onlyRed = e.target.checked; renderPanel(); }
   });

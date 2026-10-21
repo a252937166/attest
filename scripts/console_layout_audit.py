@@ -88,7 +88,7 @@ AUDIT_JS = r"""() => {
 }"""
 
 
-def start_local(imports, team_token=None):
+def start_local(imports, team_token=None, disk_guard=True):
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]
     data = Path(tempfile.mkdtemp(prefix="attest-overflow-"))
@@ -98,6 +98,8 @@ def start_local(imports, team_token=None):
     env.update({"HOME": str(home), "ATTEST_SECRETS_NOTES": str(home / "none.json"), "ATTEST_DATA_DIR": str(data),
                 "ATTEST_IMPORT_DIRS": ":".join(str(ROOT / p) for p in imports), "ATTEST_IMPORT_PROVIDERS": "codex,nebius",
                 "ATTEST_ADMIN_TOKEN": team_token or secrets.token_hex(12), "NO_PROXY": "*"})  # the local server's own throwaway token
+    if not disk_guard:  # --no-disk-guard: the developer machine's free space is not under test (the live-mode controls stay enabled)
+        env.update({"ATTEST_MIN_FREE_FRAC": "0", "ATTEST_MIN_FREE_MB": "0"})
     python = os.environ.get("ATTEST_AUDIT_SERVER_PYTHON") or (str(ROOT / ".venv/bin/python") if (ROOT / ".venv/bin/python").exists() else sys.executable)
     server = subprocess.Popen([python, "-m", "uvicorn", "attest.app.server:app", "--host", "127.0.0.1", "--port", str(port)],
                               cwd=str(ROOT), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -120,13 +122,14 @@ def main():
     ap.add_argument("--per-verdict", type=int, default=3)
     ap.add_argument("--headed", action="store_true", help="show the browser window (the same installed Chrome, not headless)")
     ap.add_argument("--press-confirm", action="store_true", help="press the confirmation button (local: answered synthetically; public host: the page must refuse in an automated browser, and every non-GET is aborted anyway)")
+    ap.add_argument("--no-disk-guard", action="store_true", help="local only: the local server ignores this machine's free disk space, which would otherwise pause live mode on a nearly full disk")
     ap.add_argument("--team-token", default="", help="local only: sign in through the console with this token (POST /api/profiles to the local server)")
     args = ap.parse_args()
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     server = None
     base = args.base
     if not base:
-        server, base = start_local(IMPORTS, args.team_token or None)
+        server, base = start_local(IMPORTS, args.team_token or None, disk_guard=not args.no_disk_guard)
     elif args.synthetic_posts:
         raise SystemExit("--synthetic-posts is for the local server only")
     host = urlparse(base).hostname
@@ -208,6 +211,11 @@ def main():
                 entry.setdefault("notes", []).append("the hero replay did not finish within 30 s")
             page.evaluate("() => document.querySelectorAll('details').forEach(d => d.open = true)")
             audit("home, every details open", "home-open")
+            # the task picker (0.10.3) opens a listbox over the page: its options must fit at every width too
+            if page.locator("#task-list").count():
+                page.locator("#task").click(); page.wait_for_timeout(400)
+                audit("home, task picker open", "home-picker")
+                page.keyboard.press("Escape"); page.wait_for_timeout(200)
             # live mode selected (the paid mode): its explanation and the start button must fit too
             live = page.locator("input[name=mode][value=live]")
             if live.count():
@@ -236,6 +244,10 @@ def main():
                 page.wait_for_timeout(1200)
                 tag = (r.get("verdict") or r.get("status") or "run").lower().replace(" ", "-")
                 audit(f"run {rid} overview", f"run-{tag}")
+                if r is picks[0] and page.locator("#task").count() and page.locator("#task").is_visible():
+                    page.locator("#task").click(); page.wait_for_timeout(400)
+                    audit(f"run {rid}, task picker open in the rail", f"run-{tag}-picker")
+                    page.keyboard.press("Escape"); page.wait_for_timeout(200)
                 tabs = page.locator("[role=tab]:not([disabled])")
                 for i in range(tabs.count()):
                     name = tabs.nth(i).inner_text().strip().split("\n")[0][:20]

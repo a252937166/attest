@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import queue
+import re
 import shutil
 import threading
 import time
@@ -63,6 +64,33 @@ def per_run_max_calls() -> int:
         LOG.warning("ignoring an unusable %s=%r; the per-run call cap stays %d", PER_RUN_MAX_CALLS_ENV, raw, DEFAULT_PER_RUN_MAX_CALLS)
         return DEFAULT_PER_RUN_MAX_CALLS
     return value
+
+
+# A title that cites its upstream issue: "<what> to <repo> (upstream issue #N)[, <qualifier>]" or "<what> (<repo> issue #N)"
+TITLE_REFERENCE = re.compile(r"^(?P<title>.+?)(?: to (?P<repo>[\w.-]+))? \((?:upstream )?(?:(?P<repo2>[\w.-]+) )?issue #(?P<issue>\d+)\)(?:, (?P<note>.+))?$")
+
+
+def task_display(data: dict) -> dict:
+    """How the console's task picker names a task, derived from the task file without changing it (the evaluated examples keep their
+    digests): a short title, the repository (the upstream project, or the bundled sample package when there is no upstream), the issue
+    the title cites, and the qualifier that tells two variants of one task apart. A title that does not follow the pattern, or that names
+    another repository than its upstream, is shown whole."""
+    title = data.get("title") or data.get("id") or ""
+    upstream = data.get("upstream") if isinstance(data.get("upstream"), dict) else {}
+    url = str(upstream.get("url") or "").rstrip("/")
+    repository = url.rsplit("/", 1)[-1] if url else None
+    short, issue, note = title, None, None
+    match = TITLE_REFERENCE.match(title)
+    named = match and (match.group("repo") or match.group("repo2"))
+    if match and (not named or repository is None or named == repository):
+        short, issue, note = match.group("title"), f"issue #{match.group('issue')}", match.group("note")
+        repository = repository or named or None
+    if repository is None:
+        globs = [g for g in data.get("allowed_write_globs") or [] if isinstance(g, str) and "/" in g]
+        repository = globs[0].split("/", 1)[0] if globs else None
+    commit = str(upstream.get("commit") or "")[:7] or None
+    return {"title": short, "note": note, "repository": repository, "sample": not url, "issue": issue,
+            "upstream_url": url or None, "upstream_commit": commit}
 
 
 class WorkerUnavailable(RuntimeError):
@@ -206,7 +234,7 @@ class Worker:
                 continue
             items.append({"task_id": data["id"], "title": data["title"], "runner": data.get("test_runner", "unittest"),
                           "path": str(path), "statement": data["statement"][:400], "criteria": len(data.get("acceptance_criteria", [])),
-                          "heldout": bool(data.get("heldout_tests"))})
+                          "heldout": bool(data.get("heldout_tests")), "display": task_display(data)})
         return items
 
     def task_path(self, task_id: str) -> Path | None:

@@ -728,3 +728,24 @@ git clone https://github.com/a252937166/attest attest-0102 && cd attest-0102 && 
 0.10.2 was deployed to yungou at 04:57 UTC from a clean worktree of the pin record `681f7cb` (release `0.10.2-6104fd89f66a`;
 `reports/attest-deployment-2026-10-21b/README.md`); 0.10.1 is the rollback target, checked in place. The console footage of the
 demonstration film was recorded read-only on this release.
+
+
+# Release 0.10.3: the task picker (21 Oct 2026)
+
+The owner asked for a more refined task menu. The native select grew as wide as its longest title. Most of its options repeated the
+title's issue reference and ended in "(with held-out tests)", and the two `is_compatible` variants were hard to tell apart. 0.10.3
+replaces it with a listbox. Each task shows:
+- a short title, plus the qualifier that tells the two variants apart;
+- its facts as chips: repository, issue, test runner, held-out tests;
+- its latest Attest verdict and the number of recorded runs.
+
+The labels are derived on the server from the task files, which are read and not changed (`attest.app.worker.task_display`), so the
+evaluated examples keep their digest. The listbox works with the keyboard (arrows, Home and End, Enter or Space, Escape) and closes
+on an outside click.
+
+Browsing a task now opens its latest Attest verdict (`latest_evidence_*` in `/api/tasks`), not its latest finished run of any kind.
+Since the 21 Oct evaluation, two of the four public tasks had an infrastructure ERROR as their latest run. A task without any Attest
+verdict still opens its latest run, and the page says so.
+
+Asset stamp `20261021b`. Tests: `tests/test_task_picker.py`. The layout audit now opens the picker at every width, and its new
+`--no-disk-guard` option lets its local server ignore the developer machine's free disk space.

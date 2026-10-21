@@ -509,7 +509,8 @@ def tasks(request: Request):
     items = []
     for item in worker.tasks():
         estimate = estimates.get(item["task_id"]) or {"runs": 0, "recorded_runs": 0, "cost_min_usd": None, "cost_max_usd": None, "duration_min_s": None,
-                                                      "duration_max_s": None, "latest_run_id": None, "latest_verdict": None, "estimate_provider": "nebius"}
+                                                      "duration_max_s": None, "latest_run_id": None, "latest_verdict": None, "estimate_provider": "nebius",
+                                                      "latest_evidence_run_id": None, "latest_evidence_verdict": None, "latest_evidence_at": None}
         items.append({**{k: v for k, v in item.items() if k != "path"}, "estimate": estimate})
     return {"tasks": items}
 

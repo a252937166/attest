@@ -313,7 +313,9 @@ class Store:
         """Per task: the latest recorded run and, from completed runs of the public provider only, how many there are and
         their cost and duration ranges. Runs that ended in an infrastructure ERROR or belonged to the evaluation's baseline
         arm say nothing about what a live run costs, so they are left out of the ranges; synthetic replay fixtures are left
-        out entirely. Team runs are considered only for a caller who may see them (`include_team`)."""
+        out entirely. Team runs are considered only for a caller who may see them (`include_team`). `latest_evidence_*` names the
+        latest run with an Attest verdict (neither an infrastructure ERROR nor the baseline arm): the run the console opens when a
+        visitor browses a task (0.10.3), while `latest_run_id` stays the latest finished run of any kind."""
         visible = "" if include_team else f"AND visibility = '{PUBLIC}' "
         rows = self._rows("SELECT run_id, task_id, verdict, status, provider, cost_usd, cost_committed_usd, started_at, finished_at, created_at "
                           "FROM runs WHERE status = 'finished' AND COALESCE(requester, '') != 'replay' AND profile_label NOT LIKE 'replay%' "
@@ -322,8 +324,12 @@ class Store:
         for row in rows:
             entry = out.setdefault(row["task_id"], {"runs": 0, "cost_min_usd": None, "cost_max_usd": None, "duration_min_s": None,
                                                      "duration_max_s": None, "latest_run_id": row["run_id"], "latest_verdict": row["verdict"],
-                                                     "estimate_provider": provider, "recorded_runs": 0})
+                                                     "estimate_provider": provider, "recorded_runs": 0, "latest_evidence_run_id": None,
+                                                     "latest_evidence_verdict": None, "latest_evidence_at": None})
             entry["recorded_runs"] += 1
+            if entry["latest_evidence_run_id"] is None and row["verdict"] and row["verdict"] not in exclude_verdicts:
+                entry["latest_evidence_run_id"], entry["latest_evidence_verdict"] = row["run_id"], row["verdict"]
+                entry["latest_evidence_at"] = row["finished_at"] or row["created_at"]
             if row["provider"] != provider or row["verdict"] in exclude_verdicts:
                 continue
             entry["runs"] += 1
