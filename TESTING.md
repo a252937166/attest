@@ -16,9 +16,14 @@ inference and Sandbox charges for the operator.
 
 ## 1. Offline, no credentials (about two minutes)
 
+Use Python 3.12 or newer. Install the pinned console runtime requirements and HTTPX as well as the development extra:
+the full suite exercises FastAPI's `TestClient`, which needs both FastAPI and HTTPX.
+
 ```bash
-python3 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
-python3 -m unittest discover -s tests -t .
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e ".[dev]" -r deploy/yungou/requirements.txt "httpx==0.28.1"
+python -m unittest discover -s tests -t .
 ```
 
 The suite runs the pipeline against a fake provider and a fake sandbox (every verdict path, tampering scenarios, the
