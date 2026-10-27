@@ -18,6 +18,42 @@ plain agent's 8; other runs required review, stopped on infrastructure uncertain
 (`reports/attest-evaluation-2026-10-21-nebius-r10/README.md`). Judges: start at
 [For judges](#for-judges). The dated paragraphs below record the project's history.
 
+## Quick start
+
+Python 3.12 or newer (`python3 --version`). After the install, the first block needs no account, key or network, and costs
+nothing.
+
+```bash
+git clone https://github.com/a252937166/attest && cd attest
+python3 -m venv .venv && . .venv/bin/activate
+python -m pip install -e ".[dev]" -r deploy/yungou/requirements.txt "httpx==0.28.1"   # the same install as TESTING.md
+
+# the offline test suite: 503 tests, about three minutes
+python -m unittest discover -s tests -t .
+
+# re-check a recorded Proof Bundle, a VERIFIED run of the 21 Oct evaluation, in under a second
+python -m attest check reports/attest-evaluation-2026-10-21-nebius-r10/batch/runs/slugkit-regression-001-attest-a1-20261021T030502372330Z
+
+# browse the evaluation's 32 runs and the filmed live run in a local console at http://127.0.0.1:4070
+ATTEST_DATA_DIR=./data ATTEST_ADMIN_TOKEN=change-me \
+ATTEST_IMPORT_DIRS=reports/attest-evaluation-2026-10-21-nebius-r10/batch/runs:reports/attest-demo-run-2026-10-21/bundle \
+  python -m uvicorn attest.app.server:app --host 127.0.0.1 --port 4070
+```
+
+A live run on NVIDIA Nemotron uses your own Nebius Token Factory key and project, and Nebius bills it: inference is capped per
+run by `--usd-cap`, and Sandboxes are metered separately.
+
+```bash
+export NEBIUS_API_KEY="..." NEBIUS_PROJECT_ID="..."
+python -m attest run --task examples/durationkit-task/task.json --out runs --provider nebius --usd-cap 0.5
+python -m attest check runs/<run-id>
+```
+
+[TESTING.md](TESTING.md) says what each check proves, [PILOT.md](PILOT.md) runs Attest on your own repository, and
+[Running](#running) lists every command. The hosted console is https://attest.axiqo.xyz.
+
+## Project history
+
 Status (16 Oct 2026): end-to-end pipeline with a hardened, privilege-separated verifier, a web console/API, and a live
 deployment, plus a controlled evaluation against a plain agent. Start with the dated reports:
 `reports/attest-hardening-2026-10-16/README.md` (verifier privilege separation, budget, disk, arbitration, implementer
@@ -460,9 +496,13 @@ Development results and submission results are never pooled.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install "fastapi==0.115.5" "uvicorn[standard]==0.32.1" jsonschema certifi
-ATTEST_DATA_DIR=./data ATTEST_IMPORT_DIRS=./runs ATTEST_ADMIN_TOKEN=change-me \
+ATTEST_DATA_DIR=./data ATTEST_ADMIN_TOKEN=change-me \
+ATTEST_IMPORT_DIRS=reports/attest-evaluation-2026-10-21-nebius-r10/batch/runs:reports/attest-demo-run-2026-10-21/bundle:./runs \
   .venv/bin/python -m uvicorn attest.app.server:app --host 127.0.0.1 --port 4070
 ```
+
+`ATTEST_IMPORT_DIRS` is a colon-separated list of directories whose run folders the console imports at start-up: here the 32
+runs of the 21 Oct evaluation, the filmed live run and, once you have made some, your own runs under `runs/`.
 
 Open http://127.0.0.1:4070. The home page says what problem Attest solves, how a run earns its verdict, who provides the
 core capabilities (NVIDIA Nemotron on Nebius Token Factory, Token Factory Sandboxes, Attest's own supervisor) and how
